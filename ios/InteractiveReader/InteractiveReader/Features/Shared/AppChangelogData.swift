@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "youtube-video-download-safe-exists",
+                    title: "YouTube downloads tolerate NAS races",
+                    detail: "YouTube video download recovery now checks completed partials and prepared yt-dlp fallback files through NAS-tolerant stat probes, reducing transient source import failures shared by Web and Apple video Create flows."
+                ),
+                AppChangelogEntry(
                     id: "public-epub-acquire-safe-verify",
                     title: "Public EPUB imports verify safely",
                     detail: "Reviewed Gutenberg and Internet Archive EPUB acquisition now verifies downloaded files through the same NAS-tolerant stat helper used by source discovery, returning a controlled error if final metadata cannot be read."

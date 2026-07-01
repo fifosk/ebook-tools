@@ -40,6 +40,25 @@ def test_finalize_partial_download_skips_stale_partials(
     assert not stable_partial.exists()
 
 
+def test_finalize_partial_download_uses_safe_stat_for_completed_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    partial = tmp_path / "Demo [abc].mp4.part"
+    existing = tmp_path / "Demo [abc]_yt.mp4"
+    partial.write_bytes(b"partial")
+    existing.write_bytes(b"existing")
+
+    def fail_exists(path: Path) -> bool:
+        raise AssertionError("partial recovery should probe completed files via safe_stat")
+
+    monkeypatch.setattr(Path, "exists", fail_exists)
+
+    assert _finalize_partial_download(tmp_path, "Demo [abc]") is None
+    assert partial.read_bytes() == b"partial"
+    assert existing.read_bytes() == b"existing"
+
+
 def test_recent_files_stops_on_candidate_scan_failure(tmp_path: Path) -> None:
     stable = tmp_path / "stable.mp4"
     stable.write_bytes(b"video")
@@ -168,6 +187,58 @@ def test_download_video_falls_back_to_prepared_filename_when_output_scan_fails(
     monkeypatch.setattr(youtube_subtitles, "YoutubeDL", _FakeYoutubeDL)
     monkeypatch.setattr(youtube_subtitles, "_extract_with_backoff", fake_extract)
     monkeypatch.setattr(Path, "iterdir", fake_iterdir)
+
+    downloaded = download_video("https://youtube.example/watch?v=abc", output_root=tmp_path, timestamp=timestamp)
+
+    assert downloaded == download_dir / "Demo [abc]_yt.mp4"
+    assert downloaded.read_bytes() == b"video"
+
+
+def test_download_video_fallback_uses_safe_stat_for_prepared_filename(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    timestamp = datetime(2026, 6, 24, 12, 0, 0)
+    download_dir = tmp_path / "Demo - 2026-06-24 12-00-00"
+
+    class _FakeYoutubeDL:
+        def __init__(self, options):
+            self.params = options
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args) -> None:
+            return None
+
+        def prepare_filename(self, _info) -> str:
+            return str(self.params["outtmpl"]).replace("%(ext)s", "mp4")
+
+    def fake_extract(ydl, _url: str, *, download: bool):
+        assert download
+        output_path = Path(ydl.prepare_filename({}))
+        output_path.write_bytes(b"video")
+        return {"id": "abc", "title": "Demo"}
+
+    original_iterdir = Path.iterdir
+
+    def fake_iterdir(path: Path):
+        if path == download_dir:
+            raise OSError("transient NAS scan failure")
+        return original_iterdir(path)
+
+    def fail_exists(path: Path) -> bool:
+        raise AssertionError("download fallback should probe prepared filename via safe_stat")
+
+    monkeypatch.setattr(
+        youtube_subtitles,
+        "list_available_subtitles",
+        lambda _url: YoutubeSubtitleListing("abc", "Demo", [], []),
+    )
+    monkeypatch.setattr(youtube_subtitles, "YoutubeDL", _FakeYoutubeDL)
+    monkeypatch.setattr(youtube_subtitles, "_extract_with_backoff", fake_extract)
+    monkeypatch.setattr(Path, "iterdir", fake_iterdir)
+    monkeypatch.setattr(Path, "exists", fail_exists)
 
     downloaded = download_video("https://youtube.example/watch?v=abc", output_root=tmp_path, timestamp=timestamp)
 

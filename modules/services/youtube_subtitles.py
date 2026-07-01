@@ -512,6 +512,10 @@ def _safe_iterdir(path: Path, *, context: str) -> List[Path]:
         return []
 
 
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
 def _finalize_partial_download(base_dir: Path, media_base: str) -> Optional[Path]:
     """Attempt to rescue a completed .part file if yt-dlp bailed mid-rename."""
 
@@ -534,7 +538,7 @@ def _finalize_partial_download(base_dir: Path, media_base: str) -> Optional[Path
         target_path = partial.with_suffix("")  # drop the trailing .part
         candidate = _tagged_youtube_path(target_path)
         # Avoid clobbering an existing completed file.
-        if candidate.exists():
+        if _path_exists(candidate):
             continue
         try:
             partial.rename(candidate)
@@ -625,7 +629,7 @@ def download_video(
             return candidate
 
         output_path = Path(ydl.prepare_filename(info))
-        if output_path.exists():
+        if _path_exists(output_path):
             candidate = _tag_youtube_filename(output_path)
             target_name = f"{media_base}_yt{candidate.suffix}"
             target_path = candidate.with_name(target_name)
