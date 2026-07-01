@@ -19,6 +19,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web and Apple resume/bookmark playback-state files now load and clear through tolerant stat checks, keeping Continue and bookmark sync steadier when shared storage races with remounts.
 - Web and Apple job status image-generation summaries now probe image prompt-plan metadata through tolerant stat checks, avoiding direct metadata existence races on NAS-backed job roots.
 - Web and Apple lookup-cache builds now probe job roots and chunk metadata through tolerant stat checks, keeping precomputed word lookups steadier around NAS-backed job-root races.
+- Web and Apple metadata enrichment caches now load and delete cached lookup files through tolerant stat checks, avoiding direct cache-file existence races during Create metadata review.
 
 ## 2026-06-30
 

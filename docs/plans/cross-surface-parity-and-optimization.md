@@ -997,6 +997,9 @@ Optimization candidates:
   Lookup-cache builds now probe job roots and chunk metadata through the same
   tolerant stat helper, so Web and Apple precomputed word lookups can skip
   transiently missing NAS-backed chunks without failing the phase.
+  Metadata enrichment caches now load and delete cached lookup files through
+  the tolerant stat helper, so Web and Apple Create metadata review can treat
+  transient cache-file races as misses instead of filesystem failures.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

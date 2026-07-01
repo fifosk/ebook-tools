@@ -9,10 +9,15 @@ from pathlib import Path
 from typing import Optional
 
 from modules import logging_manager as log_mgr
+from modules.services.source_discovery import safe_stat
 
 from .types import LookupQuery, UnifiedMetadataResult
 
 logger = log_mgr.get_logger().getChild("services.metadata.cache")
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 class MetadataCache:
@@ -73,7 +78,7 @@ class MetadataCache:
         key = self._cache_key(query)
         path = self._cache_path(key)
 
-        if not path.exists():
+        if not _path_exists(path):
             return None
 
         try:
@@ -150,7 +155,7 @@ class MetadataCache:
         key = self._cache_key(query)
         path = self._cache_path(key)
 
-        if path.exists():
+        if _path_exists(path):
             try:
                 path.unlink()
                 logger.debug("Deleted cache entry for key %s", key)
