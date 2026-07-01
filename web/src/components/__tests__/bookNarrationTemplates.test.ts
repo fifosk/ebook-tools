@@ -6,7 +6,8 @@ import {
   buildBookNarrationTemplatePayload,
   buildSparseBookDiscoveryTemplateState,
   extractBookNarrationTemplateFormState,
-  resolveBookDiscoveryTemplateStateForInput
+  resolveBookDiscoveryTemplateStateForInput,
+  resolveBookNarrationTemplatePayloadExtras
 } from '../book-narration/bookNarrationTemplates';
 
 function candidate(overrides: Partial<AcquisitionCandidate> = {}): AcquisitionCandidate {
@@ -205,6 +206,60 @@ describe('bookNarrationTemplates', () => {
 
     expect(resolveBookDiscoveryTemplateStateForInput(state, '/books/other.epub')).toBe(state);
     expect(resolveBookDiscoveryTemplateStateForInput(null, '/books/other.epub')).toBeNull();
+  });
+
+  it('merges selected discovery state into saved template extras', () => {
+    const selectedDiscoveryState = {
+      media_kind: 'book',
+      provider: 'local_epub',
+      selected_path: '/books/current.epub'
+    };
+
+    expect(resolveBookNarrationTemplatePayloadExtras({
+      selectedDiscoveryTemplateState: selectedDiscoveryState,
+      sourceMode: 'upload',
+      discoveryProvider: 'manual_downloads',
+      discoveryQuery: 'ignored sparse query',
+      templatePayloadExtras: {
+        handoff_source: 'apple'
+      }
+    })).toEqual({
+      handoff_source: 'apple',
+      discovery_state: selectedDiscoveryState
+    });
+  });
+
+  it('builds sparse discovery extras for upload mode before candidate selection', () => {
+    expect(resolveBookNarrationTemplatePayloadExtras({
+      selectedDiscoveryTemplateState: null,
+      sourceMode: 'upload',
+      discoveryProvider: ' manual_downloads ',
+      discoveryQuery: '  dan brown origin  ',
+      templatePayloadExtras: null
+    })).toEqual({
+      discovery_state: {
+        media_kind: 'book',
+        provider: 'manual_downloads',
+        selected_provider: 'manual_downloads',
+        query: 'dan brown origin'
+      }
+    });
+  });
+
+  it('does not add book discovery extras for generated-source templates', () => {
+    const extras = {
+      generator_state: {
+        topic: 'Continue the current book'
+      }
+    };
+
+    expect(resolveBookNarrationTemplatePayloadExtras({
+      selectedDiscoveryTemplateState: null,
+      sourceMode: 'generated',
+      discoveryProvider: 'manual_downloads',
+      discoveryQuery: 'ignored',
+      templatePayloadExtras: extras
+    })).toBe(extras);
   });
 
   it('builds sanitized Web creation templates without environment secrets', () => {

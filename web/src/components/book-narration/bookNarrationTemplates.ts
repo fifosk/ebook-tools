@@ -234,6 +234,35 @@ export function buildBookNarrationTemplatePayload({
   };
 }
 
+export function resolveBookNarrationTemplatePayloadExtras({
+  selectedDiscoveryTemplateState,
+  sourceMode,
+  discoveryProvider,
+  discoveryQuery,
+  templatePayloadExtras,
+}: {
+  selectedDiscoveryTemplateState: Record<string, unknown> | null;
+  sourceMode: 'upload' | 'generated';
+  discoveryProvider: string | null | undefined;
+  discoveryQuery: string | null | undefined;
+  templatePayloadExtras?: Record<string, unknown> | null;
+}): Record<string, unknown> | null | undefined {
+  const discoveryState = selectedDiscoveryTemplateState
+    ?? (sourceMode === 'upload'
+      ? buildSparseBookDiscoveryTemplateState({
+        provider: discoveryProvider,
+        query: discoveryQuery,
+      })
+      : null);
+  if (!discoveryState) {
+    return templatePayloadExtras;
+  }
+  return {
+    ...(templatePayloadExtras ?? {}),
+    discovery_state: discoveryState,
+  };
+}
+
 function sanitizeTemplateExtras(value: Record<string, unknown> | null): Record<string, unknown> {
   if (!value) {
     return {};

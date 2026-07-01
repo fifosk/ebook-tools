@@ -37,9 +37,9 @@ import { filterBookNarrationDiscoveryCandidates } from './bookNarrationDiscovery
 import {
   buildBookDiscoveryTemplateState,
   buildBookNarrationTemplatePayload,
-  buildSparseBookDiscoveryTemplateState,
   extractBookNarrationTemplateFormState,
-  resolveBookDiscoveryTemplateStateForInput
+  resolveBookDiscoveryTemplateStateForInput,
+  resolveBookNarrationTemplatePayloadExtras
 } from './bookNarrationTemplates';
 import type {
   BookNarrationFormProps,
@@ -332,22 +332,13 @@ export function BookNarrationForm({
     providers
   ), [discoveryProvider, discoveryResponse, providers]);
 
-  const mergedTemplatePayloadExtras = useMemo(() => {
-    const discoveryState = selectedDiscoveryTemplateState
-      ?? (sourceMode === 'upload'
-        ? buildSparseBookDiscoveryTemplateState({
-          provider: discoveryProvider,
-          query: discoveryQuery
-        })
-        : null);
-    if (!discoveryState) {
-      return templatePayloadExtras;
-    }
-    return {
-      ...(templatePayloadExtras ?? {}),
-      discovery_state: discoveryState
-    };
-  }, [discoveryProvider, discoveryQuery, selectedDiscoveryTemplateState, sourceMode, templatePayloadExtras]);
+  const mergedTemplatePayloadExtras = useMemo(() => resolveBookNarrationTemplatePayloadExtras({
+    selectedDiscoveryTemplateState,
+    sourceMode,
+    discoveryProvider,
+    discoveryQuery,
+    templatePayloadExtras
+  }), [discoveryProvider, discoveryQuery, selectedDiscoveryTemplateState, sourceMode, templatePayloadExtras]);
 
   useEffect(() => {
     const nextDiscoveryTemplateState = resolveBookDiscoveryTemplateStateForInput(
