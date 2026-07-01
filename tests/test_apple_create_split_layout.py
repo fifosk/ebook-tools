@@ -1790,6 +1790,25 @@ def test_create_view_model_uses_shared_submission_wrapper() -> None:
     assert project.count("AppleBookCreateViewModel+Submission.swift in Sources") == 4
 
 
+def test_create_view_model_ignores_stale_intake_status_refreshes() -> None:
+    source = _source(CREATE_VIEW_MODEL)
+    load_body = _swift_function_body(
+        source,
+        "func loadIntakeStatus(\n        using appState: AppState,\n        cacheKey: String,\n        force: Bool = false\n    ) async",
+    )
+
+    assert "private var intakeStatusRequestSequence = 0" in source
+    assert "intakeStatusRequestSequence += 1" in load_body
+    assert "let requestSequence = intakeStatusRequestSequence" in load_body
+    assert "if requestSequence == intakeStatusRequestSequence" in load_body
+    assert "let status = try await client.fetchPipelineIntakeStatus()" in load_body
+    assert "guard requestSequence == intakeStatusRequestSequence else { return }" in load_body
+    assert load_body.index("guard requestSequence == intakeStatusRequestSequence else { return }") < load_body.index(
+        "intakeStatus = status"
+    )
+    assert load_body.count("guard requestSequence == intakeStatusRequestSequence else { return }") == 2
+
+
 def test_create_view_model_metadata_actions_are_split_and_target_wired() -> None:
     source = _source(CREATE_VIEW_MODEL)
     metadata_source = _source(CREATE_VIEW_MODEL_METADATA)

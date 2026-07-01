@@ -83,6 +83,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published var submittedJobId: String?
     private var loadedOptionsCacheKey: String?
     private var loadedIntakeStatusCacheKey: String?
+    private var intakeStatusRequestSequence = 0
     var loadedPipelineFilesCacheKey: String?
     var loadedAcquisitionProvidersCacheKey: String?
     var loadedEbookAcquisitionDiscoveryCacheKey: String?
@@ -285,14 +286,23 @@ final class AppleBookCreateViewModel: ObservableObject {
             return
         }
 
+        intakeStatusRequestSequence += 1
+        let requestSequence = intakeStatusRequestSequence
         isLoadingIntakeStatus = true
-        defer { isLoadingIntakeStatus = false }
+        defer {
+            if requestSequence == intakeStatusRequestSequence {
+                isLoadingIntakeStatus = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
-            intakeStatus = try await client.fetchPipelineIntakeStatus()
+            let status = try await client.fetchPipelineIntakeStatus()
+            guard requestSequence == intakeStatusRequestSequence else { return }
+            intakeStatus = status
             loadedIntakeStatusCacheKey = cacheKey
         } catch {
+            guard requestSequence == intakeStatusRequestSequence else { return }
             intakeStatus = nil
         }
     }

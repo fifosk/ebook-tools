@@ -1856,10 +1856,10 @@ Suggested features to evaluate after parity scaffolding:
   pipeline backend gate now includes the focused system-route pytest, and Apple
   Create readiness preflight validates the intake response shape before Xcode
   launches without failing solely because a shared backend is under queue
-  pressure. Web creation surfaces now also ignore stale queue-pressure refresh
-  responses when a newer request is in flight, so a slow initial snapshot cannot
-  overwrite the post-submit intake state shared by Narrate Ebook, Subtitle Tool,
-  and Video Dubbing.
+  pressure. Web creation surfaces and Apple Create now also ignore stale
+  queue-pressure refresh responses when a newer request is in flight, so a slow
+  initial snapshot cannot overwrite the post-submit intake state shared by
+  Narrate Ebook, Subtitle Tool, Video Dubbing, and native Create.
 - Smart resume cards: show "continue listening", "newly completed", and "needs attention" across all surfaces. Status:
   Apple browse rows now surface local-only, iCloud-only, and synced resume
   evidence in the shared Library/Jobs/search row badge instead of hiding valid
