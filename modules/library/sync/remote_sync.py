@@ -7,11 +7,16 @@ from typing import Any, Dict, Mapping, Optional, Type
 
 from modules import logging_manager
 from modules.library.library_metadata import LibraryMetadataError, LibraryMetadataManager
+from modules.services.source_discovery import safe_stat
 from modules.services.metadata import enrich_media_metadata
 
 from . import file_ops, metadata as metadata_utils
 
 LOGGER = logging_manager.get_logger().getChild("library.sync.remote")
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 def refresh_metadata(
@@ -56,7 +61,8 @@ def refresh_metadata(
 
     epub_path = file_ops.locate_input_epub(metadata, job_root)
     local_metadata: Dict[str, Optional[str]] = {}
-    if epub_path is not None and epub_path.exists():
+    epub_exists = epub_path is not None and _path_exists(epub_path)
+    if epub_exists:
         try:
             local_metadata = metadata_manager.infer_metadata_from_epub(
                 epub_path,
@@ -79,7 +85,7 @@ def refresh_metadata(
                 exc,
             )
 
-    if (epub_path is None or not (epub_path.exists() if epub_path else False)) and not isbn_metadata:
+    if not epub_exists and not isbn_metadata:
         raise error_cls(
             f"Unable to locate a source EPUB or ISBN metadata for job {job_id}; cannot refresh metadata"
         )
@@ -264,4 +270,3 @@ __all__ = [
     "lookup_isbn_metadata",
     "refresh_metadata",
 ]
-
