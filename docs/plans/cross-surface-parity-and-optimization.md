@@ -698,7 +698,11 @@ Current Apple UI partially exposes:
   `modules/services/acquisition/source_candidates.py` with focused coverage,
   keeping source-relative paths, display-title derivation, zero-byte EPUB
   filtering, and bounded newest-first manual source ordering shared for
-  Web/Apple book and video pickers. Apple YouTube Dub candidate selection now also
+  Web/Apple book and video pickers. Backend acquisition value coercion and
+  identifier sanitization now live in
+  `modules/services/acquisition/discovery_values.py` with focused coverage,
+  keeping string/sequence/int parsing and token-safe ids shared across public
+  catalog and video providers. Apple YouTube Dub candidate selection now also
   passes the active discovery provider and query into saved `discovery_state`,
   and applying a saved template restores that provider/query in the native
   source picker, keeping Apple-saved video templates aligned with Web Video

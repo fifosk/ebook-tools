@@ -16,6 +16,7 @@ import modules.services.acquisition.internet_archive_discovery as internet_archi
 import modules.services.acquisition.openlibrary_discovery as openlibrary_discovery
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
 import modules.services.acquisition.source_candidates as source_candidates
+import modules.services.acquisition.discovery_values as discovery_values
 import modules.services.acquisition.youtube_discovery as youtube_discovery
 from modules.services.source_discovery import DiscoveredSourceFile
 from modules.services.acquisition.discovery_planning import (
@@ -166,6 +167,26 @@ def test_acquisition_source_candidate_helpers_normalize_paths_and_newest_order(
     )
 
     assert [path for _, _, path in matches] == [alpha.as_posix()]
+
+
+def test_acquisition_discovery_value_helpers_normalize_scalar_values() -> None:
+    assert discovery_values.string_value("  demo  ") == "demo"
+    assert discovery_values.string_value("   ") is None
+    assert discovery_values.string_value(123) is None
+    assert discovery_values.string_sequence("  one  ") == ("one",)
+    assert discovery_values.string_sequence([" one ", "", 2, "two"]) == ("one", "two")
+    assert discovery_values.string_sequence(123) == ()
+    assert discovery_values.int_value(True) is None
+    assert discovery_values.int_value(42) == 42
+    assert discovery_values.int_value("42") == 42
+    assert discovery_values.int_value("42.0") is None
+    assert (
+        discovery_values.safe_identifier(
+            "https://example.test/path/file.mkv?apiKey=secret&token=hidden"
+        )
+        == "https:-example.test-path-file.mkv"
+    )
+    assert discovery_values.safe_identifier("   ") == "result"
 
 
 def test_acquisition_url_safety_helpers_share_sensitive_policy() -> None:

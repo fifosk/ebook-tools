@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, urlsplit, urlunsplit
+from urllib.parse import quote
 
 import requests
 
@@ -35,6 +35,12 @@ from .source_candidates import (
     is_usable_epub_entry,
     relative_path,
     title_from_filename,
+)
+from .discovery_values import (
+    int_value as _int_value,
+    safe_identifier as _safe_identifier,
+    string_sequence as _string_sequence,
+    string_value as _string_value,
 )
 from .discovery_planning import (
     order_default_discovery_candidates,
@@ -1402,46 +1408,3 @@ def _normalize_language_code(value: str | None) -> str | None:
     if re.fullmatch(r"[a-z]{2,3}(?:-[a-z]{2})?", normalized):
         return normalized.split("-", 1)[0]
     return None
-
-
-def _string_sequence(value: Any) -> tuple[str, ...]:
-    if isinstance(value, str):
-        string_value = _string_value(value)
-        return (string_value,) if string_value else ()
-    if not isinstance(value, Sequence) or isinstance(value, bytes):
-        return ()
-    entries: list[str] = []
-    for item in value:
-        string_value = _string_value(item)
-        if string_value:
-            entries.append(string_value)
-    return tuple(entries)
-
-
-def _safe_identifier(value: str) -> str:
-    raw_value = value.strip()
-    parsed = urlsplit(raw_value)
-    if parsed.scheme and parsed.netloc:
-        raw_value = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
-    sanitized = re.sub(r"[^A-Za-z0-9_.:-]+", "-", raw_value)
-    return sanitized.strip("-")[:160] or "result"
-
-
-def _int_value(value: Any) -> int | None:
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        try:
-            return int(value)
-        except ValueError:
-            return None
-    return None
-
-
-def _string_value(value: Any) -> str | None:
-    if not isinstance(value, str):
-        return None
-    stripped = value.strip()
-    return stripped or None

@@ -49,6 +49,11 @@ enum AppChangelogData {
                     id: "backend-source-candidate-helper",
                     title: "Source discovery is leaner",
                     detail: "Backend local, manual-download, and NAS acquisition discovery now shares focused tested helpers for source paths, display titles, zero-byte EPUB filtering, and newest-first manual source ordering used by Web and Apple Create pickers."
+                ),
+                AppChangelogEntry(
+                    id: "backend-discovery-value-helper",
+                    title: "Discovery values are leaner",
+                    detail: "Backend acquisition discovery now shares focused tested value-normalization helpers for safe identifiers, string and sequence coercion, and integer parsing across public-catalog and video providers."
                 )
             ]
         ),

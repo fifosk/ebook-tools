@@ -16,6 +16,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Backend Internet Archive acquisition discovery now shares focused tested helpers for search queries, EPUB eligibility, download URLs, metadata fetches, and rights classification used by Web and Apple Create book discovery.
 - Backend Project Gutenberg acquisition discovery now shares focused tested helpers for Gutendex search parameters, EPUB/HTML URL selection, and contributor normalization used by Web and Apple Create book discovery.
 - Backend local/manual/NAS acquisition discovery now shares focused tested helpers for source-relative paths, display titles, zero-byte EPUB filtering, and bounded newest-first manual source ordering used by Web and Apple Create pickers.
+- Backend acquisition discovery now shares focused tested value-normalization helpers for safe identifiers, string/sequence coercion, and integer parsing across public-catalog and video providers.
 - Advanced visible Apple app versioning to `v2026.07.02.001`.
 
 ## 2026-07-01
