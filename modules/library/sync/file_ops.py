@@ -6,6 +6,7 @@ import itertools
 import json
 import re
 import shutil
+import stat as stat_module
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +36,11 @@ LOGGER = logging_manager.get_logger().getChild("library.sync.file_ops")
 
 def _path_exists(path: Path) -> bool:
     return safe_stat(path) is not None
+
+
+def _path_is_file(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
 
 
 def load_metadata(job_root: Path) -> Dict[str, Any]:
@@ -79,7 +85,7 @@ def ensure_source_material(job_root: Path, metadata: Mapping[str, Any]) -> Optio
         return existing_relative
 
     epub_path = locate_input_epub(metadata, job_root)
-    if epub_path is None or not epub_path.exists():
+    if epub_path is None or not _path_exists(epub_path):
         return None
 
     if data_root in epub_path.parents:
@@ -130,16 +136,16 @@ def resolve_source_relative(metadata: Mapping[str, Any], job_root: Path) -> Opti
 
     for raw in candidates:
         resolved = resolve_epub_candidate(raw, job_root)
-        if resolved is not None and resolved.exists():
+        if resolved is not None and _path_exists(resolved):
             try:
                 return resolved.relative_to(job_root).as_posix()
             except ValueError:
                 return resolved.as_posix()
 
     data_root = job_root / "data"
-    if data_root.exists():
+    if _path_exists(data_root):
         for path in sorted(data_root.glob("*")):
-            if path.is_file() and path.suffix.lower() in {".epub", ".pdf"}:
+            if _path_is_file(path) and path.suffix.lower() in {".epub", ".pdf"}:
                 try:
                     return path.relative_to(job_root).as_posix()
                 except ValueError:
@@ -162,13 +168,13 @@ def sanitize_source_filename(filename: str) -> str:
 def next_source_candidate(destination: Path) -> Path:
     """Return a unique destination for the source file."""
 
-    if not destination.exists():
+    if not _path_exists(destination):
         return destination
     stem = destination.stem
     suffix = destination.suffix
     for index in itertools.count(1):
         candidate = destination.with_name(f"{stem}-{index}{suffix}")
-        if not candidate.exists():
+        if not _path_exists(candidate):
             return candidate
     return destination
 
@@ -210,7 +216,7 @@ def locate_input_epub(metadata: Mapping[str, Any], job_root: Path) -> Optional[P
             return resolved
 
     for candidate in job_root.rglob("*.epub"):
-        if candidate.is_file():
+        if _path_is_file(candidate):
             return candidate
     return None
 
@@ -225,7 +231,7 @@ def resolve_epub_candidate(raw: str, job_root: Path) -> Optional[Path]:
     candidate = Path(trimmed)
     try:
         if candidate.is_absolute():
-            return candidate if candidate.exists() else None
+            return candidate if _path_exists(candidate) else None
     except OSError:
         return None
 
@@ -241,13 +247,13 @@ def resolve_epub_candidate(raw: str, job_root: Path) -> Optional[Path]:
     ]
     for root in search_roots:
         resolved = root / relative_candidate
-        if resolved.exists():
+        if _path_exists(resolved):
             return resolved
 
     target_name = relative_candidate.name
     if target_name:
         for match in job_root.rglob(target_name):
-            if match.is_file():
+            if _path_is_file(match):
                 return match
 
     return None

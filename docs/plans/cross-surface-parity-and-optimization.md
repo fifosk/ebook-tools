@@ -1004,6 +1004,10 @@ Optimization candidates:
   helper, so Web and Apple Library item refreshes treat transient NAS-backed
   metadata races as ordinary missing metadata instead of direct `Path.exists()`
   failures.
+  Library source-material resolution and collision handling now use tolerant
+  stat checks for source EPUB/PDF paths, data-root scans, and staged-copy
+  destination candidates, reducing Web/Apple Library refresh races around
+  NAS-backed job data folders.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in
