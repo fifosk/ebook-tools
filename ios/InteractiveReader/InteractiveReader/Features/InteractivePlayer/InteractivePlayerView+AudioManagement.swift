@@ -239,6 +239,7 @@ extension InteractivePlayerView {
         case .translation:
             audioModeManager.toggle(.translation, preservingPosition: currentSentenceIndex)
         }
+        alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
 
         // Reconfigure playback with position preservation
         reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)

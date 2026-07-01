@@ -99,6 +99,7 @@ extension InteractivePlayerView {
 
         // Toggle via the mode manager (handles the logic of not disabling both)
         audioModeManager.toggle(kind: kind, preservingPosition: currentSentenceIndex)
+        alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
 
         // Reconfigure playback based on new toggle state
         reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
@@ -264,6 +265,43 @@ extension InteractivePlayerView {
             viewModel.selectedAudioTrackID = targetID
         }
         return true
+    }
+
+    @discardableResult
+    func alignVisibleTracksWithCurrentAudioMode(
+        for chunk: InteractiveChunk,
+        expandSequenceMode: Bool = false
+    ) -> Bool {
+        switch audioModeManager.currentMode {
+        case .singleTrack(let track):
+            let desiredTextTrack: TextPlayerVariantKind = track == .original ? .original : .translation
+            let available = Set(availableTracks(for: chunk))
+            guard available.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk) else {
+                return false
+            }
+            guard visibleTracks != [desiredTextTrack] || !hasCustomTrackSelection else {
+                return false
+            }
+            visibleTracks = [desiredTextTrack]
+            hasCustomTrackSelection = true
+            if let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
+                viewModel.selectedAudioTrackID = targetID
+            }
+            return true
+
+        case .sequence:
+            guard expandSequenceMode else { return false }
+            let available = Set(availableTracks(for: chunk))
+            guard !available.isEmpty, visibleTracks != available || hasCustomTrackSelection else {
+                return false
+            }
+            visibleTracks = available
+            hasCustomTrackSelection = false
+            if let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
+                viewModel.selectedAudioTrackID = targetID
+            }
+            return true
+        }
     }
 
     @discardableResult

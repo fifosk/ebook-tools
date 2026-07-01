@@ -420,6 +420,36 @@ private func preserveSingleTrackModeIfNeeded(
     return true
 }
 
+@MainActor
+private func alignVisibleTracksWithCurrentAudioMode(
+    for chunk: InteractiveChunk,
+    availableTracks: Set<TextPlayerVariantKind>,
+    manager: AudioModeManager,
+    visibleTracks: inout Set<TextPlayerVariantKind>,
+    hasCustomTrackSelection: inout Bool,
+    selectedAudioTrackID: inout String?,
+    expandSequenceMode: Bool = false
+) -> Bool {
+    switch manager.currentMode {
+    case .singleTrack(let track):
+        let desiredTextTrack: TextPlayerVariantKind = track == .original ? .original : .translation
+        guard availableTracks.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk) else { return false }
+        guard visibleTracks != [desiredTextTrack] || !hasCustomTrackSelection else { return false }
+        visibleTracks = [desiredTextTrack]
+        hasCustomTrackSelection = true
+        selectedAudioTrackID = manager.resolvePreferredTrackID(for: chunk)
+        return true
+
+    case .sequence:
+        guard expandSequenceMode else { return false }
+        guard !availableTracks.isEmpty, visibleTracks != availableTracks || hasCustomTrackSelection else { return false }
+        visibleTracks = availableTracks
+        hasCustomTrackSelection = false
+        selectedAudioTrackID = manager.resolvePreferredTrackID(for: chunk)
+        return true
+    }
+}
+
 private func chunkSupportsAudioTrack(_ track: SequenceTrack, in chunk: InteractiveChunk) -> Bool {
     let dedicatedKind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
     if chunk.audioOptions.contains(where: { $0.kind == dedicatedKind }) {
@@ -961,6 +991,57 @@ private func runChecks() {
         )?.id,
         "translation-next",
         "Translation-only rendering helpers should ignore stale original selections after a batch handoff"
+    )
+    var headerVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
+    var headerHasCustomTrackSelection = false
+    var headerSelectedTrackID: String? = "combined-next"
+    let headerManager = AudioModeManager()
+    headerManager.setTracks(original: false, translation: true, preservingPosition: 18)
+    requireEqual(
+        alignVisibleTracksWithCurrentAudioMode(
+            for: nextBatch,
+            availableTracks: [.original, .translation, .transliteration],
+            manager: headerManager,
+            visibleTracks: &headerVisibleTracks,
+            hasCustomTrackSelection: &headerHasCustomTrackSelection,
+            selectedAudioTrackID: &headerSelectedTrackID
+        ),
+        true,
+        "Header/menu translation-only audio changes should immediately pin the visible text track before batch handoff"
+    )
+    requireEqual(
+        headerVisibleTracks,
+        [.translation],
+        "Header/menu translation-only selection should not leave all transcript tracks visible until a later lifecycle pass"
+    )
+    requireEqual(
+        headerSelectedTrackID,
+        "translation-next",
+        "Header/menu translation-only selection should repair the selected audio id for the active batch"
+    )
+    headerManager.enableSequenceMode(preservingPosition: 18)
+    requireEqual(
+        alignVisibleTracksWithCurrentAudioMode(
+            for: nextBatch,
+            availableTracks: [.original, .translation, .transliteration],
+            manager: headerManager,
+            visibleTracks: &headerVisibleTracks,
+            hasCustomTrackSelection: &headerHasCustomTrackSelection,
+            selectedAudioTrackID: &headerSelectedTrackID,
+            expandSequenceMode: true
+        ),
+        true,
+        "Combined audio selection should expand transcript tracks instead of leaving stale translation-only rendering"
+    )
+    requireEqual(
+        headerVisibleTracks,
+        [.original, .translation, .transliteration],
+        "Combined audio selection should restore all available transcript tracks"
+    )
+    requireEqual(
+        headerHasCustomTrackSelection,
+        false,
+        "Combined audio selection should clear the single-track custom transcript pin"
     )
     requireEqual(
         effectiveSelectedAudioKind(

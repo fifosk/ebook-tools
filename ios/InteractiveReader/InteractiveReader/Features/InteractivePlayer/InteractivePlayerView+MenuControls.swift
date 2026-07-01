@@ -422,6 +422,7 @@ extension InteractivePlayerView {
         switch option.kind {
         case .combined:
             audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)
+            alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
             reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
         case .original:
             audioModeManager.setTracks(
@@ -429,6 +430,7 @@ extension InteractivePlayerView {
                 translation: false,
                 preservingPosition: currentSentenceIndex
             )
+            alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
             reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
         case .translation:
             audioModeManager.setTracks(
@@ -436,6 +438,7 @@ extension InteractivePlayerView {
                 translation: true,
                 preservingPosition: currentSentenceIndex
             )
+            alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
             reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
         case .other:
             viewModel.selectAudioTrack(id: option.id)
