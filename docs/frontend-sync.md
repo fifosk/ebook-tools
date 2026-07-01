@@ -130,9 +130,12 @@ Follow the suggested remediations to restore parity:
   audio reaches the target sentence; otherwise a stale AVPlayer chunk-edge
   sample can redraw the wrong row before the next skip command.
   `check_playback_mode_switch_integration` covers this with the `2225 -> 2226`
-  translation-only fixture. On tvOS, the focused footer `TVScrubber` owns
-  left/right remote movement; the outer Interactive Reader focus handlers only
-  move up/down so one remote press cannot produce duplicate slider commits.
+  translation-only fixture. On tvOS, the Interactive Reader focus handlers own
+  focused footer left/right remote movement and route it through the same
+  sentence-progress commit helper as touch slider edits; up/down only escape
+  footer focus. This keeps remote progress steps to one visible sentence and
+  ensures the resolved target chunk plus recent single-track anchor are updated
+  before playback seeks.
 - Apple playback keyboard and remote transport must stay on the single
   `PlayerKeyboardShortcutBroker` path shared by app menu commands, UIKit key
   commands, hardware-press fallback, GameController fallback, and tvOS remote
