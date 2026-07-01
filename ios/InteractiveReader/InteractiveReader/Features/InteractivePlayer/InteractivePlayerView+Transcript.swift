@@ -884,6 +884,7 @@ extension InteractivePlayerView {
             translation: desiredTrack == .translation,
             preservingPosition: sentenceIndex
         )
+        viewModel.rememberAudioModePreference(audioModeManager.currentMode)
         viewModel.sequenceController.audioMode = audioModeManager.currentMode
         return previousMode != audioModeManager.currentMode
     }

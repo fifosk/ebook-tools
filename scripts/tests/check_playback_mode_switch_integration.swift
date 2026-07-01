@@ -489,16 +489,19 @@ private func synchronizeSelectedAudioTrackWithCurrentMode(
 private func requestedSingleTrackMode(
     manager: AudioModeManager?,
     sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?,
     preferredAudioKind: InteractiveChunk.AudioOption.Kind?
 ) -> SequenceTrack? {
     if let manager {
         if case .singleTrack(let track) = manager.currentMode {
             return track
         }
-        return nil
     }
     if case .singleTrack(let track) = sequenceAudioMode {
         return track
+    }
+    if let preferredSingleTrackMode {
+        return preferredSingleTrackMode
     }
     switch preferredAudioKind {
     case .original:
@@ -883,6 +886,7 @@ private func runChecks() {
     if let track = requestedSingleTrackMode(
         manager: manager,
         sequenceAudioMode: prepareTimeSequenceAudioMode,
+        preferredSingleTrackMode: nil,
         preferredAudioKind: prepareTimePreferredKind
     ) {
         applySingleTrackSelection(
@@ -912,6 +916,7 @@ private func runChecks() {
         requestedSingleTrackMode(
             manager: nil,
             sequenceAudioMode: bridgelessSequenceAudioMode,
+            preferredSingleTrackMode: nil,
             preferredAudioKind: bridgelessPreferredKind
         ),
         .translation,
@@ -945,6 +950,36 @@ private func runChecks() {
         ),
         false,
         "Single-track sequence-controller mode should stop stale combined selections from rendering as sequence after a batch handoff"
+    )
+    var staleManagerSelectedTrackID: String? = "combined-next"
+    var staleManagerPreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var staleManagerSequenceAudioMode: AudioMode = .sequence
+    let staleManagerPreferredSingleTrackMode: SequenceTrack? = .translation
+    let staleSequenceManager = AudioModeManager()
+    if let track = requestedSingleTrackMode(
+        manager: staleSequenceManager,
+        sequenceAudioMode: staleManagerSequenceAudioMode,
+        preferredSingleTrackMode: staleManagerPreferredSingleTrackMode,
+        preferredAudioKind: staleManagerPreferredKind
+    ) {
+        applySingleTrackSelection(
+            track,
+            for: nextBatch,
+            manager: staleSequenceManager,
+            sequenceAudioMode: &staleManagerSequenceAudioMode,
+            selectedAudioTrackID: &staleManagerSelectedTrackID,
+            preferredAudioKind: &staleManagerPreferredKind
+        )
+    }
+    requireEqual(
+        staleManagerSelectedTrackID,
+        "translation-next",
+        "Remembered translation-only lane should survive a stale sequence manager at the next batch boundary"
+    )
+    requireEqual(
+        staleManagerSequenceAudioMode,
+        .singleTrack(.translation),
+        "Remembered translation-only lane should restore sequence-controller mode before next-batch audio resolves"
     )
     let combinedOnlyNextBatch = InteractiveChunk(
         id: "chapter-2-combined",

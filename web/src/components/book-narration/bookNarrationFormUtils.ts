@@ -48,6 +48,11 @@ export type BookNarrationSubmitPresentation = {
 
 export type BookNarrationTemplateFormStateApplication = {
   appliedFormState: Partial<FormState>;
+  editedFields: Array<keyof FormState>;
+  imageDefaultFields: Array<keyof FormState>;
+  markStartEdited: boolean;
+  markInputEdited: boolean;
+  markEndEdited: boolean;
   sharedPreferenceUpdate: BookNarrationSharedPreferenceUpdate | null;
 };
 
@@ -330,9 +335,16 @@ export function resolveBookNarrationTemplateFormStateApplication({
   if (typeof appliedFormState.enable_lookup_cache === 'boolean') {
     sharedPreferenceUpdate.enableLookupCache = appliedFormState.enable_lookup_cache;
   }
+  const editedFields = Object.keys(appliedFormState) as (keyof FormState)[];
+  const imageDefaultFields = editedFields.filter((key) => IMAGE_DEFAULT_FIELDS.has(key));
 
   return {
     appliedFormState,
+    editedFields,
+    imageDefaultFields,
+    markStartEdited: 'start_sentence' in appliedFormState,
+    markInputEdited: 'input_file' in appliedFormState || 'base_output_file' in appliedFormState,
+    markEndEdited: 'end_sentence' in appliedFormState,
     sharedPreferenceUpdate:
       sharedPreferenceUpdate.inputLanguage !== undefined ||
       sharedPreferenceUpdate.targetLanguages !== undefined ||

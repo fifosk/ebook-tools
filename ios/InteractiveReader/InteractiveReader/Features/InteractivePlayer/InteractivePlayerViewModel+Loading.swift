@@ -40,6 +40,7 @@ extension InteractivePlayerViewModel {
         selectedAudioTrackID = nil
         selectedTimingURL = nil
         preferredAudioKind = nil
+        preferredSingleTrackMode = nil
         audioDurationByURL = [:]
         chunkMetadataLoaded = []
         chunkMetadataLoading = []
@@ -60,6 +61,8 @@ extension InteractivePlayerViewModel {
         audioCoordinator.reset()
         pendingSentenceJump = nil
         pendingTimeSeek = nil
+        pendingResumeSingleTrack = nil
+        recentSingleTrackSentenceAnchor = nil
         tokenNormalizationCache.removeAll()
         isTranscriptLoading = false
         stopLiveUpdates()

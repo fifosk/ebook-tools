@@ -72,6 +72,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     /// Offline lookup cache (loaded from OfflineMediaPayload if available)
     var offlineLookupCache: OfflineMediaStore.LookupCacheOfflineData?
     var preferredAudioKind: InteractiveChunk.AudioOption.Kind?
+    var preferredSingleTrackMode: SequenceTrack?
     var audioDurationByURL: [URL: Double] = [:]
     var chunkMetadataLoaded: Set<String> = []
     var chunkMetadataLoading: Set<String> = []

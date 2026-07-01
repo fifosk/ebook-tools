@@ -154,6 +154,8 @@ extension InteractivePlayerView {
             "Reconfiguring: mode=\(audioModeManager.currentMode.description, privacy: .public), currentSentenceIndex=\(currentSentenceIndex ?? -1, privacy: .public), time=\(viewModel.highlightingTime, privacy: .public), seqEnabled=\(viewModel.sequenceController.isEnabled, privacy: .public)"
         )
 
+        viewModel.rememberAudioModePreference(audioModeManager.currentMode)
+
         guard let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) else { return }
 
         // Sync audio mode to sequence controller BEFORE calling prepareAudio

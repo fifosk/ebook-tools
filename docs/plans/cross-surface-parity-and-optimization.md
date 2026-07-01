@@ -324,7 +324,7 @@ Large Web UI hotspots to split before redesign work:
   coverage. The repo-owned `test-web-sidebar-focused` target now runs the root
   Sidebar, player entry, creation links, job overview/row, and sidebar utility
   tests so the reusable Web pipeline covers the split navigation shell directly.
-- `web/src/components/book-narration/BookNarrationForm.tsx` - 814 lines.
+- `web/src/components/book-narration/BookNarrationForm.tsx` - 810 lines.
   Status: server EPUB discovery, generated-source skips, latest-book default
   selection, upload validation, and history-derived start defaults now have
   focused hook coverage through `useBookNarrationFiles.ts`, and the repo-owned
@@ -808,7 +808,10 @@ Current Apple UI partially exposes:
   back to Original before metadata finishes loading, preventing batch-end
   render/audio drift, and audio prepare now reasserts the active single-track
   option just before resolving playback URLs so stale selected ids cannot reset
-  a post-handoff batch. Destination
+  a post-handoff batch. The view model now also remembers the explicit
+  original-only or translation-only lane separately from transient chunk audio
+  IDs, so metadata refreshes and stale sequence-mode bridges cannot reset the
+  next batch back to the hidden track. Destination
   language pills prefer authoritative target-language request/config fields
   instead of broad nested metadata scans. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.

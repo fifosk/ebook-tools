@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader original-only/translation-only playback now remembers the selected single-track lane independently of transient chunk audio IDs, so sentence-batch boundaries and metadata refreshes cannot reset rendering back to the hidden track.
+- Web Narrate Ebook saved-template edit markers now resolve through the tested Create intake utility, keeping edited field, source, sentence, and image-default guards outside the large form component.
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
 - Web Narrate Ebook discovery template provenance now clears through a tested template helper when the selected EPUB changes, while sparse provider/query discovery state remains available for cross-surface handoff.
 - Web Narrate Ebook saved-template extras now resolve through a tested template helper, preserving selected discovery provenance or sparse provider/query drafts before candidate selection outside the form coordinator.

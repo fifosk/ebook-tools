@@ -13,12 +13,22 @@ private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0
 extension InteractivePlayerViewModel {
     func prepareResumeSingleTrack(_ track: SequenceTrack?) {
         pendingResumeSingleTrack = track
+        preferredSingleTrackMode = track
         guard let track, let audioModeManager else { return }
         audioModeManager.setTracks(
             original: track == .original,
             translation: track == .translation
         )
         sequenceController.audioMode = audioModeManager.currentMode
+    }
+
+    func rememberAudioModePreference(_ mode: AudioMode) {
+        switch mode {
+        case .singleTrack(let track):
+            preferredSingleTrackMode = track
+        case .sequence:
+            preferredSingleTrackMode = nil
+        }
     }
 
     /// Check if chunk sentences have gate data needed for combined (sequence) mode
@@ -302,6 +312,9 @@ extension InteractivePlayerViewModel {
         if case .singleTrack(let track) = sequenceController.audioMode {
             return track
         }
+        if let preferredSingleTrackMode {
+            return preferredSingleTrackMode
+        }
         if let chunk = selectedChunk,
            let selectedAudioTrackID,
            let selectedOption = chunk.audioOptions.first(where: { $0.id == selectedAudioTrackID }) {
@@ -354,6 +367,7 @@ extension InteractivePlayerViewModel {
     }
 
     func applySingleTrackSelection(_ track: SequenceTrack, for chunk: InteractiveChunk) {
+        preferredSingleTrackMode = track
         if let audioModeManager {
             audioModeManager.setTracks(
                 original: track == .original,

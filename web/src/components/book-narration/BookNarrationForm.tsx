@@ -49,8 +49,7 @@ import type {
 import {
   BOOK_NARRATION_SECTION_META,
   BOOK_NARRATION_TAB_SECTIONS,
-  DEFAULT_FORM_STATE,
-  IMAGE_DEFAULT_FIELDS
+  DEFAULT_FORM_STATE
 } from './bookNarrationFormDefaults';
 import {
   applyBookNarrationForcedBaseOutput,
@@ -460,24 +459,21 @@ export function BookNarrationForm({
       return;
     }
 
-    const { appliedFormState, sharedPreferenceUpdate } =
+    const templateApplication =
       resolveBookNarrationTemplateFormStateApplication({
         formState: applied.formState,
         sharedTargetLanguages
       });
+    const { appliedFormState, sharedPreferenceUpdate } = templateApplication;
     setSelectedDiscoveryTemplateState(applied.discoveryState);
     setActiveSourcePanel(applied.discoveryState ? 'discovery' : 'source');
 
-    userEditedStartRef.current = 'start_sentence' in appliedFormState;
-    userEditedInputRef.current = 'input_file' in appliedFormState || 'base_output_file' in appliedFormState;
-    userEditedEndRef.current = 'end_sentence' in appliedFormState;
+    userEditedStartRef.current = templateApplication.markStartEdited;
+    userEditedInputRef.current = templateApplication.markInputEdited;
+    userEditedEndRef.current = templateApplication.markEndEdited;
     lastAutoEndSentenceRef.current = null;
-    for (const key of Object.keys(appliedFormState) as (keyof FormState)[]) {
-      userEditedFieldsRef.current.add(key);
-      if (IMAGE_DEFAULT_FIELDS.has(key)) {
-        userEditedImageDefaultsRef.current.add(key);
-      }
-    }
+    templateApplication.editedFields.forEach((key) => userEditedFieldsRef.current.add(key));
+    templateApplication.imageDefaultFields.forEach((key) => userEditedImageDefaultsRef.current.add(key));
 
     if (sharedPreferenceUpdate?.targetLanguages !== undefined) {
       setSharedTargetLanguages(sharedPreferenceUpdate.targetLanguages);

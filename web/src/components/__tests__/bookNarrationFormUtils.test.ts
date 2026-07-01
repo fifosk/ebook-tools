@@ -404,26 +404,32 @@ describe('bookNarrationFormUtils source/output state updates', () => {
 
 describe('bookNarrationFormUtils template form-state application', () => {
   it('normalizes template target languages and resolves shared preference updates', () => {
-    const { appliedFormState, sharedPreferenceUpdate } =
-      resolveBookNarrationTemplateFormStateApplication({
-        formState: {
-          input_language: 'Spanish',
-          target_languages: [' German ', 'French', 'german', 'Italian'],
-          enable_lookup_cache: true,
-        },
-        sharedTargetLanguages: ['Arabic'],
-      });
+    const application = resolveBookNarrationTemplateFormStateApplication({
+      formState: {
+        input_language: 'Spanish',
+        target_languages: [' German ', 'French', 'german', 'Italian'],
+        enable_lookup_cache: true,
+      },
+      sharedTargetLanguages: ['Arabic'],
+    });
 
-    expect(appliedFormState).toMatchObject({
+    expect(application.appliedFormState).toMatchObject({
       input_language: 'Spanish',
       target_languages: ['German'],
       custom_target_languages: 'French, Italian',
       enable_lookup_cache: true,
     });
-    expect(sharedPreferenceUpdate).toEqual({
+    expect(application.sharedPreferenceUpdate).toEqual({
       inputLanguage: 'Spanish',
       targetLanguages: ['German', 'French', 'Italian'],
       enableLookupCache: true,
+    });
+    expect(application).toMatchObject({
+      editedFields: ['input_language', 'target_languages', 'enable_lookup_cache', 'custom_target_languages'],
+      imageDefaultFields: [],
+      markStartEdited: false,
+      markInputEdited: false,
+      markEndEdited: false,
     });
   });
 
@@ -436,6 +442,36 @@ describe('bookNarrationFormUtils template form-state application', () => {
     });
 
     expect(sharedPreferenceUpdate).toBeNull();
+  });
+
+  it('resolves template edit markers for source, sentence, and image defaults', () => {
+    const application = resolveBookNarrationTemplateFormStateApplication({
+      formState: {
+        input_file: '/books/source.epub',
+        base_output_file: 'book-output',
+        start_sentence: 12,
+        end_sentence: '30',
+        image_width: '768',
+        image_height: '1024',
+      },
+      sharedTargetLanguages: DEFAULT_FORM_STATE.target_languages,
+    });
+
+    expect(application).toMatchObject({
+      editedFields: [
+        'input_file',
+        'base_output_file',
+        'start_sentence',
+        'end_sentence',
+        'image_width',
+        'image_height',
+      ],
+      imageDefaultFields: ['image_width', 'image_height'],
+      markStartEdited: true,
+      markInputEdited: true,
+      markEndEdited: true,
+      sharedPreferenceUpdate: null,
+    });
   });
 
   it('merges template state while keeping forced output names authoritative', () => {
