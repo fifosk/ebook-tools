@@ -46,6 +46,11 @@ export type BookNarrationSubmitPresentation = {
   submitText: string;
 };
 
+export type BookNarrationTemplateFormStateApplication = {
+  appliedFormState: Partial<FormState>;
+  sharedPreferenceUpdate: BookNarrationSharedPreferenceUpdate | null;
+};
+
 const BOOK_NARRATION_IMAGE_DEFAULT_FIELDS: Array<keyof FormState> = [
   'add_images',
   'image_prompt_pipeline',
@@ -228,6 +233,68 @@ export function applyBookNarrationFieldChange<K extends keyof FormState>(
   return {
     ...state,
     [key]: value,
+  };
+}
+
+export function resolveBookNarrationTemplateFormStateApplication({
+  formState,
+  sharedTargetLanguages,
+}: {
+  formState: Partial<FormState>;
+  sharedTargetLanguages: string[];
+}): BookNarrationTemplateFormStateApplication {
+  const appliedFormState: Partial<FormState> = { ...formState };
+  if (Array.isArray(appliedFormState.target_languages)) {
+    const targetLanguageFields = targetLanguageFieldsFromLanguages(
+      normalizeTargetLanguages(appliedFormState.target_languages),
+    );
+    appliedFormState.target_languages = targetLanguageFields.target_languages;
+    appliedFormState.custom_target_languages = targetLanguageFields.custom_target_languages;
+  }
+
+  const sharedPreferenceUpdate: BookNarrationSharedPreferenceUpdate = {};
+  if (Array.isArray(appliedFormState.target_languages)) {
+    const normalizedTargets = normalizeTargetLanguages([
+      ...appliedFormState.target_languages,
+      ...(appliedFormState.custom_target_languages ?? '')
+        .split(/[,\n]/)
+        .map((language) => language.trim())
+        .filter(Boolean),
+    ]);
+    if (!areLanguageArraysEqual(sharedTargetLanguages, normalizedTargets)) {
+      sharedPreferenceUpdate.targetLanguages = normalizedTargets;
+    }
+  }
+  if (typeof appliedFormState.input_language === 'string') {
+    sharedPreferenceUpdate.inputLanguage = appliedFormState.input_language;
+  }
+  if (typeof appliedFormState.enable_lookup_cache === 'boolean') {
+    sharedPreferenceUpdate.enableLookupCache = appliedFormState.enable_lookup_cache;
+  }
+
+  return {
+    appliedFormState,
+    sharedPreferenceUpdate:
+      sharedPreferenceUpdate.inputLanguage !== undefined ||
+      sharedPreferenceUpdate.targetLanguages !== undefined ||
+      sharedPreferenceUpdate.enableLookupCache !== undefined
+        ? sharedPreferenceUpdate
+        : null,
+  };
+}
+
+export function applyBookNarrationTemplateFormState(
+  state: FormState,
+  appliedFormState: Partial<FormState>,
+  forcedBaseOutputFile: string | null | undefined,
+): FormState {
+  return {
+    ...state,
+    ...appliedFormState,
+    base_output_file:
+      forcedBaseOutputFile ??
+      appliedFormState.base_output_file ??
+      state.base_output_file,
   };
 }
 

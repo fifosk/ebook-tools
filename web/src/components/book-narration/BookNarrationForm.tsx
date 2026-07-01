@@ -53,13 +53,13 @@ import {
   IMAGE_DEFAULT_FIELDS
 } from './bookNarrationFormDefaults';
 import {
-  areLanguageArraysEqual,
   applyBookNarrationForcedBaseOutput,
   applyBookNarrationFieldChange,
   applyBookNarrationGeneratedSourceDefaults,
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillInputFile,
   applyBookNarrationPrefillParameters,
+  applyBookNarrationTemplateFormState,
   applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
   canApplyBookNarrationFieldChange,
@@ -70,10 +70,10 @@ import {
   resolveLatestBookNarrationJobSettings,
   resolveBookNarrationSubmitPresentation,
   resolveBookNarrationSharedPreferenceUpdate,
+  resolveBookNarrationTemplateFormStateApplication,
   resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSectionMeta,
-  resolveStartFromNarrationHistory,
-  targetLanguageFieldsFromLanguages
+  resolveStartFromNarrationHistory
 } from './bookNarrationFormUtils';
 
 export type { BookNarrationFormSection } from './bookNarrationFormTypes';
@@ -470,16 +470,13 @@ export function BookNarrationForm({
       return;
     }
 
-    const appliedFormState: Partial<FormState> = { ...applied.formState };
+    const { appliedFormState, sharedPreferenceUpdate } =
+      resolveBookNarrationTemplateFormStateApplication({
+        formState: applied.formState,
+        sharedTargetLanguages
+      });
     setSelectedDiscoveryTemplateState(applied.discoveryState);
     setActiveSourcePanel(applied.discoveryState ? 'discovery' : 'source');
-    if (Array.isArray(appliedFormState.target_languages)) {
-      const targetLanguageFields = targetLanguageFieldsFromLanguages(
-        normalizeTargetLanguages(appliedFormState.target_languages)
-      );
-      appliedFormState.target_languages = targetLanguageFields.target_languages;
-      appliedFormState.custom_target_languages = targetLanguageFields.custom_target_languages;
-    }
 
     userEditedStartRef.current = 'start_sentence' in appliedFormState;
     userEditedInputRef.current = 'input_file' in appliedFormState || 'base_output_file' in appliedFormState;
@@ -492,32 +489,18 @@ export function BookNarrationForm({
       }
     }
 
-    if (Array.isArray(appliedFormState.target_languages)) {
-      const normalizedTargets = normalizeTargetLanguages([
-        ...appliedFormState.target_languages,
-        ...(appliedFormState.custom_target_languages ?? '')
-          .split(/[,\n]/)
-          .map((language) => language.trim())
-          .filter(Boolean)
-      ]);
-      if (!areLanguageArraysEqual(sharedTargetLanguages, normalizedTargets)) {
-        setSharedTargetLanguages(normalizedTargets);
-      }
+    if (sharedPreferenceUpdate?.targetLanguages !== undefined) {
+      setSharedTargetLanguages(sharedPreferenceUpdate.targetLanguages);
     }
-    if (typeof appliedFormState.input_language === 'string') {
-      setSharedInputLanguage(appliedFormState.input_language);
+    if (sharedPreferenceUpdate?.inputLanguage !== undefined) {
+      setSharedInputLanguage(sharedPreferenceUpdate.inputLanguage);
     }
-    if (typeof appliedFormState.enable_lookup_cache === 'boolean') {
-      setSharedEnableLookupCache(appliedFormState.enable_lookup_cache);
+    if (sharedPreferenceUpdate?.enableLookupCache !== undefined) {
+      setSharedEnableLookupCache(sharedPreferenceUpdate.enableLookupCache);
     }
-    setFormState((previous) => ({
-      ...previous,
-      ...appliedFormState,
-      base_output_file:
-        forcedBaseOutputFile ??
-        appliedFormState.base_output_file ??
-        previous.base_output_file
-    }));
+    setFormState((previous) =>
+      applyBookNarrationTemplateFormState(previous, appliedFormState, forcedBaseOutputFile)
+    );
     if (applied.activeSection) {
       handleSectionChange(applied.activeSection);
     }

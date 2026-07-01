@@ -7,6 +7,7 @@ import {
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillInputFile,
   applyBookNarrationPrefillParameters,
+  applyBookNarrationTemplateFormState,
   applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
   applyBookNarrationFieldChange,
@@ -18,6 +19,7 @@ import {
   preserveBookNarrationUserEditedFields,
   resolveBookNarrationMissingRequirements,
   resolveBookNarrationSharedPreferenceUpdate,
+  resolveBookNarrationTemplateFormStateApplication,
   resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSubmitPresentation,
   resolveBookNarrationSectionMeta,
@@ -320,6 +322,75 @@ describe('bookNarrationFormUtils source/output state updates', () => {
     const next = applyBookNarrationFieldChange(previous, 'target_languages', nextTargets);
     expect(next).not.toBe(previous);
     expect(next.target_languages).toBe(nextTargets);
+  });
+});
+
+describe('bookNarrationFormUtils template form-state application', () => {
+  it('normalizes template target languages and resolves shared preference updates', () => {
+    const { appliedFormState, sharedPreferenceUpdate } =
+      resolveBookNarrationTemplateFormStateApplication({
+        formState: {
+          input_language: 'Spanish',
+          target_languages: [' German ', 'French', 'german', 'Italian'],
+          enable_lookup_cache: true,
+        },
+        sharedTargetLanguages: ['Arabic'],
+      });
+
+    expect(appliedFormState).toMatchObject({
+      input_language: 'Spanish',
+      target_languages: ['German'],
+      custom_target_languages: 'French, Italian',
+      enable_lookup_cache: true,
+    });
+    expect(sharedPreferenceUpdate).toEqual({
+      inputLanguage: 'Spanish',
+      targetLanguages: ['German', 'French', 'Italian'],
+      enableLookupCache: true,
+    });
+  });
+
+  it('preserves existing shared targets when normalized template targets match', () => {
+    const { sharedPreferenceUpdate } = resolveBookNarrationTemplateFormStateApplication({
+      formState: {
+        target_languages: ['German', 'French'],
+      },
+      sharedTargetLanguages: ['German', 'French'],
+    });
+
+    expect(sharedPreferenceUpdate).toBeNull();
+  });
+
+  it('merges template state while keeping forced output names authoritative', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      input_file: '/books/old.epub',
+      base_output_file: 'previous-output',
+      input_language: 'English',
+    };
+
+    expect(
+      applyBookNarrationTemplateFormState(
+        previous,
+        {
+          input_file: '/books/template.epub',
+          base_output_file: 'template-output',
+          input_language: 'Spanish',
+        },
+        'forced-output',
+      ),
+    ).toMatchObject({
+      input_file: '/books/template.epub',
+      base_output_file: 'forced-output',
+      input_language: 'Spanish',
+    });
+
+    expect(
+      applyBookNarrationTemplateFormState(previous, { input_file: '/books/template.epub' }, null),
+    ).toMatchObject({
+      input_file: '/books/template.epub',
+      base_output_file: 'previous-output',
+    });
   });
 });
 
