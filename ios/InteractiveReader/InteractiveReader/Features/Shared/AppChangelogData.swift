@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-selected-option-batch-sync",
+                    title: "Translation-only keeps its audio file",
+                    detail: "Apple reader chunk handoffs now synchronize the selected audio option from the active original-only or translation-only mode before any next-batch playback load, preventing end-of-batch resets to combined audio that made rendering drift from narration."
+                ),
+                AppChangelogEntry(
                     id: "web-create-intake-stale-refresh-guard",
                     title: "Create queue status stays fresh",
                     detail: "Web creation surfaces and Apple Create now ignore stale job-intake refreshes when a newer queue snapshot is in flight, keeping Narrate Ebook, Subtitle Tool, Video Dubbing, and native Create aligned with the latest backend capacity state."

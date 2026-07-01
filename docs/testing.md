@@ -675,7 +675,10 @@ time-seek anchor regression, proving a requested translation-only sentence
 number beats stale end-of-chunk player time while bare time seeks still fall
 back to active-track gates, plus the cross-batch preservation regression that
 keeps translation-only transcript rendering and audio selection aligned when
-playback advances into the next sentence batch. The run did not boot
+playback advances into the next sentence batch. The follow-up focused playback
+check also verifies that the selected audio option is synchronized from the
+active single-track mode before immediate next-batch playback can load,
+including combined-only chunk fallbacks. The run did not boot
 simulators, load remote secrets for credential-free validation, or touch
 physical devices.
 

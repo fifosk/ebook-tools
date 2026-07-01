@@ -149,6 +149,20 @@ private func requireSequenceInstruction(
     requireEqual(option.id, expectedID, "\(message) option id")
 }
 
+@MainActor
+private func requireSingleURLInstruction(
+    _ instruction: ResolvedAudioInstruction?,
+    url expectedURL: URL,
+    timing expectedTiming: TextPlayerTimingTrack,
+    _ message: String
+) {
+    guard case .singleURL(let url, let timing)? = instruction else {
+        fail("\(message). Expected single URL instruction.")
+    }
+    requireEqual(url, expectedURL, "\(message) URL")
+    requireEqual(timing, expectedTiming, "\(message) timing")
+}
+
 private func audioOption(
     _ id: String,
     kind: InteractiveChunk.AudioOption.Kind,
@@ -362,6 +376,30 @@ private func preserveSingleTrackModeIfNeeded(
 }
 
 @MainActor
+private func synchronizeSelectedAudioTrackWithCurrentMode(
+    for chunk: InteractiveChunk,
+    manager: AudioModeManager,
+    selectedAudioTrackID: inout String?,
+    preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?,
+    sequenceAudioMode: inout AudioMode
+) {
+    guard let targetID = manager.resolvePreferredTrackID(for: chunk),
+          let targetOption = chunk.audioOptions.first(where: { $0.id == targetID }) else {
+        return
+    }
+    selectedAudioTrackID = targetID
+    switch manager.currentMode {
+    case .sequence:
+        preferredAudioKind = targetOption.kind == .combined ? .combined : targetOption.kind
+    case .singleTrack(.original):
+        preferredAudioKind = .original
+    case .singleTrack(.translation):
+        preferredAudioKind = .translation
+    }
+    sequenceAudioMode = manager.currentMode
+}
+
+@MainActor
 private func runChecks() {
     let originalURL = URL(string: "https://example.invalid/original.m4a")!
     let translationURL = URL(string: "https://example.invalid/translation.m4a")!
@@ -541,6 +579,88 @@ private func runChecks() {
         batchSelectedTrackID,
         "translation",
         "Cross-batch single-track preservation should select the matching audio option for the new batch"
+    )
+    let nextBatch = InteractiveChunk(
+        id: "chapter-2",
+        startSentence: 104,
+        sentences: [
+            .init(id: 4, displayIndex: 104, startGate: 0.0, originalStartGate: 0.0),
+            .init(id: 5, displayIndex: 105, startGate: 2.0, originalStartGate: 4.0)
+        ],
+        audioOptions: [
+            audioOption("combined-next", kind: .combined, urls: [originalURL, translationURL]),
+            audioOption("original-next", kind: .original, urls: [originalURL]),
+            audioOption("translation-next", kind: .translation, urls: [translationURL])
+        ]
+    )
+    var selectedNextBatchTrackID: String? = "combined"
+    var preferredNextBatchKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var sequenceAudioMode: AudioMode = .sequence
+    manager.setTracks(original: false, translation: true, preservingPosition: 18)
+    synchronizeSelectedAudioTrackWithCurrentMode(
+        for: nextBatch,
+        manager: manager,
+        selectedAudioTrackID: &selectedNextBatchTrackID,
+        preferredAudioKind: &preferredNextBatchKind,
+        sequenceAudioMode: &sequenceAudioMode
+    )
+    requireEqual(
+        selectedNextBatchTrackID,
+        "translation-next",
+        "Chunk handoff should switch the selected audio option before immediate playback can load the next batch"
+    )
+    requireEqual(
+        preferredNextBatchKind,
+        .translation,
+        "Chunk handoff should keep later fallback selection pinned to translation-only mode"
+    )
+    requireEqual(
+        sequenceAudioMode,
+        .singleTrack(.translation),
+        "Chunk handoff should update the sequence controller mode before preparing next-batch audio"
+    )
+    requireInstruction(
+        manager.resolveAudioInstruction(for: nextBatch, selectedTrackID: selectedNextBatchTrackID),
+        optionID: "translation-next",
+        timing: .translation,
+        "Chunk handoff should resolve translation-only audio before SwiftUI lifecycle preservation runs"
+    )
+    let combinedOnlyNextBatch = InteractiveChunk(
+        id: "chapter-2-combined",
+        startSentence: 104,
+        sentences: [
+            .init(id: 4, displayIndex: 104, startGate: 0.0, originalStartGate: 0.0),
+            .init(id: 5, displayIndex: 105, startGate: 2.0, originalStartGate: 4.0)
+        ],
+        audioOptions: [
+            audioOption("combined-only-next", kind: .combined, urls: [originalURL, translationURL])
+        ]
+    )
+    var selectedCombinedOnlyTrackID: String? = "combined"
+    var preferredCombinedOnlyKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var combinedOnlySequenceAudioMode: AudioMode = .sequence
+    synchronizeSelectedAudioTrackWithCurrentMode(
+        for: combinedOnlyNextBatch,
+        manager: manager,
+        selectedAudioTrackID: &selectedCombinedOnlyTrackID,
+        preferredAudioKind: &preferredCombinedOnlyKind,
+        sequenceAudioMode: &combinedOnlySequenceAudioMode
+    )
+    requireEqual(
+        selectedCombinedOnlyTrackID,
+        "combined-only-next",
+        "Combined-only chunk handoff should still select the available option"
+    )
+    requireEqual(
+        preferredCombinedOnlyKind,
+        .translation,
+        "Combined-only chunk handoff should remember translation preference for the next batch"
+    )
+    requireSingleURLInstruction(
+        manager.resolveAudioInstruction(for: combinedOnlyNextBatch, selectedTrackID: selectedCombinedOnlyTrackID),
+        url: translationURL,
+        timing: .translation,
+        "Combined-only chunk handoff should extract the translation stream before rendering follows the wrong track"
     )
 
     manager.setTracks(original: false, translation: true, preservingPosition: 17)

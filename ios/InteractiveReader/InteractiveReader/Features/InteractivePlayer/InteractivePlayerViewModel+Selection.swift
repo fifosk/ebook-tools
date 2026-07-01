@@ -84,6 +84,7 @@ extension InteractivePlayerViewModel {
             selectedTimingURL = nil
             return
         }
+        synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)
         if !(chunk.audioOptions.contains { $0.id == selectedAudioTrackID }) {
             let preferred = preferredAudioKind.flatMap { kind in
                 chunk.audioOptions.first(where: { $0.kind == kind })
@@ -144,6 +145,7 @@ extension InteractivePlayerViewModel {
                 return target
             }()
             self.rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: effectiveTargetIndex)
+            self.synchronizeSelectedAudioTrackWithCurrentMode(for: updatedChunk)
             // Only start audio if transcript is now available. This prevents
             // jumps from playing audio while the view still shows the spinner.
             guard didLoad, self.isSentenceReadyForDisplay(in: updatedChunk, targetIndex: effectiveTargetIndex) else {
@@ -269,6 +271,33 @@ extension InteractivePlayerViewModel {
             selectedTimingURL = nil
             preferredAudioKind = nil
             isTranscriptLoading = false
+        }
+    }
+
+    func synchronizeSelectedAudioTrackWithCurrentMode(for chunk: InteractiveChunk) {
+        guard let audioModeManager,
+              let targetID = audioModeManager.resolvePreferredTrackID(for: chunk),
+              let targetOption = chunk.audioOptions.first(where: { $0.id == targetID }) else {
+            return
+        }
+        selectedAudioTrackID = targetID
+        preferredAudioKind = preferredAudioKindForCurrentMode(
+            fallback: targetOption.kind
+        )
+        sequenceController.audioMode = audioModeManager.currentMode
+    }
+
+    private func preferredAudioKindForCurrentMode(
+        fallback: InteractiveChunk.AudioOption.Kind
+    ) -> InteractiveChunk.AudioOption.Kind {
+        guard let audioModeManager else { return fallback }
+        switch audioModeManager.currentMode {
+        case .sequence:
+            return fallback == .combined ? .combined : fallback
+        case .singleTrack(.original):
+            return .original
+        case .singleTrack(.translation):
+            return .translation
         }
     }
 

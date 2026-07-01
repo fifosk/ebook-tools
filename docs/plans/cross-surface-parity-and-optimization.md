@@ -774,8 +774,11 @@ Current Apple UI partially exposes:
   narration audio mode to visible/effective tracks, combined-track
   translation-only playback uses translation timing and active roles, paused
   iPad lookup arrows refresh the definition from the moved selection, and
-  destination language pills prefer authoritative target-language request/config
-  fields instead of broad nested metadata scans. The repo-owned Apple contract lane includes
+  chunk handoffs now synchronize the selected audio option from the active
+  single-track mode before next-batch playback can load, so the transcript and
+  narration do not drift back to combined audio at batch boundaries. Destination
+  language pills prefer authoritative target-language request/config fields
+  instead of broad nested metadata scans. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Playback token normalization cache. Status: Apple interactive playback keeps a
   bounded per-player token normalization cache across live media refreshes and
