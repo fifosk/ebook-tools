@@ -664,8 +664,7 @@ export default function PlayerPanel({
   const chapterScopeStart = jobScopeStartSentence ?? jobStartSentence;
   const chapterScopeEnd = jobScopeEndSentence ?? jobEndSentence;
 
-  const navigationBaseProps = {
-    ...buildNavigationBaseProps({
+  const navigationBaseProps = buildNavigationBaseProps({
     navigation: {
       onNavigate: handleKeyboardNavigate,
       onToggleFullscreen: handleInteractiveFullscreenToggle,
@@ -712,14 +711,13 @@ export default function PlayerPanel({
       bookSentenceCount,
     },
     onResetLayout: handleResetInteractiveLayout,
-    }),
     sleepTimerControl: (
       <SleepTimerControl
         onExpire={handleSleepTimerExpired}
         resetKey={normalisedJobId}
       />
     ),
-  };
+  });
   const hasPanelAdvancedControls = hasPlayerPanelAdvancedControls(navigationBaseProps);
 
   const {

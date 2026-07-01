@@ -269,7 +269,7 @@ Large Web UI hotspots to split before redesign work:
   rendered coverage. Library item status badges now live in
   `web/src/components/library-list/LibraryStatusBadge.tsx` with focused
   rendered coverage.
-- `web/src/components/PlayerPanel.tsx` - 878 lines. Status: selected text
+- `web/src/components/PlayerPanel.tsx` - 858 lines. Status: selected text
   item, selected chunk, and active text chunk resolution now live in
   `web/src/components/player-panel/utils.ts` with focused Vitest coverage.
   Browser storage reads/writes used by PlayerPanel, interactive text, reading
@@ -294,7 +294,10 @@ Large Web UI hotspots to split before redesign work:
   coverage, and the React bridge for active chapter state
   plus chapter jump dispatch now lives in
   `web/src/components/player-panel/usePlayerPanelChapterNavigation.ts` with
-  focused hook coverage. The repo-owned `test-web-playback-focused`
+  focused hook coverage. Navigation base prop shaping, including the shared
+  sleep-timer slot, now lives in
+  `web/src/components/player-panel/playerPanelProps.ts` with focused prop
+  coverage. The repo-owned `test-web-playback-focused`
   target now covers live-media state/timing, PlayerPanel helper/rendering
   splits, shared video and YouTube Dub sleep-timer behavior, subtitle overlay
   utilities, audio URL/chunk indexing, sequence planning, and browser-storage

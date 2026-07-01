@@ -126,6 +126,7 @@ type BuildNavigationBasePropsArgs = {
   sentenceJumpListId: string;
   sentenceTotals: SentenceTotals;
   onResetLayout: NavigationBaseProps['onResetLayout'];
+  sleepTimerControl?: NavigationBaseProps['sleepTimerControl'];
 };
 
 export function buildNavigationBaseProps({
@@ -141,6 +142,7 @@ export function buildNavigationBaseProps({
   sentenceJumpListId,
   sentenceTotals,
   onResetLayout,
+  sleepTimerControl,
 }: BuildNavigationBasePropsArgs): NavigationBaseProps {
   return {
     onNavigate: navigation.onNavigate,
@@ -249,6 +251,7 @@ export function buildNavigationBaseProps({
     totalSentencesInBook: sentenceTotals.chapterScopeEnd,
     jobStartSentence: sentenceTotals.chapterScopeStart,
     bookTotalSentences: sentenceTotals.bookSentenceCount,
+    sleepTimerControl,
   };
 }
 
