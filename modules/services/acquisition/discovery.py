@@ -46,6 +46,13 @@ from .indexer_discovery import (
     torznab_attrs,
     xml_child_text,
 )
+from .gutenberg_discovery import (
+    GUTENDEX_BOOKS_URL,
+    gutenberg_epub_url,
+    gutenberg_person_names,
+    gutenberg_source_url,
+    gutendex_search_params,
+)
 from .internet_archive_discovery import (
     fetch_internet_archive_metadata,
     internet_archive_download_url,
@@ -73,7 +80,6 @@ from .youtube_discovery import (
 _LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES.items()}
 _YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 _YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
-_GUTENDEX_BOOKS_URL = "https://gutendex.com/books"
 _OPENLIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 _INTERNET_ARCHIVE_ADVANCED_SEARCH_URL = "https://archive.org/advancedsearch.php"
 _INTERNET_ARCHIVE_METADATA_URL = "https://archive.org/metadata"
@@ -407,14 +413,12 @@ def _discover_gutenberg(
         return []
 
     client = session or requests.Session()
-    params: dict[str, str | int] = {
-        "search": query,
-        "page_size": max(1, min(limit, 32)),
-    }
     normalized_language = _normalize_language_code(language)
-    if normalized_language:
-        params["languages"] = normalized_language
-    response = client.get(_GUTENDEX_BOOKS_URL, params=params, timeout=10)
+    response = client.get(
+        GUTENDEX_BOOKS_URL,
+        params=gutendex_search_params(query, limit, normalized_language),
+        timeout=10,
+    )
     response.raise_for_status()
     payload = response.json()
     results = payload.get("results", [])
@@ -431,14 +435,10 @@ def _discover_gutenberg(
         formats = item.get("formats")
         if not isinstance(formats, Mapping):
             formats = {}
-        epub_url = _gutenberg_epub_url(formats)
-        source_url = _string_value(
-            formats.get("text/html")
-            or formats.get("text/html; charset=utf-8")
-            or formats.get("text/html; charset=us-ascii")
-        ) or f"https://www.gutenberg.org/ebooks/{gutenberg_id}"
+        epub_url = gutenberg_epub_url(formats)
+        source_url = gutenberg_source_url(formats, gutenberg_id)
         title = _string_value(item.get("title")) or f"Project Gutenberg {gutenberg_id}"
-        contributors = _gutenberg_person_names(item.get("authors"))
+        contributors = gutenberg_person_names(item.get("authors"))
         languages = _string_sequence(item.get("languages"))
         copyright_value = item.get("copyright")
         rights = "public_domain" if copyright_value is False else "unknown"
@@ -1414,36 +1414,6 @@ def _title_from_filename(path: Path) -> str:
 
 def _candidate_token(payload: Mapping[str, Any]) -> str:
     return encode_acquisition_token(payload)
-
-
-def _gutenberg_epub_url(formats: Mapping[str, Any]) -> str | None:
-    preferred = _string_value(formats.get("application/epub+zip"))
-    if preferred:
-        return preferred
-    for key, value in formats.items():
-        if "epub" not in str(key).casefold():
-            continue
-        url = _string_value(value)
-        if url:
-            return url
-    for value in formats.values():
-        url = _string_value(value)
-        if url and ".epub" in url.casefold():
-            return url
-    return None
-
-
-def _gutenberg_person_names(value: Any) -> tuple[str, ...]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-        return ()
-    names: list[str] = []
-    for person in value:
-        if not isinstance(person, Mapping):
-            continue
-        name = _string_value(person.get("name"))
-        if name:
-            names.append(name)
-    return tuple(names)
 
 
 def _normalize_language_code(value: str | None) -> str | None:

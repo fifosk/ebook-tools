@@ -690,7 +690,11 @@ Current Apple UI partially exposes:
   EPUB eligibility, download URL, metadata fetch, and rights helpers now live in
   `modules/services/acquisition/internet_archive_discovery.py` with focused
   coverage, keeping public-catalog EPUB acquisition rules small and reusable for
-  Web/Apple book discovery. Apple YouTube Dub candidate selection now also
+  Web/Apple book discovery. Backend Project Gutenberg discovery search-parameter,
+  EPUB/HTML URL, and contributor helpers now live in
+  `modules/services/acquisition/gutenberg_discovery.py` with focused coverage,
+  keeping Gutendex normalization small and reusable for Web/Apple book
+  discovery. Apple YouTube Dub candidate selection now also
   passes the active discovery provider and query into saved `discovery_state`,
   and applying a saved template restores that provider/query in the native
   source picker, keeping Apple-saved video templates aligned with Web Video

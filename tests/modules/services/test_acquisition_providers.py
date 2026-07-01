@@ -10,6 +10,7 @@ import requests
 
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
+import modules.services.acquisition.gutenberg_discovery as gutenberg_discovery
 import modules.services.acquisition.indexer_discovery as indexer_discovery
 import modules.services.acquisition.internet_archive_discovery as internet_archive_discovery
 import modules.services.acquisition.openlibrary_discovery as openlibrary_discovery
@@ -1015,6 +1016,56 @@ def test_discover_gutenberg_normalizes_public_domain_epub_metadata() -> None:
     assert session.calls[0][0].endswith("/books")
     assert session.calls[0][1]["search"] == "frankenstein"
     assert session.calls[0][1]["languages"] == "en"
+
+
+def test_gutenberg_discovery_helpers_normalize_formats_and_people() -> None:
+    assert gutenberg_discovery.gutendex_search_params("dune", 99, "en") == {
+        "search": "dune",
+        "page_size": 32,
+        "languages": "en",
+    }
+    assert gutenberg_discovery.gutendex_search_params("dune", 0, None) == {
+        "search": "dune",
+        "page_size": 1,
+    }
+    assert (
+        gutenberg_discovery.gutenberg_epub_url(
+            {
+                "application/octet-stream": "https://example.test/book.txt",
+                "application/x-mobipocket-ebook": "https://example.test/book.mobi",
+                "text/plain": "https://example.test/book.epub.noimages",
+            }
+        )
+        == "https://example.test/book.epub.noimages"
+    )
+    assert (
+        gutenberg_discovery.gutenberg_epub_url(
+            {
+                "Application/EPUB+ZIP": "https://example.test/case.epub",
+                "application/epub+zip": "https://example.test/preferred.epub",
+            }
+        )
+        == "https://example.test/preferred.epub"
+    )
+    assert (
+        gutenberg_discovery.gutenberg_source_url(
+            {"text/html; charset=utf-8": "https://www.gutenberg.org/ebooks/84.html.images"},
+            84,
+        )
+        == "https://www.gutenberg.org/ebooks/84.html.images"
+    )
+    assert (
+        gutenberg_discovery.gutenberg_source_url({}, 84)
+        == "https://www.gutenberg.org/ebooks/84"
+    )
+    assert gutenberg_discovery.gutenberg_person_names(
+        [
+            {"name": "Shelley, Mary Wollstonecraft"},
+            {"name": " "},
+            {"not_name": "ignored"},
+            "ignored",
+        ]
+    ) == ("Shelley, Mary Wollstonecraft",)
 
 
 def test_discover_internet_archive_filters_plain_epub_candidates() -> None:

@@ -39,6 +39,11 @@ enum AppChangelogData {
                     id: "backend-internet-archive-discovery-helper",
                     title: "Archive discovery is leaner",
                     detail: "Backend Internet Archive acquisition discovery now shares focused tested helpers for search queries, EPUB eligibility, download URLs, metadata fetches, and rights classification used by Web and Apple Create book discovery."
+                ),
+                AppChangelogEntry(
+                    id: "backend-gutenberg-discovery-helper",
+                    title: "Gutenberg discovery is leaner",
+                    detail: "Backend Project Gutenberg acquisition discovery now shares focused tested helpers for Gutendex search parameters, EPUB and HTML URL selection, and contributor normalization used by Web and Apple Create book discovery."
                 )
             ]
         ),
