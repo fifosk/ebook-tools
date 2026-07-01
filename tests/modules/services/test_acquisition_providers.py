@@ -2177,6 +2177,10 @@ def test_youtube_discovery_helpers_normalize_metadata_and_errors(
             }
 
     assert youtube_discovery.youtube_error_reason(_FakeErrorResponse()) == "quotaExceeded"
+    direct_candidates = youtube_discovery.discover_youtube_url("AbC123_xYz9", 1)
+    assert direct_candidates[0].provider == "youtube_url"
+    assert direct_candidates[0].candidate_id == "youtube_url:AbC123_xYz9"
+    assert direct_candidates[0].metadata["youtube_video_id"] == "AbC123_xYz9"
 
 
 def test_openlibrary_discovery_helpers_normalize_metadata_links() -> None:

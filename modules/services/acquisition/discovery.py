@@ -78,17 +78,11 @@ from .models import (
     AcquisitionSubtitleHint,
 )
 from .youtube_discovery import (
-    parse_iso8601_duration,
-    parse_youtube_url_or_id,
-    youtube_api_key,
-    youtube_error_reason,
-    youtube_thumbnail,
-    youtube_video_id,
+    discover_youtube_search as _discover_youtube_search,
+    discover_youtube_url as _discover_youtube_url,
 )
 
 
-_YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
-_YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 _OPENLIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 _INTERNET_ARCHIVE_ADVANCED_SEARCH_URL = "https://archive.org/advancedsearch.php"
 _INTERNET_ARCHIVE_METADATA_URL = "https://archive.org/metadata"
@@ -620,131 +614,6 @@ def _discover_openlibrary(
     return candidates
 
 
-def _discover_youtube_url(query: str, limit: int) -> list[AcquisitionCandidate]:
-    if limit <= 0:
-        return []
-    video_id = parse_youtube_url_or_id(query)
-    if not video_id:
-        return []
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    token = _candidate_token(
-        {
-            "provider": "youtube_url",
-            "media_kind": "video",
-            "video_id": video_id,
-            "youtube_url": url,
-        }
-    )
-    return [
-        AcquisitionCandidate(
-            candidate_id=f"youtube_url:{video_id}",
-            provider="youtube_url",
-            media_kind="video",
-            title=f"YouTube video {video_id}",
-            rights="unknown",
-            capabilities=("metadata", "extract_subtitles"),
-            candidate_token=token,
-            source_url=url,
-            requires_confirmation=True,
-            policy_notes=(
-                "Direct YouTube URL discovery returns metadata handoff only; video/subtitle acquisition is a separate reviewed step.",
-            ),
-            metadata={
-                "source_kind": "youtube",
-                "youtube_video_id": video_id,
-                "youtube_url": url,
-            },
-        )
-    ]
-
-
-def _discover_youtube_search(
-    config: Mapping[str, Any],
-    query: str,
-    limit: int,
-    *,
-    language: str | None,
-    session: requests.Session | None,
-) -> list[AcquisitionCandidate]:
-    api_key = youtube_api_key(config)
-    if not api_key or not query:
-        return []
-
-    client = session or requests.Session()
-    params: dict[str, str | int] = {
-        "part": "snippet",
-        "type": "video",
-        "maxResults": max(1, min(limit, 25)),
-        "q": query,
-        "key": api_key,
-        "safeSearch": "moderate",
-    }
-    if language:
-        params["relevanceLanguage"] = language
-    response = client.get(_YOUTUBE_SEARCH_URL, params=params, timeout=10)
-    _raise_for_youtube_status(response, operation="search")
-    payload = response.json()
-    items = payload.get("items", [])
-    if not isinstance(items, Sequence):
-        return []
-
-    search_items = [item for item in items if isinstance(item, Mapping)]
-    video_ids = [youtube_video_id(item) for item in search_items]
-    details_by_id = _fetch_youtube_video_details(client, api_key, video_ids)
-    candidates: list[AcquisitionCandidate] = []
-    for item in search_items:
-        video_id = youtube_video_id(item)
-        if not video_id:
-            continue
-        snippet = item.get("snippet")
-        if not isinstance(snippet, Mapping):
-            continue
-        details = details_by_id.get(video_id, {})
-        url = f"https://www.youtube.com/watch?v={video_id}"
-        token = _candidate_token(
-            {
-                "provider": "youtube_search",
-                "media_kind": "video",
-                "video_id": video_id,
-            }
-        )
-        candidates.append(
-            AcquisitionCandidate(
-                candidate_id=f"youtube_search:{video_id}",
-                provider="youtube_search",
-                media_kind="video",
-                title=_string_value(snippet.get("title")) or video_id,
-                rights="unknown",
-                capabilities=("metadata", "extract_subtitles"),
-                candidate_token=token,
-                contributors=tuple(
-                    value
-                    for value in [_string_value(snippet.get("channelTitle"))]
-                    if value
-                ),
-                published_at=_string_value(snippet.get("publishedAt")),
-                source_url=url,
-                thumbnail_url=youtube_thumbnail(snippet),
-                duration_seconds=parse_iso8601_duration(
-                    _string_value(details.get("duration"))
-                ),
-                requires_confirmation=True,
-                policy_notes=(
-                    "YouTube search uses metadata only; video/subtitle acquisition is a separate reviewed step.",
-                ),
-                metadata={
-                    "source_kind": "youtube",
-                    "youtube_video_id": video_id,
-                    "youtube_url": url,
-                    "channel": _string_value(snippet.get("channelTitle")),
-                },
-            )
-        )
-        if len(candidates) >= limit:
-            break
-    return candidates
-
-
 def _discover_newznab_torznab(
     config: Mapping[str, Any],
     query: str,
@@ -882,92 +751,6 @@ def _indexer_provider_error(exc: requests.HTTPError) -> AcquisitionProviderDisco
     return AcquisitionProviderDiscoveryError(
         provider="newznab_torznab",
         reason=reason,
-        message=message,
-    )
-
-
-def _fetch_youtube_video_details(
-    client: requests.Session,
-    api_key: str,
-    video_ids: Sequence[str | None],
-) -> dict[str, Mapping[str, Any]]:
-    ids = [video_id for video_id in video_ids if video_id]
-    if not ids:
-        return {}
-    response = client.get(
-        _YOUTUBE_VIDEOS_URL,
-        params={
-            "part": "contentDetails,snippet",
-            "id": ",".join(ids[:50]),
-            "key": api_key,
-        },
-        timeout=10,
-    )
-    _raise_for_youtube_status(response, operation="details")
-    payload = response.json()
-    items = payload.get("items", [])
-    details: dict[str, Mapping[str, Any]] = {}
-    if not isinstance(items, Sequence):
-        return details
-    for item in items:
-        if not isinstance(item, Mapping):
-            continue
-        video_id = _string_value(item.get("id"))
-        content_details = item.get("contentDetails")
-        if video_id and isinstance(content_details, Mapping):
-            details[video_id] = {
-                "duration": content_details.get("duration"),
-            }
-    return details
-
-
-def _raise_for_youtube_status(response: requests.Response, *, operation: str) -> None:
-    try:
-        response.raise_for_status()
-    except requests.HTTPError as exc:
-        raise _youtube_provider_error(exc, operation=operation) from exc
-
-
-def _youtube_provider_error(
-    exc: requests.HTTPError,
-    *,
-    operation: str,
-) -> AcquisitionProviderDiscoveryError:
-    response = exc.response
-    status_code = response.status_code if response is not None else None
-    reason = youtube_error_reason(response)
-    normalized_reason = reason.casefold()
-    if normalized_reason in {
-        "quotaexceeded",
-        "dailylimitexceeded",
-        "ratelimitexceeded",
-        "userratelimitexceeded",
-    }:
-        message = (
-            "YouTube search quota or rate limit was exceeded. "
-            "Check the backend YouTube Data API quota, then try again."
-        )
-    elif normalized_reason in {
-        "keyinvalid",
-        "accessnotconfigured",
-        "forbidden",
-        "insufficientpermissions",
-        "iprefererblocked",
-    } or status_code in {401, 403}:
-        message = (
-            "YouTube search is not authorized. "
-            "Check the backend YouTube Data API key and API enablement."
-        )
-    elif status_code == 429:
-        message = (
-            "YouTube search is rate limited. Wait for quota to recover, then try again."
-        )
-    else:
-        suffix = f" HTTP {status_code}" if status_code else ""
-        message = f"YouTube search {operation} failed{suffix}. Try again later."
-    return AcquisitionProviderDiscoveryError(
-        provider="youtube_search",
-        reason=reason or f"http_{status_code or 'unknown'}",
         message=message,
     )
 

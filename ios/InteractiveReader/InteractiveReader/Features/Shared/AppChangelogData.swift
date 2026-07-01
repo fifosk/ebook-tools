@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-youtube-discovery-helper-module",
+                    title: "YouTube discovery is leaner",
+                    detail: "Backend YouTube URL and search acquisition discovery now lives with the focused YouTube helper module, keeping metadata candidate construction and token-safe API error handling out of the shared provider fanout while preserving Web and Apple Create contracts."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-restore-applies-selection",
                     title: "Single-track restore stays selected",
                     detail: "Apple reader resume and visible-track restore paths now reapply the full original-only or translation-only audio selection instead of only assigning a matching option id, keeping the durable loaded lane intact when sentence batches end or resume opens in single-track mode."

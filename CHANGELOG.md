@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Backend YouTube URL/search acquisition discovery now lives with the focused YouTube helper module, keeping metadata candidate construction and token-safe API error handling out of the shared provider fanout while preserving Web and Apple Create contracts.
 - Apple reader resume and visible-track restore paths now reapply the full original-only/translation-only audio selection instead of only assigning a matching option id, keeping the durable loaded lane intact when sentence batches end or resume opens in single-track mode.
 - Backend local EPUB, manual download, and NAS video discovery now share a focused file-backed provider helper module, keeping filesystem scanning and candidate shaping out of the large acquisition fanout while preserving Web and Apple Create source picker behavior.
 - Backend acquisition discovery result models now live in a focused shared module and are re-exported through the existing package APIs, making provider helpers easier to split without changing Web or Apple Create contracts.

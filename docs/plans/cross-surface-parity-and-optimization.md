@@ -1340,8 +1340,8 @@ Optimization candidates:
   cleanup, linked-job tagging, and Dub submission failure paths also avoid
   traceback attachments in token-safe logs so raw URLs, NAS paths, titles,
   languages, voices, and tokens do not leak through exception frames. YouTube
-  discovery URL parsing, metadata normalization, duration parsing, API-key
-  lookup, and error-reason extraction now live in
+  URL/search discovery candidate construction, metadata normalization, duration
+  parsing, API-key lookup, detail fetches, and token-safe API error mapping now live in
   `modules/services/acquisition/youtube_discovery.py` with focused acquisition
   coverage, keeping Web and Apple video discovery behavior easier to evolve
   without reopening the full acquisition service. Newznab/Torznab endpoint,
