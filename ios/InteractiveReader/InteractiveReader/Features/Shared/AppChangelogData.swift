@@ -520,6 +520,11 @@ enum AppChangelogData {
                     detail: "Download Station polling now returns completed-file hints only when they resolve under configured manual/download roots, dropping URL-like or outside-root entries before Web and Apple Create reconnect to local artifacts."
                 ),
                 AppChangelogEntry(
+                    id: "subtitle-mirror-safe-stat",
+                    title: "Subtitle mirrors tolerate NAS hiccups",
+                    detail: "Subtitle jobs now use tolerant file probes for mirrored outputs and HTML transcript companions, keeping Web and Apple video-subtitle handoff steadier during shared-storage remounts."
+                ),
+                AppChangelogEntry(
                     id: "creation-template-storage-safe-stat",
                     title: "Create templates tolerate storage hiccups",
                     detail: "Saved creation-template reads now use the backend's tolerant storage probe, keeping Web and Apple Create template lists stable when shared storage briefly disappears."

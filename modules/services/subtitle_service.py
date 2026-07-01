@@ -60,6 +60,10 @@ def _format_episode_code(season: int, episode: int) -> str:
     return f"S{season:02d}E{episode:02d}"
 
 
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
 @dataclass(frozen=True)
 class SubtitleSubmission:
     """Description of a subtitle submission request."""
@@ -120,7 +124,7 @@ class SubtitleService:
         """Best-effort copy of the generated HTML transcript to ``destination_dir``."""
 
         html_source = source_subtitle.parent / "html" / f"{source_subtitle.stem}.html"
-        if not html_source.exists():
+        if not _path_exists(html_source):
             return
         try:
             html_target_dir = destination_dir / "html"
@@ -507,14 +511,8 @@ class SubtitleService:
             relative_path = output_path.relative_to(self._locator.job_root(job.job_id)).as_posix()
             export_path: Optional[Path] = None
             if mirror_path is not None:
-                try:
-                    if mirror_path.exists():
-                        export_path = mirror_path
-                except OSError:
-                    logger.info(
-                        "Unable to access mirrored subtitle output at %s; will attempt copy fallback.",
-                        mirror_path,
-                    )
+                if _path_exists(mirror_path):
+                    export_path = mirror_path
             elif mirror_dir is not None:
                 try:
                     export_candidate = mirror_dir / output_name

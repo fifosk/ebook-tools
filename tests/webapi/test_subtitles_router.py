@@ -220,6 +220,69 @@ def test_subtitle_service_list_sources_uses_safe_root_stat(
     assert service.list_sources() == []
 
 
+def test_subtitle_service_path_exists_uses_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "episode.en.srt"
+    target.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    calls: list[Path] = []
+
+    def fake_safe_stat(path: Path):
+        calls.append(path)
+        if path == target:
+            return os.stat(path)
+        return None
+
+    def fail_exists(self):  # noqa: ANN001
+        raise AssertionError("subtitle service file probes should use safe_stat")
+
+    monkeypatch.setattr(subtitle_service_module, "safe_stat", fake_safe_stat)
+    monkeypatch.setattr(type(target), "exists", fail_exists)
+
+    assert subtitle_service_module._path_exists(target) is True  # noqa: SLF001 - pins tolerant probe.
+    assert subtitle_service_module._path_exists(tmp_path / "missing.en.srt") is False  # noqa: SLF001
+    assert calls == [target, tmp_path / "missing.en.srt"]
+
+
+def test_subtitle_service_copy_html_companion_uses_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=tmp_path,
+    )
+    subtitle_path = tmp_path / "output" / "episode.en.srt"
+    subtitle_path.parent.mkdir()
+    subtitle_path.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    html_source_dir = subtitle_path.parent / "html"
+    html_source_dir.mkdir()
+    html_source = html_source_dir / "episode.en.html"
+    html_source.write_text("<p>Hello</p>", encoding="utf-8")
+    mirror_dir = tmp_path / "mirror"
+    mirror_dir.mkdir()
+    calls: list[Path] = []
+
+    def fake_safe_stat(path: Path):
+        calls.append(path)
+        if path == html_source:
+            return os.stat(path)
+        return None
+
+    def fail_exists(self):  # noqa: ANN001
+        raise AssertionError("HTML companion mirroring should use safe_stat")
+
+    monkeypatch.setattr(subtitle_service_module, "safe_stat", fake_safe_stat)
+    monkeypatch.setattr(type(html_source), "exists", fail_exists)
+
+    service._copy_html_companion(subtitle_path, mirror_dir)  # noqa: SLF001 - pins mirror behavior.
+
+    assert (mirror_dir / "html" / "episode.en.html").read_text(encoding="utf-8") == "<p>Hello</p>"
+    assert calls == [html_source]
+
+
 def test_subtitle_service_list_sources_recurses_visible_nas_folders(tmp_path: Path) -> None:
     nested = tmp_path / "Shows" / "Current"
     hidden = tmp_path / ".scratch"
