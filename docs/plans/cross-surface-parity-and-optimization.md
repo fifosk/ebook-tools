@@ -1008,6 +1008,9 @@ Optimization candidates:
   stat checks for source EPUB/PDF paths, data-root scans, and staged-copy
   destination candidates, reducing Web/Apple Library refresh races around
   NAS-backed job data folders.
+  Library cover-source resolution and normalized cover-path scans now use
+  tolerant stat checks too, keeping Web/Apple Library artwork refreshes
+  resilient when metadata folders race with cleanup or remounts.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

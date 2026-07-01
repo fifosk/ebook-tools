@@ -328,7 +328,7 @@ def resolve_cover_source(job_root: Path, raw_value: str) -> Optional[Path]:
         if resolved in seen:
             continue
         seen.add(resolved)
-        if resolved.is_file():
+        if _path_is_file(resolved):
             return resolved
     return None
 
@@ -351,7 +351,7 @@ def copy_cover_asset(metadata_root: Path, source: Path) -> str:
 
     if destination_abs != resolved_source:
         should_copy = True
-        if destination_path.exists():
+        if _path_exists(destination_path):
             try:
                 src_stat = resolved_source.stat()
                 dest_stat = destination_path.stat()
@@ -419,7 +419,7 @@ def extract_cover_path(metadata: Mapping[str, Any], job_root: Path) -> Optional[
 
     metadata_dir = job_root / "metadata"
     for candidate in sorted(metadata_dir.glob("cover.*")):
-        if candidate.is_file():
+        if _path_is_file(candidate):
             try:
                 relative = candidate.relative_to(job_root)
             except ValueError:
@@ -450,7 +450,7 @@ def normalize_cover_path(raw: str, job_root: Path) -> Optional[str]:
     normalized = trimmed.lstrip("/\\")
     relative_candidate = Path(normalized.replace("\\", "/"))
     resolved_candidate = job_root / relative_candidate
-    if resolved_candidate.exists():
+    if _path_exists(resolved_candidate):
         try:
             relative = resolved_candidate.relative_to(job_root)
         except ValueError:
@@ -458,7 +458,7 @@ def normalize_cover_path(raw: str, job_root: Path) -> Optional[str]:
         return relative.as_posix()
 
     metadata_candidate = job_root / "metadata" / relative_candidate.name
-    if metadata_candidate.exists():
+    if _path_exists(metadata_candidate):
         try:
             relative = metadata_candidate.relative_to(job_root)
         except ValueError:

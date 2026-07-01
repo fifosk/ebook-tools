@@ -97,3 +97,63 @@ def test_next_source_candidate_uses_safe_stat_for_collisions(
     monkeypatch.setattr(Path, "exists", guarded_exists)
 
     assert file_ops.next_source_candidate(destination) == tmp_path / "Source-2.epub"
+
+
+def test_resolve_cover_source_uses_safe_stat_for_cover_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_root = tmp_path / "job-1"
+    cover_path = job_root / "metadata" / "cover.jpg"
+    cover_path.parent.mkdir(parents=True, exist_ok=True)
+    cover_path.write_bytes(b"cover")
+    original_is_file = Path.is_file
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == cover_path:
+            raise AssertionError("library cover sources should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    assert file_ops.resolve_cover_source(job_root, "metadata/cover.jpg") == cover_path
+
+
+def test_extract_cover_path_uses_safe_stat_for_metadata_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_root = tmp_path / "job-1"
+    cover_path = job_root / "metadata" / "cover.png"
+    cover_path.parent.mkdir(parents=True, exist_ok=True)
+    cover_path.write_bytes(b"cover")
+    original_is_file = Path.is_file
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == cover_path:
+            raise AssertionError("library cover metadata scans should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    assert file_ops.extract_cover_path({}, job_root) == "metadata/cover.png"
+
+
+def test_normalize_cover_path_uses_safe_stat_for_candidates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_root = tmp_path / "job-1"
+    cover_path = job_root / "metadata" / "cover.webp"
+    cover_path.parent.mkdir(parents=True, exist_ok=True)
+    cover_path.write_bytes(b"cover")
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == cover_path:
+            raise AssertionError("library cover path candidates should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    assert file_ops.normalize_cover_path("cover.webp", job_root) == "metadata/cover.webp"
