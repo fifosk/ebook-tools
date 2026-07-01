@@ -278,8 +278,10 @@ Large Web UI hotspots to split before redesign work:
   seek/track skip handling, keyboard navigation, and registered sentence
   sequence skipping now live in
   `web/src/components/player-panel/usePlayerPanelMediaNavigation.ts` with
-  focused hook coverage. Panel/fullscreen navigation control variants now live
-  in `web/src/components/player-panel/PlayerPanelNavigationGroups.tsx` with
+  focused hook coverage; its diagnostic breadcrumbs are opt-in during
+  development so normal dogfood playback and automation stay quiet. Panel/fullscreen
+  navigation control variants now live in
+  `web/src/components/player-panel/PlayerPanelNavigationGroups.tsx` with
   focused prop-routing coverage. Player content empty/stage wrapper now lives
   in `web/src/components/player-panel/PlayerPanelContent.tsx` with focused
   rendered coverage. Boundary states for load errors, initial loading, and no

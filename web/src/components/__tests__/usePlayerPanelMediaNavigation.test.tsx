@@ -30,6 +30,26 @@ function renderMediaNavigation(overrides: Partial<HookArgs> = {}) {
 }
 
 describe('usePlayerPanelMediaNavigation', () => {
+  it('keeps navigation debug output silent by default', () => {
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+    const sequenceSkip = vi.fn(() => true);
+    const { result } = renderMediaNavigation();
+
+    try {
+      act(() => {
+        result.current.handleRegisterSequenceSkip(sequenceSkip);
+        result.current.handleKeyboardNavigate('next');
+        result.current.handleRegisterSequenceSkip(null);
+        result.current.handleKeyboardNavigate('previous');
+        result.current.handleMediaSessionSeekTo({ seekTime: 14 } as MediaSessionActionDetails);
+      });
+
+      expect(debugSpy).not.toHaveBeenCalled();
+    } finally {
+      debugSpy.mockRestore();
+    }
+  });
+
   it('prefers a registered sequence skip handler for keyboard next and previous', () => {
     const sequenceSkip = vi.fn(() => true);
     const { result, onInteractiveSentenceJump, onNavigatePreservingPlayback } = renderMediaNavigation({

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-player-panel-navigation-debug-opt-in",
+                    title: "Web player navigation is quieter",
+                    detail: "Web PlayerPanel media-navigation debug logs are now opt-in during development, keeping sentence skip and media-session navigation quiet by default under local dogfood and automated playback tests."
+                ),
+                AppChangelogEntry(
                     id: "apple-visible-single-track-batch-restore",
                     title: "Single-track batch handoffs stay selected",
                     detail: "Apple reader single-track batch handoffs now restore original-only or translation-only audio mode from the visible track selection before default chunk setup can expand back to All, keeping rendering and narration on the selected lane."

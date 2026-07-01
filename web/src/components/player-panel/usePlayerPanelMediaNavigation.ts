@@ -14,6 +14,25 @@ type UsePlayerPanelMediaNavigationArgs = {
 
 type SequenceSkipHandler = (direction: 1 | -1) => boolean;
 
+const PLAYER_PANEL_NAV_DEBUG_STORAGE_KEY = 'ebookTools.playerPanelNavigationDebug';
+
+function isPlayerPanelNavigationDebugEnabled(): boolean {
+  if (!import.meta.env.DEV || typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem(PLAYER_PANEL_NAV_DEBUG_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function debugPlayerPanelNavigation(...args: unknown[]) {
+  if (isPlayerPanelNavigationDebugEnabled()) {
+    console.debug(...args);
+  }
+}
+
 export function usePlayerPanelMediaNavigation({
   activeSentenceNumber,
   canJumpToSentence,
@@ -27,9 +46,10 @@ export function usePlayerPanelMediaNavigation({
   const [hasRegisteredSequenceSkip, setHasRegisteredSequenceSkip] = useState(false);
 
   const handleRegisterSequenceSkip = useCallback((fn: SequenceSkipHandler | null) => {
-    if (import.meta.env.DEV) {
-      console.debug('[PlayerPanel] handleRegisterSequenceSkip called, fn is:', fn ? 'function' : 'null');
-    }
+    debugPlayerPanelNavigation(
+      '[PlayerPanel] handleRegisterSequenceSkip called, fn is:',
+      fn ? 'function' : 'null',
+    );
     sequenceSkipFnRef.current = fn;
     setHasRegisteredSequenceSkip(Boolean(fn));
   }, []);
@@ -37,35 +57,27 @@ export function usePlayerPanelMediaNavigation({
   const handleMediaSessionSentenceSkip = useCallback(
     (direction: -1 | 1) => {
       const sequenceSkipFn = sequenceSkipFnRef.current;
-      if (import.meta.env.DEV) {
-        console.debug(
-          '[PlayerPanel] handleMediaSessionSentenceSkip called, direction:',
-          direction,
-          'sequenceSkipFn:',
-          sequenceSkipFn ? 'set' : 'null'
-        );
-      }
+      debugPlayerPanelNavigation(
+        '[PlayerPanel] handleMediaSessionSentenceSkip called, direction:',
+        direction,
+        'sequenceSkipFn:',
+        sequenceSkipFn ? 'set' : 'null',
+      );
       if (sequenceSkipFn) {
         const result = sequenceSkipFn(direction);
-        if (import.meta.env.DEV) {
-          console.debug('[PlayerPanel] sequenceSkipFn returned:', result);
-        }
+        debugPlayerPanelNavigation('[PlayerPanel] sequenceSkipFn returned:', result);
         if (result) {
           return true;
         }
       }
       if (!canJumpToSentence) {
-        if (import.meta.env.DEV) {
-          console.debug('[PlayerPanel] canJumpToSentence is false, returning false');
-        }
+        debugPlayerPanelNavigation('[PlayerPanel] canJumpToSentence is false, returning false');
         return false;
       }
       const fallback = direction > 0 ? jobStartSentence : null;
       const current = activeSentenceNumber ?? fallback;
       if (!current || !Number.isFinite(current)) {
-        if (import.meta.env.DEV) {
-          console.debug('[PlayerPanel] activeSentenceNumber invalid, returning false');
-        }
+        debugPlayerPanelNavigation('[PlayerPanel] activeSentenceNumber invalid, returning false');
         return false;
       }
       const target = Math.trunc(current) + direction;
@@ -75,9 +87,7 @@ export function usePlayerPanelMediaNavigation({
       if (jobEndSentence !== null && target > jobEndSentence) {
         return false;
       }
-      if (import.meta.env.DEV) {
-        console.debug('[PlayerPanel] Jumping to sentence:', target);
-      }
+      debugPlayerPanelNavigation('[PlayerPanel] Jumping to sentence:', target);
       onInteractiveSentenceJump(target);
       return true;
     },
