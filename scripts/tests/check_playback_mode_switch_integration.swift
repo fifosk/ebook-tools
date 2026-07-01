@@ -340,7 +340,7 @@ private func applyPendingResumeSingleTrackIfNeeded(
     pendingResumeTrack = nil
 
     let desiredTextTrack: TextPlayerVariantKind = resumeTrack == .original ? .original : .translation
-    guard availableTracks.contains(desiredTextTrack) else { return false }
+    guard availableTracks.contains(desiredTextTrack) || chunkSupportsAudioTrack(resumeTrack, in: chunk) else { return false }
 
     visibleTracks = [desiredTextTrack]
     manager.setTracks(
@@ -363,7 +363,7 @@ private func preserveSingleTrackModeIfNeeded(
     guard case .singleTrack(let track) = manager.currentMode else { return false }
 
     let desiredTextTrack: TextPlayerVariantKind = track == .original ? .original : .translation
-    guard availableTracks.contains(desiredTextTrack) else { return false }
+    guard availableTracks.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk) else { return false }
 
     visibleTracks = [desiredTextTrack]
     hasCustomTrackSelection = true
@@ -373,6 +373,17 @@ private func preserveSingleTrackModeIfNeeded(
     )
     selectedAudioTrackID = manager.resolvePreferredTrackID(for: chunk)
     return true
+}
+
+private func chunkSupportsAudioTrack(_ track: SequenceTrack, in chunk: InteractiveChunk) -> Bool {
+    let dedicatedKind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
+    if chunk.audioOptions.contains(where: { $0.kind == dedicatedKind }) {
+        return true
+    }
+    return chunk.audioOptions.contains { option in
+        guard option.kind == .combined else { return false }
+        return !option.streamURLs.isEmpty
+    }
 }
 
 @MainActor
@@ -579,6 +590,31 @@ private func runChecks() {
         batchSelectedTrackID,
         "translation",
         "Cross-batch single-track preservation should select the matching audio option for the new batch"
+    )
+    var unloadedBatchVisibleTracks: Set<TextPlayerVariantKind> = [.original]
+    var unloadedBatchHasCustomTrackSelection = false
+    var unloadedBatchSelectedTrackID: String? = "combined"
+    requireEqual(
+        preserveSingleTrackModeIfNeeded(
+            for: chunk,
+            availableTracks: [.original],
+            manager: manager,
+            visibleTracks: &unloadedBatchVisibleTracks,
+            hasCustomTrackSelection: &unloadedBatchHasCustomTrackSelection,
+            selectedAudioTrackID: &unloadedBatchSelectedTrackID
+        ),
+        true,
+        "Unloaded next-batch setup should preserve translation-only mode when text tracks temporarily fall back to original"
+    )
+    requireEqual(
+        unloadedBatchVisibleTracks,
+        [.translation],
+        "Unloaded next-batch setup should keep translation visible until metadata hydrates"
+    )
+    requireEqual(
+        unloadedBatchSelectedTrackID,
+        "translation",
+        "Unloaded next-batch setup should select translation audio from playable options"
     )
     let nextBatch = InteractiveChunk(
         id: "chapter-2",

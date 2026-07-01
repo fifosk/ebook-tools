@@ -173,6 +173,7 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "preserveSingleTrackModeIfNeeded(" in swift_check
     assert "Cross-batch setup should preserve an existing translation-only audio mode instead of defaulting to all tracks" in swift_check
     assert "Cross-batch setup should keep the transcript aligned to the translation-only audio track" in swift_check
+    assert "Unloaded next-batch setup should preserve translation-only mode when text tracks temporarily fall back to original" in swift_check
     assert "synchronizeSelectedAudioTrackWithCurrentMode(" in swift_check
     assert "Chunk handoff should switch the selected audio option before immediate playback can load the next batch" in swift_check
     assert "Combined-only chunk handoff should extract the translation stream before rendering follows the wrong track" in swift_check
@@ -182,7 +183,8 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Once live\n  playback reaches the anchored sentence, the anchor must be consumed/cleared" in frontend_sync
     assert "first following translated sentence is rendered from live audio time" in frontend_sync
     assert "chunk/batch setup must preserve that single-track mode" in frontend_sync
-    assert "end-of-batch\n  playback can reset to combined/sequence audio" in frontend_sync
+    assert "based on playable audio options too, not only currently hydrated visible text\n  tracks" in frontend_sync
+    assert "end-of-batch playback can reset to\n  combined/sequence audio" in frontend_sync
     sequence_source = (INTERACTIVE / "InteractivePlayerViewModel+Sequence.swift").read_text(encoding="utf-8")
     sequence_active_body = sequence_source.split("var isSequenceModeActive: Bool", 1)[1].split("\n}", 1)[0]
     assert "guard audioModeManager?.isSequenceMode != false else" in sequence_active_body
@@ -753,6 +755,7 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
         "func preserveSingleTrackModeIfNeeded(for chunk: InteractiveChunk) -> Bool",
     )
     assert "guard case .singleTrack(let track) = audioModeManager.currentMode else { return false }" in preserve_body
+    assert "available.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk)" in preserve_body
     assert "visibleTracks = [desiredTextTrack]" in preserve_body
     assert "hasCustomTrackSelection = true" in preserve_body
     assert "viewModel.selectedAudioTrackID = targetID" in preserve_body
@@ -763,11 +766,20 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     )
     assert "guard let resumeTrack = viewModel.pendingResumeSingleTrack else { return false }" in resume_track_body
     assert "viewModel.pendingResumeSingleTrack = nil" in resume_track_body
+    assert "available.contains(desiredTextTrack) || chunkSupportsAudioTrack(resumeTrack, in: chunk)" in resume_track_body
     assert "visibleTracks = [desiredTextTrack]" in resume_track_body
     assert "hasCustomTrackSelection = true" in resume_track_body
     assert "audioModeManager.setTracks(" in resume_track_body
     assert "viewModel.sequenceController.audioMode = audioModeManager.currentMode" in resume_track_body
     assert "viewModel.selectedAudioTrackID = targetID" in resume_track_body
+
+    audio_support_body = _function_body(
+        tracks,
+        "func chunkSupportsAudioTrack(_ track: SequenceTrack, in chunk: InteractiveChunk) -> Bool",
+    )
+    assert "let dedicatedKind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation" in audio_support_body
+    assert "option.kind == .combined" in audio_support_body
+    assert "return !option.streamURLs.isEmpty" in audio_support_body
 
     selection = _source("InteractivePlayerViewModel+Selection.swift")
     select_chunk_body = _function_body(

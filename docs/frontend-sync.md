@@ -126,9 +126,11 @@ Follow the suggested remediations to restore parity:
   single-track preference. Once Original-only or Translation-only mode is
   active, chunk/batch setup must preserve that single-track mode, the matching
   visible transcript track, and the selected audio option before applying
-  default All-track selection or preparing audio. Otherwise end-of-batch
-  playback can reset to combined/sequence audio and render out of sync with
-  the selected track.
+  default All-track selection or preparing audio. This preservation must be
+  based on playable audio options too, not only currently hydrated visible text
+  tracks, because a next batch can temporarily expose only the Original fallback
+  before sentence tokens load. Otherwise end-of-batch playback can reset to
+  combined/sequence audio and render out of sync with the selected track.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-unhydrated-batch-preserve",
+                    title: "Translation-only survives unloaded batches",
+                    detail: "Apple reader translation-only and original-only playback now preserve the active audio mode from playable chunk audio options even when the next batch's visible text tracks have not hydrated yet, preventing batch-end resets and render/audio drift."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-source-list-stale-refresh-guard",
                     title: "Source lists stay current",
                     detail: "Apple Create now ignores stale acquisition-provider, server EPUB, subtitle-source, and NAS video library refreshes when a newer source-list request or delete/upload is in flight, keeping pickers aligned with the latest backend state."

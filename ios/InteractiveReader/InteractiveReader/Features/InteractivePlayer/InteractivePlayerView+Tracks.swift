@@ -251,7 +251,7 @@ extension InteractivePlayerView {
 
         let desiredTextTrack: TextPlayerVariantKind = track == .original ? .original : .translation
         let available = Set(availableTracks(for: chunk))
-        guard available.contains(desiredTextTrack) else { return false }
+        guard available.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk) else { return false }
 
         visibleTracks = [desiredTextTrack]
         hasCustomTrackSelection = true
@@ -273,7 +273,7 @@ extension InteractivePlayerView {
 
         let desiredTextTrack: TextPlayerVariantKind = resumeTrack == .original ? .original : .translation
         let available = Set(availableTracks(for: chunk))
-        guard available.contains(desiredTextTrack) else { return false }
+        guard available.contains(desiredTextTrack) || chunkSupportsAudioTrack(resumeTrack, in: chunk) else { return false }
 
         visibleTracks = [desiredTextTrack]
         hasCustomTrackSelection = true
@@ -286,6 +286,17 @@ extension InteractivePlayerView {
             viewModel.selectedAudioTrackID = targetID
         }
         return true
+    }
+
+    func chunkSupportsAudioTrack(_ track: SequenceTrack, in chunk: InteractiveChunk) -> Bool {
+        let dedicatedKind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
+        if chunk.audioOptions.contains(where: { $0.kind == dedicatedKind }) {
+            return true
+        }
+        return chunk.audioOptions.contains { option in
+            guard option.kind == .combined else { return false }
+            return !option.streamURLs.isEmpty
+        }
     }
 
     var trackAvailabilitySignature: String {
