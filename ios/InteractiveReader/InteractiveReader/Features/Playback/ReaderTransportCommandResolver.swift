@@ -61,10 +61,20 @@ enum ReaderTransportCommandResolver {
         isMusicPlaying: Bool,
         isMusicPausedByReaderTransport: Bool
     ) -> String {
+        #if os(tvOS)
+        if ownershipState == .appleMusicBed {
+            if command == "play" {
+                return "play"
+            }
+            if command == "pause" {
+                return "pause"
+            }
+        }
+        #endif
         if ownershipState == .appleMusicBed,
            isMusicPausedByReaderTransport {
             #if os(tvOS)
-            if command == "play" || command == "pause" || command == "toggle" {
+            if command == "toggle" {
                 return "play"
             }
             #else
@@ -83,10 +93,7 @@ enum ReaderTransportCommandResolver {
 
         #if os(tvOS)
         if ownershipState == .appleMusicBed {
-            if command == "pause" {
-                return "pause"
-            }
-            if command == "play" || command == "toggle" {
+            if command == "toggle" {
                 return shouldPause ? "pause" : "play"
             }
         }

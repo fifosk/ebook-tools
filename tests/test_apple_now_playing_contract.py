@@ -346,6 +346,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         transport_resolver,
         "static func shouldAcceptActiveReaderDuplicatePause",
     )
+    resolved_action_body = _function_body(
+        transport_resolver,
+        "static func resolvedAction",
+    )
     assert "#if os(tvOS)" in active_duplicate_pause_body
     assert "elapsed < duplicateWindow" in active_duplicate_pause_body
     assert 'resolvedAction == "pause"' in active_duplicate_pause_body
@@ -386,6 +390,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "#if os(tvOS)" in reject_body
     assert "return elapsed < duplicateWindow && resolvedAction == previousAction" in reject_body
     assert "resolvedAction != previousAction" in reject_body
+    assert "#if os(tvOS)" in resolved_action_body
+    assert 'if command == "play" {\n                return "play"' in resolved_action_body
+    assert 'if command == "pause" {\n                return "pause"' in resolved_action_body
+    assert 'if command == "toggle" {\n                return shouldPause ? "pause" : "play"' in resolved_action_body
+    assert resolved_action_body.index('if command == "play"') < resolved_action_body.index(
+        "isMusicPausedByReaderTransport"
+    )
+    assert 'if command == "play" || command == "toggle"' not in resolved_action_body
+    assert 'if command == "play" || command == "pause" || command == "toggle"' not in resolved_action_body
     assert "ownershipState == .appleMusicBed" in unsolicited_play_resolver_body
     assert 'previousAction == "pause"' in unsolicited_play_resolver_body
     assert "isEchoGuardActive" in unsolicited_play_resolver_body
@@ -455,9 +468,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     tvos_resolver_body = resolver_body[
         resolver_body.index("#if os(tvOS)") : resolver_body.index("#endif", resolver_body.index("#if os(tvOS)"))
     ]
-    assert 'if command == "play" || command == "pause" || command == "toggle"' in tvos_resolver_body
+    assert 'if command == "play" || command == "pause" || command == "toggle"' not in tvos_resolver_body
+    assert 'if command == "play"' in tvos_resolver_body
+    assert 'if command == "pause"' in tvos_resolver_body
     assert 'return "play"' in tvos_resolver_body
-    assert 'if command == "pause"' in resolver_body
     assert 'return "pause"' in resolver_body
     assert "guard command == \"toggle\" else { return command }" in transport_resolver
     job_play_body = _function_body(job_now_playing, "func playReaderNowPlayingTransport()")
@@ -1585,9 +1599,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     tvos_resolver_body = resolver_body[
         resolver_body.index("#if os(tvOS)") : resolver_body.index("#endif", resolver_body.index("#if os(tvOS)"))
     ]
-    assert 'if command == "play" || command == "pause" || command == "toggle"' in tvos_resolver_body
+    assert 'if command == "play" || command == "pause" || command == "toggle"' not in tvos_resolver_body
+    assert 'if command == "play"' in tvos_resolver_body
+    assert 'if command == "pause"' in tvos_resolver_body
     assert 'return "play"' in tvos_resolver_body
-    assert 'if command == "pause"' in resolver_body
     assert 'return "pause"' in resolver_body
     assert "guard command == \"toggle\" else { return command }" in transport_resolver
     assert "return command" in transport_resolver

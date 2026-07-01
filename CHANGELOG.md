@@ -8,6 +8,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
 - Apple TV interactive playback now routes jump/resume-style starts through the same deferred Apple Music bed resume used by reader Play/Pause, and the tvOS Music-bed simulator journey asserts that deferred path before remote pause testing.
+- Apple TV reader Now Playing play/pause callbacks now stay idempotent while the physical Play/Pause path remains a toggle, reducing Music-bed echo races where a stale command could pause only one playback layer.
 
 ## 2026-06-30
 
