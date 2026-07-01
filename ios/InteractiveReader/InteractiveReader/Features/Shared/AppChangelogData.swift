@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-video-source-panel-utils",
+                    title: "Video discovery panel is leaner",
+                    detail: "Web Video Dubbing source-panel discovery placeholders, hints, filename fallbacks, and candidate summary labels now live in a focused tested helper, keeping video discovery behavior easier to mirror in Apple Create."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-hydrated-chunk-reprepare",
                     title: "Single-track hydration stays in sync",
                     detail: "Apple reader single-track metadata hydration now prepares the refreshed chunk even when the selected Original or Translation audio option was already correct, so end-of-batch playback cannot keep a stale pre-hydration lane and drift rendering."

@@ -101,7 +101,10 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/video-dubbing/useVideoDubbingDownloadStationCompletion.ts`.
   The Download Station handoff chrome now lives in
   `web/src/pages/video-dubbing/VideoDownloadStationPanel.tsx` with rendered
-  Vitest coverage.
+  Vitest coverage. Video source-panel discovery placeholders, source hints,
+  filename fallbacks, and remote candidate summary labels now live in
+  `web/src/pages/video-dubbing/videoSourcePanelUtils.ts` with focused coverage,
+  making the Web source-picker behavior easier to compare with Apple YouTube Dub.
   YouTube Dub generate/save-template action state, intake
   capacity guard, shared payload construction, backend submission, template
   persistence, and discovery-state template preservation now live in
