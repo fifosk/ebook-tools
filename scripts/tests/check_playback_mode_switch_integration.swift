@@ -12,6 +12,12 @@ enum TextPlayerTimingTrack: Equatable {
     case original
 }
 
+enum TextPlayerVariantKind: String, Hashable {
+    case original
+    case translation
+    case transliteration
+}
+
 @MainActor
 final class SequencePlaybackController {
     var isEnabled: Bool
@@ -248,6 +254,44 @@ private func usesCombinedQueue(
 }
 
 @MainActor
+private func prepareResumeSingleTrack(
+    _ track: SequenceTrack?,
+    manager: AudioModeManager,
+    pendingResumeTrack: inout SequenceTrack?
+) {
+    pendingResumeTrack = track
+    guard let track else { return }
+    manager.setTracks(
+        original: track == .original,
+        translation: track == .translation
+    )
+}
+
+@MainActor
+private func applyPendingResumeSingleTrackIfNeeded(
+    for chunk: InteractiveChunk,
+    availableTracks: Set<TextPlayerVariantKind>,
+    manager: AudioModeManager,
+    pendingResumeTrack: inout SequenceTrack?,
+    visibleTracks: inout Set<TextPlayerVariantKind>,
+    selectedAudioTrackID: inout String?
+) -> Bool {
+    guard let resumeTrack = pendingResumeTrack else { return false }
+    pendingResumeTrack = nil
+
+    let desiredTextTrack: TextPlayerVariantKind = resumeTrack == .original ? .original : .translation
+    guard availableTracks.contains(desiredTextTrack) else { return false }
+
+    visibleTracks = [desiredTextTrack]
+    manager.setTracks(
+        original: resumeTrack == .original,
+        translation: resumeTrack == .translation
+    )
+    selectedAudioTrackID = manager.resolvePreferredTrackID(for: chunk)
+    return true
+}
+
+@MainActor
 private func runChecks() {
     let originalURL = URL(string: "https://example.invalid/original.m4a")!
     let translationURL = URL(string: "https://example.invalid/translation.m4a")!
@@ -350,6 +394,53 @@ private func runChecks() {
         ),
         true,
         "Sequence mode should keep combined queue timing enabled"
+    )
+
+    var pendingResumeTrack: SequenceTrack?
+    var resumeVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
+    var resumeSelectedTrackID: String? = "combined"
+    prepareResumeSingleTrack(
+        .translation,
+        manager: manager,
+        pendingResumeTrack: &pendingResumeTrack
+    )
+    requireEqual(
+        manager.currentMode,
+        .singleTrack(.translation),
+        "Translation-only resume should restore single-track mode before seeking"
+    )
+    requireInstruction(
+        manager.resolveAudioInstruction(for: chunk, selectedTrackID: resumeSelectedTrackID),
+        optionID: "translation",
+        timing: .translation,
+        "Translation-only resume should route stale combined selection to translation audio immediately"
+    )
+    requireEqual(
+        applyPendingResumeSingleTrackIfNeeded(
+            for: chunk,
+            availableTracks: [.original, .translation, .transliteration],
+            manager: manager,
+            pendingResumeTrack: &pendingResumeTrack,
+            visibleTracks: &resumeVisibleTracks,
+            selectedAudioTrackID: &resumeSelectedTrackID
+        ),
+        true,
+        "View restore should consume a pending translation-only resume track"
+    )
+    requireEqual(
+        resumeVisibleTracks,
+        [.translation],
+        "View restore should keep translation-only visible instead of defaulting back to all tracks"
+    )
+    requireEqual(
+        resumeSelectedTrackID,
+        "translation",
+        "View restore should select the translation audio option before playback prepares"
+    )
+    requireEqual(
+        pendingResumeTrack,
+        nil,
+        "View restore should consume the pending resume track once applied"
     )
 
     manager.setTracks(original: false, translation: true, preservingPosition: 17)
