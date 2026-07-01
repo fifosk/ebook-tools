@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "client-default-sentinel-discovery-omission",
+                    title: "Discovery clients omit default sentinel",
+                    detail: "The Web and Apple acquisition API clients now omit backend_defaults before book/video discovery requests, keeping raw helper calls aligned with the visible Default sources fan-out while the backend remains tolerant of older clients."
+                ),
+                AppChangelogEntry(
                     id: "backend-default-sentinel-discovery-fanout",
                     title: "Discovery defaults are backend-tolerant",
                     detail: "The backend acquisition discovery service and route now treat a leaked backend_defaults provider id as the same no-provider Default sources fan-out used by Web and Apple Create, so older clients do not break book/video discovery."

@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- The Web and Apple acquisition API clients now omit `backend_defaults` before book/video discovery requests, keeping raw helper calls aligned with the visible Default sources fan-out while the backend remains tolerant of older clients.
 - The backend acquisition discovery service and route now treat a leaked `backend_defaults` provider id as the same no-provider Default sources fan-out used by Web and Apple Create, so older clients do not break book/video discovery.
 - Apple Create now keeps Default sources as the visible/template selection while omitting the provider parameter from book and video discovery requests, matching Web's backend fan-out and normalizing media kind values before the handoff.
 - Apple TV reader playback now lets the Music-bed watchdog reassert a reader-owned pause when Apple Music starts playing again without an explicit reader resume, targeting Cinema logs with repeated broker pauses and no intervening play.

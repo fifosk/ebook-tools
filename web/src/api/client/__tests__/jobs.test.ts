@@ -86,6 +86,7 @@ describe('jobs API client', () => {
       .mockResolvedValueOnce(jsonResponse({}))
       .mockResolvedValueOnce(jsonResponse({}))
       .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(jsonResponse({}))
       .mockResolvedValueOnce(jsonResponse({}));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -98,6 +99,12 @@ describe('jobs API client', () => {
       sourceIds: [' nas ', ''],
       limit: 7
     });
+    await discoverAcquisitionCandidates({
+      mediaKind: 'video',
+      query: 'origin',
+      provider: ' BACKEND_DEFAULTS ',
+      limit: 3
+    });
     await acquireAcquisitionCandidate({ candidate_token: 'candidate-token', confirmed: true });
     await prepareAcquisitionArtifact('artifact/with?parts');
     await createAcquisitionJob({
@@ -107,7 +114,7 @@ describe('jobs API client', () => {
     });
     await fetchAcquisitionJobStatus('task/with?parts', 'download_station');
 
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe('/api/acquisition/providers');
 
     const discoveryUrl = new URL(String(fetchMock.mock.calls[1][0]));
@@ -119,13 +126,20 @@ describe('jobs API client', () => {
     expect(discoveryUrl.searchParams.get('limit')).toBe('7');
     expect(discoveryUrl.searchParams.getAll('source_id')).toEqual(['nas']);
 
-    expect(new URL(String(fetchMock.mock.calls[2][0])).pathname).toBe('/api/acquisition/acquire');
-    expect(new URL(String(fetchMock.mock.calls[3][0])).pathname).toBe(
+    const defaultDiscoveryUrl = new URL(String(fetchMock.mock.calls[2][0]));
+    expect(defaultDiscoveryUrl.pathname).toBe('/api/acquisition/discover');
+    expect(defaultDiscoveryUrl.searchParams.get('media_kind')).toBe('video');
+    expect(defaultDiscoveryUrl.searchParams.get('q')).toBe('origin');
+    expect(defaultDiscoveryUrl.searchParams.get('provider')).toBeNull();
+    expect(defaultDiscoveryUrl.searchParams.get('limit')).toBe('3');
+
+    expect(new URL(String(fetchMock.mock.calls[3][0])).pathname).toBe('/api/acquisition/acquire');
+    expect(new URL(String(fetchMock.mock.calls[4][0])).pathname).toBe(
       '/api/acquisition/artifacts/artifact%2Fwith%3Fparts/prepare'
     );
-    expect(new URL(String(fetchMock.mock.calls[4][0])).pathname).toBe('/api/acquisition/jobs');
+    expect(new URL(String(fetchMock.mock.calls[5][0])).pathname).toBe('/api/acquisition/jobs');
 
-    const statusUrl = new URL(String(fetchMock.mock.calls[5][0]));
+    const statusUrl = new URL(String(fetchMock.mock.calls[6][0]));
     expect(statusUrl.pathname).toBe('/api/acquisition/jobs/task%2Fwith%3Fparts');
     expect(statusUrl.searchParams.get('provider')).toBe('download_station');
   });

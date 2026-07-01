@@ -3042,6 +3042,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "func discoverAcquisitionCandidates(" in api_client_source
     assert 'URLQueryItem(name: "media_kind", value: mediaKind)' in api_client_source
     assert 'URLQueryItem(name: "provider", value: provider)' in api_client_source
+    assert 'provider.localizedCaseInsensitiveCompare("backend_defaults") != .orderedSame' in api_client_source
     assert 'URLQueryItem(name: "source_id", value: normalizedSourceId)' in api_client_source
     assert "try decode(AcquisitionDiscoveryResponse.self, from: data)" in api_client_source
     assert "struct AcquisitionCandidate: Decodable, Equatable, Identifiable" in api_models_source

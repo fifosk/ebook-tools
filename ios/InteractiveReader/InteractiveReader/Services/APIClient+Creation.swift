@@ -165,7 +165,9 @@ extension APIClient {
         if let query = query?.trimmingCharacters(in: .whitespacesAndNewlines), !query.isEmpty {
             queryItems.append(URLQueryItem(name: "q", value: query))
         }
-        if let provider = provider?.trimmingCharacters(in: .whitespacesAndNewlines), !provider.isEmpty {
+        if let provider = provider?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !provider.isEmpty,
+           provider.localizedCaseInsensitiveCompare("backend_defaults") != .orderedSame {
             queryItems.append(URLQueryItem(name: "provider", value: provider))
         }
         if let language = language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty {
