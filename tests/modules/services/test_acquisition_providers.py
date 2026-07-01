@@ -10,6 +10,10 @@ import requests
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
+from modules.services.acquisition.discovery_planning import (
+    order_default_discovery_candidates,
+    provider_query_limit,
+)
 from modules.services.acquisition.tokens import decode_acquisition_token, encode_acquisition_token
 from modules.services.acquisition.url_safety import looks_sensitive_key, strip_sensitive_url_parts
 from modules.services.acquisition import (
@@ -34,6 +38,75 @@ def _provider_by_id(payload, provider_id: str):
 
 def _candidate_token(payload: dict[str, object]) -> str:
     return encode_acquisition_token(payload)
+
+
+def test_acquisition_discovery_planning_orders_default_sources_and_limits() -> None:
+    def _candidate(
+        provider: str,
+        title: str,
+        modified_at: datetime | None = None,
+    ) -> acquisition_discovery.AcquisitionCandidate:
+        return acquisition_discovery.AcquisitionCandidate(
+            candidate_id=f"{provider}:{title}",
+            provider=provider,
+            media_kind="book",
+            title=title,
+            rights="user_provided",
+            capabilities=("metadata",),
+            candidate_token=_candidate_token({"provider": provider, "title": title}),
+            modified_at=modified_at,
+        )
+
+    ordered = order_default_discovery_candidates(
+        [
+            _candidate("gutenberg", "Remote Hit"),
+            _candidate(
+                "local_epub",
+                "Older Local",
+                datetime(2026, 6, 1, tzinfo=timezone.utc),
+            ),
+            _candidate(
+                "manual_downloads",
+                "Fresh Manual",
+                datetime(2026, 7, 2, tzinfo=timezone.utc),
+            ),
+            _candidate(
+                "local_epub",
+                "Alpha Local",
+                datetime(2026, 7, 1, tzinfo=timezone.utc),
+            ),
+        ],
+        providers=("local_epub", "manual_downloads", "gutenberg"),
+    )
+
+    assert [candidate.provider for candidate in ordered] == [
+        "manual_downloads",
+        "local_epub",
+        "local_epub",
+        "gutenberg",
+    ]
+    assert [candidate.title for candidate in ordered[:2]] == [
+        "Fresh Manual",
+        "Alpha Local",
+    ]
+    assert provider_query_limit(
+        "local_epub",
+        candidates=ordered[:2],
+        effective_limit=2,
+        is_default_provider_fanout=True,
+    ) == 2
+    assert provider_query_limit(
+        "gutenberg",
+        candidates=ordered[:2],
+        effective_limit=2,
+        is_default_provider_fanout=True,
+    ) == 1
+    assert provider_query_limit(
+        "gutenberg",
+        candidates=ordered[:2],
+        effective_limit=5,
+        is_default_provider_fanout=False,
+    ) == 3
 
 
 def test_acquisition_url_safety_helpers_share_sensitive_policy() -> None:

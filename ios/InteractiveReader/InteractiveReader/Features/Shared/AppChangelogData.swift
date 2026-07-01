@@ -9,6 +9,11 @@ enum AppChangelogData {
                     id: "apple-single-track-eof-active-url-guard",
                     title: "Batch endings keep their track",
                     detail: "Apple reader original-only and translation-only batch endings now validate EOF callbacks against the active single audio URL before selecting the next sentence batch, so stale hidden-track endings cannot reset audio selection or drift rendering."
+                ),
+                AppChangelogEntry(
+                    id: "backend-default-discovery-planning-helper",
+                    title: "Default discovery stays aligned",
+                    detail: "Backend Default sources discovery planning now lives in a focused tested helper, keeping local, manual-download, NAS, and remote-provider ordering rules aligned for Web and Apple Create source pickers."
                 )
             ]
         ),

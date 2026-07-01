@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 ## Goal
 
@@ -1225,6 +1225,10 @@ Optimization candidates:
   providers fill the visible result budget they receive only the remaining
   visible slots plus a one-result probe, reducing YouTube/Gutenberg/indexer
   over-fetch without hiding available source types from Web or Apple Create.
+  The provider fan-out ordering and per-provider query-limit rules now live in
+  `modules/services/acquisition/discovery_planning.py` with focused acquisition
+  coverage, keeping Web and Apple Default sources picker behavior easier to
+  evolve without reopening the full discovery service.
   Download Station job polling now resolves completed file hints only under
   configured manual/download roots and drops URL-like, escaped, or outside-root
   entries, so Web/Apple Create reconnects to backend-visible local artifacts
