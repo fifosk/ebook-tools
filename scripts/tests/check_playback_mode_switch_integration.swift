@@ -408,6 +408,41 @@ private func usesCombinedQueue(
 }
 
 @MainActor
+private func useCombinedPhasesForIntegration(
+    chunk: InteractiveChunk,
+    manager: AudioModeManager,
+    sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
+    selectedAudioTrackID: String?,
+    activeURL: URL?
+) -> Bool {
+    if requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ) != nil {
+        return false
+    }
+    guard let track = effectiveSelectedAudioOption(
+        for: chunk,
+        manager: manager,
+        selectedAudioTrackID: selectedAudioTrackID,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ) else {
+        return false
+    }
+    guard track.kind == .combined, track.streamURLs.count == 1 else {
+        return false
+    }
+    guard let activeURL else { return true }
+    return activeURL == track.primaryURL
+}
+
+@MainActor
 private func prepareResumeSingleTrack(
     _ track: SequenceTrack?,
     manager: AudioModeManager,
@@ -1556,6 +1591,42 @@ private func runChecks() {
         durableSingleTrackPlaybackTime,
         1.25,
         "Single-track playback time should ignore hidden-track queue offsets even if the manager briefly reports sequence at a batch boundary"
+    )
+    let singleFileCombinedBatch = InteractiveChunk(
+        id: "chapter-2-single-file-combined",
+        startSentence: 104,
+        sentences: [
+            .init(id: 104, displayIndex: 104, startGate: 4.0, originalStartGate: 0.0)
+        ],
+        audioOptions: [
+            audioOption("combined-single-file-next", kind: .combined, urls: [translationURL])
+        ]
+    )
+    requireEqual(
+        useCombinedPhasesForIntegration(
+            chunk: singleFileCombinedBatch,
+            manager: playbackTimeSequenceManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: .translation,
+            preferredAudioKind: .combined,
+            selectedAudioTrackID: "combined-single-file-next",
+            activeURL: translationURL
+        ),
+        false,
+        "Single-track rendering should not re-enter combined-phase timing when a hydrated next batch still points at a combined audio option"
+    )
+    requireEqual(
+        useCombinedPhasesForIntegration(
+            chunk: singleFileCombinedBatch,
+            manager: playbackTimeSequenceManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined,
+            selectedAudioTrackID: "combined-single-file-next",
+            activeURL: translationURL
+        ),
+        true,
+        "Sequence rendering should keep combined-phase timing for one-file combined batches"
     )
     let sequencePlaybackTime = playbackTimeForIntegration(
         baseTime: 1.25,

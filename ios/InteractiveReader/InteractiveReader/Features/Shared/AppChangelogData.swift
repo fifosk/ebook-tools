@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-combined-phase-guard",
+                    title: "Single-track batch rendering holds",
+                    detail: "Apple reader single-track rendering now bypasses combined-phase timing whenever the durable original-only or translation-only lane is active, so hydrated batch boundaries cannot reset rendering away from the selected audio track."
+                ),
+                AppChangelogEntry(
                     id: "web-video-download-station-utils",
                     title: "Download handoff helpers are leaner",
                     detail: "Web Video Dubbing Download Station handoff detection, completed-file extraction, and refreshed NAS-video matching now live in a focused tested helper, keeping downloader handoff behavior easier to mirror in Apple YouTube Dub."

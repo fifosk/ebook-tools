@@ -192,6 +192,11 @@ Follow the suggested remediations to restore parity:
   the selected option id was already stable, so fresh chunk objects cannot
   inherit old batch option ids or timing while the audio clock continues on the
   selected single track.
+  Transcript timing must follow the same rule: once a durable Original-only or
+  Translation-only lane exists, `useCombinedPhases` must stay false even if the
+  refreshed chunk's selected audio option is still a one-file `combined` option.
+  Otherwise the transcript can rebuild with hidden-track combined offsets at the
+  end of a sentence batch while narration continues on the selected lane.
   Audio-player end callbacks must carry the ended URL into the reader view model;
   a natural single-track batch advance should only run when that URL belongs to
   the current selected audio option. Late EOF notifications from a hidden track
