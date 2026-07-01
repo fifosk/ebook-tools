@@ -4,11 +4,13 @@ import {
   buildAuthorGroups,
   buildGenreGroups,
   buildLanguageGroups,
+  formatLibraryTimestamp,
   isBookItem,
   isSubtitleItem,
   isVideoItem,
   resolveAuthor,
   resolveGenre,
+  resolveLibraryFlatLayout,
   resolveTitle
 } from '../library-list/libraryListUtils';
 
@@ -35,6 +37,11 @@ describe('libraryListUtils', () => {
     const video = item({ itemType: 'video' });
     const subtitle = item({ itemType: 'narrated_subtitle' });
 
+    expect(resolveLibraryFlatLayout([])).toBeNull();
+    expect(resolveLibraryFlatLayout([book])).toBe('books');
+    expect(resolveLibraryFlatLayout([video])).toBe('videos');
+    expect(resolveLibraryFlatLayout([subtitle])).toBe('subtitles');
+    expect(resolveLibraryFlatLayout([book, video])).toBeNull();
     expect(isBookItem(book)).toBe(true);
     expect(isVideoItem(video)).toBe(true);
     expect(isSubtitleItem(subtitle)).toBe(true);
@@ -47,6 +54,13 @@ describe('libraryListUtils', () => {
     expect(resolveGenre(book)).toBe('Unknown Genre');
     expect(resolveGenre(video)).toBe('Video');
     expect(resolveGenre(subtitle)).toBe('Subtitles');
+  });
+
+  it('formats library timestamps with stable fallbacks', () => {
+    expect(formatLibraryTimestamp(null)).toBe('—');
+    expect(formatLibraryTimestamp('')).toBe('—');
+    expect(formatLibraryTimestamp('not-a-date')).toBe('not-a-date');
+    expect(formatLibraryTimestamp('2026-06-23T10:00:00Z')).toMatch(/2026|6\/23\/26|23/);
   });
 
   it('trims explicit title, author, and genre metadata', () => {

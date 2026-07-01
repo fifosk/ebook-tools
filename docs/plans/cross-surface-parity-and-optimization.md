@@ -1383,7 +1383,8 @@ Refactor before restyling:
   `web/src/hooks/liveMediaTiming.ts`.
 - Isolate Library list grouping before visual redesign. Status:
   `LibraryList.tsx` now imports tested helpers for row layout type detection,
-  title/author/genre fallback labels, and author/genre/language grouping from
+  title/author/genre fallback labels, timestamp formatting, flat
+  book/subtitle/video layout detection, and author/genre/language grouping from
   `web/src/components/library-list/libraryListUtils.ts`.
 - Isolate Library list media metadata resolvers before visual redesign. Status:
   `LibraryList.tsx` now imports tested helpers for book summaries, TV/episode

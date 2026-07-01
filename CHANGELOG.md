@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Web Library list layout detection and timestamp formatting now live in tested shared helpers, shrinking the main list surface before the cross-surface visual refresh while preserving the existing book/subtitle/video table behavior.
 - Web and Apple subtitle source discovery now reuses cached NAS-safe stat metadata from the shared source walker when building picker rows, avoiding a second stat pass over every discovered subtitle.
 - Apple reader original-only/translation-only playback now restores the active single-track lane from view-model handoff state before new-batch default track setup can expand back to All, keeping rendering and narration aligned after sentence-batch boundaries.
 - Web and Apple NAS video discovery now reuses each walked folder stat while ranking videos by effective recency, reducing repeated NAS probes in folders with many downloaded episodes.

@@ -18,10 +18,9 @@ import {
   buildAuthorGroups,
   buildGenreGroups,
   buildLanguageGroups,
-  isBookItem,
-  isSubtitleItem,
-  isVideoItem,
+  formatLibraryTimestamp,
   resolveAuthor,
+  resolveLibraryFlatLayout,
   resolveTitle
 } from './library-list/libraryListUtils';
 import styles from './LibraryList.module.css';
@@ -52,17 +51,6 @@ function renderLanguageLabel(language: string | null | undefined) {
   );
 }
 
-function formatTimestamp(value: string | null | undefined): string {
-  if (!value) {
-    return '—';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString();
-}
-
 function LibraryList({
   items,
   view,
@@ -80,9 +68,10 @@ function LibraryList({
   const authorGroups = useMemo(() => buildAuthorGroups(items), [items]);
   const genreGroups = useMemo(() => buildGenreGroups(items), [items]);
   const languageGroups = useMemo(() => buildLanguageGroups(items), [items]);
-  const isBookLayout = useMemo(() => items.length > 0 && items.every((item) => isBookItem(item)), [items]);
-  const isSubtitleLayout = useMemo(() => items.length > 0 && items.every((item) => isSubtitleItem(item)), [items]);
-  const isVideoLayout = useMemo(() => items.length > 0 && items.every((item) => isVideoItem(item)), [items]);
+  const flatLayout = useMemo(() => resolveLibraryFlatLayout(items), [items]);
+  const isBookLayout = flatLayout === 'books';
+  const isSubtitleLayout = flatLayout === 'subtitles';
+  const isVideoLayout = flatLayout === 'videos';
   const resumeBadges = useMemo(
     () => buildLibraryResumeBadgeMap(items, resumeEntries),
     [items, resumeEntries],
@@ -128,7 +117,7 @@ function LibraryList({
     return (
       <div
         className={`${styles.listContainer} ${variant === 'embedded' ? styles.listContainerEmbedded : ''}`}
-        data-layout={isBookLayout ? 'books' : isSubtitleLayout ? 'subtitles' : isVideoLayout ? 'videos' : undefined}
+        data-layout={flatLayout ?? undefined}
       >
         <div className={styles.tableWrapper}>
           <table
@@ -198,7 +187,7 @@ function LibraryList({
                         </td>
                         <td>{renderLanguageLabel(item.language)}</td>
                         <td>{renderStatus(item)}</td>
-                        <td>{formatTimestamp(item.updatedAt)}</td>
+                        <td>{formatLibraryTimestamp(item.updatedAt)}</td>
                         <td>{renderActions(item, actionState)}</td>
                       </>
                     ) : isSubtitleLayout ? (
@@ -212,7 +201,7 @@ function LibraryList({
                         </td>
                         <td>{renderLanguageLabel(item.language)}</td>
                         <td>{renderStatus(item)}</td>
-                        <td>{formatTimestamp(item.updatedAt)}</td>
+                        <td>{formatLibraryTimestamp(item.updatedAt)}</td>
                         <td>{renderActions(item, actionState)}</td>
                       </>
                     ) : isVideoLayout ? (
@@ -226,7 +215,7 @@ function LibraryList({
                         </td>
                         <td>{renderLanguageLabel(item.language)}</td>
                         <td>{renderStatus(item)}</td>
-                        <td>{formatTimestamp(item.updatedAt)}</td>
+                        <td>{formatLibraryTimestamp(item.updatedAt)}</td>
                         <td>{renderActions(item, actionState)}</td>
                       </>
                     ) : (
@@ -236,7 +225,7 @@ function LibraryList({
                         <td className={styles.cellAuthor}>{resolveAuthor(item)}</td>
                         <td>{renderLanguageLabel(item.language)}</td>
                         <td>{renderStatus(item)}</td>
-                        <td>{formatTimestamp(item.updatedAt)}</td>
+                        <td>{formatLibraryTimestamp(item.updatedAt)}</td>
                         <td>{renderActions(item, actionState)}</td>
                       </>
                     )}
@@ -281,7 +270,7 @@ function LibraryList({
                               {renderStatus(item)}
                             </div>
                             <div className={styles.itemMeta}>
-                              Updated {formatTimestamp(item.updatedAt)} · Job <LibraryJobTypeGlyph item={item} /> · Library path {item.libraryPath}
+                              Updated {formatLibraryTimestamp(item.updatedAt)} · Job <LibraryJobTypeGlyph item={item} /> · Library path {item.libraryPath}
                             </div>
                             {renderActions(item, actionState)}
                           </li>
@@ -329,7 +318,7 @@ function LibraryList({
                               {renderStatus(item)}
                             </div>
                             <div className={styles.itemMeta}>
-                              Language {renderLanguageLabel(item.language)} · Job <LibraryJobTypeGlyph item={item} /> · Updated {formatTimestamp(item.updatedAt)}
+                              Language {renderLanguageLabel(item.language)} · Job <LibraryJobTypeGlyph item={item} /> · Updated {formatLibraryTimestamp(item.updatedAt)}
                             </div>
                             {renderActions(item, actionState)}
                           </li>
@@ -376,7 +365,7 @@ function LibraryList({
                             {renderStatus(item)}
                           </div>
                           <div className={styles.itemMeta}>
-                            Updated {formatTimestamp(item.updatedAt)} · Job <LibraryJobTypeGlyph item={item} /> · Library path {item.libraryPath}
+                            Updated {formatLibraryTimestamp(item.updatedAt)} · Job <LibraryJobTypeGlyph item={item} /> · Library path {item.libraryPath}
                           </div>
                           {renderActions(item, actionState)}
                         </li>

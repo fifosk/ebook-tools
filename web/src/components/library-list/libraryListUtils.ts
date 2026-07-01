@@ -1,6 +1,7 @@
 import type { LibraryItem } from '../../api/dtos';
 
 export type LibraryItemKind = 'book' | 'video' | 'narrated_subtitle';
+export type LibraryFlatLayout = 'books' | 'subtitles' | 'videos';
 
 export type AuthorGroup = {
   author: string;
@@ -49,6 +50,33 @@ export function isSubtitleItem(item: LibraryItem): boolean {
 
 export function isVideoItem(item: LibraryItem): boolean {
   return normalizeItemType(item) === 'video';
+}
+
+export function resolveLibraryFlatLayout(items: LibraryItem[]): LibraryFlatLayout | null {
+  if (items.length === 0) {
+    return null;
+  }
+  if (items.every((item) => isBookItem(item))) {
+    return 'books';
+  }
+  if (items.every((item) => isSubtitleItem(item))) {
+    return 'subtitles';
+  }
+  if (items.every((item) => isVideoItem(item))) {
+    return 'videos';
+  }
+  return null;
+}
+
+export function formatLibraryTimestamp(value: string | null | undefined): string {
+  if (!value) {
+    return '—';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
 }
 
 export function resolveTitle(item: LibraryItem): string {
