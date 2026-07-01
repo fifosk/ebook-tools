@@ -30,6 +30,12 @@ export type BookNarrationVoiceOverrideLanguage = {
   code: string | null;
 };
 
+export type BookNarrationSharedPreferenceUpdate = {
+  inputLanguage?: string;
+  targetLanguages?: string[];
+  enableLookupCache?: boolean;
+};
+
 export type BookNarrationSubmitPresentation = {
   headerTitle: string;
   headerDescription: string;
@@ -155,6 +161,48 @@ export function targetLanguageFieldsFromLanguages(languages: string[]): Pick<
     target_languages: normalizeSingleTargetLanguages(normalized),
     custom_target_languages: normalized.slice(1).join(', '),
   };
+}
+
+export function resolveBookNarrationSharedPreferenceUpdate<K extends keyof FormState>({
+  key,
+  value,
+  formState,
+  sharedTargetLanguages,
+}: {
+  key: K;
+  value: FormState[K];
+  formState: FormState;
+  sharedTargetLanguages: string[];
+}): BookNarrationSharedPreferenceUpdate | null {
+  if (key === 'input_language' && typeof value === 'string') {
+    return { inputLanguage: value };
+  }
+  if (key === 'target_languages' && Array.isArray(value)) {
+    const manualTargets = formState.custom_target_languages
+      .split(/[,\n]/)
+      .map((language) => language.trim())
+      .filter(Boolean);
+    const normalized = normalizeTargetLanguages([...(value as string[]), ...manualTargets]);
+    if (!areLanguageArraysEqual(sharedTargetLanguages, normalized)) {
+      return { targetLanguages: normalized };
+    }
+    return null;
+  }
+  if (key === 'custom_target_languages' && typeof value === 'string') {
+    const manualTargets = value
+      .split(/[,\n]/)
+      .map((language) => language.trim())
+      .filter(Boolean);
+    const normalized = normalizeTargetLanguages([...formState.target_languages, ...manualTargets]);
+    if (!areLanguageArraysEqual(sharedTargetLanguages, normalized)) {
+      return { targetLanguages: normalized };
+    }
+    return null;
+  }
+  if (key === 'enable_lookup_cache' && typeof value === 'boolean') {
+    return { enableLookupCache: value };
+  }
+  return null;
 }
 
 export type BuildBookNarrationInitialFormStateArgs = {

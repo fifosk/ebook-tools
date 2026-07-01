@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Web Narrate Ebook shared language preference updates now resolve through the tested Create intake utility, keeping input language, target-language split, and lookup-cache preference sync pinned outside the large form component.
 - Apple interactive reader single-track audio choices now immediately pin the visible transcript lane from header/menu controls and expand back on combined mode, preventing batch-boundary track resets from drifting rendering away from narration.
 - Web Narrate Ebook initial form defaults now resolve through the tested Create intake utility, keeping shared language, target-language split, forced output name, and lookup-cache defaults pinned outside the large form component.
 - Web PlayerPanel navigation prop shaping now carries the shared sleep-timer slot through the tested playback props helper, trimming the playback component while keeping panel/fullscreen controls aligned under the focused Web gate.

@@ -11,6 +11,7 @@ import {
   normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
   resolveBookNarrationMissingRequirements,
+  resolveBookNarrationSharedPreferenceUpdate,
   resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSubmitPresentation,
   resolveBookNarrationSectionMeta,
@@ -386,6 +387,66 @@ describe('bookNarrationFormUtils form state helpers', () => {
     expect(second.target_languages).toEqual(DEFAULT_FORM_STATE.target_languages);
     expect(second.image_api_base_urls).toEqual(DEFAULT_FORM_STATE.image_api_base_urls);
     expect(second.voice_overrides).toEqual({});
+  });
+
+  it('resolves shared language preference updates from direct form edits', () => {
+    expect(
+      resolveBookNarrationSharedPreferenceUpdate({
+        key: 'input_language',
+        value: 'Turkish',
+        formState: DEFAULT_FORM_STATE,
+        sharedTargetLanguages: DEFAULT_FORM_STATE.target_languages,
+      }),
+    ).toEqual({ inputLanguage: 'Turkish' });
+
+    expect(
+      resolveBookNarrationSharedPreferenceUpdate({
+        key: 'enable_lookup_cache',
+        value: false,
+        formState: DEFAULT_FORM_STATE,
+        sharedTargetLanguages: DEFAULT_FORM_STATE.target_languages,
+      }),
+    ).toEqual({ enableLookupCache: false });
+  });
+
+  it('combines primary and manual targets for shared language preferences', () => {
+    const formState = {
+      ...DEFAULT_FORM_STATE,
+      target_languages: ['Dutch'],
+      custom_target_languages: 'Italian, dutch',
+    };
+
+    expect(
+      resolveBookNarrationSharedPreferenceUpdate({
+        key: 'target_languages',
+        value: ['German', 'Dutch'],
+        formState,
+        sharedTargetLanguages: ['Dutch'],
+      }),
+    ).toEqual({ targetLanguages: ['German', 'Dutch', 'Italian'] });
+
+    expect(
+      resolveBookNarrationSharedPreferenceUpdate({
+        key: 'custom_target_languages',
+        value: 'Italian, German',
+        formState,
+        sharedTargetLanguages: ['Dutch'],
+      }),
+    ).toEqual({ targetLanguages: ['Dutch', 'Italian', 'German'] });
+  });
+
+  it('does not emit shared target preference updates when normalized targets already match', () => {
+    expect(
+      resolveBookNarrationSharedPreferenceUpdate({
+        key: 'custom_target_languages',
+        value: ' Italian ',
+        formState: {
+          ...DEFAULT_FORM_STATE,
+          target_languages: ['Dutch'],
+        },
+        sharedTargetLanguages: ['Dutch', 'Italian'],
+      }),
+    ).toBeNull();
   });
 
   it('extracts Web-aligned genre and ISBN metadata from flat defaults', () => {

@@ -63,6 +63,7 @@ import {
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
   resolveBookNarrationSubmitPresentation,
+  resolveBookNarrationSharedPreferenceUpdate,
   resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSectionMeta,
   resolveStartFromNarrationHistory,
@@ -594,28 +595,20 @@ export function BookNarrationForm({
       };
     });
 
-    if (key === 'input_language' && typeof value === 'string') {
-      setSharedInputLanguage(value);
-    } else if (key === 'target_languages' && Array.isArray(value)) {
-      const manualTargets = formState.custom_target_languages
-        .split(/[,\n]/)
-        .map((language) => language.trim())
-        .filter(Boolean);
-      const normalized = normalizeTargetLanguages([...(value as string[]), ...manualTargets]);
-      if (!areLanguageArraysEqual(sharedTargetLanguages, normalized)) {
-        setSharedTargetLanguages(normalized);
-      }
-    } else if (key === 'custom_target_languages' && typeof value === 'string') {
-      const manualTargets = value
-        .split(/[,\n]/)
-        .map((language) => language.trim())
-        .filter(Boolean);
-      const normalized = normalizeTargetLanguages([...formState.target_languages, ...manualTargets]);
-      if (!areLanguageArraysEqual(sharedTargetLanguages, normalized)) {
-        setSharedTargetLanguages(normalized);
-      }
-    } else if (key === 'enable_lookup_cache' && typeof value === 'boolean') {
-      setSharedEnableLookupCache(value);
+    const sharedPreferenceUpdate = resolveBookNarrationSharedPreferenceUpdate({
+      key,
+      value,
+      formState,
+      sharedTargetLanguages
+    });
+    if (sharedPreferenceUpdate?.inputLanguage !== undefined) {
+      setSharedInputLanguage(sharedPreferenceUpdate.inputLanguage);
+    }
+    if (sharedPreferenceUpdate?.targetLanguages !== undefined) {
+      setSharedTargetLanguages(sharedPreferenceUpdate.targetLanguages);
+    }
+    if (sharedPreferenceUpdate?.enableLookupCache !== undefined) {
+      setSharedEnableLookupCache(sharedPreferenceUpdate.enableLookupCache);
     }
   };
 
