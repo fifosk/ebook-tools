@@ -13,6 +13,7 @@ struct PlaybackResumeEntry: Codable, Equatable {
     let updatedAt: TimeInterval
     let sentenceNumber: Int?
     let playbackTime: Double?
+    let playbackTrack: String?
 
     var isMeaningful: Bool {
         switch kind {
@@ -35,6 +36,13 @@ struct PlaybackResumeAvailability: Equatable {
 
     var hasCloud: Bool {
         cloudEntry?.isMeaningful == true
+    }
+}
+
+extension PlaybackResumeEntry {
+    var resumeSequenceTrack: SequenceTrack? {
+        guard let playbackTrack else { return nil }
+        return SequenceTrack(rawValue: playbackTrack)
     }
 }
 
@@ -545,7 +553,8 @@ final class PlaybackResumeStore {
                 sentence: entry.sentenceNumber,
                 chunkId: nil,
                 mediaType: entry.kind == .time ? "video" : "text",
-                baseId: nil
+                baseId: nil,
+                playbackTrack: entry.playbackTrack
             )
             _ = try? await client.saveResumePosition(jobId: entry.jobId, payload: payload)
         }
@@ -566,7 +575,8 @@ final class PlaybackResumeStore {
             kind: PlaybackResumeKind(rawValue: apiEntry.kind) ?? .time,
             updatedAt: apiEntry.updatedAt,
             sentenceNumber: apiEntry.sentence,
-            playbackTime: apiEntry.position
+            playbackTime: apiEntry.position,
+            playbackTrack: apiEntry.playbackTrack
         )
         guard entry.isMeaningful else { return false }
         if let existing = cloudCache[entry.jobId], existing.updatedAt >= entry.updatedAt {
@@ -595,6 +605,9 @@ final class PlaybackResumeStore {
         if let time = entry.playbackTime {
             record["playbackTime"] = time as CKRecordValue
         }
+        if let track = entry.playbackTrack?.nonEmptyValue {
+            record["playbackTrack"] = track as CKRecordValue
+        }
         return record
     }
 
@@ -618,13 +631,15 @@ final class PlaybackResumeStore {
             ?? (record["sentenceNumber"] as? NSNumber)?.intValue
         let playbackTime = record["playbackTime"] as? Double
             ?? (record["playbackTime"] as? NSNumber)?.doubleValue
+        let playbackTrack = (record["playbackTrack"] as? String).flatMap { $0.nonEmptyValue }
         return PlaybackResumeEntry(
             jobId: jobId,
             itemType: itemType,
             kind: kind,
             updatedAt: updatedAt,
             sentenceNumber: sentenceNumber,
-            playbackTime: playbackTime
+            playbackTime: playbackTime,
+            playbackTrack: playbackTrack
         )
     }
 

@@ -133,6 +133,7 @@ class PgResumeService:
             chunk_id=model.chunk_id,
             media_type=model.media_type,
             base_id=model.base_id,
+            playback_track=None,
         )
 
     @staticmethod

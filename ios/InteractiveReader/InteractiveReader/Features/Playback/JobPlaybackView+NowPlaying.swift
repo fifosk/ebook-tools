@@ -518,7 +518,11 @@ extension JobPlaybackView {
                 sentenceIndex = resolvedIndex
                 updateNowPlayingMetadata(sentenceIndex: resolvedIndex)
             }
-            recordInteractiveResume(sentenceIndex: resolvedIndex, playbackTime: highlightTime)
+            recordInteractiveResume(
+                sentenceIndex: resolvedIndex,
+                playbackTime: highlightTime,
+                playbackTrack: currentInteractiveResumePlaybackTrack()
+            )
         } else if let sentence = viewModel.activeSentence(at: highlightTime) {
             let index = sentence.displayIndex ?? sentence.id
             if sentenceIndex != index {

@@ -56,6 +56,7 @@ class _StubResumeService:
                 chunk_id=None,
                 media_type="audio",
                 base_id="chunk-1",
+                playback_track=None,
             ),
             ResumeEntry(
                 job_id="job-2",
@@ -66,6 +67,7 @@ class _StubResumeService:
                 chunk_id="chunk-2",
                 media_type="text",
                 base_id=None,
+                playback_track="translation",
             ),
         ]
 
@@ -94,6 +96,7 @@ class _StubResumeService:
             chunk_id=data.get("chunk_id") if isinstance(data.get("chunk_id"), str) else None,
             media_type=data.get("media_type") if isinstance(data.get("media_type"), str) else None,
             base_id=data.get("base_id") if isinstance(data.get("base_id"), str) else None,
+            playback_track=data.get("playback_track") if isinstance(data.get("playback_track"), str) else None,
         )
 
     def clear(self, job_id: str, user_id: str) -> bool:
@@ -152,6 +155,7 @@ def test_resume_routes_scope_calls_and_record_token_safe_metrics(
                     "sentence": 44,
                     "chunk_id": "chunk-44",
                     "media_type": "text",
+                    "playback_track": "translation",
                 },
             )
             delete_response = client.delete("/api/resume/%20%20job-1%20%20")
@@ -166,7 +170,18 @@ def test_resume_routes_scope_calls_and_record_token_safe_metrics(
             {
                 key: value
                 for key, value in asdict(service.entries[1]).items()
-                if key in {"job_id", "kind", "updated_at", "position", "sentence", "chunk_id", "media_type", "base_id"}
+                if key
+                in {
+                    "job_id",
+                    "kind",
+                    "updated_at",
+                    "position",
+                    "sentence",
+                    "chunk_id",
+                    "media_type",
+                    "base_id",
+                    "playback_track",
+                }
             }
         ]
     }
@@ -178,6 +193,7 @@ def test_resume_routes_scope_calls_and_record_token_safe_metrics(
     assert save_response.status_code == 200
     assert save_response.json()["job_id"] == "job-1"
     assert save_response.json()["entry"]["sentence"] == 44
+    assert save_response.json()["entry"]["playback_track"] == "translation"
     assert delete_response.status_code == 200
     assert delete_response.json() == {"deleted": True}
     assert service.get_calls == [{"job_id": "job-1", "user_id": "alice"}]

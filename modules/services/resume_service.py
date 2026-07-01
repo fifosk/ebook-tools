@@ -66,6 +66,7 @@ class ResumeEntry:
     chunk_id: Optional[str]      # active chunk
     media_type: Optional[str]    # "text" | "audio" | "video"
     base_id: Optional[str]       # media segment identifier
+    playback_track: Optional[str] = None  # original | translation when text resume is track-local
 
 
 class ResumeService:
@@ -151,6 +152,7 @@ class ResumeService:
             "chunk_id": entry.chunk_id,
             "media_type": entry.media_type,
             "base_id": entry.base_id,
+            "playback_track": entry.playback_track,
         }
 
     def _load_payload(self, job_id: str, user_id: str) -> Dict[str, Any]:
@@ -194,6 +196,7 @@ class ResumeService:
         chunk_id = self._coerce_string(data.get("chunk_id"))
         media_type = self._coerce_string(data.get("media_type"))
         base_id = self._coerce_string(data.get("base_id"))
+        playback_track = self._coerce_string(data.get("playback_track"))
         return ResumeEntry(
             job_id=job_id,
             kind=kind,
@@ -203,6 +206,7 @@ class ResumeService:
             chunk_id=chunk_id,
             media_type=media_type,
             base_id=base_id,
+            playback_track=playback_track,
         )
 
     def _job_path(self, job_id: str, user_id: str) -> Path:

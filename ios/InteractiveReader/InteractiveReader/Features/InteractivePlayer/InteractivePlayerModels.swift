@@ -224,6 +224,7 @@ struct PendingTimeSeek {
     let time: Double
     let autoPlay: Bool
     let sentenceNumber: Int?
+    let preferredTrackRawValue: String?
 }
 
 extension WordTimingToken {

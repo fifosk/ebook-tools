@@ -18,6 +18,7 @@ class ResumePositionPayload(BaseModel):
     chunk_id: str | None = None
     media_type: ResumeMediaType | None = None
     base_id: str | None = None
+    playback_track: str | None = None
 
 
 class ResumePositionEntry(BaseModel):
@@ -29,6 +30,7 @@ class ResumePositionEntry(BaseModel):
     chunk_id: str | None = None
     media_type: ResumeMediaType | None = None
     base_id: str | None = None
+    playback_track: str | None = None
 
 
 class ResumePositionResponse(BaseModel):

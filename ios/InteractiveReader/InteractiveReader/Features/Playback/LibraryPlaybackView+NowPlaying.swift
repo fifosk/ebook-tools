@@ -547,7 +547,11 @@ extension LibraryPlaybackView {
                 sentenceIndexTracker.value = resolvedIndex
                 updateNowPlayingMetadata(sentenceIndex: resolvedIndex)
             }
-            resumeManager?.recordInteractiveResume(sentenceIndex: resolvedIndex, playbackTime: highlightTime)
+            resumeManager?.recordInteractiveResume(
+                sentenceIndex: resolvedIndex,
+                playbackTime: highlightTime,
+                playbackTrack: currentInteractiveResumePlaybackTrack()
+            )
         }
         let playbackDuration = viewModel.selectedChunk.flatMap { viewModel.playbackDuration(for: $0) } ?? viewModel.audioCoordinator.duration
         let playbackTime = highlightTime.isFinite ? highlightTime : time

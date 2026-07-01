@@ -14,11 +14,19 @@ extension LibraryPlaybackView {
         if isVideoPreferred {
             startVideoPlayback(at: entry.playbackTime ?? 0, presentPlayer: true)
         } else {
-            startInteractivePlayback(at: entry.sentenceNumber, playbackTime: entry.playbackTime)
+            startInteractivePlayback(
+                at: entry.sentenceNumber,
+                playbackTime: entry.playbackTime,
+                preferredTrack: entry.resumeSequenceTrack
+            )
         }
     }
 
-    func startInteractivePlayback(at sentence: Int?, playbackTime: Double? = nil) {
+    func startInteractivePlayback(
+        at sentence: Int?,
+        playbackTime: Double? = nil,
+        preferredTrack: SequenceTrack? = nil
+    ) {
         if let sentence, sentence > 0 {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
@@ -30,7 +38,8 @@ extension LibraryPlaybackView {
                     resumeTime.time,
                     in: resumeTime.chunk,
                     autoPlay: true,
-                    matchingSentenceNumber: sentence
+                    matchingSentenceNumber: sentence,
+                    preferredTrack: preferredTrack
                 )
             } else {
                 if let playbackTime, playbackTime.isFinite {
@@ -44,7 +53,8 @@ extension LibraryPlaybackView {
             scheduleInteractiveAutoplayRetry(
                 sentence: sentence,
                 requestID: pendingInteractiveAutoplayID,
-                playbackTime: playbackTime
+                playbackTime: playbackTime,
+                preferredTrack: preferredTrack
             )
         } else if !viewModel.audioCoordinator.isPlaying {
             pendingInteractiveAutoplaySentence = nil
@@ -66,7 +76,12 @@ extension LibraryPlaybackView {
         #endif
     }
 
-    private func scheduleInteractiveAutoplayRetry(sentence: Int, requestID: UUID?, playbackTime: Double? = nil) {
+    private func scheduleInteractiveAutoplayRetry(
+        sentence: Int,
+        requestID: UUID?,
+        playbackTime: Double? = nil,
+        preferredTrack: SequenceTrack? = nil
+    ) {
         guard let requestID else { return }
         keyboardShortcutDebugLog("[KeyboardShortcut] Library autoplay requested sentence=\(sentence)")
         Task { @MainActor in
@@ -91,7 +106,8 @@ extension LibraryPlaybackView {
                         resumeTime.time,
                         in: resumeTime.chunk,
                         autoPlay: true,
-                        matchingSentenceNumber: sentence
+                        matchingSentenceNumber: sentence,
+                        preferredTrack: preferredTrack
                     )
                 } else {
                     viewModel.jumpToSentence(sentence, autoPlay: true)
@@ -152,7 +168,8 @@ extension LibraryPlaybackView {
         resumeManager?.persistOnExit(
             isVideoPreferred: isVideoPreferred,
             sentenceIndex: sentenceIndexTracker.value,
-            playbackTime: currentInteractiveResumePlaybackTime()
+            playbackTime: currentInteractiveResumePlaybackTime(),
+            playbackTrack: currentInteractiveResumePlaybackTrack()
         )
     }
 
@@ -160,6 +177,13 @@ extension LibraryPlaybackView {
         let highlightTime = viewModel.highlightingTime
         guard highlightTime.isFinite, highlightTime >= 0 else { return nil }
         return highlightTime
+    }
+
+    func currentInteractiveResumePlaybackTrack() -> String? {
+        if viewModel.isSequenceModeActive {
+            return viewModel.sequenceController.currentTrack.rawValue
+        }
+        return viewModel.audioModeManager?.preferredTrack.rawValue
     }
 
     func validatedInteractiveResumePlaybackTime(

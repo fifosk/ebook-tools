@@ -253,10 +253,23 @@ if "@State var pendingExplicitSentenceJumpChunkID: String?" not in interactive_v
     fail("single-track explicit sentence jump display anchor must remember its target chunk")
 if "func prepareExplicitSentenceJump(to sentenceNumber: Int, chunkID: String? = nil)" not in transcript_source:
     fail("explicit sentence jumps must accept an optional target chunk")
+header_overlay_source = read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift")
 slider_commit_body = function_body(
-    read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"),
+    header_overlay_source,
+    "private func commitHeaderSentenceProgress(_ targetSentence: Int)",
+)
+slider_edit_body = function_body(
+    header_overlay_source,
     "func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool)",
 )
+if "commitHeaderSentenceProgress(Int(value.rounded()))" not in slider_edit_body:
+    fail("sentence progress slider editing must commit through the shared target-chunk helper")
+if "schedulePhoneProgressFooterAutoHide()" not in slider_edit_body:
+    fail("sentence progress slider editing must keep the phone footer auto-hide behavior")
+if "func stepHeaderSentenceProgress(_ delta: Int, in chunk: InteractiveChunk)" not in header_overlay_source:
+    fail("tvOS sentence progress must expose a focused left/right stepping helper")
+if "commitHeaderSentenceProgress(clamped)" not in header_overlay_source:
+    fail("tvOS sentence progress stepping must commit through the shared target-chunk helper")
 if "let targetChunk = viewModel.jobContext.flatMap" not in slider_commit_body:
     fail("sentence progress slider must resolve the target chunk before recording the single-track anchor")
 if "viewModel.resolveChunk(containing: targetSentence, in: $0)" not in slider_commit_body:
@@ -492,17 +505,21 @@ footer_move_body = function_body(
 if "case .up, .down:" not in progress_move_body or "case .up, .down:" not in footer_move_body:
     fail("tvOS progress footer outer handlers must keep up/down focus escape")
 for label, body in (("progress", progress_move_body), ("footer", footer_move_body)):
-    if ".left" in body or ".right" in body:
-        fail(f"tvOS {label} progress handler must let TVScrubber own left/right sentence movement")
+    if "case .left:" not in body or "case .right:" not in body:
+        fail(f"tvOS {label} progress handler must own left/right sentence movement")
+    if "stepHeaderSentenceProgress(-1, in: chunk)" not in body:
+        fail(f"tvOS {label} progress handler must step backward through the shared commit helper")
+    if "stepHeaderSentenceProgress(1, in: chunk)" not in body:
+        fail(f"tvOS {label} progress handler must step forward through the shared commit helper")
 if "handleTVProgressFooterHorizontalMove" in interactive_view_source:
     fail("tvOS progress footer must not keep a second outer left/right sentence-step helper")
 if "TVScrubber(" not in progress_footer_source:
-    fail("shared progress footer must keep the tvOS scrubber as left/right owner")
+    fail("shared progress footer must keep the tvOS scrubber visuals")
 if "onEditingChanged: handleHeaderSentenceProgressEditingChanged" not in interactive_layout_source:
     fail("interactive footer slider must still commit sentence jumps through the shared header progress handler")
 header_progress_commit_body = function_body(
-    read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"),
-    "func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool)",
+    header_overlay_source,
+    "private func commitHeaderSentenceProgress(_ targetSentence: Int)",
 )
 if "viewModel.rememberSingleTrackSentenceAnchor(chunkID: targetChunk.id, sentenceNumber: targetSentence)" not in header_progress_commit_body:
     fail("interactive sentence slider must refresh the single-track anchor before jumping")

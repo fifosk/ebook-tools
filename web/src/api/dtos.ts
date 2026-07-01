@@ -1323,6 +1323,7 @@ export interface ResumePositionPayload {
   chunk_id?: string | null;
   media_type?: ResumePositionMediaType | null;
   base_id?: string | null;
+  playback_track?: string | null;
 }
 
 export interface ResumePositionEntry {
@@ -1334,6 +1335,7 @@ export interface ResumePositionEntry {
   chunk_id?: string | null;
   media_type?: ResumePositionMediaType | null;
   base_id?: string | null;
+  playback_track?: string | null;
 }
 
 export interface ResumePositionResponse {

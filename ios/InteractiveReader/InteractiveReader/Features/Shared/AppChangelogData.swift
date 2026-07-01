@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-reader-track-aware-resume-progress",
+                    title: "Translation-only resume stays anchored",
+                    detail: "Apple reader resume sync now preserves the active original/translation playback track, and Apple TV sentence-progress focus now steps and seeks sentences with left/right so translation-only playback stays anchored to the rendered sentence after resume or progress jumps."
+                ),
+                AppChangelogEntry(
                     id: "apple-reader-transport-resume-offset",
                     title: "Reader play resumes inside sentence",
                     detail: "Apple reader Play/Pause recovery now carries the current in-sentence playback offset when it has to rebuild narration, so Apple TV and iPad resume nearer the last-read word instead of restarting the saved sentence."

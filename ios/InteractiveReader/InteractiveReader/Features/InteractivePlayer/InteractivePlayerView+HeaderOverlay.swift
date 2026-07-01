@@ -628,15 +628,29 @@ extension InteractivePlayerView {
         isHeaderSentenceSliderEditing = isEditing
         guard !isEditing else { return }
         guard let value = headerSentenceSliderValue else { return }
+        commitHeaderSentenceProgress(Int(value.rounded()))
+        schedulePhoneProgressFooterAutoHide()
+    }
+
+    func stepHeaderSentenceProgress(_ delta: Int, in chunk: InteractiveChunk) {
+        guard delta != 0 else { return }
+        let current = Int(headerSentenceProgressValue(for: chunk).rounded())
+        let stepped = current + delta
+        let clamped = Int(clampedHeaderSentenceProgressValue(Double(stepped), for: chunk).rounded())
+        guard clamped != current else { return }
+        headerSentenceSliderValue = Double(clamped)
+        isHeaderSentenceSliderEditing = false
+        commitHeaderSentenceProgress(clamped)
+    }
+
+    private func commitHeaderSentenceProgress(_ targetSentence: Int) {
         guard let chunk = viewModel.selectedChunk else { return }
-        let targetSentence = Int(value.rounded())
         let targetChunk = viewModel.jobContext.flatMap {
             viewModel.resolveChunk(containing: targetSentence, in: $0)
         } ?? chunk
         prepareExplicitSentenceJump(to: targetSentence, chunkID: targetChunk.id)
         viewModel.rememberSingleTrackSentenceAnchor(chunkID: targetChunk.id, sentenceNumber: targetSentence)
         viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)
-        schedulePhoneProgressFooterAutoHide()
     }
 
     func clearHeaderSentenceProgressDraft() {

@@ -504,21 +504,24 @@ extension InteractivePlayerViewModel {
         _ time: Double,
         in chunk: InteractiveChunk,
         autoPlay: Bool = false,
-        matchingSentenceNumber sentenceNumber: Int? = nil
+        matchingSentenceNumber sentenceNumber: Int? = nil,
+        preferredTrack: SequenceTrack? = nil
     ) {
         guard time.isFinite else { return }
         pendingTimeSeek = PendingTimeSeek(
             chunkID: chunk.id,
             time: time,
             autoPlay: autoPlay,
-            sentenceNumber: sentenceNumber
+            sentenceNumber: sentenceNumber,
+            preferredTrackRawValue: preferredTrack?.rawValue
         )
         if selectedChunkID == chunk.id {
             seekPlaybackWhenReady(
                 to: time,
                 in: chunk,
                 autoPlay: autoPlay,
-                matchingSentenceNumber: sentenceNumber
+                matchingSentenceNumber: sentenceNumber,
+                preferredTrack: preferredTrack
             )
             pendingTimeSeek = nil
             return
@@ -657,7 +660,8 @@ extension InteractivePlayerViewModel {
             to: pending.time,
             in: chunk,
             autoPlay: pending.autoPlay,
-            matchingSentenceNumber: pending.sentenceNumber
+            matchingSentenceNumber: pending.sentenceNumber,
+            preferredTrack: pending.preferredTrackRawValue.flatMap(SequenceTrack.init(rawValue:))
         )
     }
 
@@ -665,7 +669,8 @@ extension InteractivePlayerViewModel {
         to time: Double,
         in chunk: InteractiveChunk,
         autoPlay: Bool,
-        matchingSentenceNumber sentenceNumber: Int? = nil
+        matchingSentenceNumber sentenceNumber: Int? = nil,
+        preferredTrack: SequenceTrack? = nil
     ) {
         guard time.isFinite else { return }
         if isSequenceModeActive {
@@ -673,7 +678,8 @@ extension InteractivePlayerViewModel {
                 to: time,
                 in: chunk,
                 autoPlay: autoPlay,
-                matchingSentenceNumber: sentenceNumber
+                matchingSentenceNumber: sentenceNumber,
+                preferredTrack: preferredTrack
             )
             return
         }
@@ -723,7 +729,8 @@ extension InteractivePlayerViewModel {
         to time: Double,
         in chunk: InteractiveChunk,
         autoPlay: Bool,
-        matchingSentenceNumber sentenceNumber: Int? = nil
+        matchingSentenceNumber sentenceNumber: Int? = nil,
+        preferredTrack: SequenceTrack? = nil
     ) {
         let chunkId = chunk.id
         let targetSentenceIndex = sentenceNumber.flatMap {
@@ -735,7 +742,7 @@ extension InteractivePlayerViewModel {
             guard let target = sequenceController.seekToTime(
                 time,
                 sentenceIndex: targetSentenceIndex,
-                preferredTrack: sequenceController.currentTrack
+                preferredTrack: preferredTrack ?? sequenceController.currentTrack
             ) ?? targetSentenceIndex.flatMap({
                 playbackTransportDebugLog(
                     "[PlaybackTransport] Interactive sequence time seek fallback=sentenceStart sentence=\(sentenceNumber ?? -1) time=\(String(format: "%.3f", time))"
@@ -811,7 +818,8 @@ extension InteractivePlayerViewModel {
                     to: time,
                     in: currentChunk,
                     autoPlay: autoPlay,
-                    matchingSentenceNumber: sentenceNumber
+                    matchingSentenceNumber: sentenceNumber,
+                    preferredTrack: preferredTrack
                 )
                 cancellable?.cancel()
             }

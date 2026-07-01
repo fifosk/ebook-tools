@@ -77,6 +77,7 @@ struct ResumePositionEntry: Decodable {
     let chunkId: String?
     let mediaType: String?
     let baseId: String?
+    let playbackTrack: String?
 }
 
 struct ResumePositionResponse: Decodable {
@@ -95,6 +96,7 @@ struct ResumePositionSaveRequest: Encodable {
     let chunkId: String?
     let mediaType: String?
     let baseId: String?
+    let playbackTrack: String?
 
     enum CodingKeys: String, CodingKey {
         case kind
@@ -103,6 +105,7 @@ struct ResumePositionSaveRequest: Encodable {
         case chunkId = "chunk_id"
         case mediaType = "media_type"
         case baseId = "base_id"
+        case playbackTrack = "playback_track"
     }
 }
 

@@ -286,6 +286,12 @@ struct InteractivePlayerView: View {
     private func handleProgressMoveCommand(_ direction: MoveCommandDirection, chunk: InteractiveChunk) -> Bool {
         guard focusedArea == .progress else { return false }
         switch direction {
+        case .left:
+            stepHeaderSentenceProgress(-1, in: chunk)
+            return true
+        case .right:
+            stepHeaderSentenceProgress(1, in: chunk)
+            return true
         case .up, .down:
             focusedArea = .transcript
             return true
@@ -297,6 +303,14 @@ struct InteractivePlayerView: View {
     func handleTVProgressFooterMoveCommand(_ direction: MoveCommandDirection) {
         guard focusedArea == .progress else { return }
         switch direction {
+        case .left:
+            if let chunk = viewModel.selectedChunk {
+                stepHeaderSentenceProgress(-1, in: chunk)
+            }
+        case .right:
+            if let chunk = viewModel.selectedChunk {
+                stepHeaderSentenceProgress(1, in: chunk)
+            }
         case .up, .down:
             focusedArea = .transcript
         default:

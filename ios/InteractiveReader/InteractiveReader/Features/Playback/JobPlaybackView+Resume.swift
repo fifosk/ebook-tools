@@ -53,11 +53,19 @@ extension JobPlaybackView {
         if isVideoPreferred {
             startVideoPlayback(at: entry.playbackTime, presentPlayer: true)
         } else {
-            startInteractivePlayback(at: entry.sentenceNumber, playbackTime: entry.playbackTime)
+            startInteractivePlayback(
+                at: entry.sentenceNumber,
+                playbackTime: entry.playbackTime,
+                preferredTrack: entry.resumeSequenceTrack
+            )
         }
     }
 
-    func startInteractivePlayback(at sentence: Int?, playbackTime: Double? = nil) {
+    func startInteractivePlayback(
+        at sentence: Int?,
+        playbackTime: Double? = nil,
+        preferredTrack: SequenceTrack? = nil
+    ) {
         if let sentence, sentence > 0 {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
@@ -69,7 +77,8 @@ extension JobPlaybackView {
                     resumeTime.time,
                     in: resumeTime.chunk,
                     autoPlay: true,
-                    matchingSentenceNumber: sentence
+                    matchingSentenceNumber: sentence,
+                    preferredTrack: preferredTrack
                 )
             } else {
                 if let playbackTime, playbackTime.isFinite {
@@ -87,7 +96,8 @@ extension JobPlaybackView {
             scheduleInteractiveAutoplayRetry(
                 sentence: sentence,
                 requestID: pendingInteractiveAutoplayID,
-                playbackTime: playbackTime
+                playbackTime: playbackTime,
+                preferredTrack: preferredTrack
             )
         } else {
             // No sentence target - start playback from current position
@@ -112,7 +122,12 @@ extension JobPlaybackView {
         #endif
     }
 
-    func scheduleInteractiveAutoplayRetry(sentence: Int, requestID: UUID?, playbackTime: Double? = nil) {
+    func scheduleInteractiveAutoplayRetry(
+        sentence: Int,
+        requestID: UUID?,
+        playbackTime: Double? = nil,
+        preferredTrack: SequenceTrack? = nil
+    ) {
         guard let requestID else { return }
         keyboardShortcutDebugLog("[KeyboardShortcut] Job autoplay requested sentence=\(sentence)")
         Task { @MainActor in
@@ -137,7 +152,8 @@ extension JobPlaybackView {
                         resumeTime.time,
                         in: resumeTime.chunk,
                         autoPlay: true,
-                        matchingSentenceNumber: sentence
+                        matchingSentenceNumber: sentence,
+                        preferredTrack: preferredTrack
                     )
                 } else {
                     viewModel.jumpToSentence(sentence, autoPlay: true)
@@ -270,7 +286,12 @@ extension JobPlaybackView {
         return formatter.localizedString(for: date, relativeTo: Date())
     }
 
-    func recordInteractiveResume(sentenceIndex: Int, playbackTime: Double? = nil, force: Bool = false) {
+    func recordInteractiveResume(
+        sentenceIndex: Int,
+        playbackTime: Double? = nil,
+        playbackTrack: String? = nil,
+        force: Bool = false
+    ) {
         guard !resumeDecisionPending else { return }
         guard let userId = resumeUserId else { return }
         guard sentenceIndex > 0 else { return }
@@ -278,18 +299,21 @@ extension JobPlaybackView {
         let timeBucket = normalizedPlaybackTime.map { Int($0.rounded(.down)) }
         if !force,
            sentenceIndex == lastRecordedSentence,
-           timeBucket == lastRecordedSentenceTimeBucket {
+           timeBucket == lastRecordedSentenceTimeBucket,
+           playbackTrack == lastRecordedSentenceTrack {
             return
         }
         lastRecordedSentence = sentenceIndex
         lastRecordedSentenceTimeBucket = timeBucket
+        lastRecordedSentenceTrack = playbackTrack
         let entry = PlaybackResumeEntry(
             jobId: currentJob.jobId,
             itemType: resumeItemType,
             kind: .sentence,
             updatedAt: Date().timeIntervalSince1970,
             sentenceNumber: sentenceIndex,
-            playbackTime: normalizedPlaybackTime
+            playbackTime: normalizedPlaybackTime,
+            playbackTrack: playbackTrack
         )
         PlaybackResumeStore.shared.updateEntry(entry, userId: userId)
     }
@@ -314,7 +338,8 @@ extension JobPlaybackView {
             kind: .time,
             updatedAt: Date().timeIntervalSince1970,
             sentenceNumber: nil,
-            playbackTime: time
+            playbackTime: time,
+            playbackTrack: nil
         )
         PlaybackResumeStore.shared.updateEntry(entry, userId: userId)
         return true
@@ -327,6 +352,7 @@ extension JobPlaybackView {
             recordInteractiveResume(
                 sentenceIndex: sentenceIndex,
                 playbackTime: currentInteractiveResumePlaybackTime(),
+                playbackTrack: currentInteractiveResumePlaybackTrack(),
                 force: true
             )
         }
@@ -352,6 +378,13 @@ extension JobPlaybackView {
         let highlightTime = viewModel.highlightingTime
         guard highlightTime.isFinite, highlightTime >= 0 else { return nil }
         return highlightTime
+    }
+
+    func currentInteractiveResumePlaybackTrack() -> String? {
+        if viewModel.isSequenceModeActive {
+            return viewModel.sequenceController.currentTrack.rawValue
+        }
+        return viewModel.audioModeManager?.preferredTrack.rawValue
     }
 
     func normalizedInteractiveResumePlaybackTime(_ time: Double?) -> Double? {

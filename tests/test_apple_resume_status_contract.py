@@ -205,17 +205,23 @@ def test_interactive_resume_records_sentence_playback_time() -> None:
     library_now_playing_source = LIBRARY_PLAYBACK_NOW_PLAYING.read_text(encoding="utf-8")
 
     assert "lastRecordedSentenceTimeBucket" in manager_source
+    assert "lastRecordedSentenceTrack" in manager_source
     assert "func recordInteractiveResume(\n        sentenceIndex: Int,\n        playbackTime: Double? = nil," in manager_source
     assert "playbackTime: normalizedPlaybackTime" in manager_source
-    assert "recordInteractiveResume(sentenceIndex: resolvedIndex, playbackTime: highlightTime)" in job_now_playing_source
+    assert "playbackTrack: playbackTrack" in manager_source
+    assert "playbackTrack: currentInteractiveResumePlaybackTrack()" in job_now_playing_source
     assert (
-        "resumeManager?.recordInteractiveResume(sentenceIndex: resolvedIndex, playbackTime: highlightTime)"
+        "playbackTrack: currentInteractiveResumePlaybackTrack()"
         in library_now_playing_source
     )
     assert "let position = entry.playbackTime" not in store_source
     assert "position: entry.playbackTime" in store_source
+    assert "playbackTrack: entry.playbackTrack" in store_source
+    assert 'record["playbackTrack"]' in store_source
+    assert "playbackTrack: apiEntry.playbackTrack" in store_source
     assert "return (sentenceNumber ?? 0) > 1 || (playbackTime ?? 0) > 1" in store_source
     assert "playbackTime: currentInteractiveResumePlaybackTime()" in job_resume_source
+    assert "playbackTrack: currentInteractiveResumePlaybackTrack()" in job_resume_source
 
 
 def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() -> None:
@@ -225,17 +231,19 @@ def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() 
     sequence_source = SEQUENCE_CONTROLLER.read_text(encoding="utf-8")
 
     for source in (job_resume_source, library_resume_source):
-        assert "startInteractivePlayback(at: entry.sentenceNumber, playbackTime: entry.playbackTime)" in source
+        assert "preferredTrack: entry.resumeSequenceTrack" in source
         assert "validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence)" in source
         assert "matchingSentenceNumber: sentence" in source
+        assert "preferredTrack: preferredTrack" in source
         assert "viewModel.jumpToSentence(sentence, autoPlay: true)" in source
 
     assert "func jumpToTime(" in selection_source
     assert "matchingSentenceNumber sentenceNumber: Int? = nil" in selection_source
+    assert "preferredTrack: SequenceTrack? = nil" in selection_source
     assert "seekSequencePlaybackWhenReady(" in selection_source
     assert "sequenceController.seekToTime(" in selection_source
     assert "sequenceController.seekToTime(\n                time,\n                sentenceIndex: targetSentenceIndex" in selection_source
-    assert "preferredTrack: sequenceController.currentTrack" in selection_source
+    assert "preferredTrack: preferredTrack ?? sequenceController.currentTrack" in selection_source
     assert "selectChunk(id: chunk.id, autoPlay: false)" in selection_source
     assert "func resumePlaybackTime(_ time: Double, matches sentenceNumber: Int, in chunk: InteractiveChunk) -> Bool" in selection_source
     assert "resumeValidationTimingTracks(for: chunk)" in selection_source

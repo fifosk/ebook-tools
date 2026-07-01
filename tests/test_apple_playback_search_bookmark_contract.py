@@ -1016,6 +1016,9 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "if isHeaderSentenceSliderEditing, let headerSentenceSliderValue" in interactive_header
     assert "isHeaderSentenceSliderEditing = true" in interactive_header
     assert "func clearHeaderSentenceProgressDraft()" in interactive_header
+    assert "func stepHeaderSentenceProgress(_ delta: Int, in chunk: InteractiveChunk)" in interactive_header
+    assert "commitHeaderSentenceProgress(clamped)" in interactive_header
+    assert "private func commitHeaderSentenceProgress(_ targetSentence: Int)" in interactive_header
     assert "func showPhoneProgressFooter()" in interactive_header
     assert "func hidePhoneProgressFooter()" in interactive_header
     assert "func schedulePhoneProgressFooterAutoHide()" in interactive_header
@@ -1034,12 +1037,16 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
         "func handleTVProgressFooterMoveCommand(_ direction: MoveCommandDirection)",
         1,
     )[1].split("\n    private func handleTranscriptMoveCommand", 1)[0]
+    assert "case .left:" in progress_move_body
+    assert "stepHeaderSentenceProgress(-1, in: chunk)" in progress_move_body
+    assert "case .right:" in progress_move_body
+    assert "stepHeaderSentenceProgress(1, in: chunk)" in progress_move_body
     assert "case .up, .down:" in progress_move_body
+    assert "case .left:" in footer_move_body
+    assert "stepHeaderSentenceProgress(-1, in: chunk)" in footer_move_body
+    assert "case .right:" in footer_move_body
+    assert "stepHeaderSentenceProgress(1, in: chunk)" in footer_move_body
     assert "case .up, .down:" in footer_move_body
-    assert ".left" not in progress_move_body
-    assert ".right" not in progress_move_body
-    assert ".left" not in footer_move_body
-    assert ".right" not in footer_move_body
     assert "handleTVProgressFooterHorizontalMove" not in interactive_view
     assert "onEditingChanged: handleHeaderSentenceProgressEditingChanged" in interactive_layout
     assert "if headerSentenceProgressRange(for: chunk) != nil {\n            focusedArea = .progress" in interactive_view

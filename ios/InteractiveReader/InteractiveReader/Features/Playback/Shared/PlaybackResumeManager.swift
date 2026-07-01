@@ -10,6 +10,7 @@ final class PlaybackResumeManager: ObservableObject {
     @Published var resumeDecisionPending = false
     @Published var lastRecordedSentence: Int?
     @Published var lastRecordedSentenceTimeBucket: Int?
+    @Published var lastRecordedSentenceTrack: String?
     @Published var lastRecordedTimeBucket: Int?
     @Published var lastVideoTime: Double = 0
 
@@ -34,6 +35,7 @@ final class PlaybackResumeManager: ObservableObject {
         resumeDecisionPending = true
         lastRecordedSentence = nil
         lastRecordedSentenceTimeBucket = nil
+        lastRecordedSentenceTrack = nil
         lastRecordedTimeBucket = nil
         lastVideoTime = 0
     }
@@ -78,6 +80,7 @@ final class PlaybackResumeManager: ObservableObject {
     func recordInteractiveResume(
         sentenceIndex: Int,
         playbackTime: Double? = nil,
+        playbackTrack: String? = nil,
         force: Bool = false
     ) {
         guard !resumeDecisionPending else { return }
@@ -87,18 +90,21 @@ final class PlaybackResumeManager: ObservableObject {
         let timeBucket = normalizedPlaybackTime.map { Int($0.rounded(.down)) }
         if !force,
            sentenceIndex == lastRecordedSentence,
-           timeBucket == lastRecordedSentenceTimeBucket {
+           timeBucket == lastRecordedSentenceTimeBucket,
+           playbackTrack == lastRecordedSentenceTrack {
             return
         }
         lastRecordedSentence = sentenceIndex
         lastRecordedSentenceTimeBucket = timeBucket
+        lastRecordedSentenceTrack = playbackTrack
         let entry = PlaybackResumeEntry(
             jobId: jobId,
             itemType: itemType,
             kind: .sentence,
             updatedAt: Date().timeIntervalSince1970,
             sentenceNumber: sentenceIndex,
-            playbackTime: normalizedPlaybackTime
+            playbackTime: normalizedPlaybackTime,
+            playbackTrack: playbackTrack
         )
         PlaybackResumeStore.shared.updateEntry(entry, userId: userId)
     }
@@ -123,17 +129,28 @@ final class PlaybackResumeManager: ObservableObject {
             kind: .time,
             updatedAt: Date().timeIntervalSince1970,
             sentenceNumber: nil,
-            playbackTime: time
+            playbackTime: time,
+            playbackTrack: nil
         )
         PlaybackResumeStore.shared.updateEntry(entry, userId: userId)
         return true
     }
 
-    func persistOnExit(isVideoPreferred: Bool, sentenceIndex: Int?, playbackTime: Double?) {
+    func persistOnExit(
+        isVideoPreferred: Bool,
+        sentenceIndex: Int?,
+        playbackTime: Double?,
+        playbackTrack: String? = nil
+    ) {
         if isVideoPreferred {
             recordVideoResume(time: lastVideoTime, isPlaying: false)
         } else if let sentenceIndex {
-            recordInteractiveResume(sentenceIndex: sentenceIndex, playbackTime: playbackTime, force: true)
+            recordInteractiveResume(
+                sentenceIndex: sentenceIndex,
+                playbackTime: playbackTime,
+                playbackTrack: playbackTrack,
+                force: true
+            )
         }
         if let userId {
             Task {
