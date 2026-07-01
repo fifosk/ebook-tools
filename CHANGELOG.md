@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Web Narrate Ebook static audio, voice, and written-mode option lists now flow directly from shared constants instead of being re-memoized in the large form coordinator.
 - Web Narrate Ebook selected and manual target-language merging now resolves through the tested Create intake utility, keeping submit payloads, voice overrides, and shared language preferences on the same deduped list outside the large form coordinator.
 - Web Narrate Ebook saved-template application now resolves clear/skip/incompatible/apply decisions through the tested template helper, keeping apply-key and compatibility messages outside the large form coordinator.
 - Web Narrate Ebook saved-template saves now run through the tested template helper, keeping sanitized payload construction and save success/error mapping outside the large form coordinator.

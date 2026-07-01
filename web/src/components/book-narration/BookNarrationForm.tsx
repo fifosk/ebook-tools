@@ -11,7 +11,6 @@ import { saveCreationTemplate } from '../../api/client';
 import {
   AUDIO_MODE_OPTIONS,
   AUDIO_QUALITY_OPTIONS,
-  MenuOption,
   VOICE_OPTIONS,
   WRITTEN_MODE_OPTIONS
 } from '../../constants/menuOptions';
@@ -570,9 +569,6 @@ export function BookNarrationForm({
     });
   }, [markUserEditedField]);
 
-  const availableAudioModes = useMemo<MenuOption[]>(() => AUDIO_MODE_OPTIONS, []);
-  const availableWrittenModes = useMemo<MenuOption[]>(() => WRITTEN_MODE_OPTIONS, []);
-  const availableVoices = useMemo<MenuOption[]>(() => VOICE_OPTIONS, []);
   const normalizedTargetLanguages = useMemo(
     () => resolveBookNarrationTargetLanguages({
       target_languages: formState.target_languages,
@@ -743,10 +739,10 @@ export function BookNarrationForm({
             onProcessingModeChange={handleChapterModeChange}
             onChapterToggle={handleChapterToggle}
             onChapterClear={handleChapterClear}
-            availableAudioModes={availableAudioModes}
+            availableAudioModes={AUDIO_MODE_OPTIONS}
             availableAudioQualities={AUDIO_QUALITY_OPTIONS}
-            availableVoices={availableVoices}
-            availableWrittenModes={availableWrittenModes}
+            availableVoices={VOICE_OPTIONS}
+            availableWrittenModes={WRITTEN_MODE_OPTIONS}
             languagesForOverride={languagesForOverride}
             voicePreviewStatus={voicePreviewStatus}
             voicePreviewError={voicePreviewError}
