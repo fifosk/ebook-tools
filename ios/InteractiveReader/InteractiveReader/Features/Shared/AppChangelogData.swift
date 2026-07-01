@@ -238,6 +238,11 @@ enum AppChangelogData {
                     detail: "Apple reader metadata refreshes that repair a stale selected audio option in single-track mode now prepare audio again for the same recent sentence anchor, keeping narration and rendered tracks aligned after batch hydration."
                 ),
                 AppChangelogEntry(
+                    id: "apple-single-track-render-anchor-selected-lane",
+                    title: "Single-track render locks are stricter",
+                    detail: "Apple reader original-only and translation-only render anchors now release only when the active audio URL belongs to the selected lane, preventing hidden-track or stale batch audio from resetting rendering at sentence-batch boundaries."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-template-save-hook",
                     title: "Narrate Ebook templates are tidier",
                     detail: "Web Narrate Ebook saved-template save status, errors, and busy state now live in a focused tested hook while preserving the shared template payload rules."

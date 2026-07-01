@@ -1037,6 +1037,24 @@ private func playbackEndedURLBelongsToCurrentChunk(
     )
 }
 
+@MainActor
+private func selectedLaneAudioIsActive(
+    activeURL: URL?,
+    selectedOption: InteractiveChunk.AudioOption?,
+    requestedSingleTrackMode: SequenceTrack?
+) -> Bool {
+    guard let activeURL, let selectedOption else { return false }
+    if let requestedSingleTrackMode,
+       selectedOption.kind == .combined {
+        return PlaybackEndedURLPolicy.endedURL(
+            activeURL,
+            belongsTo: selectedOption,
+            singleTrack: requestedSingleTrackMode
+        )
+    }
+    return selectedOption.streamURLs.contains(activeURL)
+}
+
 private func preferredSingleTrackAudioOption(
     for track: SequenceTrack,
     in chunk: InteractiveChunk
@@ -2360,6 +2378,24 @@ private func runChecks() {
         ),
         .translation,
         "Translation-only header/progress helpers should keep the active lane when selected ID still points at combined"
+    )
+    requireEqual(
+        selectedLaneAudioIsActive(
+            activeURL: originalURL,
+            selectedOption: nextBatch.audioOptions.first(where: { $0.kind == .combined }),
+            requestedSingleTrackMode: .translation
+        ),
+        false,
+        "Translation-only render anchors must not release on a hidden original stream from the selected combined option"
+    )
+    requireEqual(
+        selectedLaneAudioIsActive(
+            activeURL: translationURL,
+            selectedOption: nextBatch.audioOptions.first(where: { $0.kind == .combined }),
+            requestedSingleTrackMode: .translation
+        ),
+        true,
+        "Translation-only render anchors should release only when the selected lane stream reaches the batch target"
     )
     let reorderedSequenceBatch = InteractiveChunk(
         id: "chapter-2-reordered",

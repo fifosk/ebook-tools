@@ -334,6 +334,10 @@ current_chunk_audio_body = function_body(
 )
 if "guard viewModel.selectedChunkID == chunk.id else { return false }" not in current_chunk_audio_body:
     fail("current chunk audio guard must reject stale audio from a no-longer-selected chunk")
+if "guard let selectedOption = viewModel.selectedAudioOption(for: chunk) else { return false }" not in current_chunk_audio_body:
+    fail("current chunk audio guard must resolve audio against the selected option")
+if "viewModel.requestedSingleTrackMode()" not in current_chunk_audio_body or "PlaybackEndedURLPolicy.endedURL(" not in current_chunk_audio_body:
+    fail("current chunk audio guard must respect the selected single-track lane inside combined options")
 handle_sentence_skip_body = function_body(
     transcript_source,
     "func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk)",

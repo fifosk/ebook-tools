@@ -205,6 +205,7 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Combined-only translation prefetch should warm the translation stream instead of the hidden original stream" in swift_check
     assert "allowExpandingSingleTrackAudio" in swift_check
     assert "Passive hydrated-batch sync should not expand a remembered translation-only lane back to combined" in swift_check
+    assert "Translation-only render anchors must not release on a hidden original stream from the selected combined option" in swift_check
     assert "Explicit text-track toggle should still be able to expand translation-only playback to combined" in swift_check
     frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
     assert "Once live\n  playback reaches the anchored sentence, the anchor must be consumed/cleared" in frontend_sync

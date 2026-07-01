@@ -222,7 +222,10 @@ Follow the suggested remediations to restore parity:
   For combined-only audio options, URL membership must be checked against the
   selected lane inside the combined stream list; translation-only playback must
   reject the original stream's EOF even though that URL belongs to the combined
-  option object.
+  option object. The transcript's recent single-track render anchor should use
+  the same selected-option and selected-lane membership check before releasing
+  a next-batch lock; stale or hidden-track audio must not clear the anchor while
+  the new batch's rendered sentence is still waiting for the selected lane.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

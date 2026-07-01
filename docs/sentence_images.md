@@ -24,7 +24,10 @@ rendering aligned when playback crosses a sentence-batch boundary. If the
 manager briefly resets to sequence/combined while a single URL is loaded, that
 loaded URL remains the authoritative Original-only or Translation-only lane until
 the next batch is selected; wrong-lane EOF callbacks should be ignored before
-they can mutate durable selection state.
+they can mutate durable selection state. Recent single-track render anchors
+should also release only when the active URL belongs to the selected lane inside
+the current selected option, so hidden-track or stale batch audio cannot shift
+the transcript or sentence image context away from the narrated lane.
 
 ## Configuration
 
