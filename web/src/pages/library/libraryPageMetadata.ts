@@ -19,6 +19,7 @@ export type LibraryMetadataUpdatePlan = {
   payload: LibraryMetadataUpdatePayload;
   isbnToApply: string | null;
 };
+export type LibraryMutatingState = Record<string, boolean>;
 
 const UNKNOWN_AUTHOR = 'Unknown Author';
 const UNKNOWN_CREATOR = 'Unknown Creator';
@@ -65,6 +66,56 @@ export function selectActiveLibraryItems(
     default:
       return buckets.bookItems;
   }
+}
+
+export function libraryResumeJobIds(items: LibraryItem[]): string[] {
+  return items.map((item) => item.jobId).filter(Boolean);
+}
+
+export function reconcileSelectedLibraryItem(
+  current: LibraryItem | null,
+  items: LibraryItem[],
+): LibraryItem | null {
+  if (!current) {
+    return null;
+  }
+  return items.find((item) => item.jobId === current.jobId) ?? null;
+}
+
+export function replaceLibraryItem(
+  items: LibraryItem[],
+  updated: LibraryItem,
+): LibraryItem[] {
+  return items.map((entry) => (entry.jobId === updated.jobId ? updated : entry));
+}
+
+export function clearSelectedLibraryItem(
+  current: LibraryItem | null,
+  jobId: string,
+): LibraryItem | null {
+  return current?.jobId === jobId ? null : current;
+}
+
+export function markLibraryItemMutating(
+  state: LibraryMutatingState,
+  jobId: string,
+): LibraryMutatingState {
+  if (state[jobId]) {
+    return state;
+  }
+  return { ...state, [jobId]: true };
+}
+
+export function clearLibraryItemMutating(
+  state: LibraryMutatingState,
+  jobId: string,
+): LibraryMutatingState {
+  if (!state[jobId]) {
+    return state;
+  }
+  const next = { ...state };
+  delete next[jobId];
+  return next;
 }
 
 export function resolveLibraryTotalPages(total: number, pageSize: number): number {

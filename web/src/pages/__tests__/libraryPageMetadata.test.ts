@@ -3,14 +3,20 @@ import type { LibraryItem } from '../../api/dtos';
 import {
   buildLibraryMetadataUpdatePlan,
   buildLibraryItemBuckets,
+  clearLibraryItemMutating,
+  clearSelectedLibraryItem,
   extractTvMediaMetadata,
   extractYoutubeVideoMetadata,
   formatCount,
   formatLibraryTimestamp,
   formatLibraryRangeLabel,
   formatYoutubeUploadDate,
+  libraryResumeJobIds,
+  markLibraryItemMutating,
   mergeIsbnMetadataIntoEditValues,
   readNestedValue,
+  reconcileSelectedLibraryItem,
+  replaceLibraryItem,
   resolveAuthor,
   resolveGenre,
   resolveIsbnPreviewCoverCandidate,
@@ -77,6 +83,26 @@ describe('libraryPageMetadata', () => {
     expect(selectActiveLibraryItems(buckets, 'video')).toBe(buckets.videoItems);
     expect(selectActiveLibraryItems(buckets, 'narrated_subtitle')).toBe(buckets.subtitleItems);
     expect(selectActiveLibraryItems(buckets, 'book')).toBe(buckets.bookItems);
+  });
+
+  it('reconciles Library page item and mutation state through shared helpers', () => {
+    const first = makeItem({ jobId: 'job-1', bookTitle: 'Original' });
+    const updatedFirst = makeItem({ jobId: 'job-1', bookTitle: 'Updated' });
+    const second = makeItem({ jobId: 'job-2', bookTitle: 'Second' });
+
+    expect(libraryResumeJobIds([first, second])).toEqual(['job-1', 'job-2']);
+    expect(reconcileSelectedLibraryItem(first, [updatedFirst, second])).toBe(updatedFirst);
+    expect(reconcileSelectedLibraryItem(first, [second])).toBeNull();
+    expect(reconcileSelectedLibraryItem(null, [second])).toBeNull();
+    expect(replaceLibraryItem([first, second], updatedFirst)).toEqual([updatedFirst, second]);
+    expect(clearSelectedLibraryItem(first, 'job-1')).toBeNull();
+    expect(clearSelectedLibraryItem(first, 'job-2')).toBe(first);
+
+    const baseMutating = { 'job-1': true };
+    expect(markLibraryItemMutating(baseMutating, 'job-1')).toBe(baseMutating);
+    expect(markLibraryItemMutating(baseMutating, 'job-2')).toEqual({ 'job-1': true, 'job-2': true });
+    expect(clearLibraryItemMutating(baseMutating, 'job-2')).toBe(baseMutating);
+    expect(clearLibraryItemMutating(baseMutating, 'job-1')).toEqual({});
   });
 
   it('formats library pagination totals and range labels', () => {

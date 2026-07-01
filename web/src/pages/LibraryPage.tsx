@@ -24,10 +24,16 @@ import { fetchResumePositions } from '../api/client/resume';
 import {
   buildLibraryItemBuckets,
   buildLibraryMetadataUpdatePlan,
+  clearLibraryItemMutating,
+  clearSelectedLibraryItem,
   extractTvMediaMetadata,
   extractYoutubeVideoMetadata,
   formatLibraryRangeLabel,
+  libraryResumeJobIds,
+  markLibraryItemMutating,
   mergeIsbnMetadataIntoEditValues,
+  reconcileSelectedLibraryItem,
+  replaceLibraryItem,
   resolveAuthor,
   resolveGenre,
   resolveIsbnPreviewCoverCandidate,
@@ -191,13 +197,8 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         }
         setItems(response.items);
         setTotal(response.total);
-        setSelectedItem((current) => {
-          if (!current) {
-            return null;
-          }
-          return response.items.find((item) => item.jobId === current.jobId) ?? null;
-        });
-        const jobIds = response.items.map((item) => item.jobId).filter(Boolean);
+        setSelectedItem((current) => reconcileSelectedLibraryItem(current, response.items));
+        const jobIds = libraryResumeJobIds(response.items);
         if (jobIds.length === 0) {
           setResumeEntries([]);
           return;
@@ -324,7 +325,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
       if (!window.confirm(`Remove job ${item.jobId} from the library? This cannot be undone.`)) {
         return;
       }
-      setMutating((previous) => ({ ...previous, [item.jobId]: true }));
+      setMutating((previous) => markLibraryItemMutating(previous, item.jobId));
       try {
         await removeLibraryEntry(item.jobId);
         if (items.length === 1 && page > 1) {
@@ -332,18 +333,14 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         } else {
           setRefreshKey((key) => key + 1);
         }
-        setSelectedItem((current) => (current?.jobId === item.jobId ? null : current));
+        setSelectedItem((current) => clearSelectedLibraryItem(current, item.jobId));
       } catch (actionError) {
         const message =
           actionError instanceof Error ? actionError.message : 'Unable to remove library entry.';
         window.alert(message);
         setRefreshKey((key) => key + 1);
       } finally {
-        setMutating((previous) => {
-          const next = { ...previous };
-          delete next[item.jobId];
-          return next;
-        });
+        setMutating((previous) => clearLibraryItemMutating(previous, item.jobId));
       }
     },
     [items.length, page, resolveItemPermissions]
@@ -363,7 +360,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         window.alert('Export is available once the entry has finished processing.');
         return;
       }
-      setMutating((previous) => ({ ...previous, [item.jobId]: true }));
+      setMutating((previous) => markLibraryItemMutating(previous, item.jobId));
       try {
         const result = await createExport({
           source_kind: 'library',
@@ -378,11 +375,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
           actionError instanceof Error ? actionError.message : 'Unable to export offline player.';
         window.alert(message);
       } finally {
-        setMutating((previous) => {
-          const next = { ...previous };
-          delete next[item.jobId];
-          return next;
-        });
+        setMutating((previous) => clearLibraryItemMutating(previous, item.jobId));
       }
     },
     [appendAccessToken, createExport, downloadWithSaveAs, mutating, resolveItemPermissions]
@@ -506,9 +499,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         });
         if (result.enriched) {
           // Update local state with enriched item
-          setItems((previous) =>
-            previous.map((entry) => (entry.jobId === result.item.jobId ? result.item : entry))
-          );
+          setItems((previous) => replaceLibraryItem(previous, result.item));
           setSelectedItem(result.item);
         }
       } catch (error) {
@@ -547,9 +538,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         }
 
         const updated = await updateLibraryMetadata(selectedItem.jobId, updatePlan.payload);
-        setItems((previous) =>
-          previous.map((entry) => (entry.jobId === updated.jobId ? updated : entry))
-        );
+        setItems((previous) => replaceLibraryItem(previous, updated));
         setSelectedItem(updated);
         setIsEditing(false);
         setSelectedFile(null);
@@ -577,22 +566,13 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         throw new Error('You are not authorized to update access for this entry.');
       }
       const jobId = selectedItem.jobId;
-      setMutating((previous) => ({ ...previous, [jobId]: true }));
+      setMutating((previous) => markLibraryItemMutating(previous, jobId));
       try {
         const updated = await updateLibraryAccess(jobId, payload);
-        setItems((previous) =>
-          previous.map((entry) => (entry.jobId === updated.jobId ? updated : entry))
-        );
+        setItems((previous) => replaceLibraryItem(previous, updated));
         setSelectedItem(updated);
       } finally {
-        setMutating((previous) => {
-          if (!previous[jobId]) {
-            return previous;
-          }
-          const next = { ...previous };
-          delete next[jobId];
-          return next;
-        });
+        setMutating((previous) => clearLibraryItemMutating(previous, jobId));
       }
     },
     [resolveItemPermissions, selectedItem]

@@ -40,13 +40,16 @@ Large Web UI hotspots to split before redesign work:
   chunk merging, audio-track detection, and chunk-sentence detection now live
   in `web/src/hooks/liveMediaState.ts`; modern and legacy timing normalization
   now lives in `web/src/hooks/liveMediaTiming.ts` with focused Vitest coverage.
-- `web/src/pages/LibraryPage.tsx` - 815 lines. Status: TV/YouTube/library
+- `web/src/pages/LibraryPage.tsx` - 813 lines. Status: TV/YouTube/library
   title, author, genre, thumbnail, upload-date, ISBN preview merge/cover, and
   tab bucketing and pagination helpers now live in
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
   Metadata edit submission now also delegates its trimmed payload and changed
   ISBN apply decision to the same tested helper, preserving source upload
-  ordering and explicit ISBN clears. The details metadata tab presentation now
+  ordering and explicit ISBN clears. Search-result selected-item reconciliation,
+  resume job-id extraction, updated-item replacement, remove-selection clearing,
+  and row mutating-state cleanup now also live in the tested metadata helper
+  module. The details metadata tab presentation now
   lives in `web/src/pages/library/LibraryMetadataTab.tsx`, keeping YouTube and
   timestamp formatting with the shared metadata helpers. The overview tab
   presentation, including cover/TV artwork, play/edit/enrichment actions, ISBN

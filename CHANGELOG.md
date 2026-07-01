@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Web Library page refresh, edit, remove, access-update, and resume-fetch flows now share tested item reconciliation and mutating-state helpers, trimming more inline state logic before the cross-surface library refresh.
 - Apple reader original-only/translation-only playback now reasserts the active single-track audio option at prepare time too, so stale combined/original selections cannot reset rendering after a sentence-batch handoff.
 - Web Library list layout detection and timestamp formatting now live in tested shared helpers, shrinking the main list surface before the cross-surface visual refresh while preserving the existing book/subtitle/video table behavior.
 - Web and Apple subtitle source discovery now reuses cached NAS-safe stat metadata from the shared source walker when building picker rows, avoiding a second stat pass over every discovered subtitle.
