@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "video-discovery-bounded-newest",
+                    title: "Video source pickers stay lighter",
+                    detail: "Backend NAS and manual-download video discovery now keeps only the newest requested candidates while scanning, so Web and Apple Create source pickers avoid building giant intermediate lists from large download folders."
+                ),
+                AppChangelogEntry(
                     id: "tvos-ignored-music-pause-active-reader",
                     title: "TV first pause reaches narration",
                     detail: "Apple TV Music-bed playback now converts an otherwise ignored Music non-playing signal into a reader-owned pause while sentence narration is active, so a Siri Remote pause routed to Music should not leave the track playing until a second press."

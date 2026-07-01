@@ -179,6 +179,34 @@ def test_list_downloaded_videos_orders_newest_first_with_stable_path_ties(tmp_pa
     assert [video.path.name for video in videos] == ["alpha.mp4", "beta.mp4", "older.mp4"]
 
 
+def test_list_downloaded_videos_limit_keeps_newer_late_folder_candidate(tmp_path: Path) -> None:
+    older_folder = tmp_path / "alpha-old"
+    newer_folder = tmp_path / "zulu-new"
+    older_folder.mkdir()
+    newer_folder.mkdir()
+    older = older_folder / "old.mp4"
+    newer = newer_folder / "fresh.mp4"
+    older.write_bytes(b"\x00" * 10)
+    newer.write_bytes(b"\x00" * 10)
+    older_mtime = 1_700_000_000
+    newer_mtime = 1_700_000_500
+    os.utime(older, (older_mtime, older_mtime))
+    os.utime(older_folder, (older_mtime, older_mtime))
+    os.utime(newer, (newer_mtime, newer_mtime))
+    os.utime(newer_folder, (newer_mtime, newer_mtime))
+
+    videos = list_downloaded_videos(tmp_path, max_results=1)
+
+    assert [video.path.name for video in videos] == ["fresh.mp4"]
+
+
+def test_list_downloaded_videos_zero_limit_skips_scan(tmp_path: Path) -> None:
+    video = tmp_path / "episode.mp4"
+    video.write_bytes(b"\x00" * 10)
+
+    assert list_downloaded_videos(tmp_path, max_results=0) == []
+
+
 def test_list_downloaded_videos_skips_hidden_nas_folders_and_files(tmp_path: Path) -> None:
     visible_video = tmp_path / "episode.mp4"
     visible_subtitle = tmp_path / "episode.en.srt"

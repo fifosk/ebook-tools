@@ -55,6 +55,7 @@ def list_downloaded_videos(
     base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT,
     *,
     recover_partials: bool = True,
+    max_results: int | None = None,
 ) -> List[YoutubeNasVideo]:
     """Return discovered videos under ``base_dir`` with adjacent subtitles."""
 
@@ -62,6 +63,8 @@ def list_downloaded_videos(
     root_stat = safe_stat(resolved)
     if root_stat is None or not stat_module.S_ISDIR(root_stat.st_mode):
         raise FileNotFoundError(f"Video directory '{resolved}' is not accessible")
+    if max_results is not None and max_results <= 0:
+        return []
 
     videos: List[YoutubeNasVideo] = []
 
@@ -145,7 +148,8 @@ def list_downloaded_videos(
             except OSError:
                 logger.debug("Unable to resolve NAS video candidate %s", path, exc_info=True)
                 continue
-            videos.append(
+            _append_bounded_newest_video(
+                videos,
                 YoutubeNasVideo(
                     path=resolved_video,
                     size_bytes=video_stat.st_size,
@@ -154,11 +158,25 @@ def list_downloaded_videos(
                     modified_at=datetime.fromtimestamp(effective_mtime),
                     subtitles=sorted(subtitles, key=lambda s: s.path.name),
                     source=_classify_video_source(path),
-                )
+                ),
+                max_results,
             )
 
     videos.sort(key=lambda entry: (-entry.modified_at.timestamp(), entry.path.as_posix().casefold()))
     return videos
+
+
+def _append_bounded_newest_video(
+    videos: List[YoutubeNasVideo],
+    video: YoutubeNasVideo,
+    max_results: int | None,
+) -> None:
+    videos.append(video)
+    if max_results is None:
+        return
+    videos.sort(key=lambda entry: (-entry.modified_at.timestamp(), entry.path.as_posix().casefold()))
+    if len(videos) > max_results:
+        del videos[max_results:]
 
 
 def _probe_subtitle_streams(video_path: Path) -> List[dict]:

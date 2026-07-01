@@ -765,9 +765,15 @@ def _discover_nas_videos(
     query: str,
     limit: int,
 ) -> list[AcquisitionCandidate]:
+    if limit <= 0:
+        return []
     root = resolve_video_root(config)
     try:
-        videos = list_downloaded_videos(root, recover_partials=False)
+        videos = list_downloaded_videos(
+            root,
+            recover_partials=False,
+            max_results=limit if not query else None,
+        )
     except FileNotFoundError:
         return []
 
@@ -776,48 +782,52 @@ def _discover_nas_videos(
         relative_path = _relative_path(video.path, root)
         if query and query not in _search_blob(video.path.name, relative_path):
             continue
-        subtitles = tuple(
-            AcquisitionSubtitleHint(
-                path=subtitle.path.as_posix(),
-                filename=subtitle.path.name,
-                language=subtitle.language,
-                format=subtitle.format,
-            )
-            for subtitle in video.subtitles
+        _append_bounded_newest_candidate(
+            matches,
+            _nas_video_candidate(video),
+            limit,
         )
-        token = _candidate_token(
-            {
-                "provider": "nas_video",
-                "media_kind": "video",
-                "path": video.path.as_posix(),
-            }
-        )
-        matches.append(
-            AcquisitionCandidate(
-                candidate_id=f"nas_video:{video.path.as_posix()}",
-                provider="nas_video",
-                media_kind="video",
-                title=_title_from_filename(video.path),
-                rights="user_provided",
-                capabilities=("import_local", "extract_subtitles", "metadata"),
-                candidate_token=token,
-                local_path=video.path.as_posix(),
-                size_bytes=video.size_bytes,
-                modified_at=video.modified_at,
-                subtitles=subtitles,
-                requires_confirmation=False,
-                policy_notes=(
-                    "Backend-visible NAS video under the configured video root.",
-                ),
-                metadata={
-                    "source_kind": getattr(video, "source", "nas_video") or "nas_video",
-                    "source_path": video.path.as_posix(),
-                },
-            )
-        )
-        if len(matches) >= limit:
-            break
     return matches
+
+
+def _nas_video_candidate(video: Any) -> AcquisitionCandidate:
+    subtitles = tuple(
+        AcquisitionSubtitleHint(
+            path=subtitle.path.as_posix(),
+            filename=subtitle.path.name,
+            language=subtitle.language,
+            format=subtitle.format,
+        )
+        for subtitle in video.subtitles
+    )
+    token = _candidate_token(
+        {
+            "provider": "nas_video",
+            "media_kind": "video",
+            "path": video.path.as_posix(),
+        }
+    )
+    return AcquisitionCandidate(
+        candidate_id=f"nas_video:{video.path.as_posix()}",
+        provider="nas_video",
+        media_kind="video",
+        title=_title_from_filename(video.path),
+        rights="user_provided",
+        capabilities=("import_local", "extract_subtitles", "metadata"),
+        candidate_token=token,
+        local_path=video.path.as_posix(),
+        size_bytes=video.size_bytes,
+        modified_at=video.modified_at,
+        subtitles=subtitles,
+        requires_confirmation=False,
+        policy_notes=(
+            "Backend-visible NAS video under the configured video root.",
+        ),
+        metadata={
+            "source_kind": getattr(video, "source", "nas_video") or "nas_video",
+            "source_path": video.path.as_posix(),
+        },
+    )
 
 
 def _discover_manual_downloads(
@@ -890,11 +900,17 @@ def _discover_manual_download_videos(
     query: str,
     limit: int,
 ) -> list[AcquisitionCandidate]:
+    if limit <= 0:
+        return []
     matches: list[AcquisitionCandidate] = []
     seen_paths: set[str] = set()
     for root in roots:
         try:
-            videos = list_downloaded_videos(root, recover_partials=False)
+            videos = list_downloaded_videos(
+                root,
+                recover_partials=False,
+                max_results=limit if not query else None,
+            )
         except FileNotFoundError:
             continue
         for video in videos:
@@ -905,54 +921,73 @@ def _discover_manual_download_videos(
             relative_path = _relative_path(video.path, root)
             if query and query not in _search_blob(video.path.name, relative_path, absolute_path):
                 continue
-            subtitles = tuple(
-                AcquisitionSubtitleHint(
-                    path=subtitle.path.as_posix(),
-                    filename=subtitle.path.name,
-                    language=subtitle.language,
-                    format=subtitle.format,
-                )
-                for subtitle in video.subtitles
+            _append_bounded_newest_candidate(
+                matches,
+                _manual_download_video_candidate(video, root, absolute_path),
+                limit,
             )
-            token = _candidate_token(
-                {
-                    "provider": "manual_downloads",
-                    "media_kind": "video",
-                    "path": absolute_path,
-                }
-            )
-            matches.append(
-                AcquisitionCandidate(
-                    candidate_id=f"manual_downloads:video:{absolute_path}",
-                    provider="manual_downloads",
-                    media_kind="video",
-                    title=_title_from_filename(video.path),
-                    rights="user_provided",
-                    capabilities=("import_local", "extract_subtitles", "metadata"),
-                    candidate_token=token,
-                    local_path=absolute_path,
-                    size_bytes=video.size_bytes,
-                    modified_at=video.modified_at,
-                    subtitles=subtitles,
-                    requires_confirmation=False,
-                    policy_notes=(
-                        "Backend-visible video found in a configured manual download folder.",
-                    ),
-                    metadata={
-                        "source_kind": "manual_download",
-                        "source_path": absolute_path,
-                        "source_root": root.as_posix(),
-                    },
-                )
-            )
-    ordered = sorted(
-        matches,
-        key=lambda candidate: (
-            -candidate.modified_at.timestamp() if candidate.modified_at else 0,
-            candidate.title.casefold(),
+    return matches
+
+
+def _manual_download_video_candidate(
+    video: Any,
+    root: Path,
+    absolute_path: str,
+) -> AcquisitionCandidate:
+    subtitles = tuple(
+        AcquisitionSubtitleHint(
+            path=subtitle.path.as_posix(),
+            filename=subtitle.path.name,
+            language=subtitle.language,
+            format=subtitle.format,
+        )
+        for subtitle in video.subtitles
+    )
+    token = _candidate_token(
+        {
+            "provider": "manual_downloads",
+            "media_kind": "video",
+            "path": absolute_path,
+        }
+    )
+    return AcquisitionCandidate(
+        candidate_id=f"manual_downloads:video:{absolute_path}",
+        provider="manual_downloads",
+        media_kind="video",
+        title=_title_from_filename(video.path),
+        rights="user_provided",
+        capabilities=("import_local", "extract_subtitles", "metadata"),
+        candidate_token=token,
+        local_path=absolute_path,
+        size_bytes=video.size_bytes,
+        modified_at=video.modified_at,
+        subtitles=subtitles,
+        requires_confirmation=False,
+        policy_notes=(
+            "Backend-visible video found in a configured manual download folder.",
+        ),
+        metadata={
+            "source_kind": "manual_download",
+            "source_path": absolute_path,
+            "source_root": root.as_posix(),
+        },
+    )
+
+
+def _append_bounded_newest_candidate(
+    matches: list[AcquisitionCandidate],
+    candidate: AcquisitionCandidate,
+    limit: int,
+) -> None:
+    matches.append(candidate)
+    matches.sort(
+        key=lambda item: (
+            -item.modified_at.timestamp() if item.modified_at else 0,
+            item.title.casefold(),
         ),
     )
-    return ordered[:limit]
+    if len(matches) > limit:
+        del matches[limit:]
 
 
 def _discover_youtube_url(query: str, limit: int) -> list[AcquisitionCandidate]:

@@ -769,6 +769,37 @@ def test_discover_nas_video_candidates_include_subtitle_hints(tmp_path: Path) ->
     assert candidate.subtitles[0].language == "en"
 
 
+def test_discover_nas_video_limit_keeps_newer_late_folder_candidate(tmp_path: Path) -> None:
+    video_root = tmp_path / "videos"
+    old_folder = video_root / "alpha-old"
+    new_folder = video_root / "zulu-new"
+    old_folder.mkdir(parents=True)
+    new_folder.mkdir()
+    old_video = old_folder / "Old Clip.mp4"
+    new_video = new_folder / "Fresh Clip.mp4"
+    old_video.write_bytes(b"old-video")
+    new_video.write_bytes(b"new-video")
+    old_mtime = datetime(2026, 6, 1, tzinfo=timezone.utc).timestamp()
+    new_mtime = datetime(2026, 7, 1, tzinfo=timezone.utc).timestamp()
+    os.utime(old_video, (old_mtime, old_mtime))
+    os.utime(old_folder, (old_mtime, old_mtime))
+    os.utime(new_video, (new_mtime, new_mtime))
+    os.utime(new_folder, (new_mtime, new_mtime))
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="",
+        provider="nas_video",
+        limit=1,
+        config={"youtube_video_root": str(video_root)},
+    )
+
+    assert result.providers_queried == ("nas_video",)
+    assert [candidate.local_path for candidate in result.candidates] == [
+        new_video.as_posix()
+    ]
+
+
 def test_discover_nas_video_candidates_does_not_recover_partial_files(tmp_path: Path) -> None:
     video_root = tmp_path / "videos"
     video_root.mkdir()
@@ -1924,7 +1955,7 @@ def test_default_video_discovery_queries_configured_indexers_without_secret(
     monkeypatch.setattr(
         acquisition_discovery,
         "list_downloaded_videos",
-        lambda root, *, recover_partials=True: [],
+        lambda root, *, recover_partials=True, max_results=None: [],
     )
     session = _FakeSession()
     config = {
