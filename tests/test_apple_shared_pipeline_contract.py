@@ -635,6 +635,19 @@ def test_apple_web_create_handoff_source_is_visible_in_changelogs() -> None:
     assert "source: web" in markdown_changelog
 
 
+def test_apple_create_default_sources_request_mapping_is_visible_in_changelogs() -> None:
+    swift_changelog = APP_CHANGELOG_DATA.read_text(encoding="utf-8")
+    markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
+
+    assert 'id: "apple-create-default-source-request-normalization"' in swift_changelog
+    for source in (swift_changelog, markdown_changelog):
+        assert "Default sources" in source
+        assert "omitting the provider parameter" in source
+        assert "book and video discovery requests" in source
+        assert "Web" in source
+        assert "normalizing media kind values" in source
+
+
 def test_golden_pipeline_verification_includes_source_sync_without_physical_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 

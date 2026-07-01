@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-default-source-request-normalization",
+                    title: "Apple Create defaults match Web discovery",
+                    detail: "Apple Create now keeps Default sources as the visible/template selection while omitting the provider parameter from book and video discovery requests, matching Web's backend fan-out and normalizing media kind values before the handoff."
+                ),
+                AppChangelogEntry(
                     id: "resume-offset-device-log-check",
                     title: "Resume offset logs are verifiable",
                     detail: "Apple DEBUG builds now write token-safe resume-offset breadcrumbs to the shared playback transport log, with a resume-offset verifier for pulled device logs so Cinema/iPad retests can distinguish exact in-sentence resume from sentence-start fallback."
