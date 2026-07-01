@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-active-music-pause-confirms-reader",
+                    title: "TV Music pauses confirm reader pause",
+                    detail: "Apple TV now confirms a Music-bed non-playing signal during active narration before treating it as a reader-owned pause, so a Siri Remote pause routed to Apple Music should stop the sentence track without waiting for a second press."
+                ),
+                AppChangelogEntry(
                     id: "tvos-watchdog-stray-music-play-latch",
                     title: "TV pause latch watches Music",
                     detail: "Apple TV reader playback now lets the Music-bed watchdog reassert a reader-owned pause when Apple Music starts playing again without an explicit reader resume, targeting Cinema logs with repeated broker pauses and no intervening play."

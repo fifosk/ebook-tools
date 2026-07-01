@@ -961,6 +961,12 @@ final class MusicKitCoordinator: ObservableObject {
         logger.info(
             "Apple Music observed non-playing candidate observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public) readerActive=\(self.isReaderNarrationActiveForMusicBed, privacy: .public) guard=\(self.isReaderTransportPauseGuardActive, privacy: .public)"
         )
+        #if os(tvOS)
+        if shouldConfirmActiveNarrationNonPlayingAsReaderPause {
+            confirmActiveNarrationNonPlayingAsReaderPause(reason: "observedNonPlaying")
+            return
+        }
+        #endif
         if shouldDeferObservedNonPlayingDuringActiveReadingBed {
             deferObservedNonPlayingDuringActiveReadingBed(reason: "observedNonPlaying")
             return
@@ -1008,6 +1014,47 @@ final class MusicKitCoordinator: ObservableObject {
             shouldTreatObservedNonPlayingAsReaderPause
         #else
         return false
+        #endif
+    }
+
+    private var shouldConfirmActiveNarrationNonPlayingAsReaderPause: Bool {
+        #if os(tvOS)
+        return ownershipState == .appleMusicBed &&
+            isReaderNarrationActiveForMusicBed &&
+            !isManuallyPaused &&
+            !isPausedByReaderTransport
+        #else
+        return false
+        #endif
+    }
+
+    private func confirmActiveNarrationNonPlayingAsReaderPause(reason: String) {
+        #if os(tvOS)
+        observedNonPlayingTask?.cancel()
+        logger.info("Apple Music observed non-playing confirming active tvOS reader pause")
+        observedNonPlayingTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            guard self.isBackgroundMode else { return }
+            guard self.shouldConfirmActiveNarrationNonPlayingAsReaderPause else {
+                self.logger.info("Apple Music active reader pause confirmation ignored after state changed")
+                self.observedNonPlayingTask = nil
+                return
+            }
+            guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else {
+                self.isPlaying = true
+                self.observedPlayingAsReadingBed = true
+                self.observedNonPlayingTask = nil
+                return
+            }
+            self.observedNonPlayingTask = nil
+            self.isPlaying = false
+            self.observedPlayingAsReadingBed = false
+            self.adoptPauseAsReaderTransport(
+                reason: reason,
+                source: "active observed non-playing"
+            )
+        }
         #endif
     }
 

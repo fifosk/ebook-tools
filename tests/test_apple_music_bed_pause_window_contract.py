@@ -4,7 +4,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PLAYBACK = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Features" / "Playback"
+APPLE = ROOT / "ios" / "InteractiveReader" / "InteractiveReader"
+PLAYBACK = APPLE / "Features" / "Playback"
+SERVICES = APPLE / "Services"
 
 
 def _source(path: Path) -> str:
@@ -94,3 +96,36 @@ def test_tvos_reader_pause_reasserts_against_stray_music_play() -> None:
         assert "!musicOwnership.isReaderTransportPauseGuardActive" in reassert_body, label
         assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in reassert_body, label
         assert "e2eReaderTransportCommandCount == 0" in reassert_body, label
+
+
+def test_tvos_active_music_pause_confirms_reader_pause_before_recovery() -> None:
+    music = _source(SERVICES / "MusicKitCoordinator.swift")
+    observed_body = _function_body(music, "private func handleObservedNonPlayingStatus")
+    confirm_gate_body = _function_body(
+        music,
+        "private var shouldConfirmActiveNarrationNonPlayingAsReaderPause",
+    )
+    confirm_body = _function_body(
+        music,
+        "private func confirmActiveNarrationNonPlayingAsReaderPause",
+    )
+    defer_body = _function_body(
+        music,
+        "private var shouldDeferObservedNonPlayingDuringActiveReadingBed",
+    )
+
+    assert "if shouldConfirmActiveNarrationNonPlayingAsReaderPause" in observed_body
+    assert "confirmActiveNarrationNonPlayingAsReaderPause(reason: \"observedNonPlaying\")" in observed_body
+    assert observed_body.index("if shouldConfirmActiveNarrationNonPlayingAsReaderPause") < observed_body.index(
+        "if shouldDeferObservedNonPlayingDuringActiveReadingBed"
+    )
+    assert "#if os(tvOS)" in confirm_gate_body
+    assert "ownershipState == .appleMusicBed" in confirm_gate_body
+    assert "isReaderNarrationActiveForMusicBed" in confirm_gate_body
+    assert "!isManuallyPaused" in confirm_gate_body
+    assert "!isPausedByReaderTransport" in confirm_gate_body
+    assert "350_000_000" in confirm_body
+    assert "ApplicationMusicPlayer.shared.state.playbackStatus != .playing" in confirm_body
+    assert "adoptPauseAsReaderTransport(" in confirm_body
+    assert 'source: "active observed non-playing"' in confirm_body
+    assert "shouldAdoptObservedNonPlayingImmediately" in defer_body
