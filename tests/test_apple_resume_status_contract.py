@@ -76,6 +76,14 @@ INTERACTIVE_SELECTION = (
     / "InteractivePlayer"
     / "InteractivePlayerViewModel+Selection.swift"
 )
+SEQUENCE_CONTROLLER = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Services"
+    / "SequencePlaybackController.swift"
+)
 LIBRARY_VIEW = (
     ROOT
     / "ios"
@@ -214,13 +222,26 @@ def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() 
     job_resume_source = JOB_PLAYBACK_RESUME.read_text(encoding="utf-8")
     library_resume_source = LIBRARY_PLAYBACK_RESUME.read_text(encoding="utf-8")
     selection_source = INTERACTIVE_SELECTION.read_text(encoding="utf-8")
+    sequence_source = SEQUENCE_CONTROLLER.read_text(encoding="utf-8")
 
     for source in (job_resume_source, library_resume_source):
         assert "startInteractivePlayback(at: entry.sentenceNumber, playbackTime: entry.playbackTime)" in source
         assert "validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence)" in source
-        assert "viewModel.jumpToTime(resumeTime.time, in: resumeTime.chunk, autoPlay: true)" in source
+        assert "matchingSentenceNumber: sentence" in source
         assert "viewModel.jumpToSentence(sentence, autoPlay: true)" in source
 
+    assert "func jumpToTime(" in selection_source
+    assert "matchingSentenceNumber sentenceNumber: Int? = nil" in selection_source
+    assert "seekSequencePlaybackWhenReady(" in selection_source
+    assert "sequenceController.seekToTime(" in selection_source
+    assert "selectChunk(id: chunk.id, autoPlay: false)" in selection_source
     assert "func resumePlaybackTime(_ time: Double, matches sentenceNumber: Int, in chunk: InteractiveChunk) -> Bool" in selection_source
+    assert "resumeValidationTimingTracks(for: chunk)" in selection_source
+    assert "chunk.audioOptions.contains(where: { $0.kind == .combined })" in selection_source
+    assert "for candidate in [TextPlayerTimingTrack.original, .translation, .mix]" in selection_source
     assert "SentencePositionProvider.sentenceNumber(" in selection_source
-    assert "return resolved == sentenceNumber" in selection_source
+    assert "if resolved == sentenceNumber" in selection_source
+    assert "if resolvedAnyTimingTrack" in selection_source
+    assert "func seekToTime(" in sequence_source
+    assert "findTimeTarget(" in sequence_source
+    assert "currentSegmentIndex = target.segmentIndex" in sequence_source

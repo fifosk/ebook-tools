@@ -62,7 +62,12 @@ extension JobPlaybackView {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
             if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
-                viewModel.jumpToTime(resumeTime.time, in: resumeTime.chunk, autoPlay: true)
+                viewModel.jumpToTime(
+                    resumeTime.time,
+                    in: resumeTime.chunk,
+                    autoPlay: true,
+                    matchingSentenceNumber: sentence
+                )
             } else {
                 // jumpToSentence with autoPlay: true handles seeking and starting playback
                 // after the audio is loaded and seeked to the target position.
@@ -117,7 +122,12 @@ extension JobPlaybackView {
                 }
                 keyboardShortcutDebugLog("[KeyboardShortcut] Job autoplay retry sentence=\(sentence)")
                 if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
-                    viewModel.jumpToTime(resumeTime.time, in: resumeTime.chunk, autoPlay: true)
+                    viewModel.jumpToTime(
+                        resumeTime.time,
+                        in: resumeTime.chunk,
+                        autoPlay: true,
+                        matchingSentenceNumber: sentence
+                    )
                 } else {
                     viewModel.jumpToSentence(sentence, autoPlay: true)
                 }

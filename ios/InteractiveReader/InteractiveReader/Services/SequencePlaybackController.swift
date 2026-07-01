@@ -772,6 +772,28 @@ final class SequencePlaybackController: ObservableObject {
         return (target.track, target.time)
     }
 
+    /// Seek to an exact track-local time inside the sequence plan.
+    /// Resume entries store the audio playhead offset, not only the sentence,
+    /// so this preserves the in-sentence position instead of dropping back to
+    /// the segment start.
+    func seekToTime(
+        _ time: Double,
+        sentenceIndex: Int? = nil,
+        preferredTrack: SequenceTrack? = nil
+    ) -> (track: SequenceTrack, time: Double)? {
+        guard let target = findTimeTarget(
+            time,
+            sentenceIndex: sentenceIndex,
+            preferredTrack: preferredTrack
+        ) else {
+            return nil
+        }
+        debugLog("seekToTime(\(String(format: "%.3f", time))) found: segment[\(target.segmentIndex)], track=\(target.track), time=\(String(format: "%.3f", target.time))")
+        currentSegmentIndex = target.segmentIndex
+        currentTrack = target.track
+        return (target.track, target.time)
+    }
+
     /// Find the target segment for a sentence without updating state
     func findSentenceTarget(_ sentenceIndex: Int, preferredTrack: SequenceTrack? = nil) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
         let preferred = preferredTrack ?? .original
@@ -784,6 +806,38 @@ final class SequencePlaybackController: ObservableObject {
             return (index, fallback, plan[index].start)
         }
         return nil
+    }
+
+    /// Find the target segment for an exact track-local time without updating state.
+    func findTimeTarget(
+        _ time: Double,
+        sentenceIndex: Int? = nil,
+        preferredTrack: SequenceTrack? = nil
+    ) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
+        guard time.isFinite, time >= 0 else { return nil }
+        let preferred = preferredTrack ?? currentTrack
+        let tolerance = 0.05
+        let candidates = plan.enumerated().compactMap { index, segment -> (segmentIndex: Int, segment: SequenceSegment)? in
+            if let sentenceIndex, segment.sentenceIndex != sentenceIndex {
+                return nil
+            }
+            guard time >= segment.start - tolerance, time <= segment.end + tolerance else {
+                return nil
+            }
+            return (index, segment)
+        }
+        let sorted = candidates.sorted { first, second in
+            if first.segment.track == preferred, second.segment.track != preferred {
+                return true
+            }
+            if first.segment.track != preferred, second.segment.track == preferred {
+                return false
+            }
+            return first.segmentIndex < second.segmentIndex
+        }
+        guard let match = sorted.first else { return nil }
+        let clamped = min(max(time, match.segment.start), match.segment.end)
+        return (match.segmentIndex, match.segment.track, clamped)
     }
 
     /// Commit a state change for a previously found sentence target

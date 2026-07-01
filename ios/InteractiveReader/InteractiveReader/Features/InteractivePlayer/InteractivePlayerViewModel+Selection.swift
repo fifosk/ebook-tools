@@ -500,15 +500,30 @@ extension InteractivePlayerViewModel {
         }
     }
 
-    func jumpToTime(_ time: Double, in chunk: InteractiveChunk, autoPlay: Bool = false) {
+    func jumpToTime(
+        _ time: Double,
+        in chunk: InteractiveChunk,
+        autoPlay: Bool = false,
+        matchingSentenceNumber sentenceNumber: Int? = nil
+    ) {
         guard time.isFinite else { return }
-        pendingTimeSeek = PendingTimeSeek(chunkID: chunk.id, time: time, autoPlay: autoPlay)
+        pendingTimeSeek = PendingTimeSeek(
+            chunkID: chunk.id,
+            time: time,
+            autoPlay: autoPlay,
+            sentenceNumber: sentenceNumber
+        )
         if selectedChunkID == chunk.id {
-            seekPlaybackWhenReady(to: time, in: chunk, autoPlay: autoPlay)
+            seekPlaybackWhenReady(
+                to: time,
+                in: chunk,
+                autoPlay: autoPlay,
+                matchingSentenceNumber: sentenceNumber
+            )
             pendingTimeSeek = nil
             return
         }
-        selectChunk(id: chunk.id, autoPlay: autoPlay)
+        selectChunk(id: chunk.id, autoPlay: false)
     }
 
     func resolveChunk(containing sentenceNumber: Int, in context: JobContext) -> InteractiveChunk? {
@@ -638,11 +653,30 @@ extension InteractivePlayerViewModel {
     func attemptPendingTimeSeek(in chunk: InteractiveChunk) {
         guard let pending = pendingTimeSeek, pending.chunkID == chunk.id else { return }
         pendingTimeSeek = nil
-        seekPlaybackWhenReady(to: pending.time, in: chunk, autoPlay: pending.autoPlay)
+        seekPlaybackWhenReady(
+            to: pending.time,
+            in: chunk,
+            autoPlay: pending.autoPlay,
+            matchingSentenceNumber: pending.sentenceNumber
+        )
     }
 
-    func seekPlaybackWhenReady(to time: Double, in chunk: InteractiveChunk, autoPlay: Bool) {
+    func seekPlaybackWhenReady(
+        to time: Double,
+        in chunk: InteractiveChunk,
+        autoPlay: Bool,
+        matchingSentenceNumber sentenceNumber: Int? = nil
+    ) {
         guard time.isFinite else { return }
+        if isSequenceModeActive {
+            seekSequencePlaybackWhenReady(
+                to: time,
+                in: chunk,
+                autoPlay: autoPlay,
+                matchingSentenceNumber: sentenceNumber
+            )
+            return
+        }
         let chunkId = chunk.id
         if audioCoordinator.isReady {
             rememberSingleTrackSentenceAnchor(atTime: time, in: chunk)
@@ -677,6 +711,104 @@ extension InteractivePlayerViewModel {
                 }
                 cancellable?.cancel()
             }
+    }
+
+    func seekSequencePlaybackWhenReady(
+        to time: Double,
+        in chunk: InteractiveChunk,
+        autoPlay: Bool,
+        matchingSentenceNumber sentenceNumber: Int? = nil
+    ) {
+        let chunkId = chunk.id
+        let targetSentenceIndex = sentenceNumber.flatMap {
+            SentencePositionProvider.sentenceIndex(in: chunk, matching: $0)
+        }
+
+        func applySequenceSeek(in currentChunk: InteractiveChunk) {
+            let previousTrack = sequenceController.currentTrack
+            guard let target = sequenceController.seekToTime(
+                time,
+                sentenceIndex: targetSentenceIndex,
+                preferredTrack: audioModeManager?.preferredTrack
+            ) ?? targetSentenceIndex.flatMap({
+                sequenceController.seekToSentence(
+                    $0,
+                    preferredTrack: audioModeManager?.preferredTrack ?? .original
+                )
+            }) else {
+                return
+            }
+            if let sentenceNumber {
+                rememberSingleTrackSentenceAnchor(chunkID: currentChunk.id, sentenceNumber: sentenceNumber)
+            } else {
+                rememberSingleTrackSentenceAnchor(atTime: target.time, in: currentChunk)
+            }
+            let targetURL = sequenceTrackURL(target.track)
+            let shouldLoadTargetTrack = previousTrack != target.track
+                || audioCoordinator.activeURL != targetURL
+                || audioCoordinator.nowPlayingPlayer == nil
+            if shouldLoadTargetTrack {
+                handleSequenceTrackSwitch(
+                    track: target.track,
+                    seekTime: target.time,
+                    shouldPlay: autoPlay
+                )
+                return
+            }
+            if !sequenceController.isTransitioning {
+                onSequenceWillTransition?()
+            }
+            sequenceController.beginTransition()
+            cancelPendingAudioReadySubscription()
+            let token = currentTransitionToken
+            audioCoordinator.setVolume(0)
+            performWithinChunkSeekWithDriftCheck(
+                to: target.time,
+                wasPlaying: audioCoordinator.isPlaying,
+                shouldPlay: autoPlay,
+                token: token
+            )
+        }
+
+        if audioCoordinator.isReady {
+            applySequenceSeek(in: chunk)
+            return
+        }
+
+        var seenLoadingState = false
+        var isFirstEmission = true
+        var cancellable: AnyCancellable?
+        cancellable = audioCoordinator.$isReady
+            .sink { [weak self] isReady in
+                guard let self else { return }
+                guard let currentChunk = self.selectedChunk, currentChunk.id == chunkId else {
+                    cancellable?.cancel()
+                    return
+                }
+                if !isReady {
+                    seenLoadingState = true
+                    isFirstEmission = false
+                    return
+                }
+                guard seenLoadingState || isFirstEmission else { return }
+                isFirstEmission = false
+                self.seekSequencePlaybackWhenReady(
+                    to: time,
+                    in: currentChunk,
+                    autoPlay: autoPlay,
+                    matchingSentenceNumber: sentenceNumber
+                )
+                cancellable?.cancel()
+            }
+    }
+
+    private func sequenceTrackURL(_ track: SequenceTrack) -> URL? {
+        switch track {
+        case .original:
+            return sequenceController.originalTrackURL
+        case .translation:
+            return sequenceController.translationTrackURL
+        }
     }
 
     func rememberSingleTrackSentenceAnchor(in chunk: InteractiveChunk, targetIndex: Int?) {
@@ -814,13 +946,21 @@ extension InteractivePlayerViewModel {
 
     func resumePlaybackTime(_ time: Double, matches sentenceNumber: Int, in chunk: InteractiveChunk) -> Bool {
         guard time.isFinite, time >= 0 else { return false }
-        let activeTimingTrack = activeTimingTrack(for: chunk)
-        if let resolved = SentencePositionProvider.sentenceNumber(
-            in: chunk,
-            atTime: time,
-            activeTimingTrack: activeTimingTrack
-        ) {
-            return resolved == sentenceNumber
+        var resolvedAnyTimingTrack = false
+        for timingTrack in resumeValidationTimingTracks(for: chunk) {
+            if let resolved = SentencePositionProvider.sentenceNumber(
+                in: chunk,
+                atTime: time,
+                activeTimingTrack: timingTrack
+            ) {
+                resolvedAnyTimingTrack = true
+                if resolved == sentenceNumber {
+                    return true
+                }
+            }
+        }
+        if resolvedAnyTimingTrack {
+            return false
         }
         guard let index = SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber),
               let start = startTimeForSentence(atIndex: index, in: chunk) else {
@@ -836,6 +976,19 @@ extension InteractivePlayerViewModel {
             return time >= max(0, start - 0.05) && time <= duration + 0.05
         }
         return time >= max(0, start - 0.05)
+    }
+
+    func resumeValidationTimingTracks(for chunk: InteractiveChunk) -> [TextPlayerTimingTrack] {
+        let active = activeTimingTrack(for: chunk)
+        guard audioModeManager?.isSequenceMode == true,
+              chunk.audioOptions.contains(where: { $0.kind == .combined }) else {
+            return [active]
+        }
+        var tracks: [TextPlayerTimingTrack] = [active]
+        for candidate in [TextPlayerTimingTrack.original, .translation, .mix] where !tracks.contains(candidate) {
+            tracks.append(candidate)
+        }
+        return tracks
     }
 
     /// Get start time for a sentence by its 0-based array index

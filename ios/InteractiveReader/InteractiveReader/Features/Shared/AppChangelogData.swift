@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "interactive-sequence-resume-offset",
+                    title: "Reader resume seeks inside sequence playback",
+                    detail: "Apple interactive reader resume now routes saved in-sentence offsets through the sequence playback controller, so combined original/translation playback can resume near the last-read word instead of only at the beginning of the saved sentence."
+                ),
+                AppChangelogEntry(
                     id: "resume-storage-safe-iterdir",
                     title: "Resume sync scans are safer",
                     detail: "Backend resume-position listing now uses the shared tolerant directory iterator instead of globbing storage files directly, reducing transient sync failures when Web and Apple browse rows refresh resume evidence."

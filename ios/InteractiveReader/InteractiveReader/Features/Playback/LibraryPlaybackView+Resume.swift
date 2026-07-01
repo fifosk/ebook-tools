@@ -23,7 +23,12 @@ extension LibraryPlaybackView {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
             if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
-                viewModel.jumpToTime(resumeTime.time, in: resumeTime.chunk, autoPlay: true)
+                viewModel.jumpToTime(
+                    resumeTime.time,
+                    in: resumeTime.chunk,
+                    autoPlay: true,
+                    matchingSentenceNumber: sentence
+                )
             } else {
                 viewModel.jumpToSentence(sentence, autoPlay: true)
             }
@@ -71,7 +76,12 @@ extension LibraryPlaybackView {
                 }
                 keyboardShortcutDebugLog("[KeyboardShortcut] Library autoplay retry sentence=\(sentence)")
                 if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
-                    viewModel.jumpToTime(resumeTime.time, in: resumeTime.chunk, autoPlay: true)
+                    viewModel.jumpToTime(
+                        resumeTime.time,
+                        in: resumeTime.chunk,
+                        autoPlay: true,
+                        matchingSentenceNumber: sentence
+                    )
                 } else {
                     viewModel.jumpToSentence(sentence, autoPlay: true)
                 }

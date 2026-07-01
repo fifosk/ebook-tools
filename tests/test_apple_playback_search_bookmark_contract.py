@@ -1223,12 +1223,14 @@ def test_interactive_bookmark_time_jumps_wait_for_ready_audio() -> None:
     assert "var pendingTimeSeek: PendingTimeSeek?" in view_model
     assert "pendingTimeSeek = nil" in loading
 
-    assert "func jumpToTime(_ time: Double, in chunk: InteractiveChunk, autoPlay: Bool = false)" in selection
-    assert "pendingTimeSeek = PendingTimeSeek(chunkID: chunk.id, time: time, autoPlay: autoPlay)" in selection
-    assert "selectChunk(id: chunk.id, autoPlay: autoPlay)" in selection
+    assert "func jumpToTime(" in selection
+    assert "matchingSentenceNumber sentenceNumber: Int? = nil" in selection
+    assert "pendingTimeSeek = PendingTimeSeek(" in selection
+    assert "sentenceNumber: sentenceNumber" in selection
+    assert "selectChunk(id: chunk.id, autoPlay: false)" in selection
     assert "func attemptPendingTimeSeek(in chunk: InteractiveChunk)" in selection
-    assert "seekPlaybackWhenReady(to: pending.time, in: chunk, autoPlay: pending.autoPlay)" in selection
-    assert "func seekPlaybackWhenReady(to time: Double, in chunk: InteractiveChunk, autoPlay: Bool)" in selection
+    assert "matchingSentenceNumber: pending.sentenceNumber" in selection
+    assert "func seekPlaybackWhenReady(" in selection
     assert "guard let currentChunk = self.selectedChunk, currentChunk.id == chunkId else" in selection
     assert "if autoPlay && !self.audioCoordinator.isPlaying" in selection
 

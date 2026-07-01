@@ -223,6 +223,7 @@ struct PendingTimeSeek {
     let chunkID: String
     let time: Double
     let autoPlay: Bool
+    let sentenceNumber: Int?
 }
 
 extension WordTimingToken {
