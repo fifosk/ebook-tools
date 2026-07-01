@@ -520,6 +520,11 @@ enum AppChangelogData {
                     detail: "Download Station polling now returns completed-file hints only when they resolve under configured manual/download roots, dropping URL-like or outside-root entries before Web and Apple Create reconnect to local artifacts."
                 ),
                 AppChangelogEntry(
+                    id: "creation-template-storage-safe-stat",
+                    title: "Create templates tolerate storage hiccups",
+                    detail: "Saved creation-template reads now use the backend's tolerant storage probe, keeping Web and Apple Create template lists stable when shared storage briefly disappears."
+                ),
+                AppChangelogEntry(
                     id: "tvos-active-music-pause-sync-adoption",
                     title: "TV first pause mirrors faster",
                     detail: "Apple TV now adopts an active-reader Apple Music bed pause on the same event pass, so a first Siri Remote pause has less room to stop only the bed while sentence narration keeps playing."

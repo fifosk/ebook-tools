@@ -12,6 +12,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from .file_locator import FileLocator
 from .acquisition.url_safety import looks_sensitive_key, strip_sensitive_url_parts
 from .pipeline_payload_normalization import normalize_discovery_identifiers
+from .source_discovery import safe_stat
 from .. import logging_manager
 
 
@@ -223,7 +224,7 @@ class CreationTemplateService:
 
     def _load_payload(self, user_id: str) -> Dict[str, Any]:
         path = self._user_path(user_id)
-        if not path.exists():
+        if safe_stat(path) is None:
             return {"version": 1, "user_id": user_id, "templates": []}
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))

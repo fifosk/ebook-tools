@@ -269,6 +269,31 @@ def test_creation_templates_unknown_mode_route_skips_service_storage() -> None:
     assert response.json() == {"templates": []}
 
 
+def test_creation_templates_missing_storage_uses_safe_stat(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    service = CreationTemplateService(
+        file_locator=FileLocator(storage_dir=tmp_path),
+    )
+    user_id = "alice.secret@example.test"
+    storage_path = service._user_path(user_id)  # noqa: SLF001 - pins tolerant storage probing.
+    stat_paths = []
+
+    def fake_safe_stat(path):  # noqa: ANN001
+        stat_paths.append(path)
+        return None
+
+    def fail_exists(self):  # noqa: ANN001
+        raise AssertionError("CreationTemplateService should use safe_stat for missing storage")
+
+    monkeypatch.setattr(creation_template_service, "safe_stat", fake_safe_stat)
+    monkeypatch.setattr(type(storage_path), "exists", fail_exists)
+
+    assert service.list_templates(user_id) == []
+    assert stat_paths == [storage_path]
+
+
 def test_creation_templates_unknown_mode_filter_does_not_fall_back_to_generated(tmp_path) -> None:
     app = create_app()
     service = CreationTemplateService(
