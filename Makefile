@@ -245,6 +245,7 @@ test-web-create-book-focused:
 test-web-create-intake-focused:
 	npm --prefix web test -- --run \
 		src/components/__tests__/createIntakeStatusUtils.test.ts \
+		src/components/__tests__/useCreateIntakeStatus.test.tsx \
 		src/components/__tests__/bookNarrationDiscoveryProviders.test.ts \
 		src/components/__tests__/bookNarrationTemplates.test.ts \
 		src/components/__tests__/bookNarrationFormUtils.test.ts \

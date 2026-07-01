@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-create-intake-stale-refresh-guard",
+                    title: "Create queue status stays fresh",
+                    detail: "Web creation surfaces now ignore stale job-intake refreshes when a newer queue snapshot is in flight, keeping Narrate Ebook, Subtitle Tool, and Video Dubbing aligned with the latest backend capacity state."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-batch-transition",
                     title: "Translation-only survives batch changes",
                     detail: "Apple reader chunk setup now preserves an active original-only or translation-only mode before applying default All-track selection, keeping rendering and narration aligned when playback advances into the next sentence batch."
