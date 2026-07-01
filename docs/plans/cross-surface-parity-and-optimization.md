@@ -702,7 +702,11 @@ Current Apple UI partially exposes:
   identifier sanitization now live in
   `modules/services/acquisition/discovery_values.py` with focused coverage,
   keeping string/sequence/int parsing and token-safe ids shared across public
-  catalog and video providers. Apple YouTube Dub candidate selection now also
+  catalog and video providers. Backend acquisition request normalization now
+  lives in `modules/services/acquisition/discovery_normalization.py`, and
+  Internet Archive source-id validation/deduping lives with the Internet Archive
+  helper, keeping media kind, provider, query, limit, language, and archive
+  source filters out of the large shared discovery fanout. Apple YouTube Dub candidate selection now also
   passes the active discovery provider and query into saved `discovery_state`,
   and applying a saved template restores that provider/query in the native
   source picker, keeping Apple-saved video templates aligned with Web Video

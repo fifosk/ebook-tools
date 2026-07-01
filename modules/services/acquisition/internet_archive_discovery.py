@@ -9,6 +9,10 @@ from urllib.parse import quote
 
 import requests
 
+from .discovery_normalization import MAX_DISCOVERY_LIMIT
+
+_INTERNET_ARCHIVE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
+
 
 def internet_archive_query(query: str, language_code: str | None) -> str:
     terms = " ".join(re.findall(r"[A-Za-z0-9._'-]+", query)).strip() or query
@@ -16,6 +20,29 @@ def internet_archive_query(query: str, language_code: str | None) -> str:
     if language_code:
         clauses.append(f"language:{language_code}")
     return " AND ".join(clauses)
+
+
+def normalize_internet_archive_source_ids(
+    source_ids: Sequence[str] | None,
+    *,
+    max_limit: int = MAX_DISCOVERY_LIMIT,
+) -> tuple[str, ...]:
+    if not source_ids:
+        return ()
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for source_id in source_ids:
+        value = (source_id or "").strip()
+        if not value:
+            continue
+        if not _INTERNET_ARCHIVE_IDENTIFIER_PATTERN.fullmatch(value):
+            raise ValueError("source_id must be a valid Internet Archive identifier")
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(value)
+    return tuple(normalized[:max_limit])
 
 
 def fetch_internet_archive_metadata(

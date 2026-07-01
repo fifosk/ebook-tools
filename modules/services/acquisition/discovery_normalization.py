@@ -1,0 +1,54 @@
+"""Request normalization helpers for acquisition discovery."""
+
+from __future__ import annotations
+
+import re
+
+from modules.language_constants import LANGUAGE_CODES
+
+DEFAULT_DISCOVERY_LIMIT = 20
+MAX_DISCOVERY_LIMIT = 50
+
+_LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES.items()}
+
+
+def normalize_media_kind(media_kind: str) -> str:
+    value = (media_kind or "").strip().lower()
+    if value not in {"book", "video"}:
+        raise ValueError("media_kind must be book or video")
+    return value
+
+
+def normalize_provider(provider: str | None) -> str | None:
+    value = (provider or "").strip().lower()
+    if value == "backend_defaults":
+        return None
+    return value or None
+
+
+def normalize_query(query: str) -> str:
+    return re.sub(r"\s+", " ", (query or "").strip().casefold())
+
+
+def normalize_limit(
+    limit: int,
+    *,
+    default: int = DEFAULT_DISCOVERY_LIMIT,
+    maximum: int = MAX_DISCOVERY_LIMIT,
+) -> int:
+    try:
+        value = int(limit)
+    except (TypeError, ValueError):
+        value = default
+    return max(0, min(value, maximum))
+
+
+def normalize_language_code(value: str | None) -> str | None:
+    raw_value = (value or "").strip()
+    if not raw_value:
+        return None
+    mapped = _LANGUAGE_NAME_TO_CODE.get(raw_value.casefold())
+    normalized = (mapped or raw_value).replace("_", "-").strip().casefold()
+    if re.fullmatch(r"[a-z]{2,3}(?:-[a-z]{2})?", normalized):
+        return normalized.split("-", 1)[0]
+    return None

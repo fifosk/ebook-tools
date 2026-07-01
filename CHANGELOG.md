@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Backend acquisition discovery request normalization now lives in focused tested helpers for media kind, provider, query, limit, language, and Internet Archive source-id handling, keeping Web and Apple Create discovery fanout easier to maintain.
 - Apple reader original-only/translation-only playback now remembers the single audio lane that was actually loaded and uses that lane for EOF and render-active checks across sentence-batch handoffs, so transient picker refreshes to Original or Combined cannot desync rendering from narration.
 - Apple reader original-only/translation-only render anchors now release only when the active audio URL belongs to the selected lane inside the current selected option, preventing hidden-track or stale batch audio from clearing the next-batch render lock.
 - Apple reader translation-only/original-only batch endings now validate EOF callbacks against the currently active single audio URL before selecting the next sentence batch, so stale hidden-track endings cannot reset the audio selection and drift rendering out of sync.

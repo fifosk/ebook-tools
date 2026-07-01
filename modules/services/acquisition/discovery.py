@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import xml.etree.ElementTree as ET
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -13,7 +12,6 @@ from urllib.parse import quote
 
 import requests
 
-from modules.language_constants import LANGUAGE_CODES
 from modules.services.source_discovery import (
     DiscoveredSourceFile,
     append_bounded_newest_source_file,
@@ -46,6 +44,13 @@ from .discovery_planning import (
     order_default_discovery_candidates,
     provider_query_limit,
 )
+from .discovery_normalization import (
+    normalize_language_code as _normalize_language_code,
+    normalize_limit as _normalize_limit,
+    normalize_media_kind as _normalize_media_kind,
+    normalize_provider as _normalize_provider,
+    normalize_query as _normalize_query,
+)
 from .indexer_discovery import (
     enclosure_length,
     enclosure_url,
@@ -71,6 +76,7 @@ from .internet_archive_discovery import (
     internet_archive_query,
     internet_archive_rights,
     mapping_value,
+    normalize_internet_archive_source_ids as _normalize_source_ids,
 )
 from .openlibrary_discovery import (
     openlibrary_book_key,
@@ -88,15 +94,11 @@ from .youtube_discovery import (
 )
 
 
-_LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES.items()}
 _YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 _YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 _OPENLIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 _INTERNET_ARCHIVE_ADVANCED_SEARCH_URL = "https://archive.org/advancedsearch.php"
 _INTERNET_ARCHIVE_METADATA_URL = "https://archive.org/metadata"
-_DEFAULT_DISCOVERY_LIMIT = 20
-_MAX_DISCOVERY_LIMIT = 50
-_INTERNET_ARCHIVE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
 
 
 @dataclass(frozen=True)
@@ -1346,65 +1348,9 @@ def _youtube_provider_error(
     )
 
 
-def _normalize_media_kind(media_kind: str) -> str:
-    value = (media_kind or "").strip().lower()
-    if value not in {"book", "video"}:
-        raise ValueError("media_kind must be book or video")
-    return value
-
-
-def _normalize_provider(provider: str | None) -> str | None:
-    value = (provider or "").strip().lower()
-    if value == "backend_defaults":
-        return None
-    return value or None
-
-
-def _normalize_query(query: str) -> str:
-    return re.sub(r"\s+", " ", (query or "").strip().casefold())
-
-
-def _normalize_limit(limit: int) -> int:
-    try:
-        value = int(limit)
-    except (TypeError, ValueError):
-        value = _DEFAULT_DISCOVERY_LIMIT
-    return max(0, min(value, _MAX_DISCOVERY_LIMIT))
-
-
-def _normalize_source_ids(source_ids: Sequence[str] | None) -> tuple[str, ...]:
-    if not source_ids:
-        return ()
-    normalized: list[str] = []
-    seen: set[str] = set()
-    for source_id in source_ids:
-        value = (source_id or "").strip()
-        if not value:
-            continue
-        if not _INTERNET_ARCHIVE_IDENTIFIER_PATTERN.fullmatch(value):
-            raise ValueError("source_id must be a valid Internet Archive identifier")
-        key = value.casefold()
-        if key in seen:
-            continue
-        seen.add(key)
-        normalized.append(value)
-    return tuple(normalized[:_MAX_DISCOVERY_LIMIT])
-
-
 def _search_blob(*values: str) -> str:
     return " ".join(values).casefold()
 
 
 def _candidate_token(payload: Mapping[str, Any]) -> str:
     return encode_acquisition_token(payload)
-
-
-def _normalize_language_code(value: str | None) -> str | None:
-    raw_value = (value or "").strip()
-    if not raw_value:
-        return None
-    mapped = _LANGUAGE_NAME_TO_CODE.get(raw_value.casefold())
-    normalized = (mapped or raw_value).replace("_", "-").strip().casefold()
-    if re.fullmatch(r"[a-z]{2,3}(?:-[a-z]{2})?", normalized):
-        return normalized.split("-", 1)[0]
-    return None

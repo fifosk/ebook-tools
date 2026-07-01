@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-discovery-normalization-helper",
+                    title: "Discovery requests are leaner",
+                    detail: "Backend acquisition discovery request normalization now lives in focused tested helpers for media kind, provider, query, limit, language, and Internet Archive source-id handling, keeping Web and Apple Create discovery fanout easier to maintain."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-loaded-lane-handoff",
                     title: "Single-track batches stay synced",
                     detail: "Apple reader original-only and translation-only playback now remembers the single audio lane that was actually loaded and uses it for batch EOF and render-active checks, so transient picker refreshes cannot drift rendering from narration."

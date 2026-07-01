@@ -10,6 +10,7 @@ import requests
 
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
+import modules.services.acquisition.discovery_normalization as discovery_normalization
 import modules.services.acquisition.gutenberg_discovery as gutenberg_discovery
 import modules.services.acquisition.indexer_discovery as indexer_discovery
 import modules.services.acquisition.internet_archive_discovery as internet_archive_discovery
@@ -187,6 +188,34 @@ def test_acquisition_discovery_value_helpers_normalize_scalar_values() -> None:
         == "https:-example.test-path-file.mkv"
     )
     assert discovery_values.safe_identifier("   ") == "result"
+
+
+def test_acquisition_discovery_normalization_helpers_normalize_request_values() -> None:
+    assert discovery_normalization.normalize_media_kind(" BOOK ") == "book"
+    assert discovery_normalization.normalize_media_kind("Video") == "video"
+    with pytest.raises(ValueError, match="media_kind"):
+        discovery_normalization.normalize_media_kind("audio")
+
+    assert discovery_normalization.normalize_provider(" backend_defaults ") is None
+    assert discovery_normalization.normalize_provider(" LOCAL_EPUB ") == "local_epub"
+    assert discovery_normalization.normalize_provider("   ") is None
+    assert discovery_normalization.normalize_query("  Dan   Brown  ") == "dan brown"
+    assert discovery_normalization.normalize_limit("not-a-number") == 20
+    assert discovery_normalization.normalize_limit(-7) == 0
+    assert discovery_normalization.normalize_limit(500) == 50
+    assert discovery_normalization.normalize_limit(12, default=5, maximum=10) == 10
+    assert discovery_normalization.normalize_language_code("English") == "en"
+    assert discovery_normalization.normalize_language_code("pt-BR") == "pt"
+    assert discovery_normalization.normalize_language_code("bad value") is None
+
+
+def test_internet_archive_source_id_normalization_trims_dedupes_and_bounds() -> None:
+    assert internet_archive_discovery.normalize_internet_archive_source_ids(
+        [" demo_public_book ", "", "DEMO_PUBLIC_BOOK", "restricted.book"],
+        max_limit=1,
+    ) == ("demo_public_book",)
+    with pytest.raises(ValueError, match="source_id"):
+        internet_archive_discovery.normalize_internet_archive_source_ids(["../secret"])
 
 
 def test_acquisition_url_safety_helpers_share_sensitive_policy() -> None:
