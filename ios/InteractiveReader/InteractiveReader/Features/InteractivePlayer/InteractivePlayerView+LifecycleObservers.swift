@@ -314,7 +314,7 @@ extension InteractivePlayerView {
 
     private func handleAudioModeChange(_ newMode: AudioMode) {
         viewModel.sequenceController.audioMode = newMode
-        viewModel.rememberAudioModePreference(newMode)
+        viewModel.rememberAudioModePreference(newMode, clearSingleTrackOnSequence: false)
         if let chunk = viewModel.selectedChunk {
             alignVisibleTracksWithCurrentAudioMode(for: chunk)
         }

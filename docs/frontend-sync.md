@@ -81,7 +81,11 @@ Follow the suggested remediations to restore parity:
   lane should be resolved before transient SwiftUI manager state so a batch
   refresh that briefly reports the wrong single-track mode cannot move rendering
   away from the selected narration lane; explicit combined-mode changes must
-  clear that durable lane.
+  clear that durable lane. Passive SwiftUI lifecycle/audio-mode observation
+  must not clear the remembered lane when it sees sequence mode during a
+  selected-chunk or track-availability refresh; otherwise the end-of-batch
+  default pass can reset rendering back to combined while narration continues
+  on the selected stream.
   If the manager and selected picker id both briefly reset to sequence/combined
   at a batch boundary, a currently loaded single audio URL is still authoritative
   for Original-only or Translation-only playback while the sequence controller is

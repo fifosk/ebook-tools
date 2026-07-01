@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-passive-mode-observation",
+                    title: "Single-track handoffs hold",
+                    detail: "Apple reader single-track mode now treats passive SwiftUI audio-mode observation as non-authoritative, so an end-of-batch or default refresh cannot clear the remembered Original-only or Translation-only lane and reset rendering out of sync."
+                ),
+                AppChangelogEntry(
                     id: "apple-download-station-presentation-helper",
                     title: "Download handoff matching is leaner",
                     detail: "Apple Create Download Station completed-file extraction, metadata fallback hints, handoff detection, and refreshed discovery candidate matching now live in a focused Swift helper, keeping YouTube Dub downloader handoff behavior easier to compare with Web Video Dubbing."

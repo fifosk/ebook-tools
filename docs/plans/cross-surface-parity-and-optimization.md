@@ -887,7 +887,9 @@ Current Apple UI partially exposes:
   manager briefly reports sequence mode during a batch handoff. Manager-backed
   single-track resolution now refreshes that durable lane immediately too, so an
   end-of-batch callback cannot prepare combined audio before SwiftUI rendering
-  catches up. Stale
+  catches up, and passive lifecycle observation no longer clears the remembered
+  lane when it sees a sequence-mode/default refresh during selected-chunk or
+  track-availability setup. Stale
   audio-ended URL checks now live in the shared `PlaybackEndedURLPolicy` covered
   by the executable mode-switch harness, including combined-only batches where
   the selected lane must reject hidden original-stream EOF callbacks. Batch-end

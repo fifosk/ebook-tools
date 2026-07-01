@@ -1031,6 +1031,41 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "sequenceController.audioMode = audioModeManager.currentMode" in sync_selected_audio_body
 
 
+def test_passive_audio_mode_observation_keeps_single_track_lane() -> None:
+    selection = _source("InteractivePlayerViewModel+Selection.swift")
+    lifecycle = _source("InteractivePlayerView+LifecycleObservers.swift")
+    tracks = _source("InteractivePlayerView+Tracks.swift")
+    menu_controls = _source("InteractivePlayerView+MenuControls.swift")
+
+    remember_body = _function_body(
+        selection,
+        "func rememberAudioModePreference(",
+    )
+    assert "clearSingleTrackOnSequence: Bool = true" in selection
+    assert "case .singleTrack(let track):" in remember_body
+    assert "preferredSingleTrackMode = track" in remember_body
+    assert "case .sequence:" in remember_body
+    assert "if clearSingleTrackOnSequence" in remember_body
+    assert "preferredSingleTrackMode = nil" in remember_body
+
+    audio_mode_change_body = _function_body(lifecycle, "private func handleAudioModeChange(_ newMode: AudioMode)")
+    assert "viewModel.rememberAudioModePreference(newMode, clearSingleTrackOnSequence: false)" in audio_mode_change_body
+
+    reconfigure_body = _function_body(
+        tracks,
+        "func reconfigureAudioForCurrentToggles(preservingSentence currentSentenceIndex: Int? = nil)",
+    )
+    assert "viewModel.rememberAudioModePreference(audioModeManager.currentMode)" in reconfigure_body
+
+    select_audio_body = _function_body(
+        menu_controls,
+        "func selectAudioTrack(_ option: InteractiveChunk.AudioOption)",
+    )
+    assert "case .combined:" in select_audio_body
+    assert "audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)" in select_audio_body
+    assert "reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)" in select_audio_body
+
+
 def test_audio_menu_selection_syncs_audio_mode() -> None:
     menu_controls = _source("InteractivePlayerView+MenuControls.swift")
 

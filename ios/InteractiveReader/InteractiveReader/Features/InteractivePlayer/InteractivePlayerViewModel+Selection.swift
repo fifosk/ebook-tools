@@ -22,12 +22,17 @@ extension InteractivePlayerViewModel {
         sequenceController.audioMode = audioModeManager.currentMode
     }
 
-    func rememberAudioModePreference(_ mode: AudioMode) {
+    func rememberAudioModePreference(
+        _ mode: AudioMode,
+        clearSingleTrackOnSequence: Bool = true
+    ) {
         switch mode {
         case .singleTrack(let track):
             preferredSingleTrackMode = track
         case .sequence:
-            preferredSingleTrackMode = nil
+            if clearSingleTrackOnSequence {
+                preferredSingleTrackMode = nil
+            }
         }
     }
 

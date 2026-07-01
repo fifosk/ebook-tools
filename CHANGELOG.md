@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader single-track mode now treats passive SwiftUI audio-mode observation as non-authoritative, so an end-of-batch/default refresh cannot clear the remembered Original-only or Translation-only lane and reset rendering out of sync.
 - Apple Create Download Station completed-file extraction, metadata fallback hints, handoff detection, and refreshed discovery candidate matching now live in a focused Swift helper, keeping Apple YouTube Dub downloader handoff behavior easier to compare with Web Video Dubbing.
 - Apple reader original-only/translation-only playback now lets the durable selected lane beat stale SwiftUI audio-manager state at sentence-batch boundaries, so a transient reset to the wrong single track cannot desync rendering from narration.
 - Apple reader single-track rendering now bypasses combined-phase timing whenever the durable original-only/translation-only lane is active, so hydrated batch boundaries cannot reset rendering away from the selected audio track.
