@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Apple Create now ignores stale subtitle TV, YouTube TV, and YouTube metadata lookup responses after the lookup source changes or metadata is reset, so slow preview requests cannot overwrite the current reviewed metadata draft.
 - Apple Create now ignores stale chapter-index and embedded-subtitle inspection responses after the selected EPUB or NAS video changes, preventing old Load Chapters or subtitle-stream results from replacing the current source details.
 - Apple Create now ignores stale book and video discovery responses when a newer provider/query search is in flight, keeping Web-style Default sources, NAS, manual-download, YouTube, and indexer candidates from replacing each other after slow backend scans.
 - Apple Create now ignores stale saved-template refreshes when a newer mode/API request is in flight, so Generated Book, Narrate EPUB, Subtitle, and YouTube Dub template lists cannot overwrite each other after slow backend responses.

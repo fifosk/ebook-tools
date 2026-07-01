@@ -1860,6 +1860,58 @@ def test_create_view_model_metadata_actions_are_split_and_target_wired() -> None
     assert project.count("AppleBookCreateViewModel+Metadata.swift in Sources") == 4
 
 
+def test_create_view_model_ignores_stale_metadata_lookup_refreshes() -> None:
+    source = _source(CREATE_VIEW_MODEL)
+    metadata_source = _source(CREATE_VIEW_MODEL_METADATA)
+    subtitle_body = _swift_function_body(
+        metadata_source,
+        "func lookupSubtitleTvMetadata(\n        sourceName: String,\n        force: Bool = false,\n        using appState: AppState\n    ) async",
+    )
+    clear_subtitle_body = _swift_function_body(metadata_source, "func clearSubtitleMetadata()")
+    youtube_tv_body = _swift_function_body(
+        metadata_source,
+        "func lookupYoutubeTvMetadata(\n        sourceName: String,\n        force: Bool = false,\n        using appState: AppState\n    ) async",
+    )
+    youtube_video_body = _swift_function_body(
+        metadata_source,
+        "func lookupYoutubeVideoMetadata(\n        sourceName: String,\n        force: Bool = false,\n        using appState: AppState\n    ) async",
+    )
+    reset_youtube_body = _swift_function_body(metadata_source, "func resetYoutubeMetadataState()")
+
+    assert "var subtitleTvMetadataRequestSequence = 0" in source
+    assert "subtitleTvMetadataRequestSequence += 1" in subtitle_body
+    assert "let requestSequence = subtitleTvMetadataRequestSequence" in subtitle_body
+    assert "if requestSequence == subtitleTvMetadataRequestSequence" in subtitle_body
+    assert "guard requestSequence == subtitleTvMetadataRequestSequence else { return }" in subtitle_body
+    assert subtitle_body.index("guard requestSequence == subtitleTvMetadataRequestSequence else { return }") < subtitle_body.index(
+        "subtitleTvMetadataPreview = response"
+    )
+    assert subtitle_body.count("guard requestSequence == subtitleTvMetadataRequestSequence else { return }") == 2
+    assert "subtitleTvMetadataRequestSequence += 1" in clear_subtitle_body
+
+    assert "var youtubeTvMetadataRequestSequence = 0" in source
+    assert "youtubeTvMetadataRequestSequence += 1" in youtube_tv_body
+    assert "let requestSequence = youtubeTvMetadataRequestSequence" in youtube_tv_body
+    assert "if requestSequence == youtubeTvMetadataRequestSequence" in youtube_tv_body
+    assert "guard requestSequence == youtubeTvMetadataRequestSequence else { return }" in youtube_tv_body
+    assert youtube_tv_body.index("guard requestSequence == youtubeTvMetadataRequestSequence else { return }") < youtube_tv_body.index(
+        "youtubeTvMetadataPreview = response"
+    )
+    assert youtube_tv_body.count("guard requestSequence == youtubeTvMetadataRequestSequence else { return }") == 2
+
+    assert "var youtubeVideoMetadataRequestSequence = 0" in source
+    assert "youtubeVideoMetadataRequestSequence += 1" in youtube_video_body
+    assert "let requestSequence = youtubeVideoMetadataRequestSequence" in youtube_video_body
+    assert "if requestSequence == youtubeVideoMetadataRequestSequence" in youtube_video_body
+    assert "guard requestSequence == youtubeVideoMetadataRequestSequence else { return }" in youtube_video_body
+    assert youtube_video_body.index("guard requestSequence == youtubeVideoMetadataRequestSequence else { return }") < youtube_video_body.index(
+        "youtubeVideoMetadataPreview = response"
+    )
+    assert youtube_video_body.count("guard requestSequence == youtubeVideoMetadataRequestSequence else { return }") == 2
+    assert "youtubeTvMetadataRequestSequence += 1" in reset_youtube_body
+    assert "youtubeVideoMetadataRequestSequence += 1" in reset_youtube_body
+
+
 def test_create_view_model_source_actions_are_split_and_target_wired() -> None:
     source = _source(CREATE_VIEW_MODEL)
     source_actions = _source(CREATE_VIEW_MODEL_SOURCES)

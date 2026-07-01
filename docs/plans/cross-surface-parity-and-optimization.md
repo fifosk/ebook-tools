@@ -1554,7 +1554,10 @@ After Narrate Ebook:
   too, while SRT/VTT remain preferred defaults when available to match Web
   source selection, and Apple Create can delete selected backend subtitle
   sources through the same cleanup endpoint Web uses. Native time fields validate and normalize Web-style
-  `MM:SS`, `HH:MM:SS`, and `+offset` values before submit.
+  `MM:SS`, `HH:MM:SS`, and `+offset` values before submit. Subtitle TV
+  metadata lookup now ignores stale responses after the lookup source changes
+  or metadata is cleared, so slow previews cannot overwrite the current
+  reviewed metadata draft.
 - Generated book job creation on iPad. Status: Apple Create submits
   generated-book jobs through `/api/books/jobs`; generated-book mode now also
   exposes source-book title, author, genre, and summary context on iPhone/iPad
@@ -1609,7 +1612,10 @@ After Narrate Ebook:
   defaults do not leak across modes. Apple Create now
   also exposes advanced metadata JSON editors for
   subtitle and YouTube jobs, so iPad/iPhone can review and apply full nested
-  metadata payloads beyond the high-value native fields before submission. The
+  metadata payloads beyond the high-value native fields before submission.
+  YouTube TV and YouTube video metadata lookups now ignore stale responses
+  after the source changes or metadata is reset, keeping the reviewed draft
+  aligned with the selected video/subtitle. The
   Download Station handoff now matches completed downloader filenames against
   refreshed manual-download discovery candidates and applies the matching
   local video/subtitle selection, reducing the post-download Apple setup loop

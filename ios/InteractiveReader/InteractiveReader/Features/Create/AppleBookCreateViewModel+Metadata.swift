@@ -6,6 +6,8 @@ extension AppleBookCreateViewModel {
         force: Bool = false,
         using appState: AppState
     ) async {
+        subtitleTvMetadataRequestSequence += 1
+        let requestSequence = subtitleTvMetadataRequestSequence
         guard let configuration = appState.configuration else {
             subtitleMetadataErrorMessage = "API configuration is unavailable."
             return
@@ -19,12 +21,17 @@ extension AppleBookCreateViewModel {
         isLoadingSubtitleTvMetadata = true
         subtitleMetadataErrorMessage = nil
         subtitleMetadataMessage = nil
-        defer { isLoadingSubtitleTvMetadata = false }
+        defer {
+            if requestSequence == subtitleTvMetadataRequestSequence {
+                isLoadingSubtitleTvMetadata = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
             let request = SubtitleTvMetadataPreviewLookupRequest(sourceName: trimmedSourceName, force: force)
             let response = try await client.lookupSubtitleTvMetadataPreview(request)
+            guard requestSequence == subtitleTvMetadataRequestSequence else { return }
             subtitleTvMetadataPreview = response
             if let mediaMetadata = response.mediaMetadata {
                 subtitleMediaMetadataDraft = AppleBookCreatePresentation.normalizedSubtitleMediaMetadata(mediaMetadata)
@@ -36,6 +43,7 @@ extension AppleBookCreateViewModel {
                 subtitleMetadataMessage = "No TV metadata match for \(response.sourceName ?? trimmedSourceName)."
             }
         } catch {
+            guard requestSequence == subtitleTvMetadataRequestSequence else { return }
             subtitleTvMetadataPreview = nil
             subtitleMediaMetadataDraft = nil
             syncSubtitleMediaMetadataJSONText()
@@ -44,6 +52,7 @@ extension AppleBookCreateViewModel {
     }
 
     func clearSubtitleMetadata() {
+        subtitleTvMetadataRequestSequence += 1
         subtitleTvMetadataPreview = nil
         subtitleMediaMetadataDraft = nil
         syncSubtitleMediaMetadataJSONText()
@@ -179,6 +188,8 @@ extension AppleBookCreateViewModel {
         force: Bool = false,
         using appState: AppState
     ) async {
+        youtubeTvMetadataRequestSequence += 1
+        let requestSequence = youtubeTvMetadataRequestSequence
         guard let configuration = appState.configuration else {
             youtubeMetadataErrorMessage = "API configuration is unavailable."
             return
@@ -192,12 +203,17 @@ extension AppleBookCreateViewModel {
         isLoadingYoutubeTvMetadata = true
         youtubeMetadataErrorMessage = nil
         youtubeMetadataMessage = nil
-        defer { isLoadingYoutubeTvMetadata = false }
+        defer {
+            if requestSequence == youtubeTvMetadataRequestSequence {
+                isLoadingYoutubeTvMetadata = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
             let request = SubtitleTvMetadataPreviewLookupRequest(sourceName: trimmedSourceName, force: force)
             let response = try await client.lookupSubtitleTvMetadataPreview(request)
+            guard requestSequence == youtubeTvMetadataRequestSequence else { return }
             youtubeTvMetadataPreview = response
             if let mediaMetadata = response.mediaMetadata {
                 mergeYoutubeTvMetadata(mediaMetadata)
@@ -207,6 +223,7 @@ extension AppleBookCreateViewModel {
                 youtubeMetadataMessage = "No TV metadata match for \(response.sourceName ?? trimmedSourceName)."
             }
         } catch {
+            guard requestSequence == youtubeTvMetadataRequestSequence else { return }
             youtubeMetadataErrorMessage = error.localizedDescription
         }
     }
@@ -216,6 +233,8 @@ extension AppleBookCreateViewModel {
         force: Bool = false,
         using appState: AppState
     ) async {
+        youtubeVideoMetadataRequestSequence += 1
+        let requestSequence = youtubeVideoMetadataRequestSequence
         guard let configuration = appState.configuration else {
             youtubeMetadataErrorMessage = "API configuration is unavailable."
             return
@@ -229,12 +248,17 @@ extension AppleBookCreateViewModel {
         isLoadingYoutubeVideoMetadata = true
         youtubeMetadataErrorMessage = nil
         youtubeMetadataMessage = nil
-        defer { isLoadingYoutubeVideoMetadata = false }
+        defer {
+            if requestSequence == youtubeVideoMetadataRequestSequence {
+                isLoadingYoutubeVideoMetadata = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
             let request = YoutubeVideoMetadataPreviewLookupRequest(sourceName: trimmedSourceName, force: force)
             let response = try await client.lookupYoutubeMetadataPreview(request)
+            guard requestSequence == youtubeVideoMetadataRequestSequence else { return }
             youtubeVideoMetadataPreview = response
             if let youtubeMetadata = response.youtubeMetadata {
                 updateYoutubeMetadataSection("youtube") { section in
@@ -248,11 +272,14 @@ extension AppleBookCreateViewModel {
                 youtubeMetadataMessage = "No YouTube metadata match for \(response.sourceName ?? trimmedSourceName)."
             }
         } catch {
+            guard requestSequence == youtubeVideoMetadataRequestSequence else { return }
             youtubeMetadataErrorMessage = error.localizedDescription
         }
     }
 
     func resetYoutubeMetadataState() {
+        youtubeTvMetadataRequestSequence += 1
+        youtubeVideoMetadataRequestSequence += 1
         youtubeTvMetadataPreview = nil
         youtubeVideoMetadataPreview = nil
         youtubeMetadataMessage = nil

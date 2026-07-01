@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-metadata-stale-refresh-guard",
+                    title: "Metadata lookups follow selection",
+                    detail: "Apple Create now ignores stale subtitle TV, YouTube TV, and YouTube metadata lookup responses after the lookup source changes or metadata is reset, so slow preview requests cannot overwrite the current reviewed metadata draft."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-source-detail-stale-refresh-guard",
                     title: "Source details follow selection",
                     detail: "Apple Create now ignores stale chapter-index and embedded-subtitle inspection responses after the selected EPUB or NAS video changes, preventing old Load Chapters or subtitle-stream results from replacing the current source details."
