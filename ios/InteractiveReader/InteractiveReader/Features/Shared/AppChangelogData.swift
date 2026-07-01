@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-narrate-normalized-state-hook",
+                    title: "Narrate Ebook derived state is leaner",
+                    detail: "Web Narrate Ebook normalized input metadata-cache keys and merged target-language state now live in a focused tested hook, trimming the main form coordinator while keeping template payloads aligned."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-header-role-lane",
                     title: "Single-track header roles hold",
                     detail: "Apple reader header audio-role pills now use the durable requested original-only or translation-only lane before transient SwiftUI manager state, so batch-boundary sequence blips do not show both tracks as active."

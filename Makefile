@@ -254,6 +254,7 @@ test-web-create-intake-focused:
 		src/components/__tests__/useBookNarrationFormEditing.test.tsx \
 		src/components/__tests__/useBookNarrationHistory.test.tsx \
 		src/components/__tests__/useBookNarrationImageDefaults.test.tsx \
+		src/components/__tests__/useBookNarrationNormalizedState.test.tsx \
 		src/components/__tests__/useBookNarrationPrefill.test.tsx \
 		src/components/__tests__/useBookNarrationDiscoverySelection.test.tsx \
 		src/components/__tests__/useBookNarrationSourceDefaults.test.tsx \

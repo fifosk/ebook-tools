@@ -28,6 +28,7 @@ import { useBookNarrationSourceDefaults } from './useBookNarrationSourceDefaults
 import { useBookNarrationDiscoverySelection } from './useBookNarrationDiscoverySelection';
 import { useBookNarrationHistory } from './useBookNarrationHistory';
 import { useBookNarrationImageDefaults } from './useBookNarrationImageDefaults';
+import { useBookNarrationNormalizedState } from './useBookNarrationNormalizedState';
 import { useBookNarrationSubmitFlow } from './useBookNarrationSubmitFlow';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
@@ -49,7 +50,6 @@ import {
 import {
   buildBookNarrationInitialFormState,
   preserveBookNarrationUserEditedFields,
-  resolveBookNarrationTargetLanguages,
   resolveBookNarrationSectionMeta,
 } from './bookNarrationFormUtils';
 
@@ -151,19 +151,14 @@ export function BookNarrationForm({
     return preserveBookNarrationUserEditedFields(previous, next, userEditedFieldsRef.current);
   }, []);
 
-  const normalizedInputForBookMetadataCache = useMemo(() => {
-    if (isGeneratedSource) {
-      return null;
-    }
-    return normalizePath(formState.input_file);
-  }, [formState.input_file, isGeneratedSource, normalizePath]);
-  const normalizedTargetLanguages = useMemo(
-    () => resolveBookNarrationTargetLanguages({
-      target_languages: formState.target_languages,
-      custom_target_languages: formState.custom_target_languages,
-    }),
-    [formState.custom_target_languages, formState.target_languages],
-  );
+  const {
+    normalizedInputForBookMetadataCache,
+    normalizedTargetLanguages,
+  } = useBookNarrationNormalizedState({
+    formState,
+    isGeneratedSource,
+    normalizePath,
+  });
   const {
     handleChange,
     languagesForOverride,
