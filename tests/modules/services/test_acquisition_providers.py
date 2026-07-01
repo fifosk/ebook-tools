@@ -688,6 +688,34 @@ def test_discover_manual_download_epubs_limit_keeps_newer_late_root_candidate(
     ]
 
 
+def test_discover_manual_download_epubs_limit_uses_title_tie_break(
+    tmp_path: Path,
+) -> None:
+    first_root = tmp_path / "first"
+    second_root = tmp_path / "second"
+    first_root.mkdir()
+    second_root.mkdir()
+    zulu = first_root / "Zulu Same Time.epub"
+    alpha = second_root / "Alpha Same Time.epub"
+    zulu.write_text("zulu", encoding="utf-8")
+    alpha.write_text("alpha", encoding="utf-8")
+    shared_mtime = datetime(2026, 7, 1, tzinfo=timezone.utc).timestamp()
+    os.utime(zulu, (shared_mtime, shared_mtime))
+    os.utime(alpha, (shared_mtime, shared_mtime))
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="same",
+        provider="manual_downloads",
+        limit=1,
+        config={"manual_download_roots": [str(first_root), str(second_root)]},
+    )
+
+    assert [candidate.local_path for candidate in result.candidates] == [
+        alpha.as_posix()
+    ]
+
+
 def test_discover_manual_download_epubs_reuses_video_download_root(tmp_path: Path) -> None:
     download_root = tmp_path / "download-station"
     download_root.mkdir()

@@ -20,6 +20,7 @@ from modules.services.source_discovery import (
     DiscoveredSourceFile,
     append_bounded_newest_source_file,
     iter_visible_source_files,
+    newest_source_file_sort_key,
 )
 from modules.services.youtube_dubbing import list_downloaded_videos
 
@@ -891,9 +892,9 @@ def _append_bounded_newest_manual_entry(
 ) -> None:
     matches.append((entry, root, absolute_path))
     matches.sort(
-        key=lambda item: (
-            -item[0].stat.st_mtime,
-            _title_from_filename(item[0].path).casefold(),
+        key=lambda item: newest_source_file_sort_key(
+            item[0],
+            secondary_key=lambda entry: _title_from_filename(entry.path),
         )
     )
     if len(matches) > limit:

@@ -976,7 +976,10 @@ Optimization candidates:
   lighter on large books roots. The route and local EPUB acquisition discovery
   now share the same cached-stat bounded newest helper, so Web and Apple Create
   default/source discovery keep one ordering and trimming rule without rebuilding
-  discarded response objects. Apple Create readiness now probes that bounded
+  discarded response objects. Manual-download EPUB discovery reuses that same
+  cached-stat sort key for newest/title tie-breaks across configured roots, so
+  Default sources keep consistent ordering when local and download-station inboxes
+  are both available. Apple Create readiness now probes that bounded
   picker URL as its inventory check, so reusable pipeline preflights exercise
   the path the native clients actually load.
   Output-root readiness and route-level source/output presence flags now use
