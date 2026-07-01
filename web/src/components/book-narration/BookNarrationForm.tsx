@@ -36,10 +36,10 @@ import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
 import { filterBookNarrationDiscoveryCandidates } from './bookNarrationDiscoveryProviders';
 import {
   buildBookDiscoveryTemplateState,
-  buildBookNarrationTemplatePayload,
   extractBookNarrationTemplateFormState,
   resolveBookDiscoveryTemplateStateForInput,
-  resolveBookNarrationTemplatePayloadExtras
+  resolveBookNarrationTemplatePayloadExtras,
+  saveBookNarrationTemplate
 } from './bookNarrationTemplates';
 import type {
   BookNarrationFormProps,
@@ -623,21 +623,16 @@ export function BookNarrationForm({
     setTemplateError(null);
     setIsSavingTemplate(true);
     try {
-      const payload = buildBookNarrationTemplatePayload({
+      const result = await saveBookNarrationTemplate({
         formState,
         normalizedTargetLanguages,
         sourceMode,
         activeSection: activeTab,
-        payloadExtras: mergedTemplatePayloadExtras
+        payloadExtras: mergedTemplatePayloadExtras,
+        saveTemplate: saveCreationTemplate
       });
-      const saved = await saveCreationTemplate(payload);
-      setTemplateStatus(`Saved template "${saved.name}".`);
-    } catch (saveError) {
-      const message =
-        saveError instanceof Error
-          ? saveError.message
-          : 'Unable to save creation template.';
-      setTemplateError(message);
+      setTemplateStatus(result.status);
+      setTemplateError(result.error);
     } finally {
       setIsSavingTemplate(false);
     }

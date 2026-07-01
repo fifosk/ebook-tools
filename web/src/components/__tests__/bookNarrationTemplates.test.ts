@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AcquisitionCandidate, CreationTemplateEntry } from '../../api/dtos';
+import type { AcquisitionCandidate, CreationTemplateEntry, CreationTemplatePayload } from '../../api/dtos';
 import { DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults';
 import {
   buildBookDiscoveryTemplateState,
@@ -7,7 +7,8 @@ import {
   buildSparseBookDiscoveryTemplateState,
   extractBookNarrationTemplateFormState,
   resolveBookDiscoveryTemplateStateForInput,
-  resolveBookNarrationTemplatePayloadExtras
+  resolveBookNarrationTemplatePayloadExtras,
+  saveBookNarrationTemplate
 } from '../book-narration/bookNarrationTemplates';
 
 function candidate(overrides: Partial<AcquisitionCandidate> = {}): AcquisitionCandidate {
@@ -344,6 +345,74 @@ describe('bookNarrationTemplates', () => {
     );
     expect(JSON.stringify(payload)).not.toContain('drop-me');
     expect(JSON.stringify(payload)).not.toContain('should-not-overwrite');
+  });
+
+  it('saves templates through the injected creation client', async () => {
+    const capturedPayloads: CreationTemplatePayload[] = [];
+    const result = await saveBookNarrationTemplate({
+      formState: {
+        ...DEFAULT_FORM_STATE,
+        input_file: '/books/origin.epub',
+        base_output_file: 'portable-template',
+        target_languages: ['German'],
+        custom_target_languages: 'French',
+      },
+      normalizedTargetLanguages: ['German', 'French'],
+      sourceMode: 'upload',
+      activeSection: 'language',
+      payloadExtras: {
+        handoff_source: 'apple'
+      },
+      saveTemplate: async (payload) => {
+        capturedPayloads.push(payload);
+        return {
+          id: 'template-1',
+          name: 'Portable Template',
+          mode: 'narrate_ebook',
+          created_at: 1,
+          updated_at: 2,
+          payload: payload.payload,
+        };
+      }
+    });
+
+    expect(result).toEqual({
+      status: 'Saved template "Portable Template".',
+      error: null,
+    });
+    expect(capturedPayloads).toHaveLength(1);
+    const savedPayload = capturedPayloads[0];
+    expect(savedPayload).toMatchObject({
+      mode: 'narrate_ebook',
+      payload: {
+        kind: 'book_narration_form',
+        source: 'web',
+        handoff_source: 'apple',
+        source_mode: 'upload',
+        active_section: 'language',
+      }
+    });
+    expect((savedPayload.payload.form_state as Record<string, unknown>).target_languages).toEqual([
+      'German',
+      'French',
+    ]);
+  });
+
+  it('maps template save failures to UI status fields', async () => {
+    const result = await saveBookNarrationTemplate({
+      formState: DEFAULT_FORM_STATE,
+      normalizedTargetLanguages: DEFAULT_FORM_STATE.target_languages,
+      sourceMode: 'upload',
+      activeSection: 'source',
+      saveTemplate: async () => {
+        throw new Error('Template API unavailable');
+      }
+    });
+
+    expect(result).toEqual({
+      status: null,
+      error: 'Template API unavailable',
+    });
   });
 
   it('extracts compatible template form state for Web handoff', () => {

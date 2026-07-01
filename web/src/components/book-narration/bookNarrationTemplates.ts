@@ -24,10 +24,19 @@ type BuildBookNarrationTemplateOptions = {
   payloadExtras?: Record<string, unknown> | null;
 };
 
+type SaveBookNarrationTemplateOptions = BuildBookNarrationTemplateOptions & {
+  saveTemplate: (payload: CreationTemplatePayload) => Promise<CreationTemplateEntry>;
+};
+
 export type AppliedBookNarrationTemplate = {
   formState: Partial<FormState>;
   activeSection: BookNarrationFormSection | null;
   discoveryState: Record<string, unknown> | null;
+};
+
+export type SaveBookNarrationTemplateResult = {
+  status: string | null;
+  error: string | null;
 };
 
 function cleanDiscoveryText(value: string | null | undefined): string | null {
@@ -232,6 +241,25 @@ export function buildBookNarrationTemplatePayload({
       form_state: safeFormState
     }
   };
+}
+
+export async function saveBookNarrationTemplate({
+  saveTemplate,
+  ...payloadOptions
+}: SaveBookNarrationTemplateOptions): Promise<SaveBookNarrationTemplateResult> {
+  try {
+    const payload = buildBookNarrationTemplatePayload(payloadOptions);
+    const saved = await saveTemplate(payload);
+    return {
+      status: `Saved template "${saved.name}".`,
+      error: null
+    };
+  } catch (error) {
+    return {
+      status: null,
+      error: error instanceof Error ? error.message : 'Unable to save creation template.'
+    };
+  }
 }
 
 export function resolveBookNarrationTemplatePayloadExtras({
