@@ -520,10 +520,13 @@ extension AppleBookCreatePresentation {
         else {
             return nil
         }
-        if mediaKind == "book", isDefaultBookDiscoveryProviderID(normalizedProvider) {
+        let normalizedMediaKind = mediaKind
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        if normalizedMediaKind == "book", isDefaultBookDiscoveryProviderID(normalizedProvider) {
             return nil
         }
-        if mediaKind == "video", isDefaultVideoDiscoveryProviderID(normalizedProvider) {
+        if normalizedMediaKind == "video", isDefaultVideoDiscoveryProviderID(normalizedProvider) {
             return nil
         }
         return normalizedProvider

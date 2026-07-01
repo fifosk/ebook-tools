@@ -3117,8 +3117,10 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'static let defaultBookDiscoveryProviderID = "backend_defaults"' in discovery_source
     assert "static func isDefaultBookDiscoveryProviderID" in discovery_source
     assert "static func discoveryRequestProviderID(for providerID: String, mediaKind: String) -> String?" in discovery_source
-    assert 'if mediaKind == "book", isDefaultBookDiscoveryProviderID(normalizedProvider)' in discovery_source
-    assert 'if mediaKind == "video", isDefaultVideoDiscoveryProviderID(normalizedProvider)' in discovery_source
+    assert "let normalizedMediaKind = mediaKind" in discovery_source
+    assert ".trimmingCharacters(in: .whitespacesAndNewlines)\n            .lowercased()" in discovery_source
+    assert 'if normalizedMediaKind == "book", isDefaultBookDiscoveryProviderID(normalizedProvider)' in discovery_source
+    assert 'if normalizedMediaKind == "video", isDefaultVideoDiscoveryProviderID(normalizedProvider)' in discovery_source
     assert "return nil" in discovery_source
     assert "return normalizedProvider" in discovery_source
     assert "private static let defaultBookDiscoveryProvider = AppleBookCreateDiscoveryProviderOption(" in discovery_source
