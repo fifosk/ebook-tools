@@ -685,7 +685,11 @@ extension InteractivePlayerViewModel {
         }
         let chunkId = chunk.id
         if audioCoordinator.isReady {
-            rememberSingleTrackSentenceAnchor(atTime: time, in: chunk)
+            rememberSingleTrackTimeSeekAnchor(
+                time: time,
+                sentenceNumber: sentenceNumber,
+                in: chunk
+            )
             playbackTransportDebugLog(
                 "[PlaybackTransport] Interactive time seek accepted sequence=false sentence=\(sentenceNumber ?? -1) time=\(String(format: "%.3f", time))"
             )
@@ -713,7 +717,11 @@ extension InteractivePlayerViewModel {
                 }
                 guard seenLoadingState || isFirstEmission else { return }
                 isFirstEmission = false
-                self.rememberSingleTrackSentenceAnchor(atTime: time, in: currentChunk)
+                self.rememberSingleTrackTimeSeekAnchor(
+                    time: time,
+                    sentenceNumber: sentenceNumber,
+                    in: currentChunk
+                )
                 playbackTransportDebugLog(
                     "[PlaybackTransport] Interactive time seek accepted sequence=false sentence=\(sentenceNumber ?? -1) time=\(String(format: "%.3f", time))"
                 )
@@ -863,6 +871,19 @@ extension InteractivePlayerViewModel {
             return
         }
         rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: sentenceNumber)
+    }
+
+    private func rememberSingleTrackTimeSeekAnchor(
+        time: Double,
+        sentenceNumber: Int?,
+        in chunk: InteractiveChunk
+    ) {
+        if let sentenceNumber,
+           SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber) != nil {
+            rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: sentenceNumber)
+            return
+        }
+        rememberSingleTrackSentenceAnchor(atTime: time, in: chunk)
     }
 
     func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int? {

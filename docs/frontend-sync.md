@@ -187,9 +187,11 @@ Follow the suggested remediations to restore parity:
   translation-only playback can briefly load/autoplay from the start of the
   10-sentence chunk and leave audio, rendering, and next/previous sentence skips
   batch-shifted. Time-based seeks such as bookmarks or legacy scrubber jumps
-  should refresh the same recent single-track sentence anchor from the active
-  track's gate timing before seeking, so the following next/previous command is
-  anchored to the rendered visible sentence instead of stale player time.
+  should preserve an explicit requested sentence number when one is available;
+  only bare time seeks should derive the recent single-track sentence anchor
+  from the active track's gate timing before seeking. That keeps the following
+  next/previous command anchored to the rendered visible sentence instead of
+  stale player time.
 - Apple Interactive Reader headers intentionally expose a single progress pill
   rather than separate sentence/time/timing chips. For book jobs the pill should
   summarize the real full-book `Chapter x/y` plus full-book sentence percent above

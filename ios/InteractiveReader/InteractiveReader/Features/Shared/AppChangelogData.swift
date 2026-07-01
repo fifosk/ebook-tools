@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-time-seek-render-anchor",
+                    title: "Translation-only jumps keep rendered sentence",
+                    detail: "Apple single-track time seeks now preserve an explicit sentence-number anchor when one is available, keeping Cinema/tvOS translation-only audio, rendering, and follow-up skips aligned after slider, bookmark, search, or legacy scrubber jumps."
+                ),
+                AppChangelogEntry(
                     id: "apple-reader-track-aware-resume-progress",
                     title: "Translation-only resume stays anchored",
                     detail: "Apple reader resume sync now preserves the active original/translation playback track, and Apple TV sentence-progress focus now steps and seeks sentences with left/right so translation-only playback stays anchored to the rendered sentence after resume or progress jumps."

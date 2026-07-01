@@ -1238,6 +1238,9 @@ def test_interactive_bookmark_time_jumps_wait_for_ready_audio() -> None:
     assert "func attemptPendingTimeSeek(in chunk: InteractiveChunk)" in selection
     assert "matchingSentenceNumber: pending.sentenceNumber" in selection
     assert "func seekPlaybackWhenReady(" in selection
+    assert "func rememberSingleTrackTimeSeekAnchor(" in selection
+    assert "sentenceNumber: sentenceNumber" in selection
+    assert "rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: sentenceNumber)" in selection
     assert "guard let currentChunk = self.selectedChunk, currentChunk.id == chunkId else" in selection
     assert "if autoPlay && !self.audioCoordinator.isPlaying" in selection
 
