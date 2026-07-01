@@ -134,7 +134,10 @@ def _normalize_optional_text(value: str | None) -> str | None:
 
 def _normalize_optional_provider_id(value: str | None) -> str | None:
     normalized = _normalize_optional_text(value)
-    return normalized.casefold() if normalized else None
+    provider_id = normalized.casefold() if normalized else None
+    if provider_id == "backend_defaults":
+        return None
+    return provider_id
 
 
 def _normalize_async_job_provider_id(

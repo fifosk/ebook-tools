@@ -640,11 +640,15 @@ def test_apple_create_default_sources_request_mapping_is_visible_in_changelogs()
     markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
 
     assert 'id: "apple-create-default-source-request-normalization"' in swift_changelog
+    assert 'id: "backend-default-sentinel-discovery-fanout"' in swift_changelog
     for source in (swift_changelog, markdown_changelog):
         assert "Default sources" in source
+        assert "backend_defaults" in source
+        assert "no-provider" in source
         assert "omitting the provider parameter" in source
         assert "book and video discovery requests" in source
         assert "Web" in source
+        assert "Apple Create" in source
         assert "normalizing media kind values" in source
 
 

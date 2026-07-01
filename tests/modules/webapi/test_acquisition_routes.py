@@ -72,6 +72,7 @@ def test_acquisition_route_ids_trim_whitespace() -> None:
 
 def test_acquisition_optional_provider_ids_trim_and_casefold() -> None:
     assert _normalize_optional_provider_id("  LOCAL_EPUB  ") == "local_epub"
+    assert _normalize_optional_provider_id(" BACKEND_DEFAULTS ") is None
     assert _normalize_optional_provider_id("   ") is None
     assert _normalize_optional_provider_id(None) is None
 
@@ -579,6 +580,55 @@ def test_acquisition_discover_route_fans_out_default_book_sources_before_limit(
         newer_book.as_posix()
     ]
     assert payload["candidates"][0]["provider"] == "manual_downloads"
+
+
+def test_acquisition_discover_route_treats_backend_defaults_provider_as_fanout(
+    tmp_path: Path,
+) -> None:
+    books_root = tmp_path / "books"
+    manual_root = tmp_path / "manual"
+    books_root.mkdir()
+    manual_root.mkdir()
+    library_book = books_root / "Local Origin.epub"
+    manual_book = manual_root / "Manual Origin.epub"
+    library_book.write_text("local", encoding="utf-8")
+    manual_book.write_text("manual", encoding="utf-8")
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "ebooks_dir": str(books_root),
+            "manual_download_root": str(manual_root),
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover",
+                params={
+                    "media_kind": "book",
+                    "provider": " BACKEND_DEFAULTS ",
+                    "q": "origin",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["providers_queried"] == ["local_epub", "manual_downloads"]
+    assert {candidate["provider"] for candidate in payload["candidates"]} == {
+        "local_epub",
+        "manual_downloads",
+    }
+    assert {candidate["title"] for candidate in payload["candidates"]} == {
+        "Local Origin",
+        "Manual Origin",
+    }
 
 
 def test_acquisition_discover_ignores_stale_source_ids_for_local_epub_provider(tmp_path: Path) -> None:

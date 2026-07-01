@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-default-sentinel-discovery-fanout",
+                    title: "Discovery defaults are backend-tolerant",
+                    detail: "The backend acquisition route now treats a leaked backend_defaults provider id as the same no-provider Default sources fan-out used by Web and Apple Create, so older clients do not break book/video discovery."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-default-source-request-normalization",
                     title: "Apple Create defaults match Web discovery",
                     detail: "Apple Create now keeps Default sources as the visible/template selection while omitting the provider parameter from book and video discovery requests, matching Web's backend fan-out and normalizing media kind values before the handoff."
