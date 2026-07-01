@@ -170,11 +170,16 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "applyPendingResumeSingleTrackIfNeeded(" in swift_check
     assert "Translation-only resume should restore single-track mode before seeking" in swift_check
     assert "View restore should keep translation-only visible instead of defaulting back to all tracks" in swift_check
+    assert "preserveSingleTrackModeIfNeeded(" in swift_check
+    assert "Cross-batch setup should preserve an existing translation-only audio mode instead of defaulting to all tracks" in swift_check
+    assert "Cross-batch setup should keep the transcript aligned to the translation-only audio track" in swift_check
     assert "Translation-only resume anchor should be consumed after live playback reaches the target sentence" in swift_check
     assert "Consumed translation-only resume anchor must not pull the first post-resume sentence back out of sync" in swift_check
     frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
     assert "Once live\n  playback reaches the anchored sentence, the anchor must be consumed/cleared" in frontend_sync
     assert "first following translated sentence is rendered from live audio time" in frontend_sync
+    assert "chunk/batch setup must preserve that single-track mode" in frontend_sync
+    assert "end-of-batch playback can reset to sequence audio" in frontend_sync
     sequence_source = (INTERACTIVE / "InteractivePlayerViewModel+Sequence.swift").read_text(encoding="utf-8")
     sequence_active_body = sequence_source.split("var isSequenceModeActive: Bool", 1)[1].split("\n}", 1)[0]
     assert "guard audioModeManager?.isSequenceMode != false else" in sequence_active_body
@@ -731,10 +736,23 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
         "func prepareAudioModeForInitialPlayback(for chunk: InteractiveChunk)",
     )
     assert "let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)" in initial_playback_body
-    assert "if !appliedResumeTrack" in initial_playback_body
+    assert "preserveSingleTrackModeIfNeeded(for: chunk)" in initial_playback_body
+    assert "if !preservedSingleTrack" in initial_playback_body
     assert initial_playback_body.index("applyPendingResumeSingleTrackIfNeeded") < initial_playback_body.index(
         "applyDefaultTrackSelection(for: chunk)"
     )
+    assert initial_playback_body.index("preserveSingleTrackModeIfNeeded") < initial_playback_body.index(
+        "applyDefaultTrackSelection(for: chunk)"
+    )
+
+    preserve_body = _function_body(
+        tracks,
+        "func preserveSingleTrackModeIfNeeded(for chunk: InteractiveChunk) -> Bool",
+    )
+    assert "guard case .singleTrack(let track) = audioModeManager.currentMode else { return false }" in preserve_body
+    assert "visibleTracks = [desiredTextTrack]" in preserve_body
+    assert "hasCustomTrackSelection = true" in preserve_body
+    assert "viewModel.selectedAudioTrackID = targetID" in preserve_body
 
     resume_track_body = _function_body(
         tracks,

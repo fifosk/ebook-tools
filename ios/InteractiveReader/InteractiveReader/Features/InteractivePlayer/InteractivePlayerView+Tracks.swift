@@ -233,7 +233,8 @@ extension InteractivePlayerView {
     func prepareAudioModeForInitialPlayback(for chunk: InteractiveChunk) {
         viewModel.audioModeManager = audioModeManager
         let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)
-        if !appliedResumeTrack {
+        let preservedSingleTrack = appliedResumeTrack ? true : preserveSingleTrackModeIfNeeded(for: chunk)
+        if !preservedSingleTrack {
             applyDefaultTrackSelection(for: chunk)
             synchronizeAudioModeWithVisibleTextTracks(for: chunk)
         }
@@ -242,6 +243,27 @@ extension InteractivePlayerView {
            let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
             viewModel.selectedAudioTrackID = targetID
         }
+    }
+
+    @discardableResult
+    func preserveSingleTrackModeIfNeeded(for chunk: InteractiveChunk) -> Bool {
+        guard case .singleTrack(let track) = audioModeManager.currentMode else { return false }
+
+        let desiredTextTrack: TextPlayerVariantKind = track == .original ? .original : .translation
+        let available = Set(availableTracks(for: chunk))
+        guard available.contains(desiredTextTrack) else { return false }
+
+        visibleTracks = [desiredTextTrack]
+        hasCustomTrackSelection = true
+        audioModeManager.setTracks(
+            original: track == .original,
+            translation: track == .translation
+        )
+        viewModel.sequenceController.audioMode = audioModeManager.currentMode
+        if let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
+            viewModel.selectedAudioTrackID = targetID
+        }
+        return true
     }
 
     @discardableResult

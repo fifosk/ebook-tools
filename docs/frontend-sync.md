@@ -123,7 +123,11 @@ Follow the suggested remediations to restore parity:
   `jumpToTime` / `jumpToSentence`, and `InteractivePlayerView` must consume the
   pending resume track before defaulting visible tracks back to All; sequence
   resumes should not persist the current segment track as if it were a
-  single-track preference.
+  single-track preference. Once Original-only or Translation-only mode is
+  active, chunk/batch setup must preserve that single-track mode and the
+  matching visible transcript track before applying default All-track
+  selection, otherwise end-of-batch playback can reset to sequence audio and
+  render out of sync with the selected track.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

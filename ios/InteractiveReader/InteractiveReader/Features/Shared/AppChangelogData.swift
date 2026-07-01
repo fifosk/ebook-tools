@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-batch-transition",
+                    title: "Translation-only survives batch changes",
+                    detail: "Apple reader chunk setup now preserves an active original-only or translation-only mode before applying default All-track selection, keeping rendering and narration aligned when playback advances into the next sentence batch."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-resume-anchor-consumed",
                     title: "Translation-only resume advances cleanly",
                     detail: "Apple reader single-track resume anchors are now cleared as soon as live playback reaches the resumed sentence, so the next translated sentence cannot briefly render against the stale resume target."

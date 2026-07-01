@@ -338,6 +338,30 @@ private func applyPendingResumeSingleTrackIfNeeded(
 }
 
 @MainActor
+private func preserveSingleTrackModeIfNeeded(
+    for chunk: InteractiveChunk,
+    availableTracks: Set<TextPlayerVariantKind>,
+    manager: AudioModeManager,
+    visibleTracks: inout Set<TextPlayerVariantKind>,
+    hasCustomTrackSelection: inout Bool,
+    selectedAudioTrackID: inout String?
+) -> Bool {
+    guard case .singleTrack(let track) = manager.currentMode else { return false }
+
+    let desiredTextTrack: TextPlayerVariantKind = track == .original ? .original : .translation
+    guard availableTracks.contains(desiredTextTrack) else { return false }
+
+    visibleTracks = [desiredTextTrack]
+    hasCustomTrackSelection = true
+    manager.setTracks(
+        original: track == .original,
+        translation: track == .translation
+    )
+    selectedAudioTrackID = manager.resolvePreferredTrackID(for: chunk)
+    return true
+}
+
+@MainActor
 private func runChecks() {
     let originalURL = URL(string: "https://example.invalid/original.m4a")!
     let translationURL = URL(string: "https://example.invalid/translation.m4a")!
@@ -487,6 +511,36 @@ private func runChecks() {
         pendingResumeTrack,
         nil,
         "View restore should consume the pending resume track once applied"
+    )
+    var batchVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
+    var batchHasCustomTrackSelection = false
+    var batchSelectedTrackID: String? = "combined"
+    requireEqual(
+        preserveSingleTrackModeIfNeeded(
+            for: chunk,
+            availableTracks: [.original, .translation, .transliteration],
+            manager: manager,
+            visibleTracks: &batchVisibleTracks,
+            hasCustomTrackSelection: &batchHasCustomTrackSelection,
+            selectedAudioTrackID: &batchSelectedTrackID
+        ),
+        true,
+        "Cross-batch setup should preserve an existing translation-only audio mode instead of defaulting to all tracks"
+    )
+    requireEqual(
+        batchVisibleTracks,
+        [.translation],
+        "Cross-batch setup should keep the transcript aligned to the translation-only audio track"
+    )
+    requireEqual(
+        batchHasCustomTrackSelection,
+        true,
+        "Cross-batch single-track preservation should mark the selection custom so later lifecycle passes do not reset it"
+    )
+    requireEqual(
+        batchSelectedTrackID,
+        "translation",
+        "Cross-batch single-track preservation should select the matching audio option for the new batch"
     )
 
     manager.setTracks(original: false, translation: true, preservingPosition: 17)
