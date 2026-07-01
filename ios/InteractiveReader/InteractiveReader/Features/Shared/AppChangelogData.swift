@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-audio-picker-stamps-mode",
+                    title: "Audio picker survives batches",
+                    detail: "Apple reader audio-track picker selections now stamp the shared original-only or translation-only mode immediately, so stale sequence state cannot reset rendering at the next sentence batch."
+                ),
+                AppChangelogEntry(
+                    id: "web-narrate-history-hook",
+                    title: "Narrate Ebook history is leaner",
+                    detail: "Web Narrate Ebook recent-job history callbacks now live in a focused tested hook, moving path normalization, previous-start lookup, and latest job defaults out of the main form coordinator."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-eof-durable-stamp",
                     title: "Single-track EOF keeps its lane",
                     detail: "Apple reader EOF handling now stamps the resolved original-only or translation-only lane before stale URL guards or next-batch selection run, tightening batch-boundary sync when the selected audio option briefly resets."

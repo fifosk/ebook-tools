@@ -598,6 +598,121 @@ private func applySingleTrackSelection(
 }
 
 @MainActor
+private func concreteAudioModeTrack(
+    manager: AudioModeManager?,
+    sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?
+) -> SequenceTrack? {
+    if let manager {
+        if case .singleTrack(let track) = manager.currentMode {
+            return track
+        }
+        return nil
+    }
+    if case .singleTrack(let track) = sequenceAudioMode {
+        return track
+    }
+    return preferredSingleTrackMode
+}
+
+@MainActor
+private func audioModeMatchesSelectedTrack(
+    _ track: InteractiveChunk.AudioOption,
+    manager: AudioModeManager?,
+    sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?
+) -> Bool {
+    switch track.kind {
+    case .original:
+        return concreteAudioModeTrack(
+            manager: manager,
+            sequenceAudioMode: sequenceAudioMode,
+            preferredSingleTrackMode: preferredSingleTrackMode
+        ) == .original
+    case .translation:
+        return concreteAudioModeTrack(
+            manager: manager,
+            sequenceAudioMode: sequenceAudioMode,
+            preferredSingleTrackMode: preferredSingleTrackMode
+        ) == .translation
+    case .combined:
+        return concreteAudioModeTrack(
+            manager: manager,
+            sequenceAudioMode: sequenceAudioMode,
+            preferredSingleTrackMode: preferredSingleTrackMode
+        ) == nil
+    case .other:
+        return true
+    }
+}
+
+@MainActor
+private func applyAudioModePreference(
+    for track: InteractiveChunk.AudioOption,
+    manager: AudioModeManager?,
+    sequenceAudioMode: inout AudioMode,
+    preferredSingleTrackMode: inout SequenceTrack?
+) {
+    switch track.kind {
+    case .original:
+        preferredSingleTrackMode = .original
+        if let manager {
+            manager.setTracks(original: true, translation: false)
+            sequenceAudioMode = manager.currentMode
+        } else {
+            sequenceAudioMode = .singleTrack(.original)
+        }
+    case .translation:
+        preferredSingleTrackMode = .translation
+        if let manager {
+            manager.setTracks(original: false, translation: true)
+            sequenceAudioMode = manager.currentMode
+        } else {
+            sequenceAudioMode = .singleTrack(.translation)
+        }
+    case .combined:
+        preferredSingleTrackMode = nil
+        if let manager {
+            manager.enableSequenceMode()
+            sequenceAudioMode = manager.currentMode
+        } else {
+            sequenceAudioMode = .sequence
+        }
+    case .other:
+        break
+    }
+}
+
+@MainActor
+private func selectAudioTrack(
+    id: String,
+    in chunk: InteractiveChunk,
+    manager: AudioModeManager?,
+    sequenceAudioMode: inout AudioMode,
+    selectedAudioTrackID: inout String?,
+    preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?,
+    preferredSingleTrackMode: inout SequenceTrack?
+) -> Bool {
+    let previousTrackID = selectedAudioTrackID
+    selectedAudioTrackID = id
+    guard let track = chunk.audioOptions.first(where: { $0.id == id }) else { return false }
+    let modeWasAlreadyAligned = audioModeMatchesSelectedTrack(
+        track,
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode
+    )
+    preferredAudioKind = track.kind
+    applyAudioModePreference(
+        for: track,
+        manager: manager,
+        sequenceAudioMode: &sequenceAudioMode,
+        preferredSingleTrackMode: &preferredSingleTrackMode
+    )
+    return !(previousTrackID == id && modeWasAlreadyAligned)
+}
+
+@MainActor
 private func prepareAdjacentChunkSelection(
     currentChunk: InteractiveChunk,
     chunks: [InteractiveChunk],
@@ -1211,6 +1326,39 @@ private func runChecks() {
         staleManagerSequenceAudioMode,
         .singleTrack(.translation),
         "Remembered translation-only lane should restore sequence-controller mode before next-batch audio resolves"
+    )
+    var pickerSelectedTrackID: String? = "translation-next"
+    var pickerPreferredKind: InteractiveChunk.AudioOption.Kind? = .translation
+    var pickerPreferredSingleTrack: SequenceTrack?
+    var pickerSequenceAudioMode: AudioMode = .sequence
+    let pickerManager = AudioModeManager()
+    requireEqual(
+        selectAudioTrack(
+            id: "translation-next",
+            in: nextBatch,
+            manager: pickerManager,
+            sequenceAudioMode: &pickerSequenceAudioMode,
+            selectedAudioTrackID: &pickerSelectedTrackID,
+            preferredAudioKind: &pickerPreferredKind,
+            preferredSingleTrackMode: &pickerPreferredSingleTrack
+        ),
+        true,
+        "Selecting an already checked translation option should still reprepare when the shared audio mode drifted back to sequence"
+    )
+    requireEqual(
+        pickerManager.currentMode,
+        .singleTrack(.translation),
+        "iPad audio picker selection should stamp translation-only into the shared audio mode before batch handoff"
+    )
+    requireEqual(
+        pickerSequenceAudioMode,
+        .singleTrack(.translation),
+        "iPad audio picker selection should repair sequence-controller mode before playback prepares"
+    )
+    requireEqual(
+        pickerPreferredSingleTrack,
+        .translation,
+        "iPad audio picker selection should persist translation-only as the durable batch lane"
     )
     let staleViewManager = AudioModeManager()
     requireEqual(

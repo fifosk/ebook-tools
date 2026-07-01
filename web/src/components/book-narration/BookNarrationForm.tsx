@@ -6,7 +6,6 @@ import {
   useState
 } from 'react';
 import type { FormEvent } from 'react';
-import type { PipelineStatusResponse } from '../../api/dtos';
 import {
   AUDIO_MODE_OPTIONS,
   AUDIO_QUALITY_OPTIONS,
@@ -30,6 +29,7 @@ import { useBookNarrationTemplateSave } from './useBookNarrationTemplateSave';
 import { useBookNarrationPrefill } from './useBookNarrationPrefill';
 import { useBookNarrationSourceDefaults } from './useBookNarrationSourceDefaults';
 import { useBookNarrationDiscoverySelection } from './useBookNarrationDiscoverySelection';
+import { useBookNarrationHistory } from './useBookNarrationHistory';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
@@ -50,14 +50,10 @@ import {
 import {
   applyBookNarrationImageDefaults,
   buildBookNarrationInitialFormState,
-  normalizeBookNarrationPath,
   preserveBookNarrationUserEditedFields,
   resolveBookNarrationTargetLanguages,
-  resolveLatestBookNarrationJobSelection,
-  resolveLatestBookNarrationJobSettings,
   resolveBookNarrationSubmitPresentation,
   resolveBookNarrationSectionMeta,
-  resolveStartFromNarrationHistory
 } from './bookNarrationFormUtils';
 
 export type { BookNarrationFormSection } from './bookNarrationFormTypes';
@@ -144,7 +140,6 @@ export function BookNarrationForm({
     useState<BookNarrationSourcePanel>('source');
   const prefillAppliedRef = useRef<string | null>(null);
   const creationTemplateAppliedRef = useRef<string | null>(null);
-  const recentJobsRef = useRef<PipelineStatusResponse[] | null>(recentJobs ?? null);
   const userEditedStartRef = useRef<boolean>(false);
   const userEditedInputRef = useRef<boolean>(false);
   const userEditedEndRef = useRef<boolean>(false);
@@ -156,19 +151,12 @@ export function BookNarrationForm({
     return resolveBookNarrationSectionMeta(BOOK_NARRATION_SECTION_META, sectionOverrides);
   }, [sectionOverrides]);
 
-  useEffect(() => {
-    recentJobsRef.current = recentJobs ?? null;
-  }, [recentJobs]);
-  const normalizePath = useCallback(
-    (value: string | null | undefined): string | null => normalizeBookNarrationPath(value),
-    []
-  );
-  const resolveStartFromHistory = useCallback(
-    (inputPath: string): number | null => {
-      return resolveStartFromNarrationHistory(inputPath, recentJobsRef.current);
-    },
-    []
-  );
+  const {
+    normalizePath,
+    resolveLatestJobSelection,
+    resolveLatestJobSettings,
+    resolveStartFromHistory,
+  } = useBookNarrationHistory({ recentJobs });
   const preserveUserEditedFields = useCallback((previous: FormState, next: FormState): FormState => {
     return preserveBookNarrationUserEditedFields(previous, next, userEditedFieldsRef.current);
   }, []);
@@ -230,26 +218,6 @@ export function BookNarrationForm({
     implicitEndOffsetThreshold: implicitEndOffsetThreshold ?? null,
     normalizedInputPath: normalizedInputForBookMetadataCache
   });
-  const resolveLatestJobSelection = useCallback((): { input?: string | null; base?: string | null } | null => {
-    return resolveLatestBookNarrationJobSelection(recentJobsRef.current);
-  }, []);
-
-  /**
-   * Pick up source language, target languages and lookup-cache preference from
-   * the most recent book job in the user's history. Mirrors how start_sentence
-   * is prefilled from the last job on the same input file — only here the
-   * match is "most recent book job" regardless of input_file. Returns null
-   * when no usable job exists or none of the relevant fields are populated,
-   * so the caller falls back to whatever defaults are already in place.
-   */
-  const resolveLatestJobSettings = useCallback((): {
-    inputLanguage: string | null;
-    targetLanguages: string[] | null;
-    enableLookupCache: boolean | null;
-  } | null => {
-    return resolveLatestBookNarrationJobSettings(recentJobsRef.current);
-  }, []);
-
   const tabSections: BookNarrationFormSection[] = BOOK_NARRATION_TAB_SECTIONS;
   const { activeTab, handleSectionChange } = useBookNarrationSectionState({
     activeSection,

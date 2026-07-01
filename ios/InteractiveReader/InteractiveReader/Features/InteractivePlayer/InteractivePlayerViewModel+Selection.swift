@@ -175,11 +175,17 @@ extension InteractivePlayerViewModel {
     }
 
     func selectAudioTrack(id: String) {
-        guard selectedAudioTrackID != id else { return }
+        let previousTrackID = selectedAudioTrackID
         selectedAudioTrackID = id
         guard let chunk = selectedChunk else { return }
         if let track = chunk.audioOptions.first(where: { $0.id == id }) {
+            let modeWasAlreadyAligned = audioModeMatchesSelectedTrack(track)
             preferredAudioKind = track.kind
+            applyAudioModePreference(for: track)
+            if previousTrackID == id,
+               modeWasAlreadyAligned {
+                return
+            }
             // If switching to combined mode and sentences lack gate data, load metadata first
             if track.kind == .combined && !sentencesHaveGateData(chunk.sentences) {
                 Task { [weak self] in
@@ -193,6 +199,63 @@ extension InteractivePlayerViewModel {
             }
         }
         prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)
+    }
+
+    private func applyAudioModePreference(for track: InteractiveChunk.AudioOption) {
+        switch track.kind {
+        case .original:
+            preferredSingleTrackMode = .original
+            if let audioModeManager {
+                audioModeManager.setTracks(original: true, translation: false)
+                sequenceController.audioMode = audioModeManager.currentMode
+            } else {
+                sequenceController.audioMode = .singleTrack(.original)
+            }
+        case .translation:
+            preferredSingleTrackMode = .translation
+            if let audioModeManager {
+                audioModeManager.setTracks(original: false, translation: true)
+                sequenceController.audioMode = audioModeManager.currentMode
+            } else {
+                sequenceController.audioMode = .singleTrack(.translation)
+            }
+        case .combined:
+            preferredSingleTrackMode = nil
+            if let audioModeManager {
+                audioModeManager.enableSequenceMode()
+                sequenceController.audioMode = audioModeManager.currentMode
+            } else {
+                sequenceController.audioMode = .sequence
+            }
+        case .other:
+            break
+        }
+    }
+
+    private func audioModeMatchesSelectedTrack(_ track: InteractiveChunk.AudioOption) -> Bool {
+        switch track.kind {
+        case .original:
+            return concreteAudioModeTrack() == .original
+        case .translation:
+            return concreteAudioModeTrack() == .translation
+        case .combined:
+            return concreteAudioModeTrack() == nil
+        case .other:
+            return true
+        }
+    }
+
+    private func concreteAudioModeTrack() -> SequenceTrack? {
+        if let audioModeManager {
+            if case .singleTrack(let track) = audioModeManager.currentMode {
+                return track
+            }
+            return nil
+        }
+        if case .singleTrack(let track) = sequenceController.audioMode {
+            return track
+        }
+        return preferredSingleTrackMode
     }
 
     var selectedChunk: InteractiveChunk? {

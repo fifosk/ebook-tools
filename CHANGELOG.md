@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader audio-track picker selections now stamp the shared original-only/translation-only mode immediately, so iPad and iPhone cannot carry a stale sequence mode into the next sentence batch and reset rendering out of sync.
+- Web Narrate Ebook recent-job history callbacks now live in a focused tested hook, moving path normalization, previous-start lookup, and latest job defaults out of the main form coordinator.
 - Apple reader EOF handling now stamps the resolved original-only/translation-only lane as durable view-model state before stale URL guards or next-batch selection run, tightening batch-boundary sync when the selected audio option briefly resets.
 - Web Narrate Ebook discovery candidate selection now lives in a focused tested hook, moving local/acquire/archive bridge, metadata-only handoff, and discovery-template provenance state out of the main form coordinator.
 - Apple playback regression gates now pin the reader EOF handoff and same-URL batch reuse contracts, so future single-track fixes must preserve playback intent through sentence-batch transitions.
