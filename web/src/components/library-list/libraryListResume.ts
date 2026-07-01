@@ -83,8 +83,19 @@ export function resolveResumeEntryBadge(entry: ResumePositionEntry | null | unde
     const sentence = typeof entry.sentence === 'number' && Number.isFinite(entry.sentence)
       ? Math.trunc(entry.sentence)
       : 0;
+    const position = normalizePosition(entry.position);
     if (sentence <= MIN_MEANINGFUL_SENTENCE) {
       return null;
+    }
+    if (position > MIN_MEANINGFUL_TIME_SECONDS) {
+      const formatted = formatPlaybackTime(position);
+      return {
+        label: `Continue sentence ${sentence} · ${formatted}`,
+        title: `Continue ${mediaLabel(mediaType)} playback from sentence ${sentence} at ${formatted}`,
+        position,
+        updatedAt: normalizePosition(entry.updated_at),
+        mediaType,
+      };
     }
     return {
       label: `Continue sentence ${sentence}`,

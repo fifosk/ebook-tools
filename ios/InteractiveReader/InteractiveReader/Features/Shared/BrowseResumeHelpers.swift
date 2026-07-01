@@ -95,6 +95,9 @@ enum BrowseResumeStatusFormatter {
         switch entry.kind {
         case .sentence:
             if let sentence = entry.sentenceNumber, sentence > 0 {
+                if let time = entry.playbackTime, time > 0 {
+                    return "Resume from Sentence \(sentence) at \(formatPlaybackTime(time))"
+                }
                 return "Resume from Sentence \(sentence)"
             }
         case .time:
@@ -110,6 +113,9 @@ enum BrowseResumeStatusFormatter {
         switch entry.kind {
         case .sentence:
             if let sentence = entry.sentenceNumber, sentence > 0 {
+                if let time = entry.playbackTime, time > 0 {
+                    return "\(prefix):\(sentence)@\(formatPlaybackTime(time))"
+                }
                 return "\(prefix):\(sentence)"
             }
         case .time:

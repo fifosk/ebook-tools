@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "resume-offset-browse-labels",
+                    title: "Resume labels show saved offset",
+                    detail: "Apple browse rows and Web Library badges now show sentence resume entries with their saved playback time when available, making cross-device resume precision visible before opening a book."
+                ),
+                AppChangelogEntry(
                     id: "interactive-resume-word-offset",
                     title: "Reader resume keeps word position",
                     detail: "Interactive book resume now records the current playback time alongside the sentence number and validates that offset before applying it, so Apple TV, iPad, and iPhone resume closer to the last-read word instead of always restarting the sentence."

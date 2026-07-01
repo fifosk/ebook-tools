@@ -83,6 +83,25 @@ describe('libraryListResume', () => {
     });
   });
 
+  it('formats server sentence resume entries with playback offsets', () => {
+    const badge = resolveResumeEntryBadge({
+      job_id: 'job-1',
+      kind: 'sentence',
+      updated_at: 1_800_000_000,
+      sentence: 42,
+      position: 83.8,
+      media_type: 'text',
+    } as ResumePositionEntry);
+
+    expect(badge).toMatchObject({
+      label: 'Continue sentence 42 · 1:23',
+      title: 'Continue text playback from sentence 42 at 1:23',
+      position: 83.8,
+      mediaType: 'text',
+      updatedAt: 1_800_000_000,
+    });
+  });
+
   it('builds a badge map from existing media-memory session keys only', () => {
     const badges = buildLibraryResumeBadgeMap(
       [item('job-1'), item('job-2')],

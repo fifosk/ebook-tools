@@ -136,6 +136,15 @@ def test_browse_resume_status_uses_freshest_synced_entry() -> None:
     assert "availability.cloudEntry ?? availability.localEntry" not in source
 
 
+def test_browse_resume_status_surfaces_sentence_offsets() -> None:
+    source = BROWSE_RESUME_HELPERS.read_text(encoding="utf-8")
+
+    assert 'return "Resume from Sentence \\(sentence) at \\(formatPlaybackTime(time))"' in source
+    assert 'return "\\(prefix):\\(sentence)@\\(formatPlaybackTime(time))"' in source
+    assert 'return "Resume from Sentence \\(sentence)"' in source
+    assert 'return "\\(prefix):\\(sentence)"' in source
+
+
 def test_browse_resume_status_surfaces_attention_and_new_badges() -> None:
     helper_source = BROWSE_RESUME_HELPERS.read_text(encoding="utf-8")
     row_source = LIBRARY_ROW_COMPONENTS.read_text(encoding="utf-8")
