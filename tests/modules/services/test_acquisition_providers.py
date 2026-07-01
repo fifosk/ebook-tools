@@ -1150,6 +1150,60 @@ def test_acquire_gutenberg_candidate_persists_epub_in_books_root(tmp_path: Path)
     assert session.response.closed is True
 
 
+def test_acquire_candidate_reserves_destination_with_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_content(self, *, chunk_size):
+            yield b"new epub"
+
+        def close(self) -> None:
+            return None
+
+    class _FakeSession:
+        def get(self, url, *, stream, timeout, allow_redirects):
+            return _FakeResponse()
+
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    (books_root / "Frankenstein.epub").write_bytes(b"existing")
+    original_exists = Path.exists
+
+    def fail_books_root_exists(path: Path) -> bool:
+        if books_root in path.parents or path == books_root:
+            raise AssertionError("acquired EPUB reservation should use safe_stat instead of exists")
+        return original_exists(path)
+
+    monkeypatch.setattr(Path, "exists", fail_books_root_exists)
+    token = _candidate_token(
+        {
+            "provider": "gutenberg",
+            "media_kind": "book",
+            "gutenberg_id": 84,
+            "epub_url": "https://www.gutenberg.org/ebooks/84.epub3.images",
+        }
+    )
+
+    artifact = acquire_acquisition_candidate(
+        candidate_token=token,
+        confirmed=True,
+        filename="Frankenstein.epub",
+        config={"ebooks_dir": str(books_root)},
+        session=_FakeSession(),
+    )
+
+    assert artifact.status == "completed"
+    assert artifact.local_path == "Frankenstein-1.epub"
+    assert (books_root / "Frankenstein.epub").read_bytes() == b"existing"
+    assert (books_root / "Frankenstein-1.epub").read_bytes() == b"new epub"
+
+
 def test_acquire_internet_archive_candidate_persists_epub_in_books_root(tmp_path: Path) -> None:
     class _FakeResponse:
         status_code = 200

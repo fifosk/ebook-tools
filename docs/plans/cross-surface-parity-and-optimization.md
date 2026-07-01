@@ -968,6 +968,10 @@ Optimization candidates:
   the same tolerant stat helper, so Web/Apple Create handoffs fail as ordinary
   missing artifacts when a file vanishes after discovery instead of racing on
   direct `Path.exists()` / `Path.is_file()` checks.
+  Reviewed public-catalog EPUB acquisition now also reserves destination
+  filenames with the same tolerant stat helper instead of `Path.exists()`, so
+  Web/Apple Create acquisition can choose a collision-safe `-N` filename even
+  when NAS existence checks are flaky.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

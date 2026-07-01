@@ -547,7 +547,7 @@ def _reserve_destination_path(directory: Path, filename: str) -> Path:
     suffix = Path(filename).suffix or ".epub"
     candidate = directory / f"{stem}{suffix}"
     counter = 1
-    while candidate.exists():
+    while safe_stat(candidate) is not None:
         candidate = directory / f"{stem}-{counter}{suffix}"
         counter += 1
     return candidate
