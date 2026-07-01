@@ -14,8 +14,8 @@ import {
   TRANSLATION_SPEED_STEP,
 } from './constants';
 
-type NavigationBaseProps = Omit<NavigationControlsProps, 'context' | 'sentenceJumpInputId'>;
-type InteractiveTextViewerProps = ComponentPropsWithoutRef<typeof InteractiveTextViewer>;
+export type NavigationBaseProps = Omit<NavigationControlsProps, 'context' | 'sentenceJumpInputId'>;
+export type InteractiveTextViewerProps = ComponentPropsWithoutRef<typeof InteractiveTextViewer>;
 
 type NavigationHandlers = {
   onNavigate: NavigationBaseProps['onNavigate'];
@@ -113,7 +113,7 @@ type SentenceTotals = {
   bookSentenceCount: NavigationBaseProps['bookTotalSentences'];
 };
 
-type BuildNavigationBasePropsArgs = {
+export type BuildNavigationBasePropsArgs = {
   navigation: NavigationHandlers;
   sentenceNavigation: SentenceNavigation;
   textSettings: TextSettings;
@@ -263,7 +263,7 @@ type SubtitleInfo = {
   coverAltText: string | null;
 };
 
-type BuildInteractiveViewerPropsArgs = {
+export type BuildInteractiveViewerPropsArgs = {
   core: {
     playerMode: InteractiveTextViewerProps['playerMode'];
     playerFeatures: InteractiveTextViewerProps['playerFeatures'];

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-player-panel-navigation-chrome-hook",
+                    title: "Web player chrome is leaner",
+                    detail: "Web PlayerPanel navigation chrome now lives in a dedicated tested hook, moving generated sentence-jump IDs, advanced-controls state, and panel/fullscreen control assembly out of the main player coordinator."
+                ),
+                AppChangelogEntry(
                     id: "apple-batch-boundary-lifecycle-lane-repair",
                     title: "Batch-boundary track selection holds",
                     detail: "Apple reader lifecycle repair now binds the view model to the active audio mode before restoring chunk defaults and makes sequence playback prefer the current batch's combined option, preventing end-of-batch selection resets from desyncing rendering."

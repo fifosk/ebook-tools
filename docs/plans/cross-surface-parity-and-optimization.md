@@ -297,7 +297,10 @@ Large Web UI hotspots to split before redesign work:
   focused hook coverage. Navigation base prop shaping, including the shared
   sleep-timer slot, now lives in
   `web/src/components/player-panel/playerPanelProps.ts` with focused prop
-  coverage. The repo-owned `test-web-playback-focused`
+  coverage. Generated sentence-jump IDs, panel advanced-controls state, and
+  panel/fullscreen navigation assembly now live in
+  `web/src/components/player-panel/usePlayerPanelNavigationChrome.tsx` with
+  focused hook coverage. The repo-owned `test-web-playback-focused`
   target now covers live-media state/timing, PlayerPanel helper/rendering
   splits, shared video and YouTube Dub sleep-timer behavior, subtitle overlay
   utilities, audio URL/chunk indexing, sequence planning, and browser-storage

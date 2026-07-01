@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Web PlayerPanel navigation chrome now lives in a dedicated tested hook, moving generated sentence-jump IDs, advanced-controls state, and panel/fullscreen control assembly out of the main player coordinator.
 - Apple reader batch-boundary lifecycle repair now binds the view model to the current audio mode before restoring defaults and makes sequence-mode resolution prefer the current batch's combined option, so track selection cannot reset and desync rendering at the end of a sentence batch.
 - Web PlayerPanel pending chunk-selection handoff now lives in a focused tested hook, trimming another playback effect out of the main coordinator while preserving chunk activation and stale-index cleanup.
 - Apple reader single-track playback now lets the remembered original-only/translation-only lane override transient sequence manager state in timing, duration, role, and sequence-activity helpers, preventing sentence-batch endings from resetting rendering back to combined audio.

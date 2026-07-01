@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveMediaChunk, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
@@ -6,15 +6,7 @@ import { useWakeLock } from '../hooks/useWakeLock';
 import { useMyLinguist } from '../context/MyLinguistProvider';
 import {
   DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT,
-  FONT_SCALE_MAX,
-  FONT_SCALE_MIN,
-  FONT_SCALE_STEP,
-  MY_LINGUIST_FONT_SCALE_MAX,
-  MY_LINGUIST_FONT_SCALE_MIN,
   MY_LINGUIST_FONT_SCALE_STEP,
-  TRANSLATION_SPEED_MAX,
-  TRANSLATION_SPEED_MIN,
-  TRANSLATION_SPEED_STEP,
 } from './player-panel/constants';
 import type { LibraryItem } from '../api/dtos';
 import { PlayerPanelBoundaryState } from './player-panel/PlayerPanelBoundaryState';
@@ -47,8 +39,7 @@ import { usePlayerPanelNavigation } from './player-panel/usePlayerPanelNavigatio
 import { usePlayerPanelExport } from './player-panel/usePlayerPanelExport';
 import { useMediaSessionActions, useMediaSessionMetadata } from './player-panel/useMediaSession';
 import { usePlayerPanelActions } from './player-panel/usePlayerPanelActions';
-import { buildInteractiveViewerProps, buildNavigationBaseProps } from './player-panel/playerPanelProps';
-import { buildPlayerPanelNavigationGroups } from './player-panel/PlayerPanelNavigationGroups';
+import { buildInteractiveViewerProps } from './player-panel/playerPanelProps';
 import { useInteractiveFullscreenPreference } from './player-panel/useInteractiveFullscreenPreference';
 import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollMemory';
 import { usePlayerPanelMediaNavigation } from './player-panel/usePlayerPanelMediaNavigation';
@@ -64,8 +55,8 @@ import {
 } from './player-panel/playerPanelDocumentState';
 import {
   buildPlayerPanelChromeState,
-  hasPlayerPanelAdvancedControls,
 } from './player-panel/playerPanelChromeState';
+import { usePlayerPanelNavigationChrome } from './player-panel/usePlayerPanelNavigationChrome';
 
 type ReadingBedOverride = {
   id: string;
@@ -156,7 +147,6 @@ export default function PlayerPanel({
     setShowTranslationAudio,
   } = useAudioTrackVisibility();
   const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
-  const [panelAdvancedControlsOpen, setPanelAdvancedControlsOpen] = useState(false);
   const textScrollRef = useRef<HTMLDivElement | null>(null);
   const interactiveTextSettings = useInteractiveTextSettings();
   const {
@@ -542,10 +532,6 @@ export default function PlayerPanel({
   const isPreviousDisabled = hasSentenceNav ? false : isChunkPreviousDisabled;
   const isNextDisabled = hasSentenceNav ? false : isChunkNextDisabled;
 
-  const handlePanelAdvancedControlsToggle = useCallback(() => {
-    setPanelAdvancedControlsOpen((value) => !value);
-  }, []);
-
   useMediaSessionActions({
     inlineAudioSelection,
     onPlay: handlePlayActiveMedia,
@@ -641,13 +627,6 @@ export default function PlayerPanel({
   });
 
   const interactiveFullscreenLabel = isInteractiveFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
-  const sentenceJumpListId = useId();
-  const sentenceJumpInputId = useId();
-  const sentenceJumpInputFullscreenId = useId();
-  const sentenceJumpDatalist = (
-    <PlayerPanelSentenceJumpDatalist id={sentenceJumpListId} suggestions={sentenceLookup.suggestions} />
-  );
-
   const { panelSearchPanel, fullscreenSearchPanel } = buildPlayerPanelSearchSlots({
     currentJobId: jobId,
     enabled: searchEnabled,
@@ -657,7 +636,12 @@ export default function PlayerPanel({
   const chapterScopeStart = jobScopeStartSentence ?? jobStartSentence;
   const chapterScopeEnd = jobScopeEndSentence ?? jobEndSentence;
 
-  const navigationBaseProps = buildNavigationBaseProps({
+  const {
+    panelNavigation,
+    fullscreenMainControls,
+    fullscreenAdvancedControls,
+    sentenceJumpListId,
+  } = usePlayerPanelNavigationChrome({
     navigation: {
       onNavigate: handleKeyboardNavigate,
       onToggleFullscreen: handleInteractiveFullscreenToggle,
@@ -696,7 +680,6 @@ export default function PlayerPanel({
       onRemoveBookmark: handleRemoveBookmark,
     },
     exportState,
-    sentenceJumpListId,
     sentenceTotals: {
       activeSentenceNumber,
       chapterScopeStart,
@@ -710,23 +693,12 @@ export default function PlayerPanel({
         resetKey={normalisedJobId}
       />
     ),
-  });
-  const hasPanelAdvancedControls = hasPlayerPanelAdvancedControls(navigationBaseProps);
-
-  const {
-    panelNavigation,
-    fullscreenMainControls,
-    fullscreenAdvancedControls,
-  } = buildPlayerPanelNavigationGroups({
-    baseProps: navigationBaseProps,
-    panelSentenceJumpInputId: sentenceJumpInputId,
-    fullscreenSentenceJumpInputId: sentenceJumpInputFullscreenId,
     panelSearchPanel,
     fullscreenSearchPanel,
-    hasAdvancedControls: hasPanelAdvancedControls,
-    advancedControlsOpen: panelAdvancedControlsOpen,
-    onToggleAdvancedControls: handlePanelAdvancedControlsToggle,
   });
+  const sentenceJumpDatalist = (
+    <PlayerPanelSentenceJumpDatalist id={sentenceJumpListId} suggestions={sentenceLookup.suggestions} />
+  );
 
   const interactiveViewerProps = buildInteractiveViewerProps({
     core: {
