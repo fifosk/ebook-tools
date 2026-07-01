@@ -24,6 +24,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web and Apple Library sync now resolves and stages source EPUB/PDF material through tolerant stat checks, reducing source-copy races when NAS-backed job data folders remount or files vanish mid-refresh.
 - Web and Apple Library sync now resolves and normalizes cover assets through tolerant stat checks, keeping Library row artwork refreshes steadier around NAS-backed metadata folders.
 - Web and Apple Library media manifests now compact chunk payloads, load chunk metadata, and compute media file stats through tolerant stat checks, reducing playback-manifest races around NAS-backed job roots.
+- Web and Apple Library playability, media cleanup, and cover-presence checks now use tolerant stat probes, keeping paused-item resume badges and artwork detection steadier during NAS remounts.
 
 ## 2026-06-30
 

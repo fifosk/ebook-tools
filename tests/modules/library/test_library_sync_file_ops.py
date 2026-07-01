@@ -278,3 +278,82 @@ def test_serialize_media_entries_loader_manifest_uses_safe_stat(
 
     assert loader_calls == [job_root]
     assert chunk_records[0]["sentences"] == [{"sentence_number": 1, "text": "Loaded"}]
+
+
+def test_contains_media_files_uses_safe_stat_for_media_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_root = tmp_path / "job-1"
+    media_root = job_root / "media"
+    media_path = media_root / "audio.mp3"
+    media_root.mkdir(parents=True, exist_ok=True)
+    media_path.write_bytes(b"audio")
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == media_root:
+            raise AssertionError("library media roots should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == media_path:
+            raise AssertionError("library media files should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    assert file_ops.contains_media_files(job_root) is True
+    assert file_ops.is_media_complete({}, "paused", job_root) is True
+
+
+def test_purge_media_files_uses_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_root = tmp_path / "job-1"
+    media_path = job_root / "media" / "audio.mp3"
+    media_path.parent.mkdir(parents=True, exist_ok=True)
+    media_path.write_bytes(b"audio")
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == media_path:
+            raise AssertionError("library media purge files should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    assert file_ops.purge_media_files(job_root) == 1
+    assert not original_exists(media_path)
+
+
+def test_contains_cover_asset_uses_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_root = tmp_path / "job-1"
+    metadata_dir = job_root / "metadata"
+    cover_path = metadata_dir / "cover.jpg"
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    cover_path.write_bytes(b"cover")
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == metadata_dir:
+            raise AssertionError("library cover metadata dirs should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == cover_path:
+            raise AssertionError("library cover assets should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    assert file_ops.contains_cover_asset(job_root) == cover_path

@@ -1204,10 +1204,10 @@ def contains_media_files(job_root: Path) -> bool:
 
     metadata_dir = job_root / "metadata"
     media_root = job_root / "media"
-    search_roots = [media_root] if media_root.exists() else [job_root]
+    search_roots = [media_root] if _path_exists(media_root) else [job_root]
     for root in search_roots:
         for path in root.rglob("*"):
-            if not path.is_file():
+            if not _path_is_file(path):
                 continue
             if path.name == ".lock":
                 continue
@@ -1215,7 +1215,7 @@ def contains_media_files(job_root: Path) -> bool:
                 continue
             return True
     for path in job_root.rglob("*"):
-        if not path.is_file():
+        if not _path_is_file(path):
             continue
         if path.name == ".lock":
             continue
@@ -1252,7 +1252,7 @@ def purge_media_files(job_root: Path) -> int:
     removed = 0
     metadata_dir = job_root / "metadata"
     for path in job_root.rglob("*"):
-        if not path.is_file():
+        if not _path_is_file(path):
             continue
         if metadata_dir in path.parents:
             continue
@@ -1269,10 +1269,10 @@ def contains_cover_asset(job_root: Path) -> Optional[Path]:
     """Return the first cover asset stored under ``job_root``."""
 
     metadata_dir = job_root / "metadata"
-    if not metadata_dir.exists():
+    if not _path_exists(metadata_dir):
         return None
     for candidate in sorted(metadata_dir.glob("cover.*")):
-        if candidate.is_file():
+        if _path_is_file(candidate):
             return candidate
     return None
 

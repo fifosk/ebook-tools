@@ -1014,6 +1014,9 @@ Optimization candidates:
   Library generated-file compaction, chunk metadata loader gating, and media
   file stat collection now also use tolerant stat checks, reducing Web/Apple
   playback-manifest races around NAS-backed job roots.
+  Library media-presence, media cleanup, and stored-cover probes now use
+  tolerant stat checks, keeping Web/Apple paused-item playability and artwork
+  badges stable when NAS folders remount or vanish during refresh.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in
