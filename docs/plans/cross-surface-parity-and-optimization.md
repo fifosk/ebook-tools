@@ -814,10 +814,12 @@ Current Apple UI partially exposes:
   a post-handoff batch. The view model now also remembers the explicit
   original-only or translation-only lane separately from transient chunk audio
   IDs, so metadata refreshes and stale sequence-mode bridges cannot reset the
-  next batch back to the hidden track. Stale audio-ended URL checks now live in
-  the shared `PlaybackEndedURLPolicy` covered by the executable mode-switch
-  harness, including combined-only batches where the selected lane must reject
-  hidden original-stream EOF callbacks. Destination
+  next batch back to the hidden track, and timing/duration/role/sequence helpers
+  now treat that remembered single-track lane as authoritative even if a SwiftUI
+  manager briefly reports sequence mode during a batch handoff. Stale
+  audio-ended URL checks now live in the shared `PlaybackEndedURLPolicy` covered
+  by the executable mode-switch harness, including combined-only batches where
+  the selected lane must reject hidden original-stream EOF callbacks. Destination
   language pills prefer authoritative target-language request/config fields
   instead of broad nested metadata scans. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-remembered-lane-authority",
+                    title: "Translation-only wins batch handoffs",
+                    detail: "Apple reader single-track playback now lets the remembered original-only or translation-only lane override transient sequence state in timing, duration, role, and sequence helpers, preventing batch endings from resetting rendering to combined audio."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-eof-policy-gate",
                     title: "Batch-ending checks are guarded",
                     detail: "Apple reader stale EOF lane checks now live in the shared playback URL policy covered by the executable mode-switch harness, so combined-only stream handling stays pinned in simulator gates."

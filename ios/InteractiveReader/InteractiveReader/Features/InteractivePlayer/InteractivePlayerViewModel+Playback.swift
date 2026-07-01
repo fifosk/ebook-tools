@@ -263,6 +263,9 @@ extension InteractivePlayerViewModel {
     }
 
     func activeTimingTrack(for chunk: InteractiveChunk) -> TextPlayerTimingTrack {
+        if let track = requestedSingleTrackMode() {
+            return track == .original ? .original : .translation
+        }
         if let mgr = audioModeManager {
             return mgr.resolveTimingTrack(
                 for: chunk,
@@ -287,7 +290,7 @@ extension InteractivePlayerViewModel {
         if isSequenceModeActive {
             return true
         }
-        if let audioModeManager, !audioModeManager.isSequenceMode {
+        if requestedSingleTrackMode() != nil {
             return false
         }
         guard let track = selectedAudioOption(for: chunk) else { return false }
@@ -834,6 +837,12 @@ extension InteractivePlayerViewModel {
     }
 
     func selectedAudioOption(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption? {
+        if let track = requestedSingleTrackMode() {
+            let kind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
+            return chunk.audioOptions.first(where: { $0.kind == kind })
+                ?? chunk.audioOptions.first(where: { $0.kind == .combined })
+                ?? chunk.audioOptions.first
+        }
         if let audioModeManager,
            case .singleTrack = audioModeManager.currentMode,
            let targetID = audioModeManager.resolvePreferredTrackID(for: chunk),

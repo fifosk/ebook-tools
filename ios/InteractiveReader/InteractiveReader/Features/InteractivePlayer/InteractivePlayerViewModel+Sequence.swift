@@ -478,6 +478,9 @@ extension InteractivePlayerViewModel {
 
     /// Whether sequence mode is currently active for the selected track
     var isSequenceModeActive: Bool {
+        guard requestedSingleTrackMode() == nil else {
+            return false
+        }
         guard audioModeManager?.isSequenceMode != false else {
             return false
         }

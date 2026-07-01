@@ -70,8 +70,11 @@ Follow the suggested remediations to restore parity:
 - Apple single-track original-only/translation-only playback should reassert
   the selected audio option and latest sentence anchor on chunk selection,
   next/previous batch navigation, metadata hydration, and retry paths before
-  preparing audio. If rendering resets at the end of a sentence batch, compare
-  those state transitions before regenerating timing metadata.
+  preparing audio. Timing, duration, header role, and sequence-activity helpers
+  should let the remembered single-track lane override transient sequence/combined
+  state while the next batch hydrates. If rendering resets at the end of a
+  sentence batch, compare those state transitions before regenerating timing
+  metadata.
 - Spot-check a few chunk metadata files (`metadata/chunk_XXXX.json`) on each
   machine—especially their `timingTracks` entries—to ensure both environments
   are replaying the same highlight provenance. Legacy jobs may still include a

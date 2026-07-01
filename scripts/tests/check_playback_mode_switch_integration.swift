@@ -607,8 +607,18 @@ private func isSequenceModeActive(
     sequenceAudioMode: AudioMode,
     selectedAudioTrackID: String?,
     chunk: InteractiveChunk,
-    sequenceEnabled: Bool
+    sequenceEnabled: Bool,
+    preferredSingleTrackMode: SequenceTrack? = nil,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind? = nil
 ) -> Bool {
+    guard requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ) == nil else {
+        return false
+    }
     guard manager?.isSequenceMode != false else {
         return false
     }
@@ -626,8 +636,19 @@ private func isSequenceModeActive(
 private func effectiveSelectedAudioOption(
     for chunk: InteractiveChunk,
     manager: AudioModeManager,
-    selectedAudioTrackID: String?
+    selectedAudioTrackID: String?,
+    sequenceAudioMode: AudioMode = .sequence,
+    preferredSingleTrackMode: SequenceTrack? = nil,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind? = nil
 ) -> InteractiveChunk.AudioOption? {
+    if let track = requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ) {
+        return preferredSingleTrackAudioOption(for: track, in: chunk)
+    }
     if case .singleTrack = manager.currentMode,
        let targetID = manager.resolvePreferredTrackID(for: chunk),
        let target = chunk.audioOptions.first(where: { $0.id == targetID }) {
@@ -643,8 +664,19 @@ private func effectiveSelectedAudioOption(
 private func effectiveSelectedAudioKind(
     for chunk: InteractiveChunk,
     manager: AudioModeManager,
-    selectedAudioTrackID: String?
+    selectedAudioTrackID: String?,
+    sequenceAudioMode: AudioMode = .sequence,
+    preferredSingleTrackMode: SequenceTrack? = nil,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind? = nil
 ) -> InteractiveChunk.AudioOption.Kind? {
+    if let track = requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ), chunkSupportsAudioTrack(track, in: chunk) {
+        return track == .original ? .original : .translation
+    }
     switch manager.currentMode {
     case .singleTrack(.original):
         if chunkSupportsAudioTrack(.original, in: chunk) {
@@ -660,7 +692,10 @@ private func effectiveSelectedAudioKind(
     guard let option = effectiveSelectedAudioOption(
         for: chunk,
         manager: manager,
-        selectedAudioTrackID: selectedAudioTrackID
+        selectedAudioTrackID: selectedAudioTrackID,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
     ) else {
         return nil
     }
@@ -1067,6 +1102,44 @@ private func runChecks() {
         staleManagerSequenceAudioMode,
         .singleTrack(.translation),
         "Remembered translation-only lane should restore sequence-controller mode before next-batch audio resolves"
+    )
+    let staleViewManager = AudioModeManager()
+    requireEqual(
+        isSequenceModeActive(
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            selectedAudioTrackID: "combined-next",
+            chunk: nextBatch,
+            sequenceEnabled: true,
+            preferredSingleTrackMode: .translation,
+            preferredAudioKind: .combined
+        ),
+        false,
+        "Remembered translation-only lane should stop stale view-manager sequence state from reactivating batch rendering"
+    )
+    requireEqual(
+        effectiveSelectedAudioOption(
+            for: nextBatch,
+            manager: staleViewManager,
+            selectedAudioTrackID: "combined-next",
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: .translation,
+            preferredAudioKind: .combined
+        )?.id,
+        "translation-next",
+        "Remembered translation-only lane should keep header/progress helpers on the translation option when batch selection is stale"
+    )
+    requireEqual(
+        effectiveSelectedAudioKind(
+            for: nextBatch,
+            manager: staleViewManager,
+            selectedAudioTrackID: "combined-next",
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: .translation,
+            preferredAudioKind: .combined
+        ),
+        .translation,
+        "Remembered translation-only lane should keep batch duration and role summaries on translation"
     )
     let combinedOnlyNextBatch = InteractiveChunk(
         id: "chapter-2-combined",

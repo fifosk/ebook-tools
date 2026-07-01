@@ -151,6 +151,10 @@ extension InteractivePlayerView {
     }
 
     func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind? {
+        if let track = viewModel.requestedSingleTrackMode(),
+           chunkSupportsAudioTrack(track, in: chunk) {
+            return track == .original ? .original : .translation
+        }
         switch audioModeManager.currentMode {
         case .singleTrack(.original):
             if chunkSupportsAudioTrack(.original, in: chunk) {
