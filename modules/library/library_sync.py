@@ -717,7 +717,7 @@ class LibrarySync:
             raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
 
         job_root = Path(item.library_path)
-        if not job_root.exists():
+        if not _path_exists(job_root):
             raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
 
         with DirectoryLock(job_root):
@@ -750,11 +750,11 @@ class LibrarySync:
             raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
 
         resolved_source = Path(source_path).expanduser()
-        if not resolved_source.exists():
+        if not _path_exists(resolved_source):
             raise LibraryError(f"Source file {resolved_source} does not exist")
 
         job_root = Path(item.library_path)
-        if not job_root.exists():
+        if not _path_exists(job_root):
             raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
 
         with DirectoryLock(job_root):
@@ -773,7 +773,7 @@ class LibrarySync:
             for existing in data_root.iterdir():
                 if existing == destination:
                     continue
-                if existing.is_file() and existing.suffix.lower() in {".epub", ".pdf"}:
+                if _path_is_file(existing) and existing.suffix.lower() in {".epub", ".pdf"}:
                     try:
                         existing.unlink()
                     except OSError:
@@ -819,7 +819,7 @@ class LibrarySync:
             raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
 
         job_root = Path(item.library_path)
-        if not job_root.exists():
+        if not _path_exists(job_root):
             raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
 
         with DirectoryLock(job_root):

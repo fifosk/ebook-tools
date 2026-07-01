@@ -452,6 +452,132 @@ def test_refresh_metadata_uses_safe_stat_for_root_and_relocation(
     assert original_exists(target_path / "metadata" / "job.json")
 
 
+def test_enrich_metadata_uses_safe_stat_for_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
+    job_id = "job-enrich"
+    job_root = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    metadata = build_job_metadata(job_id)
+    add_library_entry(service, job_root, metadata)
+    original_exists = Path.exists
+
+    def fake_enrich_metadata(
+        _job_id: str,
+        _job_root: Path,
+        payload: dict,
+        *_args,
+        **_kwargs,
+    ) -> dict:
+        enriched = dict(payload)
+        enriched["genre"] = "Adventure"
+        return enriched
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == job_root:
+            raise AssertionError("library enrichment roots should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(library_sync_module.remote_sync, "enrich_metadata", fake_enrich_metadata)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    updated = service.enrich_metadata(job_id)
+
+    assert updated.genre == "Adventure"
+
+
+def test_reupload_source_uses_safe_stat_for_source_and_existing_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
+    job_id = "job-reupload"
+    job_root = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    metadata = build_job_metadata(job_id)
+    old_source = job_root / "data" / "old.epub"
+    old_source.parent.mkdir(parents=True, exist_ok=True)
+    old_source.write_text("old", encoding="utf-8")
+    metadata["input_file"] = "data/old.epub"
+    add_library_entry(service, job_root, metadata)
+    new_source = tmp_path / "incoming" / "new.epub"
+    new_source.parent.mkdir(parents=True, exist_ok=True)
+    new_source.write_text("new", encoding="utf-8")
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path in {new_source, job_root}:
+            raise AssertionError("library source reupload paths should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == old_source:
+            raise AssertionError("library obsolete source files should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+    monkeypatch.setattr(
+        service,
+        "refresh_metadata",
+        lambda refreshed_job_id: service._repository.get_entry_by_id(refreshed_job_id),
+    )
+
+    updated = service.reupload_source_from_path(job_id, new_source)
+
+    assert updated is not None
+    assert not original_exists(old_source)
+    assert original_exists(job_root / "data" / "new.epub")
+    payload = json.loads((job_root / "metadata" / "job.json").read_text(encoding="utf-8"))
+    assert payload["source_path"] == "data/new.epub"
+    assert payload["source_file"] == "data/new.epub"
+
+
+def test_apply_isbn_metadata_uses_safe_stat_for_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
+    job_id = "job-isbn"
+    job_root = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    metadata = build_job_metadata(job_id)
+    add_library_entry(service, job_root, metadata)
+    original_exists = Path.exists
+
+    def fake_apply_isbn_metadata(
+        payload: dict,
+        *,
+        isbn: str,
+        **_kwargs,
+    ) -> dict:
+        updated = dict(payload)
+        updated["isbn"] = isbn
+        media_metadata = dict(updated.get("media_metadata") or {})
+        media_metadata["isbn"] = isbn
+        updated["media_metadata"] = media_metadata
+        return updated
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == job_root:
+            raise AssertionError("library ISBN roots should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(library_sync_module.remote_sync, "apply_isbn_metadata", fake_apply_isbn_metadata)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(
+        service,
+        "refresh_metadata",
+        lambda refreshed_job_id: service._repository.get_entry_by_id(refreshed_job_id),
+    )
+
+    updated = service.apply_isbn_metadata(job_id, "9780321877581")
+
+    assert updated is not None
+    payload = json.loads((job_root / "metadata" / "job.json").read_text(encoding="utf-8"))
+    assert payload["isbn"] == "9780321877581"
+
+
 def test_move_paused_job_requires_completed_media(tmp_path):
     service, locator, library_root, job_manager = create_service(tmp_path)
 
