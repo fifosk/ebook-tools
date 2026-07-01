@@ -35,9 +35,10 @@ Web-only or Web-primary creation flows:
 
 Large Web UI hotspots to split before redesign work:
 
-- `web/src/hooks/useLiveMedia.ts` - 813 lines. Status: live media state
+- `web/src/hooks/useLiveMedia.ts` - 682 lines. Status: live media state
   types, empty-state creation, media bucket merging, generated-file extraction,
-  chunk merging, audio-track detection, and chunk-sentence detection now live
+  chunk merging, audio-track detection, chunk-sentence detection, scalar
+  coercion, media-category normalization, and media signature building now live
   in `web/src/hooks/liveMediaState.ts`; modern and legacy timing normalization
   now lives in `web/src/hooks/liveMediaTiming.ts` with focused Vitest coverage.
 - `web/src/pages/LibraryPage.tsx` - 813 lines. Status: TV/YouTube/library

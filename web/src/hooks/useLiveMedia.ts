@@ -10,6 +10,8 @@ import {
 import { subscribeToJobEvents } from '../services/api';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
 import {
+  buildEntrySignature,
+  buildItemSignature,
   createEmptyState,
   extractAudioTracks,
   extractGeneratedFiles,
@@ -17,6 +19,9 @@ import {
   hasChunkSentences,
   mergeChunkCollections,
   mergeMediaBuckets,
+  normaliseCategory,
+  toNumberOrNull,
+  toStringOrNull,
   type LiveMediaChunk,
   type LiveMediaItem,
   type LiveMediaState,
@@ -41,31 +46,6 @@ export interface UseLiveMediaResult {
   isComplete: boolean;
   isLoading: boolean;
   error: Error | null;
-}
-
-const TEXT_TYPES = new Set(['text', 'html', 'pdf', 'epub', 'written', 'doc', 'docx', 'rtf', 'subtitle', 'ass', 'srt', 'vtt']);
-
-function buildMediaSignature(
-  category: MediaCategory,
-  path?: string | null,
-  relativePath?: string | null,
-  url?: string | null,
-  name?: string | null
-): string {
-  const base = path ?? relativePath ?? url ?? name ?? '';
-  return `${category}|${base}`.toLowerCase();
-}
-
-function buildEntrySignature(entry: Record<string, unknown>, category: MediaCategory): string {
-  const path = toStringOrNull(entry.path);
-  const relativePath = toStringOrNull(entry.relative_path);
-  const url = toStringOrNull(entry.url);
-  const name = toStringOrNull(entry.name);
-  return buildMediaSignature(category, path, relativePath, url, name);
-}
-
-function buildItemSignature(item: LiveMediaItem): string {
-  return buildMediaSignature(item.type, item.path ?? null, item.relative_path ?? null, item.url ?? null, item.name ?? null);
 }
 
 function registerMediaItem(state: LiveMediaState, index: MediaIndex, item: LiveMediaItem): LiveMediaItem {
@@ -241,46 +221,6 @@ function buildStateFromSections(
   });
 
   return { media: state, chunks: chunkRecords, index };
-}
-
-function toStringOrNull(value: unknown): string | null {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-  return null;
-}
-
-function toNumberOrNull(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return null;
-    }
-    const parsed = Number(trimmed);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function normaliseCategory(type: unknown): MediaCategory | null {
-  const stringValue = toStringOrNull(type)?.toLowerCase();
-  if (!stringValue) {
-    return null;
-  }
-  if (stringValue === 'audio' || stringValue.startsWith('audio_')) {
-    return 'audio';
-  }
-  if (stringValue === 'video') {
-    return 'video';
-  }
-  if (TEXT_TYPES.has(stringValue) || stringValue.startsWith('html') || stringValue.startsWith('pdf')) {
-    return 'text';
-  }
-  return null;
 }
 
 function deriveRelativePath(jobId: string | null | undefined, rawPath: string | null): string | null {

@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildEntrySignature,
+  buildItemSignature,
+  buildMediaSignature,
   createEmptyState,
   extractAudioTracks,
   extractGeneratedFiles,
   hasChunkSentences,
   mergeChunkCollections,
   mergeMediaBuckets,
+  normaliseCategory,
+  toNumberOrNull,
+  toStringOrNull,
   type LiveMediaChunk,
   type LiveMediaItem
 } from '../liveMediaState';
@@ -44,6 +50,40 @@ describe('liveMediaState', () => {
 
     expect(first.audio).toHaveLength(1);
     expect(second.audio).toHaveLength(0);
+  });
+
+  it('normalizes media parser primitives shared by live and completed snapshots', () => {
+    expect(toStringOrNull('  value  ')).toBe('value');
+    expect(toStringOrNull('   ')).toBeNull();
+    expect(toStringOrNull(42)).toBeNull();
+    expect(toNumberOrNull(12.5)).toBe(12.5);
+    expect(toNumberOrNull(' 42 ')).toBe(42);
+    expect(toNumberOrNull('')).toBeNull();
+    expect(toNumberOrNull('not-a-number')).toBeNull();
+
+    expect(normaliseCategory('audio_translation')).toBe('audio');
+    expect(normaliseCategory('PDF_PAGE')).toBe('text');
+    expect(normaliseCategory('subtitle')).toBe('text');
+    expect(normaliseCategory('video')).toBe('video');
+    expect(normaliseCategory('image')).toBeNull();
+  });
+
+  it('builds stable media signatures from path, relative path, URL, then name', () => {
+    expect(buildMediaSignature('audio', '/Storage/Chunk.MP3')).toBe('audio|/storage/chunk.mp3');
+    expect(
+      buildEntrySignature(
+        {
+          path: ' ',
+          relative_path: 'media/chunk.mp3',
+          url: 'https://example.test/chunk.mp3',
+          name: 'chunk.mp3'
+        },
+        'audio'
+      )
+    ).toBe('audio|media/chunk.mp3');
+    expect(buildItemSignature(item({ path: undefined, relative_path: undefined, url: undefined, name: 'Fallback.MP3' }))).toBe(
+      'audio|fallback.mp3'
+    );
   });
 
   it('merges media buckets by URL while preserving older fallback fields', () => {

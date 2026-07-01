@@ -38,12 +38,77 @@ export interface LiveMediaChunk {
 
 export type MediaIndex = Map<string, LiveMediaItem>;
 
+const TEXT_TYPES = new Set(['text', 'html', 'pdf', 'epub', 'written', 'doc', 'docx', 'rtf', 'subtitle', 'ass', 'srt', 'vtt']);
+
 export function createEmptyState(): LiveMediaState {
   return {
     text: [],
     audio: [],
     video: []
   };
+}
+
+export function toStringOrNull(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  return null;
+}
+
+export function toNumberOrNull(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+export function normaliseCategory(type: unknown): MediaCategory | null {
+  const stringValue = toStringOrNull(type)?.toLowerCase();
+  if (!stringValue) {
+    return null;
+  }
+  if (stringValue === 'audio' || stringValue.startsWith('audio_')) {
+    return 'audio';
+  }
+  if (stringValue === 'video') {
+    return 'video';
+  }
+  if (TEXT_TYPES.has(stringValue) || stringValue.startsWith('html') || stringValue.startsWith('pdf')) {
+    return 'text';
+  }
+  return null;
+}
+
+export function buildMediaSignature(
+  category: MediaCategory,
+  path?: string | null,
+  relativePath?: string | null,
+  url?: string | null,
+  name?: string | null
+): string {
+  const base = path ?? relativePath ?? url ?? name ?? '';
+  return `${category}|${base}`.toLowerCase();
+}
+
+export function buildEntrySignature(entry: Record<string, unknown>, category: MediaCategory): string {
+  const path = toStringOrNull(entry.path);
+  const relativePath = toStringOrNull(entry.relative_path);
+  const url = toStringOrNull(entry.url);
+  const name = toStringOrNull(entry.name);
+  return buildMediaSignature(category, path, relativePath, url, name);
+}
+
+export function buildItemSignature(item: LiveMediaItem): string {
+  return buildMediaSignature(item.type, item.path ?? null, item.relative_path ?? null, item.url ?? null, item.name ?? null);
 }
 
 export function hasAudioTracks(
