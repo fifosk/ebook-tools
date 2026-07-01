@@ -188,9 +188,10 @@ Follow the suggested remediations to restore parity:
   lifecycle refresh cannot prepare the next batch from a stale combined/default
   selection. Live-media and chunk-metadata context rebuilds that keep the same
   selected chunk must re-resolve the selected option from the active mode too;
-  when that repair changes the option in single-track mode, prepare audio again
-  for the same recent anchor so fresh chunk objects cannot inherit old batch
-  option ids while the audio clock continues on the selected single track.
+  in single-track mode, prepare audio again for the same recent anchor even when
+  the selected option id was already stable, so fresh chunk objects cannot
+  inherit old batch option ids or timing while the audio clock continues on the
+  selected single track.
   Audio-player end callbacks must carry the ended URL into the reader view model;
   a natural single-track batch advance should only run when that URL belongs to
   the current selected audio option. Late EOF notifications from a hidden track

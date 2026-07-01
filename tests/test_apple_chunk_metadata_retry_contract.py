@@ -38,6 +38,21 @@ def test_selected_chunk_metadata_retry_prepares_audio_after_success() -> None:
     assert "self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)" in loading
 
 
+def test_selected_single_track_metadata_hydration_reprepares_even_when_selection_id_is_stable() -> None:
+    loading = _source(INTERACTIVE / "InteractivePlayerViewModel+Loading.swift")
+
+    hydration_block = """if selectedChunkID == chunkID {
+                reassertSelectedAudioTrackAfterContextRebuild()
+                if let updatedContextChunk,
+                   requestedSingleTrackMode() != nil {
+                    let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedContextChunk)
+                    prepareAudio("""
+
+    assert hydration_block in loading
+    assert "let didReassertAudioSelection = reassertSelectedAudioTrackAfterContextRebuild()" not in loading
+    assert "if didReassertAudioSelection," not in loading
+
+
 def test_transcript_retry_button_is_wired_to_selected_chunk_retry() -> None:
     frame = _source(INTERACTIVE / "TextPlayerViews.swift")
     transcript = _source(INTERACTIVE / "InteractiveTranscriptView.swift")

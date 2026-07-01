@@ -468,9 +468,8 @@ extension InteractivePlayerViewModel {
             jobContext = context
             let updatedContextChunk = context.chunk(withID: chunkID)
             if selectedChunkID == chunkID {
-                let didReassertAudioSelection = reassertSelectedAudioTrackAfterContextRebuild()
-                if didReassertAudioSelection,
-                   let updatedContextChunk,
+                reassertSelectedAudioTrackAfterContextRebuild()
+                if let updatedContextChunk,
                    requestedSingleTrackMode() != nil {
                     let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedContextChunk)
                     prepareAudio(

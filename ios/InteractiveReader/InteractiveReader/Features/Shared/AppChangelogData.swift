@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-hydrated-chunk-reprepare",
+                    title: "Single-track hydration stays in sync",
+                    detail: "Apple reader single-track metadata hydration now prepares the refreshed chunk even when the selected Original or Translation audio option was already correct, so end-of-batch playback cannot keep a stale pre-hydration lane and drift rendering."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-image-settings-module",
                     title: "Narrate Ebook image settings are leaner",
                     detail: "Web Narrate Ebook image style options, prompt-pipeline options, quality slider mapping, and image-throughput estimates now live in a focused tested module, making image settings easier to mirror in Apple Create."

@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader single-track metadata hydration now prepares the refreshed chunk even when the selected Original/Translation audio option was already correct, so end-of-batch playback cannot keep a stale pre-hydration lane and drift rendering.
 - Web Narrate Ebook image style options, prompt-pipeline options, quality slider mapping, and image-throughput estimates now live in a focused tested module, making image settings easier to mirror in Apple Create.
 - Web Narrate Ebook Draw Things node availability checks now live in a focused hook with fallback-node and ordering coverage, keeping image generation controls lighter for cross-surface Create parity work.
 - Apple reader single-track batch handoffs now restore the SwiftUI audio manager from the view model's durable original-only/translation-only lane before default track setup runs, so hydrated sentence batches do not expand back to All and desync rendering.
