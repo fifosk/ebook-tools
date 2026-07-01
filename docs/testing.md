@@ -662,8 +662,9 @@ single-profile dry-run defaults before the dogfood pipeline can pass.
 
 Latest shared-pipeline dogfood evidence from July 1, 2026:
 `make verify-apple-shared-pipeline` passed from the ebook-tools checkout at
-commit `5a15b4b1` after the Cinema translation-only single-track seek anchor
-guard landed. The run covered manifest-driven Apple contracts, live backend
+commit `0b0a25cb9` after the Apple reader learned to preserve active
+original-only or translation-only mode across chunk/batch setup. The run
+covered manifest-driven Apple contracts, live backend
 health/runtime checks, all registered backend pytest slices, Web focused/full
 Vitest checks, production/export builds, iPhone/iPad/tvOS/Cinema simulator
 smoke dry-runs, registered app-owned journey listing, and every app-owned
@@ -672,8 +673,11 @@ runtime Xcode readiness, and Mac iPad-style profiles. The dedicated
 `test-apple-playback-state-swift` lane included the explicit single-track
 time-seek anchor regression, proving a requested translation-only sentence
 number beats stale end-of-chunk player time while bare time seeks still fall
-back to active-track gates. The run did not boot simulators, load remote
-secrets for credential-free validation, or touch physical devices.
+back to active-track gates, plus the cross-batch preservation regression that
+keeps translation-only transcript rendering and audio selection aligned when
+playback advances into the next sentence batch. The run did not boot
+simulators, load remote secrets for credential-free validation, or touch
+physical devices.
 
 Living Room Apple TV candidate gate:
 `make verify-apple-living-room-candidate` runs the full non-physical shared

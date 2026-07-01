@@ -402,6 +402,15 @@ timeout and treated it as app-alive verification. The archived launch log is
 The next pushed checkpoint, `5a15b4b1`, added the executable single-track
 time-seek anchor regression and passed `make verify-apple-shared-pipeline`; it
 was not physically deployed.
+The following pushed checkpoint, `0b0a25cb9`, preserved active original-only or
+translation-only mode across Apple reader chunk/batch setup and added the
+cross-batch single-track preservation regression to the same playback Swift
+lane. It passed `make test-changed` and a fresh
+`make verify-apple-shared-pipeline` run on July 1, 2026, including backend
+health/runtime, all manifest-owned backend pytest slices, focused/full Web
+Vitest, the Web production/export build, Apple contract groups, iPhone/iPad,
+tvOS, and Cinema simulator-smoke dry-runs, and app-owned journey dry-runs. It was
+not physically deployed.
 
 Pause-release and pause-resume validation also reject legacy hardware echo
 resume breadcrumbs such as `foregroundHardwareResume` and

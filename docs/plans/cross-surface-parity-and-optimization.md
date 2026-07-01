@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-06-30
+Last updated: 2026-07-01
 
 ## Goal
 
@@ -2112,7 +2112,14 @@ Every cross-surface change should pass the relevant subset:
   test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped before
   any physical redeploy. Playback media manifest loading also moved lazy chunk
   manifest checks onto the NAS-tolerant stat helper so Web and Apple playback
-  routes avoid direct existence checks on flaky job metadata roots. After the reader transport resolver
+  routes avoid direct existence checks on flaky job metadata roots. Later on
+  July 1, `make verify-apple-shared-pipeline` passed again at `0b0a25cb9`
+  after the reader started preserving active original-only or translation-only
+  mode across chunk/batch setup; the reusable run covered backend
+  health/runtime, manifest-owned backend pytest slices, focused/full Web
+  Vitest, the Web production/export build, Apple contract groups,
+  iPhone/iPad/tvOS/Cinema simulator-smoke dry-runs, and every app-owned
+  journey dry-run without touching physical devices. After the reader transport resolver
   centralization and duplicate-window cleanup at `41668756`, the live
   simulator journeys were re-run on June 29, 2026: `make
   test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped, and

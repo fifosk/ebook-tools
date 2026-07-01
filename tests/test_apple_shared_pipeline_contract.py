@@ -818,10 +818,11 @@ def test_docs_publish_shared_pipeline_targets() -> None:
 def test_docs_record_latest_shared_pipeline_dogfood_evidence() -> None:
     docs = TESTING_DOC.read_text(encoding="utf-8")
     plan = PLAN_DOC.read_text(encoding="utf-8")
+    deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")
 
     for source in (docs, plan):
-        assert "June 30" in source
-        assert "1010eb5fe" in source
+        assert "July 1" in source
+        assert "0b0a25cb9" in source
         assert "make verify-apple-shared-pipeline" in source
         assert "make verify-apple-living-room-candidate" in source
         assert "backend" in source
@@ -833,9 +834,16 @@ def test_docs_record_latest_shared_pipeline_dogfood_evidence() -> None:
         assert "make test-e2e-ipad-music-bed-sync" in source
         assert "make test-e2e-tvos-music-bed-sync" in source
         assert "dry-run registry" in source
+        assert "chunk/batch setup" in source
+        assert "translation-only" in source
+        assert "mode across" in source
         assert "without booting simulators" in source
         assert "remote secrets" in source
         assert "physical devices" in source
+
+    assert "0b0a25cb9" in deployment_doc
+    assert "cross-batch single-track preservation regression" in deployment_doc
+    assert "not physically deployed" in deployment_doc
 
 
 def test_deployment_docs_record_latest_working_apple_device_recipe() -> None:
