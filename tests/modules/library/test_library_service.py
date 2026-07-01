@@ -286,7 +286,7 @@ def test_library_service_export_entry_uses_safe_stat(
     assert original_exists(destination)
 
 
-def test_remove_media_and_entry(tmp_path):
+def test_remove_media_and_entry(tmp_path, monkeypatch: pytest.MonkeyPatch):
     service, locator, library_root, _job_manager = create_service(tmp_path)
 
     job_id = 'job-7'
@@ -301,17 +301,25 @@ def test_remove_media_and_entry(tmp_path):
     media_dir.mkdir(parents=True, exist_ok=True)
     (media_dir / 'audio.mp3').write_bytes(b'audio')
     (media_dir / 'notes.txt').write_text('keep me', encoding='utf-8')
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path in {library_path, library_path.parent}:
+            raise AssertionError("library remove paths should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
 
     updated_item, removed = service.remove_media(job_id)
     assert removed == 1
     assert updated_item is not None
-    assert not (media_dir / 'audio.mp3').exists()
-    assert (media_dir / 'notes.txt').exists()
+    assert not original_exists(media_dir / 'audio.mp3')
+    assert original_exists(media_dir / 'notes.txt')
     metadata_payload = json.loads((library_path / 'metadata' / 'job.json').read_text(encoding='utf-8'))
     assert metadata_payload.get('media_completed') is False
 
     service.remove_entry(job_id)
-    assert not library_path.exists()
+    assert not original_exists(library_path)
     assert service._repository.get_entry_by_id(job_id) is None
 
     with pytest.raises(LibraryNotFoundError):

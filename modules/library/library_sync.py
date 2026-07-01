@@ -441,7 +441,7 @@ class LibrarySync:
             job_root = self._locator.job_root(job_id)
             is_library = False
 
-        if not job_root.exists():
+        if not _path_exists(job_root):
             raise LibraryNotFoundError(f"Job {job_id} does not exist on disk")
 
         with DirectoryLock(job_root):
@@ -478,15 +478,15 @@ class LibrarySync:
             raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
 
         job_root = Path(item.library_path)
-        if job_root.parent.exists():
+        if _path_exists(job_root.parent):
             with DirectoryLock(job_root):
-                if job_root.exists():
+                if _path_exists(job_root):
                     shutil.rmtree(job_root, ignore_errors=True)
 
         self._repository.delete_entry(job_id)
         self._library_job_cache.pop(job_id, None)
         self._missing_job_cache.discard(job_id)
-        if job_root.parent.exists():
+        if _path_exists(job_root.parent):
             self._prune_empty_ancestors(job_root)
 
     def update_metadata(
@@ -1149,7 +1149,7 @@ class LibrarySync:
             library_root = self._library_root.resolve()
             current = Path(path).resolve().parent
             while current != library_root and library_root in current.parents:
-                if not current.exists():
+                if not _path_exists(current):
                     current = current.parent
                     continue
                 try:
