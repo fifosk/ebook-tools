@@ -1,7 +1,5 @@
 import {
-  useCallback,
   useMemo,
-  useRef,
   useState
 } from 'react';
 import {
@@ -30,6 +28,7 @@ import { useBookNarrationHistory } from './useBookNarrationHistory';
 import { useBookNarrationImageDefaults } from './useBookNarrationImageDefaults';
 import { useBookNarrationNormalizedState } from './useBookNarrationNormalizedState';
 import { useBookNarrationSubmitFlow } from './useBookNarrationSubmitFlow';
+import { useBookNarrationWorkflowRefs } from './useBookNarrationWorkflowRefs';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
@@ -49,7 +48,6 @@ import {
 } from './bookNarrationFormDefaults';
 import {
   buildBookNarrationInitialFormState,
-  preserveBookNarrationUserEditedFields,
   resolveBookNarrationSectionMeta,
 } from './bookNarrationFormUtils';
 
@@ -128,14 +126,17 @@ export function BookNarrationForm({
   const [error, setError] = useState<string | null>(null);
   const [activeSourcePanel, setActiveSourcePanel] =
     useState<BookNarrationSourcePanel>('source');
-  const prefillAppliedRef = useRef<string | null>(null);
-  const creationTemplateAppliedRef = useRef<string | null>(null);
-  const userEditedStartRef = useRef<boolean>(false);
-  const userEditedInputRef = useRef<boolean>(false);
-  const userEditedEndRef = useRef<boolean>(false);
-  const userEditedFieldsRef = useRef<Set<keyof FormState>>(new Set<keyof FormState>());
-  const defaultsAppliedRef = useRef<boolean>(false);
-  const lastAutoEndSentenceRef = useRef<string | null>(null);
+  const {
+    creationTemplateAppliedRef,
+    defaultsAppliedRef,
+    lastAutoEndSentenceRef,
+    prefillAppliedRef,
+    preserveUserEditedFields,
+    userEditedEndRef,
+    userEditedFieldsRef,
+    userEditedInputRef,
+    userEditedStartRef,
+  } = useBookNarrationWorkflowRefs();
 
   const sectionMeta = useMemo(() => {
     return resolveBookNarrationSectionMeta(BOOK_NARRATION_SECTION_META, sectionOverrides);
@@ -147,9 +148,6 @@ export function BookNarrationForm({
     resolveLatestJobSettings,
     resolveStartFromHistory,
   } = useBookNarrationHistory({ recentJobs });
-  const preserveUserEditedFields = useCallback((previous: FormState, next: FormState): FormState => {
-    return preserveBookNarrationUserEditedFields(previous, next, userEditedFieldsRef.current);
-  }, []);
 
   const {
     normalizedInputForBookMetadataCache,

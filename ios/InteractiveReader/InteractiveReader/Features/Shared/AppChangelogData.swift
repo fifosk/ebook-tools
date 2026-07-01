@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-narrate-workflow-refs-hook",
+                    title: "Narrate Ebook workflow refs are leaner",
+                    detail: "Web Narrate Ebook mutable workflow refs and user-edited-field preservation now live in a focused tested hook, keeping prefill, template, and default sentinels out of the main form coordinator."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-normalized-state-hook",
                     title: "Narrate Ebook derived state is leaner",
                     detail: "Web Narrate Ebook normalized input metadata-cache keys and merged target-language state now live in a focused tested hook, trimming the main form coordinator while keeping template payloads aligned."
