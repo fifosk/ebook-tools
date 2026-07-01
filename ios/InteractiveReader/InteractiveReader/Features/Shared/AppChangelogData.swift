@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-download-station-presentation-helper",
+                    title: "Download handoff matching is leaner",
+                    detail: "Apple Create Download Station completed-file extraction, metadata fallback hints, handoff detection, and refreshed discovery candidate matching now live in a focused Swift helper, keeping YouTube Dub downloader handoff behavior easier to compare with Web Video Dubbing."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-durable-lane-priority",
                     title: "Single-track batches keep their lane",
                     detail: "Apple reader original-only and translation-only playback now lets the durable selected lane beat stale SwiftUI audio-manager state at sentence-batch boundaries, so a transient reset to the wrong single track cannot desync rendering from narration."

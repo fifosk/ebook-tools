@@ -303,6 +303,15 @@ CREATE_DISCOVERY_PRESENTATION = (
     / "Create"
     / "AppleBookCreateDiscoveryPresentation.swift"
 )
+CREATE_DOWNLOAD_STATION_PRESENTATION = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateDownloadStationPresentation.swift"
+)
 CREATE_NORMALIZATION = (
     ROOT
     / "ios"
@@ -2289,8 +2298,11 @@ def test_create_presentation_helpers_are_split_from_support_and_target_wired() -
     assert project.count("AppleBookCreatePresentationHelpers.swift in Sources") == 4
     assert "AppleBookCreateDiscoveryPresentation.swift in Sources" in project
     assert project.count("AppleBookCreateDiscoveryPresentation.swift in Sources") == 4
+    assert "AppleBookCreateDownloadStationPresentation.swift in Sources" in project
+    assert project.count("AppleBookCreateDownloadStationPresentation.swift in Sources") == 4
     assert "AppleBookCreatePresentationHelpers.swift" in payload_script
     assert "AppleBookCreateDiscoveryPresentation.swift" in payload_script
+    assert "AppleBookCreateDownloadStationPresentation.swift" in payload_script
 
 
 def test_create_normalization_helpers_are_split_from_support_and_target_wired() -> None:
@@ -3352,6 +3364,14 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "struct AppleBookCreateDiscoveryProviderOption" in discovery_source
     assert "static func bookDiscoveryProviderOptions(" in discovery_source
     assert "static func bookDiscoveryProviderOptions(" not in presentation_source
+    download_station_source = _source(CREATE_DOWNLOAD_STATION_PRESENTATION)
+    assert "extension AppleBookCreatePresentation" in download_station_source
+    assert "static func downloadStationCompletedFiles(from job: AcquisitionJobStatusResponse?) -> [String]" in download_station_source
+    assert "static func downloadStationCompletedCandidate(" in download_station_source
+    assert "static func isDownloadStationHandoffCandidate(_ candidate: AcquisitionCandidate) -> Bool" in download_station_source
+    assert "static func downloadStationCompletedFiles(" not in discovery_source
+    assert "static func downloadStationCompletedCandidate(" not in discovery_source
+    assert "static func isDownloadStationHandoffCandidate(" not in discovery_source
     assert "private static let fallbackBookDiscoveryProviders" in discovery_source
     assert 'let available: Bool' in discovery_source
     assert 'static let defaultBookDiscoveryProviderID = "backend_defaults"' in discovery_source
@@ -3588,6 +3608,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void" in source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate, String, String) -> Void" in source
     discovery_source = _source(CREATE_DISCOVERY_PRESENTATION)
+    download_station_source = _source(CREATE_DOWNLOAD_STATION_PRESENTATION)
     assert "struct AppleBookCreateVideoDiscoveryAvailability" in discovery_source
     assert "static func youtubeVideoDiscoveryAvailability(" in discovery_source
     assert 'providers.first { $0.id == "youtube_search" }' in discovery_source
@@ -3614,22 +3635,24 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'accessibilityIdentifier("createYoutubeDownloadStationCandidate")' in youtube_source
     assert "AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate)" in youtube_source
     assert "let discovery = await viewModel.loadVideoDiscovery(" in source_actions
-    assert "static func downloadStationCompletedFiles(from job: AcquisitionJobStatusResponse?) -> [String]" in discovery_source
-    assert "static func downloadStationCompletedCandidate(" in discovery_source
-    assert "private static func downloadStationCompletedFileHints(" in discovery_source
-    assert "var hints = normalizedMetadataStrings(job.completedFiles)" in discovery_source
-    assert 'for key in ["completed_file", "completed_path", "local_path", "filename"]' in discovery_source
-    assert 'for key in ["completed_files", "completed_paths", "files"]' in discovery_source
-    assert 'metadata["completed_file"] ?? metadata["completed_path"] ?? metadata["local_path"]' in discovery_source
+    assert "static func downloadStationCompletedFiles(from job: AcquisitionJobStatusResponse?) -> [String]" in download_station_source
+    assert "static func downloadStationCompletedCandidate(" in download_station_source
+    assert "private static func downloadStationCompletedFileHints(" in download_station_source
+    assert "var hints = normalizedDownloadStationMetadataStrings(job.completedFiles)" in download_station_source
+    assert 'for key in ["completed_file", "completed_path", "local_path", "filename"]' in download_station_source
+    assert 'for key in ["completed_files", "completed_paths", "files"]' in download_station_source
+    assert 'metadata["completed_file"] ?? metadata["completed_path"] ?? metadata["local_path"]' in download_station_source
+    assert "static func downloadStationCompletedFiles(" not in discovery_source
+    assert "static func downloadStationCompletedCandidate(" not in discovery_source
     assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: job)" in view_model_sources
     assert "Completed: \\(completedFiles.joined(separator: \", \"))." in view_model_sources
     assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: downloadStationJob)" in youtube_source
     assert "AppleBookCreatePresentation.downloadStationCompletedCandidate(" in source_actions
     assert "private func downloadStationCompletedCandidate(" not in view_source
-    assert "private static func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String>" in discovery_source
-    assert "private static func downloadStationNameKeys(for value: String) -> [String]" in discovery_source
-    assert "private static func downloadStationLastPathComponent(_ value: String) -> String" in discovery_source
-    assert "private static func downloadStationFileStem(_ filename: String) -> String" in discovery_source
+    assert "private static func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String>" in download_station_source
+    assert "private static func downloadStationNameKeys(for value: String) -> [String]" in download_station_source
+    assert "private static func downloadStationLastPathComponent(_ value: String) -> String" in download_station_source
+    assert "private static func downloadStationFileStem(_ filename: String) -> String" in download_station_source
     assert "onSelectYoutubeAcquisitionCandidate(candidate, videoDiscoveryQuery, videoDiscoveryProvider)" in youtube_source
     assert "private var youtubeSearchProvider" not in view_source
     assert "private var downloadStationProvider" not in view_source
@@ -3783,11 +3806,11 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "static func youtubeSubtitleLabel(" in discovery_source
     assert "static func filenameFromPath(" in discovery_source
     assert "static func videoDiscoveryCandidateDetail(" in discovery_source
-    assert "static func isDownloadStationHandoffCandidate(_ candidate: AcquisitionCandidate) -> Bool" in discovery_source
-    assert 'candidate.metadata?["handoff_provider"]?.stringValue?' in discovery_source
-    assert '.localizedCaseInsensitiveCompare("download_station") == .orderedSame' in discovery_source
-    assert 'candidate.metadata?["has_download_url"]?.stringValue?' in discovery_source
-    assert '.localizedCaseInsensitiveCompare("true") == .orderedSame' in discovery_source
+    assert "static func isDownloadStationHandoffCandidate(_ candidate: AcquisitionCandidate) -> Bool" in download_station_source
+    assert 'candidate.metadata?["handoff_provider"]?.stringValue?' in download_station_source
+    assert '.localizedCaseInsensitiveCompare("download_station") == .orderedSame' in download_station_source
+    assert 'candidate.metadata?["has_download_url"]?.stringValue?' in download_station_source
+    assert '.localizedCaseInsensitiveCompare("true") == .orderedSame' in download_station_source
     assert "Download Station handoff" in discovery_source
     assert "private func youtubeVideoLabel(" not in youtube_source
     assert "private func youtubeSubtitleLabel(" not in youtube_source

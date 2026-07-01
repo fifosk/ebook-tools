@@ -676,10 +676,11 @@ Current Apple UI partially exposes:
   Swift contract now also asserts provider ordering/defaults, availability copy,
   and book/video discovery candidate filtering/actions so acquisition changes
   fail before simulator or device runs drift. Download Station completed-file
-  matching now also lives in `AppleBookCreateDiscoveryPresentation.swift`, so
+  matching now lives in `AppleBookCreateDownloadStationPresentation.swift`, so
   the main Create view only polls and applies the selected manual-download
-  candidate while the shared helper handles top-level `completed_files` and
-  older metadata fallback hints. Apple YouTube Dub candidate selection now also
+  candidate while the focused helper handles top-level `completed_files`, older
+  metadata fallback hints, handoff detection, and refreshed discovery candidate
+  matching. Apple YouTube Dub candidate selection now also
   passes the active discovery provider and query into saved `discovery_state`,
   and applying a saved template restores that provider/query in the native
   source picker, keeping Apple-saved video templates aligned with Web Video
