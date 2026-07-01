@@ -5,7 +5,8 @@ import {
   buildBookDiscoveryTemplateState,
   buildBookNarrationTemplatePayload,
   buildSparseBookDiscoveryTemplateState,
-  extractBookNarrationTemplateFormState
+  extractBookNarrationTemplateFormState,
+  resolveBookDiscoveryTemplateStateForInput
 } from '../book-narration/bookNarrationTemplates';
 
 function candidate(overrides: Partial<AcquisitionCandidate> = {}): AcquisitionCandidate {
@@ -179,6 +180,31 @@ describe('bookNarrationTemplates', () => {
       provider: '   ',
       query: 'ignored'
     })).toBeNull();
+  });
+
+  it('clears selected discovery provenance when the form input moves to another EPUB', () => {
+    const state = {
+      media_kind: 'book',
+      provider: 'local_epub',
+      selected_path: '/books/current.epub',
+      query: 'current'
+    };
+
+    expect(resolveBookDiscoveryTemplateStateForInput(state, '/books/current.epub')).toBe(state);
+    expect(resolveBookDiscoveryTemplateStateForInput(state, '')).toBe(state);
+    expect(resolveBookDiscoveryTemplateStateForInput(state, '/books/other.epub')).toBeNull();
+  });
+
+  it('keeps sparse discovery provenance that has no selected input path yet', () => {
+    const state = {
+      media_kind: 'book',
+      provider: 'manual_downloads',
+      selected_provider: 'manual_downloads',
+      query: 'dan brown'
+    };
+
+    expect(resolveBookDiscoveryTemplateStateForInput(state, '/books/other.epub')).toBe(state);
+    expect(resolveBookDiscoveryTemplateStateForInput(null, '/books/other.epub')).toBeNull();
   });
 
   it('builds sanitized Web creation templates without environment secrets', () => {

@@ -146,6 +146,23 @@ export function buildSparseBookDiscoveryTemplateState({
   return state;
 }
 
+export function resolveBookDiscoveryTemplateStateForInput(
+  discoveryState: Record<string, unknown> | null,
+  inputFile: string
+): Record<string, unknown> | null {
+  const selectedPath =
+    typeof discoveryState?.selected_path === 'string'
+      ? discoveryState.selected_path
+      : null;
+  if (!selectedPath) {
+    return discoveryState;
+  }
+  if (inputFile && inputFile !== selectedPath) {
+    return null;
+  }
+  return discoveryState;
+}
+
 function sanitizeJsonField(label: string, value: string): string {
   const parsed = parseJsonField(label, value);
   const sanitized = sanitizeTemplateValue(parsed);

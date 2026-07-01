@@ -38,7 +38,8 @@ import {
   buildBookDiscoveryTemplateState,
   buildBookNarrationTemplatePayload,
   buildSparseBookDiscoveryTemplateState,
-  extractBookNarrationTemplateFormState
+  extractBookNarrationTemplateFormState,
+  resolveBookDiscoveryTemplateStateForInput
 } from './bookNarrationTemplates';
 import type {
   BookNarrationFormProps,
@@ -346,16 +347,14 @@ export function BookNarrationForm({
   }, [discoveryProvider, discoveryQuery, selectedDiscoveryTemplateState, sourceMode, templatePayloadExtras]);
 
   useEffect(() => {
-    const selectedPath =
-      typeof selectedDiscoveryTemplateState?.selected_path === 'string'
-        ? selectedDiscoveryTemplateState.selected_path
-        : null;
-    if (!selectedPath) {
+    const nextDiscoveryTemplateState = resolveBookDiscoveryTemplateStateForInput(
+      selectedDiscoveryTemplateState,
+      formState.input_file
+    );
+    if (nextDiscoveryTemplateState === selectedDiscoveryTemplateState) {
       return;
     }
-    if (formState.input_file && formState.input_file !== selectedPath) {
-      setSelectedDiscoveryTemplateState(null);
-    }
+    setSelectedDiscoveryTemplateState(nextDiscoveryTemplateState);
   }, [formState.input_file, selectedDiscoveryTemplateState]);
 
   const handleDiscoveryCandidateSelect = useCallback((candidate: AcquisitionCandidate) => {
