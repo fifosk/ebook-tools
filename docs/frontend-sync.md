@@ -152,7 +152,10 @@ Follow the suggested remediations to restore parity:
   at a stale combined/original option, Original-only or Translation-only mode
   remains authoritative for option repair, duration/progress, and prefetch
   decisions; stale selection ids must not pull rendering or narration back to the
-  default lane.
+  default lane. `prepareAudio` must also reapply that single-track option
+  immediately before resolving URLs so an EOF callback, metadata retry, or view
+  lifecycle refresh cannot prepare the next batch from a stale combined/default
+  selection.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

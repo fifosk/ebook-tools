@@ -785,7 +785,9 @@ Current Apple UI partially exposes:
   next-batch setup now also preserves original-only/translation-only mode from
   playable chunk audio options even when visible text tracks temporarily fall
   back to Original before metadata finishes loading, preventing batch-end
-  render/audio drift. Destination
+  render/audio drift, and audio prepare now reasserts the active single-track
+  option just before resolving playback URLs so stale selected ids cannot reset
+  a post-handoff batch. Destination
   language pills prefer authoritative target-language request/config fields
   instead of broad nested metadata scans. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.

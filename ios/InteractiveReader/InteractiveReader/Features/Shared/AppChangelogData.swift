@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-prepare-option-lock",
+                    title: "Translation-only survives prepare",
+                    detail: "Apple reader original-only and translation-only playback now reasserts the active single-track audio option every time audio prepares, so stale combined or original selections cannot reset rendering after a sentence-batch handoff."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-handoff-restores-manager",
                     title: "Translation-only survives batch reset",
                     detail: "Apple reader original-only and translation-only playback now restores the active single-track lane from view-model handoff state before new-batch default track setup can expand back to All, keeping rendering and narration aligned after sentence-batch boundaries."

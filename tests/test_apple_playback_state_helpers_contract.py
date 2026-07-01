@@ -177,6 +177,7 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "synchronizeSelectedAudioTrackWithCurrentMode(" in swift_check
     assert "Chunk handoff should switch the selected audio option before immediate playback can load the next batch" in swift_check
     assert "Combined-only chunk handoff should extract the translation stream before rendering follows the wrong track" in swift_check
+    assert "Prepare audio should reapply translation-only selection before resolving a stale batch option" in swift_check
     assert "requestedSingleTrackMode(" in swift_check
     assert "End-of-batch handoff should preserve translation-only selection even if the view manager bridge is unavailable" in swift_check
     assert "Bridgeless end-of-batch handoff should select translation audio instead of falling back to combined" in swift_check

@@ -847,6 +847,34 @@ private func runChecks() {
         timing: .translation,
         "Chunk handoff should resolve translation-only audio before SwiftUI lifecycle preservation runs"
     )
+    var prepareTimeSelectedTrackID: String? = "combined-next"
+    var prepareTimePreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var prepareTimeSequenceAudioMode: AudioMode = .sequence
+    if let track = requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: prepareTimeSequenceAudioMode,
+        preferredAudioKind: prepareTimePreferredKind
+    ) {
+        applySingleTrackSelection(
+            track,
+            for: nextBatch,
+            manager: manager,
+            sequenceAudioMode: &prepareTimeSequenceAudioMode,
+            selectedAudioTrackID: &prepareTimeSelectedTrackID,
+            preferredAudioKind: &prepareTimePreferredKind
+        )
+    }
+    requireEqual(
+        prepareTimeSelectedTrackID,
+        "translation-next",
+        "Prepare audio should reapply translation-only selection before resolving a stale batch option"
+    )
+    requireInstruction(
+        manager.resolveAudioInstruction(for: nextBatch, selectedTrackID: prepareTimeSelectedTrackID),
+        optionID: "translation-next",
+        timing: .translation,
+        "Prepare audio reapplication should keep next-batch rendering and narration on translation"
+    )
     var bridgelessSelectedTrackID: String? = "combined-next"
     var bridgelessPreferredKind: InteractiveChunk.AudioOption.Kind? = .translation
     var bridgelessSequenceAudioMode: AudioMode = .singleTrack(.translation)

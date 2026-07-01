@@ -395,6 +395,10 @@ extension InteractivePlayerViewModel {
             "Prepare audio: targetSentenceIndex=\(targetSentenceIndex ?? -1, privacy: .public), autoPlay=\(autoPlay, privacy: .public)"
         )
 
+        if let track = requestedSingleTrackMode() {
+            applySingleTrackSelection(track, for: chunk)
+        }
+
         guard let mgr = audioModeManager,
               let instruction = mgr.resolveAudioInstruction(for: chunk, selectedTrackID: selectedAudioTrackID) else {
             interactiveSelectionLogger.debug("Prepare audio guard failed: no track found or no audio mode manager")
