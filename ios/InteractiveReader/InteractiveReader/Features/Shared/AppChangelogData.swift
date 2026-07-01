@@ -29,6 +29,11 @@ enum AppChangelogData {
                     id: "backend-indexer-discovery-helper",
                     title: "Indexer discovery is leaner",
                     detail: "Backend Newznab and Torznab acquisition discovery now shares focused tested helpers for endpoint, key, category, sanitized API URL, XML feed, and published-date handling across Web and Apple video source pickers."
+                ),
+                AppChangelogEntry(
+                    id: "backend-openlibrary-discovery-helper",
+                    title: "Open Library discovery is leaner",
+                    detail: "Backend Open Library acquisition discovery now shares focused tested helpers for work and book key normalization, metadata URLs, and cover URLs, keeping Web and Apple Create book metadata handoff easier to maintain."
                 )
             ]
         ),

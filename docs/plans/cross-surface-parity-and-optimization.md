@@ -683,7 +683,10 @@ Current Apple UI partially exposes:
   the main Create view only polls and applies the selected manual-download
   candidate while the focused helper handles top-level `completed_files`, older
   metadata fallback hints, handoff detection, and refreshed discovery candidate
-  matching. Apple YouTube Dub candidate selection now also
+  matching. Backend Open Library discovery path/book-key/URL normalization now
+  lives in `modules/services/acquisition/openlibrary_discovery.py` with focused
+  coverage, keeping metadata-only book handoff helpers small for Web Narrate
+  Ebook and Apple Create. Apple YouTube Dub candidate selection now also
   passes the active discovery provider and query into saved `discovery_state`,
   and applying a saved template restores that provider/query in the native
   source picker, keeping Apple-saved video templates aligned with Web Video

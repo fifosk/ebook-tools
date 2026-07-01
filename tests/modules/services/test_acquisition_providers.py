@@ -11,6 +11,7 @@ import requests
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.indexer_discovery as indexer_discovery
+import modules.services.acquisition.openlibrary_discovery as openlibrary_discovery
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
 import modules.services.acquisition.youtube_discovery as youtube_discovery
 from modules.services.acquisition.discovery_planning import (
@@ -1911,6 +1912,39 @@ def test_youtube_discovery_helpers_normalize_metadata_and_errors(
             }
 
     assert youtube_discovery.youtube_error_reason(_FakeErrorResponse()) == "quotaExceeded"
+
+
+def test_openlibrary_discovery_helpers_normalize_metadata_links() -> None:
+    assert openlibrary_discovery.openlibrary_path("works/OL45883W") == "/works/OL45883W"
+    assert (
+        openlibrary_discovery.openlibrary_path(
+            "books/OL123M",
+            prefix="/works/",
+        )
+        is None
+    )
+    assert (
+        openlibrary_discovery.openlibrary_book_key(("OL123M", "OL456M"))
+        == "/books/OL123M"
+    )
+    assert (
+        openlibrary_discovery.openlibrary_book_key(("/books/OL789M",))
+        == "/books/OL789M"
+    )
+    assert (
+        openlibrary_discovery.openlibrary_url("/works/OL45883W")
+        == "https://openlibrary.org/works/OL45883W"
+    )
+    assert (
+        openlibrary_discovery.openlibrary_url("/works/OL 45883W")
+        == "https://openlibrary.org/works/OL%2045883W"
+    )
+    assert openlibrary_discovery.openlibrary_url(None) is None
+    assert (
+        openlibrary_discovery.openlibrary_cover_url(12345)
+        == "https://covers.openlibrary.org/b/id/12345-L.jpg"
+    )
+    assert openlibrary_discovery.openlibrary_cover_url(None) is None
 
 
 def test_discover_youtube_search_normalizes_metadata_without_secret() -> None:

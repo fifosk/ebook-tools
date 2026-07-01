@@ -11,6 +11,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Backend Default sources discovery planning now lives in a focused tested helper, keeping local/manual/NAS freshness ordering and remote-provider fetch limits aligned for Web and Apple Create source pickers.
 - Backend YouTube acquisition discovery now shares focused tested helpers for URL parsing, metadata normalization, duration parsing, API-key lookup, and token-safe error reason extraction across Web and Apple Create video discovery.
 - Backend Newznab/Torznab acquisition discovery now shares focused tested helpers for endpoint/key/category lookup, API URL sanitization, XML feed parsing, and published-date normalization for Web and Apple video source pickers.
+- Backend Open Library acquisition discovery now shares focused tested helpers for work/book key normalization, metadata URLs, and cover URLs, keeping Web and Apple Create book metadata handoff easier to maintain.
 - Advanced visible Apple app versioning to `v2026.07.02.001`.
 
 ## 2026-07-01

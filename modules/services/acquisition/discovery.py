@@ -46,6 +46,12 @@ from .indexer_discovery import (
     torznab_attrs,
     xml_child_text,
 )
+from .openlibrary_discovery import (
+    openlibrary_book_key,
+    openlibrary_cover_url,
+    openlibrary_path,
+    openlibrary_url,
+)
 from .youtube_discovery import (
     parse_iso8601_duration,
     parse_youtube_url_or_id,
@@ -654,16 +660,16 @@ def _discover_openlibrary(
         if not isinstance(item, Mapping):
             continue
         title = _string_value(item.get("title")) or "Open Library result"
-        work_key = _openlibrary_path(_string_value(item.get("key")), prefix="/works/")
+        work_key = openlibrary_path(_string_value(item.get("key")), prefix="/works/")
         edition_keys = _string_sequence(item.get("edition_key"))
-        book_key = _openlibrary_book_key(edition_keys)
+        book_key = openlibrary_book_key(edition_keys)
         authors = _string_sequence(item.get("author_name"))
         languages = _string_sequence(item.get("language"))
         isbn_values = _string_sequence(item.get("isbn"))
         ia_values = _string_sequence(item.get("ia"))
         cover_id = _int_value(item.get("cover_i"))
-        cover_url = _openlibrary_cover_url(cover_id)
-        source_url = _openlibrary_url(work_key or book_key)
+        cover_url = openlibrary_cover_url(cover_id)
+        source_url = openlibrary_url(work_key or book_key)
         safe_id = _safe_identifier(work_key or book_key or title)
         primary_author = authors[0] if authors else None
         primary_language = languages[0] if languages else normalized_language
@@ -677,9 +683,9 @@ def _discover_openlibrary(
             "isbn": first_isbn,
             "cover_url": cover_url,
             "openlibrary_work_key": work_key,
-            "openlibrary_work_url": _openlibrary_url(work_key),
+            "openlibrary_work_url": openlibrary_url(work_key),
             "openlibrary_book_key": book_key,
-            "openlibrary_book_url": _openlibrary_url(book_key),
+            "openlibrary_book_url": openlibrary_url(book_key),
         }
         token = _candidate_token(
             {
@@ -719,9 +725,9 @@ def _discover_openlibrary(
                     "book_language": primary_language,
                     "cover_url": cover_url,
                     "openlibrary_work_key": work_key,
-                    "openlibrary_work_url": _openlibrary_url(work_key),
+                    "openlibrary_work_url": openlibrary_url(work_key),
                     "openlibrary_book_key": book_key,
-                    "openlibrary_book_url": _openlibrary_url(book_key),
+                    "openlibrary_book_url": openlibrary_url(book_key),
                     "isbn": first_isbn,
                     "book_isbn": first_isbn,
                     "isbns": list(isbn_values),
@@ -1483,39 +1489,6 @@ def _internet_archive_rights(
     if "creativecommons.org" in license_url or "creative commons" in rights:
         return "open_license"
     return "unknown"
-
-
-def _openlibrary_path(value: str | None, *, prefix: str | None = None) -> str | None:
-    if not value:
-        return None
-    path = value if value.startswith("/") else f"/{value}"
-    if prefix and not path.startswith(prefix):
-        return None
-    return path
-
-
-def _openlibrary_book_key(values: Sequence[str]) -> str | None:
-    for value in values:
-        normalized = _openlibrary_path(value)
-        if not normalized:
-            continue
-        if normalized.startswith("/books/"):
-            return normalized
-        return f"/books/{normalized.lstrip('/')}"
-    return None
-
-
-def _openlibrary_url(path: str | None) -> str | None:
-    normalized = _openlibrary_path(path)
-    if not normalized:
-        return None
-    return f"https://openlibrary.org{quote(normalized, safe='/')}"
-
-
-def _openlibrary_cover_url(cover_id: int | None) -> str | None:
-    if cover_id is None:
-        return None
-    return f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
 
 
 def _gutenberg_person_names(value: Any) -> tuple[str, ...]:
