@@ -203,6 +203,14 @@ extension InteractivePlayerView {
         for chunk: InteractiveChunk,
         availableRoles: Set<LanguageFlagRole>
     ) -> Set<LanguageFlagRole> {
+        if let track = viewModel.requestedSingleTrackMode() {
+            switch track {
+            case .original:
+                return availableRoles.contains(.original) ? [.original] : []
+            case .translation:
+                return availableRoles.contains(.translation) ? [.translation] : []
+            }
+        }
         switch audioModeManager.currentMode {
         case .sequence:
             return availableRoles.intersection([.original, .translation])

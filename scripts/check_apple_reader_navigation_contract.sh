@@ -443,6 +443,17 @@ if single_track_guard_index > playback_time_body.find("guard let track = selecte
     fail("single-track playback time guard must run before selected combined audio option inspection")
 if single_track_guard_index > playback_time_body.find("usesCombinedQueue(for: chunk)"):
     fail("single-track playback time guard must run before combined-queue offset handling")
+audio_management_source = read(
+    root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+AudioManagement.swift"
+)
+active_audio_roles_body = function_body(
+    audio_management_source,
+    "func activeAudioRoles(\n        for chunk: InteractiveChunk,\n        availableRoles: Set<LanguageFlagRole>\n    ) -> Set<LanguageFlagRole>",
+)
+if "if let track = viewModel.requestedSingleTrackMode()" not in active_audio_roles_body:
+    fail("active audio roles must use the durable requested single-track lane before manager state")
+if active_audio_roles_body.find("viewModel.requestedSingleTrackMode()") > active_audio_roles_body.find("switch audioModeManager.currentMode"):
+    fail("active audio roles must check requested single-track state before SwiftUI manager mode")
 select_chunk_body = function_body(
     selection_source,
     "func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil)",

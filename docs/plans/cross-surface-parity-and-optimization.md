@@ -869,7 +869,9 @@ Current Apple UI partially exposes:
   player item. Single-track playback time now also uses the durable requested
   original/translation lane before considering multi-file queue offsets, so a
   transient sequence-mode bridge at a batch boundary cannot add the hidden track
-  duration back into rendering. The audio coordinator now keeps reader playback intent alive
+  duration back into rendering; header active-role pills now use the same
+  durable lane before transient manager state so the visible selection does not
+  flash back to both tracks during the handoff. The audio coordinator now keeps reader playback intent alive
   through URL-aware EOF handoff callbacks until the view model loads the next
   sentence batch or pauses at end-of-book, and the playback mode-switch harness
   plus source-shape contract pin the EOF and same-URL reuse state transitions. The

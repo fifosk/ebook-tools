@@ -18,6 +18,11 @@ enum TextPlayerVariantKind: String, Hashable {
     case transliteration
 }
 
+enum LanguageFlagRole: String, Hashable {
+    case original
+    case translation
+}
+
 @MainActor
 final class SequencePlaybackController {
     var isEnabled: Bool
@@ -954,6 +959,52 @@ private func playbackTimeForIntegration(
 }
 
 @MainActor
+private func activeAudioRolesForIntegration(
+    availableRoles: Set<LanguageFlagRole>,
+    manager: AudioModeManager,
+    sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
+    selectedKind: InteractiveChunk.AudioOption.Kind?
+) -> Set<LanguageFlagRole> {
+    if let track = requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ) {
+        switch track {
+        case .original:
+            return availableRoles.contains(.original) ? [.original] : []
+        case .translation:
+            return availableRoles.contains(.translation) ? [.translation] : []
+        }
+    }
+    switch manager.currentMode {
+    case .sequence:
+        return availableRoles.intersection([.original, .translation])
+    case .singleTrack(.original):
+        if availableRoles.contains(.original) {
+            return [.original]
+        }
+    case .singleTrack(.translation):
+        if availableRoles.contains(.translation) {
+            return [.translation]
+        }
+    }
+    switch selectedKind {
+    case .original:
+        return availableRoles.contains(.original) ? [.original] : []
+    case .translation:
+        return availableRoles.contains(.translation) ? [.translation] : []
+    case .combined, .other:
+        return availableRoles.intersection([.original, .translation])
+    case .none:
+        return []
+    }
+}
+
+@MainActor
 private func runChecks() {
     let originalURL = URL(string: "https://example.invalid/original.m4a")!
     let translationURL = URL(string: "https://example.invalid/translation.m4a")!
@@ -1365,6 +1416,30 @@ private func runChecks() {
         sequencePlaybackTime,
         9.25,
         "Sequence playback time should still include prior queue-file offsets when no single-track lane is requested"
+    )
+    requireEqual(
+        activeAudioRolesForIntegration(
+            availableRoles: [.original, .translation],
+            manager: playbackTimeSequenceManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: .translation,
+            preferredAudioKind: .combined,
+            selectedKind: .combined
+        ),
+        [.translation],
+        "Header active audio roles should keep translation-only selected even if the manager briefly reports sequence at a batch boundary"
+    )
+    requireEqual(
+        activeAudioRolesForIntegration(
+            availableRoles: [.original, .translation],
+            manager: playbackTimeSequenceManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined,
+            selectedKind: .combined
+        ),
+        [.original, .translation],
+        "Header active audio roles should still show both roles for true sequence playback"
     )
     var staleManagerSelectedTrackID: String? = "combined-next"
     var staleManagerPreferredKind: InteractiveChunk.AudioOption.Kind? = .combined

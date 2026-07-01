@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-header-role-lane",
+                    title: "Single-track header roles hold",
+                    detail: "Apple reader header audio-role pills now use the durable requested original-only or translation-only lane before transient SwiftUI manager state, so batch-boundary sequence blips do not show both tracks as active."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-playback-time-lane",
                     title: "Single-track batches stay in sync",
                     detail: "Apple reader original-only and translation-only playback time now follows the durable requested lane even if the SwiftUI audio manager briefly reports sequence mode at a sentence-batch boundary, preventing hidden-track offsets from drifting rendering."
