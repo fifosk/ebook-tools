@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-restore-applies-selection",
+                    title: "Single-track restore stays selected",
+                    detail: "Apple reader resume and visible-track restore paths now reapply the full original-only or translation-only audio selection instead of only assigning a matching option id, keeping the durable loaded lane intact when sentence batches end or resume opens in single-track mode."
+                ),
+                AppChangelogEntry(
                     id: "backend-file-backed-discovery-helper",
                     title: "File discovery is leaner",
                     detail: "Backend local EPUB, manual download, and NAS video discovery now share a focused file-backed provider helper module, keeping filesystem scanning and candidate shaping out of the large acquisition fanout while preserving Web and Apple Create source picker behavior."

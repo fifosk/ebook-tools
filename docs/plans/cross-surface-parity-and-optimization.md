@@ -951,6 +951,10 @@ Current Apple UI partially exposes:
   lifecycle bridge also restores an explicit one-track visible selection back
   into `AudioModeManager` and the selected chunk audio option before default
   setup can expand to All, with the source-shape contract guarding that order.
+  Resume and visible-track restore paths now route through the same
+  `applySingleTrackSelection` helper as chunk handoff instead of only assigning a
+  matching option id, so the durable loaded lane survives the next batch
+  boundary.
   Destination language pills prefer authoritative target-language request/config
   fields instead of broad nested metadata scans. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.

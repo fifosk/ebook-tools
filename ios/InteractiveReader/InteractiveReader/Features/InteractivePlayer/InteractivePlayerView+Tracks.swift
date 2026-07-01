@@ -345,15 +345,7 @@ extension InteractivePlayerView {
 
         visibleTracks = [desiredTextTrack]
         hasCustomTrackSelection = true
-        audioModeManager.setTracks(
-            original: track == .original,
-            translation: track == .translation
-        )
-        viewModel.rememberAudioModePreference(audioModeManager.currentMode)
-        viewModel.sequenceController.audioMode = audioModeManager.currentMode
-        if let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
-            viewModel.selectedAudioTrackID = targetID
-        }
+        viewModel.applySingleTrackSelection(track, for: chunk)
         return true
     }
 
@@ -405,15 +397,7 @@ extension InteractivePlayerView {
 
         visibleTracks = [desiredTextTrack]
         hasCustomTrackSelection = true
-        audioModeManager.setTracks(
-            original: resumeTrack == .original,
-            translation: resumeTrack == .translation
-        )
-        viewModel.rememberAudioModePreference(audioModeManager.currentMode)
-        viewModel.sequenceController.audioMode = audioModeManager.currentMode
-        if let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
-            viewModel.selectedAudioTrackID = targetID
-        }
+        viewModel.applySingleTrackSelection(resumeTrack, for: chunk)
         return true
     }
 

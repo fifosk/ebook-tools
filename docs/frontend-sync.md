@@ -103,7 +103,11 @@ Follow the suggested remediations to restore parity:
   the reader as combined and desync the next rendered batch from narration.
   If the user has explicitly hidden Original or Translation, chunk lifecycle
   setup must restore that visible single-track selection into `AudioModeManager`
-  before any default selection can expand the reader back to All.
+  before any default selection can expand the reader back to All. Resume and
+  visible-track restore paths must go through the same full single-track
+  selection helper used by chunk handoff, not just assign `selectedAudioTrackID`,
+  so the durable loaded lane and selected option survive the next sentence-batch
+  boundary.
   If rendering resets at the end of a sentence batch, compare those state
   transitions before regenerating timing metadata.
 - Spot-check a few chunk metadata files (`metadata/chunk_XXXX.json`) on each

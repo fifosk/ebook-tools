@@ -983,7 +983,8 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "available.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk)" in preserve_body
     assert "visibleTracks = [desiredTextTrack]" in preserve_body
     assert "hasCustomTrackSelection = true" in preserve_body
-    assert "viewModel.selectedAudioTrackID = targetID" in preserve_body
+    assert "viewModel.applySingleTrackSelection(track, for: chunk)" in preserve_body
+    assert "viewModel.selectedAudioTrackID = targetID" not in preserve_body
 
     resume_track_body = _function_body(
         tracks,
@@ -994,9 +995,8 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "available.contains(desiredTextTrack) || chunkSupportsAudioTrack(resumeTrack, in: chunk)" in resume_track_body
     assert "visibleTracks = [desiredTextTrack]" in resume_track_body
     assert "hasCustomTrackSelection = true" in resume_track_body
-    assert "audioModeManager.setTracks(" in resume_track_body
-    assert "viewModel.sequenceController.audioMode = audioModeManager.currentMode" in resume_track_body
-    assert "viewModel.selectedAudioTrackID = targetID" in resume_track_body
+    assert "viewModel.applySingleTrackSelection(resumeTrack, for: chunk)" in resume_track_body
+    assert "viewModel.selectedAudioTrackID = targetID" not in resume_track_body
 
     audio_support_body = _function_body(
         tracks,
