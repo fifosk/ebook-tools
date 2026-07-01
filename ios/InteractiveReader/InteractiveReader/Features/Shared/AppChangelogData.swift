@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-loaded-lane-handoff",
+                    title: "Single-track batches stay synced",
+                    detail: "Apple reader original-only and translation-only playback now remembers the single audio lane that was actually loaded and uses it for batch EOF and render-active checks, so transient picker refreshes cannot drift rendering from narration."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-eof-active-url-guard",
                     title: "Batch endings keep their track",
                     detail: "Apple reader original-only and translation-only batch endings now validate EOF callbacks against the active single audio URL before selecting the next sentence batch, so stale hidden-track endings cannot reset audio selection or drift rendering."

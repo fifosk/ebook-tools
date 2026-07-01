@@ -90,14 +90,17 @@ Follow the suggested remediations to restore parity:
   explicit text-track toggles should broaden single-track playback back to
   combined/sequence.
   If the manager and selected picker id both briefly reset to sequence/combined
-  at a batch boundary, a currently loaded single audio URL is still authoritative
-  for Original-only or Translation-only playback while the sequence controller is
-  inactive. EOF callbacks must be checked against the selected lane before they
-  can stamp durable state, so hidden original/translation endings cannot mutate
-  the next-batch selection. The EOF membership guard should resolve that active
-  single URL before falling back to picker or manager state, otherwise a stale
-  hidden-track completion can advance the reader as combined and desync the next
-  rendered batch from narration.
+  at a batch boundary, the single audio lane that was actually loaded is still
+  authoritative for Original-only or Translation-only playback while the sequence
+  controller is inactive. That loaded lane should beat transient manager state
+  until the user explicitly changes to combined mode, and render-active checks
+  should test whether the live URL belongs to that lane anywhere in the chunk,
+  not just inside the momentary selected option. EOF callbacks must be checked
+  against the selected lane before they can stamp durable state, so hidden
+  original/translation endings cannot mutate the next-batch selection. The EOF
+  membership guard should resolve that active single URL before falling back to
+  picker or manager state, otherwise a stale hidden-track completion can advance
+  the reader as combined and desync the next rendered batch from narration.
   If the user has explicitly hidden Original or Translation, chunk lifecycle
   setup must restore that visible single-track selection into `AudioModeManager`
   before any default selection can expand the reader back to All.

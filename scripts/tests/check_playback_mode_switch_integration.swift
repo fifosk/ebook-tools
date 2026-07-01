@@ -1040,18 +1040,32 @@ private func playbackEndedURLBelongsToCurrentChunk(
 @MainActor
 private func selectedLaneAudioIsActive(
     activeURL: URL?,
+    chunk: InteractiveChunk,
     selectedOption: InteractiveChunk.AudioOption?,
     requestedSingleTrackMode: SequenceTrack?
 ) -> Bool {
-    guard let activeURL, let selectedOption else { return false }
-    if let requestedSingleTrackMode,
-       selectedOption.kind == .combined {
-        return PlaybackEndedURLPolicy.endedURL(
-            activeURL,
-            belongsTo: selectedOption,
-            singleTrack: requestedSingleTrackMode
-        )
+    guard let activeURL else { return false }
+    if let requestedSingleTrackMode {
+        switch requestedSingleTrackMode {
+        case .original:
+            if chunk.audioOptions.contains(where: { $0.kind == .original && $0.streamURLs.contains(activeURL) }) {
+                return true
+            }
+        case .translation:
+            if chunk.audioOptions.contains(where: { $0.kind == .translation && $0.streamURLs.contains(activeURL) }) {
+                return true
+            }
+        }
+        return chunk.audioOptions.contains { option in
+            guard option.kind == .combined else { return false }
+            return PlaybackEndedURLPolicy.endedURL(
+                activeURL,
+                belongsTo: option,
+                singleTrack: requestedSingleTrackMode
+            )
+        }
     }
+    guard let selectedOption else { return false }
     return selectedOption.streamURLs.contains(activeURL)
 }
 
@@ -2382,6 +2396,7 @@ private func runChecks() {
     requireEqual(
         selectedLaneAudioIsActive(
             activeURL: originalURL,
+            chunk: nextBatch,
             selectedOption: nextBatch.audioOptions.first(where: { $0.kind == .combined }),
             requestedSingleTrackMode: .translation
         ),
@@ -2391,11 +2406,32 @@ private func runChecks() {
     requireEqual(
         selectedLaneAudioIsActive(
             activeURL: translationURL,
+            chunk: nextBatch,
             selectedOption: nextBatch.audioOptions.first(where: { $0.kind == .combined }),
             requestedSingleTrackMode: .translation
         ),
         true,
         "Translation-only render anchors should release only when the selected lane stream reaches the batch target"
+    )
+    requireEqual(
+        selectedLaneAudioIsActive(
+            activeURL: originalURL,
+            chunk: nextBatch,
+            selectedOption: nextBatch.audioOptions.first(where: { $0.kind == .original }),
+            requestedSingleTrackMode: .translation
+        ),
+        false,
+        "Translation-only render anchors must reject a stale dedicated original option after the batch selection refreshes"
+    )
+    requireEqual(
+        selectedLaneAudioIsActive(
+            activeURL: translationURL,
+            chunk: nextBatch,
+            selectedOption: nextBatch.audioOptions.first(where: { $0.kind == .original }),
+            requestedSingleTrackMode: .translation
+        ),
+        true,
+        "Translation-only render anchors should still accept the translation stream after the selected option refreshes to original"
     )
     let reorderedSequenceBatch = InteractiveChunk(
         id: "chapter-2-reordered",

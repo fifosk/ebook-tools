@@ -206,6 +206,8 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "allowExpandingSingleTrackAudio" in swift_check
     assert "Passive hydrated-batch sync should not expand a remembered translation-only lane back to combined" in swift_check
     assert "Translation-only render anchors must not release on a hidden original stream from the selected combined option" in swift_check
+    assert "Translation-only render anchors must reject a stale dedicated original option after the batch selection refreshes" in swift_check
+    assert "Translation-only render anchors should still accept the translation stream after the selected option refreshes to original" in swift_check
     assert "Explicit text-track toggle should still be able to expand translation-only playback to combined" in swift_check
     frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
     assert "Once live\n  playback reaches the anchored sentence, the anchor must be consumed/cleared" in frontend_sync
@@ -256,6 +258,8 @@ def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
         selection,
         "private func playbackEndedURLBelongsToCurrentChunk(\n        _ endedURL: URL,\n        chunk: InteractiveChunk\n    ) -> Bool",
     )
+    assert "if requestedSingleTrackMode() != nil" in belongs_body
+    assert "return audioURLBelongsToSelectedLane(endedURL, in: chunk)" in belongs_body
     assert "if let selectedOption = selectedAudioOption(for: chunk)" in belongs_body
     assert "let activeSingleTrack = singleTrackModeForCompletedPlayback(" in belongs_body
     assert "endedURL: nil" in belongs_body
@@ -263,6 +267,12 @@ def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
     assert "belongsTo: selectedOption" in belongs_body
     assert "singleTrack: activeSingleTrack ?? requestedSingleTrackMode()" in belongs_body
     assert "return chunk.audioOptions.contains" in belongs_body
+
+    lane_body = _function_body(selection, "func audioURLBelongsToSelectedLane(_ url: URL, in chunk: InteractiveChunk) -> Bool")
+    assert "guard selectedChunkID == chunk.id else { return false }" in lane_body
+    assert "if let selectedSingleTrack = requestedSingleTrackMode()" in lane_body
+    assert "kind == .translation && $0.streamURLs.contains(url)" in lane_body
+    assert "PlaybackEndedURLPolicy.endedURL(" in lane_body
 
     policy_body = _function_body(audio_mode_manager, "enum PlaybackEndedURLPolicy")
     assert "static func endedURL(" in policy_body
@@ -788,6 +798,8 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
 
     requested_body = _function_body(selection, "func requestedSingleTrackMode() -> SequenceTrack?")
     assert "loadedSingleURLTrackMode()" in requested_body
+    assert "loadedSingleTrackPlaybackMode" in requested_body
+    assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let audioModeManager")
     loaded_url_body = _function_body(selection, "private func loadedSingleURLTrackMode() -> SequenceTrack?")
     assert "guard !sequenceController.isEnabled" in loaded_url_body
     assert "audioCoordinator.activeURLs.count == 1" in loaded_url_body

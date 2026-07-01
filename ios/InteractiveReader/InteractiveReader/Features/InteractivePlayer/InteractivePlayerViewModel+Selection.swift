@@ -32,6 +32,7 @@ extension InteractivePlayerViewModel {
         case .sequence:
             if clearSingleTrackOnSequence {
                 preferredSingleTrackMode = nil
+                loadedSingleTrackPlaybackMode = nil
             }
         }
     }
@@ -226,6 +227,7 @@ extension InteractivePlayerViewModel {
             }
         case .combined:
             preferredSingleTrackMode = nil
+            loadedSingleTrackPlaybackMode = nil
             if let audioModeManager {
                 audioModeManager.enableSequenceMode()
                 sequenceController.audioMode = audioModeManager.currentMode
@@ -384,6 +386,9 @@ extension InteractivePlayerViewModel {
         if let preferredSingleTrackMode {
             return preferredSingleTrackMode
         }
+        if let loadedSingleTrackPlaybackMode {
+            return loadedSingleTrackPlaybackMode
+        }
         if let audioModeManager,
            case .singleTrack(let track) = audioModeManager.currentMode {
             return track
@@ -477,6 +482,7 @@ extension InteractivePlayerViewModel {
 
     func applySingleTrackSelection(_ track: SequenceTrack, for chunk: InteractiveChunk) {
         preferredSingleTrackMode = track
+        loadedSingleTrackPlaybackMode = track
         if let audioModeManager {
             audioModeManager.setTracks(
                 original: track == .original,
@@ -577,6 +583,7 @@ extension InteractivePlayerViewModel {
         autoPlay: Bool,
         targetSentenceIndex: Int?
     ) {
+        loadedSingleTrackPlaybackMode = nil
         let effectiveTargetIndex = resolvedSequenceTargetIndex(for: chunk, targetSentenceIndex: targetSentenceIndex)
         interactiveSelectionLogger.debug(
             "Prepare audio: taking sequence path effectiveTargetIndex=\(effectiveTargetIndex ?? -1, privacy: .public)"
@@ -651,7 +658,7 @@ extension InteractivePlayerViewModel {
             interactiveSelectionLogger.debug("Prepare audio: resetting sequence controller for same-URL single-track mode")
             sequenceController.reset()
         }
-        reassertSingleTrackPlaybackLane(for: chunk)
+        loadedSingleTrackPlaybackMode = reassertSingleTrackPlaybackLane(for: chunk)
         selectedTimingURL = timingURL
         if let targetIndex = targetSentenceIndex,
            targetIndex >= 0,
@@ -678,7 +685,7 @@ extension InteractivePlayerViewModel {
         chunk: InteractiveChunk
     ) {
         sequenceController.reset()
-        reassertSingleTrackPlaybackLane(for: chunk)
+        loadedSingleTrackPlaybackMode = reassertSingleTrackPlaybackLane(for: chunk)
         let needsSeek = targetSentenceIndex != nil && targetSentenceIndex! >= 0 && targetSentenceIndex! < chunk.sentences.count
         audioCoordinator.load(
             urls: urls,
@@ -770,10 +777,39 @@ extension InteractivePlayerViewModel {
         return nil
     }
 
+    func audioURLBelongsToSelectedLane(_ url: URL, in chunk: InteractiveChunk) -> Bool {
+        guard selectedChunkID == chunk.id else { return false }
+        if let selectedSingleTrack = requestedSingleTrackMode() {
+            switch selectedSingleTrack {
+            case .original:
+                if chunk.audioOptions.contains(where: { $0.kind == .original && $0.streamURLs.contains(url) }) {
+                    return true
+                }
+            case .translation:
+                if chunk.audioOptions.contains(where: { $0.kind == .translation && $0.streamURLs.contains(url) }) {
+                    return true
+                }
+            }
+            return chunk.audioOptions.contains { option in
+                guard option.kind == .combined else { return false }
+                return PlaybackEndedURLPolicy.endedURL(
+                    url,
+                    belongsTo: option,
+                    singleTrack: selectedSingleTrack
+                )
+            }
+        }
+        guard let selectedOption = selectedAudioOption(for: chunk) else { return false }
+        return selectedOption.streamURLs.contains(url)
+    }
+
     private func playbackEndedURLBelongsToCurrentChunk(
         _ endedURL: URL,
         chunk: InteractiveChunk
     ) -> Bool {
+        if requestedSingleTrackMode() != nil {
+            return audioURLBelongsToSelectedLane(endedURL, in: chunk)
+        }
         if let selectedOption = selectedAudioOption(for: chunk) {
             let activeSingleTrack = singleTrackModeForCompletedPlayback(
                 endedURL: nil,

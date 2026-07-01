@@ -706,9 +706,7 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
         1,
     )[0]
     assert "guard viewModel.selectedChunkID == chunk.id else { return false }" in current_chunk_audio_body
-    assert "guard let selectedOption = viewModel.selectedAudioOption(for: chunk) else { return false }" in current_chunk_audio_body
-    assert "viewModel.requestedSingleTrackMode()" in current_chunk_audio_body
-    assert "PlaybackEndedURLPolicy.endedURL(" in current_chunk_audio_body
+    assert "viewModel.audioURLBelongsToSelectedLane(activeURL, in: chunk)" in current_chunk_audio_body
     render_lock = (
         ROOT
         / "ios"

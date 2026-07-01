@@ -414,16 +414,7 @@ extension InteractivePlayerView {
     private func currentChunkAudioIsActive(for chunk: InteractiveChunk) -> Bool {
         guard viewModel.selectedChunkID == chunk.id else { return false }
         guard let activeURL = audioCoordinator.activeURL else { return false }
-        guard let selectedOption = viewModel.selectedAudioOption(for: chunk) else { return false }
-        if let selectedSingleTrack = viewModel.requestedSingleTrackMode(),
-           selectedOption.kind == .combined {
-            return PlaybackEndedURLPolicy.endedURL(
-                activeURL,
-                belongsTo: selectedOption,
-                singleTrack: selectedSingleTrack
-            )
-        }
-        return selectedOption.streamURLs.contains(activeURL)
+        return viewModel.audioURLBelongsToSelectedLane(activeURL, in: chunk)
     }
 
 
