@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-reader-transport-resume-offset",
+                    title: "Reader play resumes inside sentence",
+                    detail: "Apple reader Play/Pause recovery now carries the current in-sentence playback offset when it has to rebuild narration, so Apple TV and iPad resume nearer the last-read word instead of restarting the saved sentence."
+                ),
+                AppChangelogEntry(
                     id: "client-default-sentinel-discovery-omission",
                     title: "Discovery clients omit default sentinel",
                     detail: "The Web and Apple acquisition API clients now omit backend_defaults before book/video discovery requests, keeping raw helper calls aligned with the visible Default sources fan-out while the backend remains tolerant of older clients."

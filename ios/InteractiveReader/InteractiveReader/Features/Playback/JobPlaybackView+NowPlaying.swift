@@ -310,7 +310,10 @@ extension JobPlaybackView {
         playbackLogger.info(
             "Job reader transport restoring narration playback request source=\(lastReaderTransportSource, privacy: .public) sentence=\(targetSentence ?? -1, privacy: .public)"
         )
-        startInteractivePlayback(at: targetSentence)
+        startInteractivePlayback(
+            at: targetSentence,
+            playbackTime: currentInteractiveResumePlaybackTime()
+        )
     }
 
     private var shouldDeferAppleMusicBedResumeUntilReaderActive: Bool {
@@ -356,7 +359,10 @@ extension JobPlaybackView {
         keyboardShortcutDebugLog(
             "[KeyboardShortcut] Job reader transport recovery requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) sentence=\(sentenceIndex ?? -1)"
         )
-        startInteractivePlayback(at: sentenceIndex ?? firstInteractiveSentenceNumber())
+        startInteractivePlayback(
+            at: sentenceIndex ?? firstInteractiveSentenceNumber(),
+            playbackTime: currentInteractiveResumePlaybackTime()
+        )
     }
 
     private var canResumeReaderTransportInPlace: Bool {

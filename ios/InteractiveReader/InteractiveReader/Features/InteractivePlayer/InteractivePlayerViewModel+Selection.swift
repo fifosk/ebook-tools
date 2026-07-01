@@ -735,7 +735,7 @@ extension InteractivePlayerViewModel {
             guard let target = sequenceController.seekToTime(
                 time,
                 sentenceIndex: targetSentenceIndex,
-                preferredTrack: audioModeManager?.preferredTrack
+                preferredTrack: sequenceController.currentTrack
             ) ?? targetSentenceIndex.flatMap({
                 playbackTransportDebugLog(
                     "[PlaybackTransport] Interactive sequence time seek fallback=sentenceStart sentence=\(sentenceNumber ?? -1) time=\(String(format: "%.3f", time))"

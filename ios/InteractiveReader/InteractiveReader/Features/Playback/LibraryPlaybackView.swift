@@ -735,7 +735,10 @@ struct LibraryPlaybackView: View {
                 onInteractiveStartCommand: {
                     let trackedSentence = sentenceIndexTracker.value
                     let targetSentence = (trackedSentence ?? 0) > 0 ? trackedSentence : firstInteractiveSentenceNumber()
-                    startInteractivePlayback(at: targetSentence)
+                    startInteractivePlayback(
+                        at: targetSentence,
+                        playbackTime: currentInteractiveResumePlaybackTime()
+                    )
                 }
             )
         }

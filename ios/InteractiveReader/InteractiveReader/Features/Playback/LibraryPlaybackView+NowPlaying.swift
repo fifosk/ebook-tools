@@ -311,7 +311,10 @@ extension LibraryPlaybackView {
         playbackLogger.info(
             "Library reader transport restoring narration playback request source=\(lastReaderTransportSource, privacy: .public) sentence=\(targetSentence ?? -1, privacy: .public)"
         )
-        startInteractivePlayback(at: targetSentence)
+        startInteractivePlayback(
+            at: targetSentence,
+            playbackTime: currentInteractiveResumePlaybackTime()
+        )
     }
 
     private var shouldDeferAppleMusicBedResumeUntilReaderActive: Bool {
@@ -360,7 +363,10 @@ extension LibraryPlaybackView {
             "[KeyboardShortcut] Library reader transport recovery requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) sentence=\(currentSentence ?? -1)"
         )
         if let currentSentence {
-            startInteractivePlayback(at: currentSentence)
+            startInteractivePlayback(
+                at: currentSentence,
+                playbackTime: currentInteractiveResumePlaybackTime()
+            )
         } else {
             startPlaybackFromBeginning()
         }

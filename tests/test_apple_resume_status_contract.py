@@ -235,6 +235,7 @@ def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() 
     assert "seekSequencePlaybackWhenReady(" in selection_source
     assert "sequenceController.seekToTime(" in selection_source
     assert "sequenceController.seekToTime(\n                time,\n                sentenceIndex: targetSentenceIndex" in selection_source
+    assert "preferredTrack: sequenceController.currentTrack" in selection_source
     assert "selectChunk(id: chunk.id, autoPlay: false)" in selection_source
     assert "func resumePlaybackTime(_ time: Double, matches sentenceNumber: Int, in chunk: InteractiveChunk) -> Bool" in selection_source
     assert "resumeValidationTimingTracks(for: chunk)" in selection_source
@@ -255,3 +256,26 @@ def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() 
     fallback_index = selection_source.index("Interactive sequence time seek fallback=sentenceStart")
     assert exact_time_index < fallback_index
     assert '"[PlaybackTransport] Interactive sequence time seek accepted sentence=\\(sentenceNumber ?? -1) time=\\(String(format: "%.3f", target.time)) track=\\(target.track.rawValue)"' in selection_source
+
+
+def test_reader_transport_resume_rebuild_uses_current_sentence_offset() -> None:
+    job_now_playing = JOB_PLAYBACK_NOW_PLAYING.read_text(encoding="utf-8")
+    library_now_playing = LIBRARY_PLAYBACK_NOW_PLAYING.read_text(encoding="utf-8")
+    library_view = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Playback"
+        / "LibraryPlaybackView.swift"
+    ).read_text(encoding="utf-8")
+
+    for source in (job_now_playing, library_now_playing, library_view):
+        assert "playbackTime: currentInteractiveResumePlaybackTime()" in source
+
+    for source in (job_now_playing, library_now_playing):
+        assert "restoring narration playback request" in source
+        restore_index = source.index("restoring narration playback request")
+        offset_index = source.index("playbackTime: currentInteractiveResumePlaybackTime()", restore_index)
+        assert restore_index < offset_index

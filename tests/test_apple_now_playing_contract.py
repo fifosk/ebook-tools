@@ -533,14 +533,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "if canResumeReaderTransportInPlace" in job_recover_body
     assert "Job reader transport in-place recovery requested=" in job_recover_body
     assert job_recover_body.index("viewModel.playForReaderTransport()") < job_recover_body.index(
-        "startInteractivePlayback(at: sentenceIndex ?? firstInteractiveSentenceNumber())"
+        "startInteractivePlayback(\n            at: sentenceIndex ?? firstInteractiveSentenceNumber(),"
     )
     assert "private var canResumeReaderTransportInPlace: Bool" in job_now_playing
     assert "viewModel.audioCoordinator.nowPlayingPlayer != nil" in job_now_playing
     assert "viewModel.audioCoordinator.activeURL != nil" in job_now_playing
     assert "!viewModel.audioCoordinator.activeURLs.isEmpty" in job_now_playing
     assert "Job reader transport recovery requested=" in job_recover_body
-    assert "startInteractivePlayback(at: sentenceIndex ?? firstInteractiveSentenceNumber())" in job_recover_body
+    assert "startInteractivePlayback(\n            at: sentenceIndex ?? firstInteractiveSentenceNumber()," in job_recover_body
+    assert "playbackTime: currentInteractiveResumePlaybackTime()" in job_recover_body
     job_recovery_schedule_body = _function_body(job_now_playing, "private func scheduleReaderTransportPlaybackRecovery()")
     assert "cancelReaderTransportPlaybackRecovery()" in job_recovery_schedule_body
     assert "let scheduledAction = lastReaderTransportAction" in job_recovery_schedule_body
@@ -868,7 +869,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "if canResumeReaderTransportInPlace" in library_recover_body
     assert "Library reader transport in-place recovery requested=" in library_recover_body
     assert library_recover_body.index("viewModel.playForReaderTransport()") < library_recover_body.index(
-        "startInteractivePlayback(at: currentSentence)"
+        "startInteractivePlayback(\n                at: currentSentence,"
     )
     assert "private var canResumeReaderTransportInPlace: Bool" in library_now_playing
     assert "viewModel.audioCoordinator.nowPlayingPlayer != nil" in library_now_playing
@@ -877,7 +878,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "Library reader transport recovery requested=" in library_recover_body
     assert "let trackedSentence = sentenceIndexTracker.value" in library_recover_body
     assert "let currentSentence = (trackedSentence ?? 0) > 0 ? trackedSentence : nil" in library_recover_body
-    assert "startInteractivePlayback(at: currentSentence)" in library_recover_body
+    assert "startInteractivePlayback(\n                at: currentSentence," in library_recover_body
+    assert "playbackTime: currentInteractiveResumePlaybackTime()" in library_recover_body
     assert "startPlaybackFromBeginning()" in library_recover_body
     library_recovery_schedule_body = _function_body(library_now_playing, "private func scheduleReaderTransportPlaybackRecovery()")
     assert "cancelReaderTransportPlaybackRecovery()" in library_recovery_schedule_body
