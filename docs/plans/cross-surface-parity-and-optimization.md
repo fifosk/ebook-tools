@@ -1023,6 +1023,9 @@ Optimization candidates:
   Library metadata refresh now checks source EPUB availability through tolerant
   stat probes before local metadata extraction, reducing Web/Apple
   refresh/enrichment races when source files vanish during NAS remounts.
+  Library cover mirroring now checks source artwork through tolerant stat
+  probes before copying into item media, keeping Web/Apple artwork refreshes
+  resilient when NAS-backed cover files vanish mid-refresh.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

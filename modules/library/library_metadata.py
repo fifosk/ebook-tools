@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
 from modules import metadata_manager
+from modules.services.source_discovery import safe_stat
 
 from .library_models import MetadataSnapshot
 
@@ -25,6 +26,10 @@ class MetadataRefreshResult:
 
 class LibraryMetadataError(RuntimeError):
     """Raised when metadata extraction fails."""
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 class LibraryMetadataManager:
@@ -157,7 +162,7 @@ class LibraryMetadataManager:
         if not cover_source:
             return None
         source_path = Path(cover_source)
-        if not source_path.exists():
+        if not _path_exists(source_path):
             return None
         target_dir = Path(job_root) / "media" / "covers"
         target_dir.mkdir(parents=True, exist_ok=True)

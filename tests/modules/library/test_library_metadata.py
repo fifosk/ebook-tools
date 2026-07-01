@@ -43,6 +43,28 @@ def test_mirror_cover_asset(tmp_path: Path) -> None:
     assert target_path.exists()
 
 
+def test_mirror_cover_asset_uses_safe_stat_for_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = LibraryMetadataManager(tmp_path)
+    job_root = tmp_path / "job"
+    cover_source = tmp_path / "cover.png"
+    cover_source.write_bytes(b"cover")
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == cover_source:
+            raise AssertionError("library cover mirror sources should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    mirrored = manager.mirror_cover_asset(job_root, str(cover_source))
+
+    assert mirrored == "media/covers/cover.png"
+
+
 @pytest.mark.parametrize("raw,expected", [
     ("", None),
     ("12345", None),
