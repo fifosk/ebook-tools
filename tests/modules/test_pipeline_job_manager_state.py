@@ -8,6 +8,7 @@ import time
 
 import pytest
 
+import modules.services.job_manager.manager as manager_module
 from modules.progress_tracker import ProgressEvent, ProgressSnapshot
 from modules.services.job_manager import (
     JobStore,
@@ -82,6 +83,80 @@ def _build_metadata(
         user_id=user_id,
         user_role=user_role,
     )
+
+
+def test_job_manager_disk_metadata_recovery_uses_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    file_locator = FileLocator(storage_dir=tmp_path)
+    store = _InMemoryJobStore()
+    manager = PipelineJobManager(max_workers=1, store=store, file_locator=file_locator)
+    metadata = _build_metadata("disk-job", PipelineJobStatus.COMPLETED)
+    metadata_path = file_locator.resolve_metadata_path(metadata.job_id, "job.json")
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata_path.write_text(metadata.to_json(), encoding="utf-8")
+    calls: list[Path] = []
+
+    def fake_safe_stat(path: Path):
+        calls.append(path)
+        if path == metadata_path:
+            return path.stat()
+        return None
+
+    def fail_exists(self):  # noqa: ANN001
+        raise AssertionError("job metadata recovery should use safe_stat")
+
+    monkeypatch.setattr(manager_module, "safe_stat", fake_safe_stat)
+    monkeypatch.setattr(type(metadata_path), "exists", fail_exists)
+
+    try:
+        recovered = manager.get(metadata.job_id, user_id="user", user_role="user")
+    finally:
+        manager._executor.shutdown()
+
+    assert recovered.job_id == metadata.job_id
+    assert recovered.status == PipelineJobStatus.COMPLETED
+    assert store.saved and store.saved[0].job_id == metadata.job_id
+    assert metadata_path in calls
+
+
+def test_job_manager_restart_cleanup_uses_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    file_locator = FileLocator(storage_dir=tmp_path)
+    store = _InMemoryJobStore()
+    manager = PipelineJobManager(max_workers=1, store=store, file_locator=file_locator)
+    job_id = "restart-cleanup"
+    paths = [
+        file_locator.media_root(job_id),
+        file_locator.metadata_root(job_id),
+        file_locator.subtitles_root(job_id),
+    ]
+    for path in paths:
+        path.mkdir(parents=True, exist_ok=True)
+    calls: list[Path] = []
+
+    def fake_safe_stat(path: Path):
+        calls.append(path)
+        if path in paths:
+            return path.stat()
+        return None
+
+    def fail_exists(self):  # noqa: ANN001
+        raise AssertionError("restart cleanup should use safe_stat")
+
+    monkeypatch.setattr(manager_module, "safe_stat", fake_safe_stat)
+    monkeypatch.setattr(type(paths[0]), "exists", fail_exists)
+
+    try:
+        manager._cleanup_generated_outputs(job_id)  # noqa: SLF001 - pins restart cleanup probes.
+    finally:
+        manager._executor.shutdown()
+
+    assert all(path.is_dir() for path in paths)
+    assert calls[:3] == paths
 
 
 @pytest.fixture

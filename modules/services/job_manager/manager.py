@@ -18,6 +18,7 @@ from ...progress_tracker import ProgressEvent, ProgressTracker
 from ...translation_engine import ThreadWorkerPool
 from ..file_locator import FileLocator
 from ..pipeline_service import PipelineRequest, serialize_pipeline_request
+from ..source_discovery import safe_stat
 from ...permissions import can_access, default_job_access, is_admin_role, resolve_access_policy
 from .dynamic_executor import DynamicThreadPoolExecutor
 from .job import PipelineJob, PipelineJobStatus
@@ -60,6 +61,10 @@ from .source_persistence import persist_source_file
 from .job_submission import apply_backpressure, create_pipeline_job, create_background_job
 
 logger = log_mgr.logger
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 class PipelineJobManager:
@@ -609,7 +614,7 @@ class PipelineJobManager:
 
         for path in candidates:
             try:
-                if not path.exists():
+                if not _path_exists(path):
                     continue
                 payload = path.read_text(encoding="utf-8")
                 return PipelineJobMetadata.from_json(payload)
@@ -700,7 +705,7 @@ class PipelineJobManager:
         subtitles_root = self._file_locator.subtitles_root(job_id)
         for path in (media_root, metadata_root, subtitles_root):
             try:
-                if path.exists():
+                if _path_exists(path):
                     shutil.rmtree(path)
             except Exception:
                 logger.debug("Unable to clean generated path %s for job %s", path, job_id, exc_info=True)

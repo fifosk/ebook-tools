@@ -520,6 +520,11 @@ enum AppChangelogData {
                     detail: "Download Station polling now returns completed-file hints only when they resolve under configured manual/download roots, dropping URL-like or outside-root entries before Web and Apple Create reconnect to local artifacts."
                 ),
                 AppChangelogEntry(
+                    id: "job-manager-safe-stat-recovery",
+                    title: "Job recovery tolerates storage hiccups",
+                    detail: "Backend job metadata recovery and restart cleanup now use tolerant file probes, making Apple and Web job resume/retry paths steadier during shared-storage remounts."
+                ),
+                AppChangelogEntry(
                     id: "subtitle-mirror-safe-stat",
                     title: "Subtitle mirrors tolerate NAS hiccups",
                     detail: "Subtitle jobs now use tolerant file probes for mirrored outputs and HTML transcript companions, keeping Web and Apple video-subtitle handoff steadier during shared-storage remounts."
