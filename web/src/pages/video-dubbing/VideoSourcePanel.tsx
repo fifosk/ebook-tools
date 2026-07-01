@@ -43,6 +43,7 @@ type VideoSourcePanelProps = {
   discoveryQuery: string;
   discoveryCandidates: AcquisitionCandidate[];
   discoveryError: string | null;
+  discoveryPolicyNotes: string[];
   acquisitionProviderError: string | null;
   youtubeSearchUnavailableMessage: string | null;
   manualDownloadsUnavailableMessage: string | null;
@@ -107,6 +108,7 @@ export default function VideoSourcePanel({
   discoveryQuery,
   discoveryCandidates,
   discoveryError,
+  discoveryPolicyNotes,
   acquisitionProviderError,
   youtubeSearchUnavailableMessage,
   manualDownloadsUnavailableMessage,
@@ -232,6 +234,11 @@ export default function VideoSourcePanel({
           </div>
         </div>
         {discoveryError ? <p className={styles.error}>{discoveryError}</p> : null}
+        {discoveryPolicyNotes.map((note) => (
+          <p className={styles.status} key={note}>
+            {note}
+          </p>
+        ))}
         {acquisitionProviderError ? <p className={styles.error}>{acquisitionProviderError}</p> : null}
         {youtubeSearchUnavailableMessage ? (
           <p className={styles.status}>{youtubeSearchUnavailableMessage}</p>

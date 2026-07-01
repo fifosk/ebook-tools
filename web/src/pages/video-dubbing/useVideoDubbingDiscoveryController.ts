@@ -38,6 +38,7 @@ export function useVideoDubbingDiscoveryController({
     setDiscoveryError,
     isDiscoveringVideos,
     discoveredVideoCandidates,
+    discoveryPolicyNotes,
     discoverVideos,
     handleDiscoveryProviderChange: applyDiscoveryProviderChange
   } = useVideoDubbingDiscoverySearch({
@@ -94,6 +95,7 @@ export function useVideoDubbingDiscoveryController({
     setDiscoveryError,
     isDiscoveringVideos,
     discoveredVideoCandidates,
+    discoveryPolicyNotes,
     discoverVideos: discoverAvailableVideos,
     videoDiscoveryProvider,
     videoDiscoveryProviderOptions,

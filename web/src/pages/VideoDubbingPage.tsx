@@ -135,6 +135,7 @@ export default function VideoDubbingPage({
     setDiscoveryError,
     isDiscoveringVideos,
     discoveredVideoCandidates,
+    discoveryPolicyNotes,
     discoverVideos: handleDiscoverVideos,
     handleDiscoveryProviderChange: changeDiscoveryProvider,
     videoDiscoveryProviderOptions,
@@ -445,6 +446,7 @@ export default function VideoDubbingPage({
           discoveryQuery={discoveryQuery}
           discoveryCandidates={discoveredVideoCandidates}
           discoveryError={discoveryError}
+          discoveryPolicyNotes={discoveryPolicyNotes}
           acquisitionProviderError={acquisitionProviderError}
           youtubeSearchUnavailableMessage={youtubeSearchUnavailableMessage}
           manualDownloadsUnavailableMessage={manualDownloadsUnavailableMessage}

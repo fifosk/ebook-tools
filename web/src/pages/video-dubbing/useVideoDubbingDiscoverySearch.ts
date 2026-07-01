@@ -44,6 +44,18 @@ export function useVideoDubbingDiscoverySearch({
       acquisitionProviders
     );
   }, [acquisitionProviders, discoveryResponse, videoDiscoveryProvider]);
+  const discoveryPolicyNotes = useMemo(() => {
+    const seen = new Set<string>();
+    return (discoveryResponse?.policy_notes ?? []).reduce<string[]>((notes, rawNote) => {
+      const note = rawNote.trim();
+      if (!note || seen.has(note)) {
+        return notes;
+      }
+      seen.add(note);
+      notes.push(note);
+      return notes;
+    }, []);
+  }, [discoveryResponse]);
 
   const discoverVideos = useCallback(async ({
     isDiscoveryProviderAvailable,
@@ -92,6 +104,7 @@ export function useVideoDubbingDiscoverySearch({
     setDiscoveryError,
     isDiscoveringVideos,
     discoveredVideoCandidates,
+    discoveryPolicyNotes,
     discoverVideos,
     handleDiscoveryProviderChange
   };

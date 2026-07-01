@@ -130,6 +130,32 @@ describe('useVideoDubbingDiscoverySearch', () => {
     ]);
   });
 
+  it('exposes trimmed unique policy notes from partial discovery responses', async () => {
+    mockDiscoverAcquisitionCandidates.mockResolvedValueOnce({
+      candidates: [candidate()],
+      policy_notes: [
+        '  YouTube search failed; showing local results.  ',
+        '',
+        'YouTube search failed; showing local results.',
+        'Indexer search timed out.'
+      ],
+      providers_queried: ['nas_video', 'youtube_search', 'newznab_torznab']
+    });
+    const { result } = renderDiscoveryHook();
+
+    await act(async () => {
+      await result.current.discoverVideos({
+        isDiscoveryProviderAvailable: true,
+        unavailableMessage: null
+      });
+    });
+
+    expect(result.current.discoveryPolicyNotes).toEqual([
+      'YouTube search failed; showing local results.',
+      'Indexer search timed out.'
+    ]);
+  });
+
   it('omits provider when discovering backend default video sources', async () => {
     mockDiscoverAcquisitionCandidates.mockResolvedValueOnce({
       candidates: [

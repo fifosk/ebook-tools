@@ -570,7 +570,9 @@ Current Apple UI partially exposes:
   EPUB picker behavior. Default-source video discovery now keeps local
   NAS/manual candidates when optional remote providers fail, carrying a
   token-safe provider note through the shared response instead of emptying the
-  picker. Apple Create also reapplies the current backend default if the
+  picker; Web Video Dubbing now renders those response policy notes beside the
+  remaining discovery candidates so partial remote-provider failures are visible
+  without blocking local/manual selection. Apple Create also reapplies the current backend default if the
   provider inventory changes before a user manually chooses a source, preventing
   stale picker ids from surviving readiness reloads.
   Video discovery availability, unavailable-provider messaging, book/video provider

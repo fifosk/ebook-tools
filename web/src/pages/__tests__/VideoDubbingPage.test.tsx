@@ -730,6 +730,100 @@ describe('VideoDubbingPage', () => {
     );
   });
 
+  it('shows Default sources policy notes alongside partial video discovery results', async () => {
+    mockFetchAcquisitionProviders.mockResolvedValue({
+      providers: [
+        {
+          id: 'nas_video',
+          label: 'NAS video library',
+          media_kinds: ['video'],
+          capabilities: ['import_local', 'extract_subtitles', 'metadata'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['user_provided'],
+          policy_notes: [],
+          next_actions: ['choose_video']
+        },
+        {
+          id: 'youtube_search',
+          label: 'YouTube search',
+          media_kinds: ['video'],
+          capabilities: ['search', 'metadata'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['unknown'],
+          policy_notes: [],
+          next_actions: ['search']
+        }
+      ],
+      policy_notes: [],
+      paths: {},
+      default_provider_ids: { video: ['nas_video', 'youtube_search'] }
+    });
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: []
+    });
+    mockDiscoverAcquisitionCandidates.mockResolvedValue({
+      candidates: [
+        {
+          candidate_id: 'nas_video:/Volumes/Data/Download/DStation/local-demo.mkv',
+          provider: 'nas_video',
+          media_kind: 'video',
+          title: 'Local Demo',
+          rights: 'user_provided',
+          capabilities: ['import_local', 'extract_subtitles', 'metadata'],
+          candidate_token: 'nas-token',
+          contributors: [],
+          local_path: '/Volumes/Data/Download/DStation/local-demo.mkv',
+          size_bytes: 4096,
+          modified_at: null,
+          subtitles: [],
+          metadata: {},
+          requires_confirmation: false,
+          policy_notes: []
+        }
+      ],
+      policy_notes: ['YouTube search failed; showing NAS results.'],
+      providers_queried: ['nas_video', 'youtube_search']
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    await screen.findByText(/No downloaded videos found/i);
+    fireEvent.click(screen.getByRole('button', { name: /^Discover$/i }));
+
+    await waitFor(() =>
+      expect(mockDiscoverAcquisitionCandidates).toHaveBeenCalledWith({
+        mediaKind: 'video',
+        provider: null,
+        query: '',
+        limit: 25
+      })
+    );
+
+    const discoveryPanel = screen.getByLabelText('Video source discovery');
+    expect(await within(discoveryPanel).findByText('YouTube search failed; showing NAS results.')).toBeInTheDocument();
+    expect(await within(discoveryPanel).findByRole('button', { name: /Local Demo/i })).toBeInTheDocument();
+  });
+
   it('discovers YouTube search candidates and fills the metadata lookup', async () => {
     const youtubeUrl = 'https://www.youtube.com/watch?v=abc123demo';
     mockFetchYoutubeLibrary.mockResolvedValue({

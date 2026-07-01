@@ -175,4 +175,46 @@ describe('useVideoDubbingDiscoveryController', () => {
       'nas'
     ]);
   });
+
+  it('passes discovery policy notes through the page controller', async () => {
+    mockFetchAcquisitionProviders.mockResolvedValueOnce({
+      providers: [
+        provider({ id: 'nas_video', default_eligible_media_kinds: ['video'] }),
+        provider({
+          id: 'youtube_search',
+          label: 'YouTube search',
+          capabilities: ['metadata'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video']
+        })
+      ],
+      policy_notes: [],
+      paths: {},
+      default_provider_ids: { video: ['nas_video', 'youtube_search'] }
+    });
+    mockDiscoverAcquisitionCandidates.mockResolvedValueOnce({
+      candidates: [
+        candidate({
+          candidate_id: 'nas',
+          provider: 'nas_video',
+          local_path: '/videos/demo.mkv'
+        })
+      ],
+      policy_notes: ['YouTube search failed; showing NAS results.'],
+      providers_queried: ['nas_video', 'youtube_search']
+    });
+
+    const { result } = renderController();
+    await waitFor(() =>
+      expect(result.current.videoDiscoveryProvider).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER)
+    );
+
+    await act(async () => {
+      await result.current.discoverVideos();
+    });
+
+    expect(result.current.discoveryPolicyNotes).toEqual([
+      'YouTube search failed; showing NAS results.'
+    ]);
+  });
 });
