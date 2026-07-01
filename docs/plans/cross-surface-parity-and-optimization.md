@@ -983,6 +983,10 @@ Optimization candidates:
   Reading-bed catalog sync now also checks its manifest through the tolerant
   stat helper, keeping Web and Apple background-music route initialization
   aligned with the NAS-safe playback/media route pattern.
+  Media search path resolution now uses the same tolerant stat helper for
+  generated text, media, subtitle, job-root, and metadata-manifest checks, so
+  Web and Apple reader search pills skip vanished NAS files without failing the
+  whole search route.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

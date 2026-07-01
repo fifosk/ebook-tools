@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, is_dataclass
 from datetime import datetime, timezone
 import re
+import stat as stat_module
 import textwrap
 from html import unescape
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Dict, Iterable, Iterator, List, Mapping, MutableMapping, Opti
 from ..metadata_manager import MetadataLoader
 from ..services.file_locator import FileLocator
 from ..services.job_manager.job import PipelineJob
+from ..services.source_discovery import safe_stat
 from ..subtitles.io import _read_subtitle_text, load_subtitle_cues
 from ..subtitles.models import SubtitleCue
 from ..subtitles.text import _normalize_text
@@ -127,6 +129,15 @@ def _normalise_media_type(raw_type: object) -> Optional[str]:
     return None
 
 
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _path_is_file(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
+
+
 def _resolve_job_label(job: PipelineJob) -> str | None:
     """Attempt to derive a friendly label for ``job``."""
 
@@ -189,13 +200,13 @@ def _load_text_from_entry(job_id: str, entry: Mapping[str, object], locator: Fil
     candidate: Optional[Path] = None
     if isinstance(path_value, str) and path_value.strip():
         candidate = Path(path_value)
-    if (candidate is None or not candidate.is_file()) and isinstance(relative, str) and relative.strip():
+    if (candidate is None or not _path_is_file(candidate)) and isinstance(relative, str) and relative.strip():
         try:
             candidate = locator.resolve_path(job_id, relative)
         except ValueError:
             candidate = None
 
-    if candidate is None or not candidate.is_file():
+    if candidate is None or not _path_is_file(candidate):
         return None
 
     try:
@@ -301,13 +312,13 @@ def _gather_media_entries(
 
         if isinstance(path_value, str) and path_value.strip():
             candidate = Path(path_value)
-            absolute = candidate if candidate.exists() else None
+            absolute = candidate if _path_exists(candidate) else None
         if absolute is None and isinstance(relative_path, str) and relative_path.strip():
             try:
                 candidate = locator.resolve_path(job_id, relative_path)
             except ValueError:
                 candidate = None
-            if candidate is not None and candidate.exists():
+            if candidate is not None and _path_exists(candidate):
                 absolute = candidate
 
         entry_url = entry.get("url")
@@ -323,11 +334,8 @@ def _gather_media_entries(
 
         size: Optional[int] = None
         updated_at: Optional[datetime] = None
-        if absolute is not None and absolute.exists():
-            try:
-                stat_result = absolute.stat()
-            except OSError:
-                stat_result = None
+        if absolute is not None:
+            stat_result = safe_stat(absolute)
             if stat_result is not None:
                 size = stat_result.st_size
                 updated_at = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc)
@@ -386,7 +394,7 @@ def _coerce_existing_path(raw: object) -> Optional[Path]:
     else:
         return None
     try:
-        return candidate if candidate.exists() else None
+        return candidate if _path_exists(candidate) else None
     except OSError:
         return None
 
@@ -403,14 +411,11 @@ def _resolve_job_root(job: PipelineJob, locator: FileLocator) -> Optional[Path]:
         default_root = locator.job_root(job.job_id)
     except Exception:
         return None
-    return default_root if default_root.exists() else None
+    return default_root if _path_exists(default_root) else None
 
 
 def _has_metadata_manifest(job_root: Path) -> bool:
-    try:
-        return (job_root / "metadata" / "job.json").is_file()
-    except OSError:
-        return False
+    return _path_is_file(job_root / "metadata" / "job.json")
 
 
 def _extract_entry_extension(entry: Mapping[str, object]) -> str:
@@ -488,11 +493,8 @@ def _resolve_entry_path(
     path_value = entry.get("path")
     if isinstance(path_value, str) and path_value.strip():
         candidate = Path(path_value)
-        try:
-            if candidate.exists():
-                return candidate
-        except OSError:
-            pass
+        if _path_exists(candidate):
+            return candidate
     relative = entry.get("relative_path")
     if isinstance(relative, str) and relative.strip():
         try:
@@ -500,11 +502,8 @@ def _resolve_entry_path(
         except ValueError:
             candidate = None
         if candidate is not None:
-            try:
-                if candidate.exists():
-                    return candidate
-            except OSError:
-                return None
+            if _path_exists(candidate):
+                return candidate
     return None
 
 
@@ -929,7 +928,7 @@ def search_generated_media(
                     loader_attempted = True
                     if job_root is not None:
                         manifest_path = job_root / "metadata" / "job.json"
-                        if manifest_path.exists():
+                        if _path_is_file(manifest_path):
                             try:
                                 metadata_loader = MetadataLoader(job_root)
                             except Exception:

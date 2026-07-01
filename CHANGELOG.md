@@ -15,6 +15,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web and Apple pipeline defaults now validate configured default EPUB inputs with the same tolerant stat helper, so transient NAS existence checks do not leak as defaults-route failures.
 - Web and Apple playback media manifests now check lazy chunk metadata availability through the tolerant stat helper, avoiding direct metadata existence checks on flaky NAS-backed job roots.
 - Web and Apple reading-bed catalogs now load their manifest through the tolerant stat helper, keeping background-music catalog sync resilient when NAS-backed storage races with remounts.
+- Web and Apple media search now resolves generated text, media, subtitle, job-root, and metadata-manifest paths through tolerant stat checks, so reader search pills skip vanished NAS files without breaking the whole search.
 
 ## 2026-06-30
 

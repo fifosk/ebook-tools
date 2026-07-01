@@ -299,6 +299,21 @@ def test_search_skips_chunk_metadata_read_when_generated_chunk_is_complete(
             }
         ]
     }
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == html_path or path == job_root:
+            raise AssertionError("media search path resolution should use safe_stat instead of exists")
+        return original_exists(path, *args, **kwargs)
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == html_path:
+            raise AssertionError("media search text loading should use safe_stat instead of is_file")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
 
     results = search_service.search_generated_media(
         query="fortune",
@@ -340,6 +355,15 @@ def test_search_uses_generated_chunks_when_metadata_manifest_is_missing(
             raise AssertionError("missing manifests should not build a chunk manifest")
 
     monkeypatch.setattr(search_service, "MetadataLoader", _NoEagerManifestMetadataLoader)
+    original_is_file = Path.is_file
+    manifest_path = job_root / "metadata" / "job.json"
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == manifest_path:
+            raise AssertionError("media search metadata manifest check should use safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
 
     job = PipelineJob(
         job_id=job_id,
