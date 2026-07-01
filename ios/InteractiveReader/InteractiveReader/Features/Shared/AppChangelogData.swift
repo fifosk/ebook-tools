@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-discovery-stale-refresh-guard",
+                    title: "Discovery results stay fresh",
+                    detail: "Apple Create now ignores stale book and video discovery responses when a newer provider/query search is in flight, keeping Web-style Default sources, NAS, manual-download, YouTube, and indexer candidates from replacing each other after slow backend scans."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-template-stale-refresh-guard",
                     title: "Saved templates stay mode-safe",
                     detail: "Apple Create now ignores stale saved-template refreshes when a newer mode/API request is in flight, so Generated Book, Narrate EPUB, Subtitle, and YouTube Dub template lists cannot overwrite each other after slow backend responses."

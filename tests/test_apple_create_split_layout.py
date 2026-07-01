@@ -1898,6 +1898,41 @@ def test_create_view_model_source_actions_are_split_and_target_wired() -> None:
     assert project.count("AppleBookCreateViewModel+Sources.swift in Sources") == 4
 
 
+def test_create_view_model_ignores_stale_acquisition_discovery_refreshes() -> None:
+    source = _source(CREATE_VIEW_MODEL)
+    source_actions = _source(CREATE_VIEW_MODEL_SOURCES)
+    ebook_body = _swift_function_body(
+        source_actions,
+        "func loadEbookDiscovery(\n        using appState: AppState,\n        cacheKey: String,\n        query: String? = nil,\n        provider: String = AppleBookCreatePresentation.defaultBookDiscoveryProviderID,\n        sourceIds: [String] = [],\n        force: Bool = false\n    ) async -> AcquisitionDiscoveryResponse?",
+    )
+    video_body = _swift_function_body(
+        source_actions,
+        "func loadVideoDiscovery(\n        using appState: AppState,\n        cacheKey: String,\n        query: String? = nil,\n        provider: String = AppleBookCreatePresentation.defaultVideoDiscoveryProviderID,\n        force: Bool = false\n    ) async -> AcquisitionDiscoveryResponse?",
+    )
+
+    assert "var ebookAcquisitionDiscoveryRequestSequence = 0" in source
+    assert "ebookAcquisitionDiscoveryRequestSequence += 1" in ebook_body
+    assert "let requestSequence = ebookAcquisitionDiscoveryRequestSequence" in ebook_body
+    assert "if requestSequence == ebookAcquisitionDiscoveryRequestSequence" in ebook_body
+    assert "guard requestSequence == ebookAcquisitionDiscoveryRequestSequence else" in ebook_body
+    assert ebook_body.index("guard requestSequence == ebookAcquisitionDiscoveryRequestSequence else") < ebook_body.index(
+        "ebookAcquisitionDiscovery = response"
+    )
+    assert "return ebookAcquisitionDiscovery" in ebook_body
+    assert ebook_body.count("guard requestSequence == ebookAcquisitionDiscoveryRequestSequence else") == 3
+
+    assert "var youtubeAcquisitionDiscoveryRequestSequence = 0" in source
+    assert "youtubeAcquisitionDiscoveryRequestSequence += 1" in video_body
+    assert "let requestSequence = youtubeAcquisitionDiscoveryRequestSequence" in video_body
+    assert "if requestSequence == youtubeAcquisitionDiscoveryRequestSequence" in video_body
+    assert "guard requestSequence == youtubeAcquisitionDiscoveryRequestSequence else" in video_body
+    assert video_body.index("guard requestSequence == youtubeAcquisitionDiscoveryRequestSequence else") < video_body.index(
+        "youtubeAcquisitionDiscovery = response"
+    )
+    assert "return youtubeAcquisitionDiscovery" in video_body
+    assert video_body.count("guard requestSequence == youtubeAcquisitionDiscoveryRequestSequence else") == 3
+
+
 def test_create_view_model_template_actions_are_split_and_target_wired() -> None:
     source = _source(CREATE_VIEW_MODEL)
     template_source = _source(CREATE_VIEW_MODEL_TEMPLATES)

@@ -1610,7 +1610,10 @@ After Narrate Ebook:
   Download Station handoff now matches completed downloader filenames against
   refreshed manual-download discovery candidates and applies the matching
   local video/subtitle selection, reducing the post-download Apple setup loop
-  without auto-selecting unrelated manual downloads. The
+  without auto-selecting unrelated manual downloads. Apple Create now ignores
+  stale book and video discovery responses when a newer provider/query search
+  is in flight, so slow NAS/manual/YouTube/indexer scans cannot replace the
+  visible candidate list after the user switches discovery sources. The
   subtitle and YouTube Dub enqueue endpoints now emit aggregate submission
   timing metrics for Apple/Web Create diagnostics without leaking NAS paths,
   language/voice choices, metadata content, user ids, tokens, or created job

@@ -88,9 +88,15 @@ extension AppleBookCreateViewModel {
             return ebookAcquisitionDiscovery
         }
 
+        ebookAcquisitionDiscoveryRequestSequence += 1
+        let requestSequence = ebookAcquisitionDiscoveryRequestSequence
         isLoadingEbookAcquisitionDiscovery = true
         ebookAcquisitionDiscoveryErrorMessage = nil
-        defer { isLoadingEbookAcquisitionDiscovery = false }
+        defer {
+            if requestSequence == ebookAcquisitionDiscoveryRequestSequence {
+                isLoadingEbookAcquisitionDiscovery = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
@@ -101,14 +107,23 @@ extension AppleBookCreateViewModel {
                 sourceIds: normalizedSourceIds,
                 limit: 25
             )
+            guard requestSequence == ebookAcquisitionDiscoveryRequestSequence else {
+                return ebookAcquisitionDiscovery
+            }
             ebookAcquisitionDiscovery = response
             loadedEbookAcquisitionDiscoveryCacheKey = discoveryCacheKey
             return response
         } catch APIClientError.httpError(let statusCode, _) where statusCode == 404 {
+            guard requestSequence == ebookAcquisitionDiscoveryRequestSequence else {
+                return ebookAcquisitionDiscovery
+            }
             ebookAcquisitionDiscovery = nil
             ebookAcquisitionDiscoveryErrorMessage = "This backend does not expose source discovery yet."
             return nil
         } catch {
+            guard requestSequence == ebookAcquisitionDiscoveryRequestSequence else {
+                return ebookAcquisitionDiscovery
+            }
             ebookAcquisitionDiscovery = nil
             ebookAcquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil
@@ -208,9 +223,15 @@ extension AppleBookCreateViewModel {
             return youtubeAcquisitionDiscovery
         }
 
+        youtubeAcquisitionDiscoveryRequestSequence += 1
+        let requestSequence = youtubeAcquisitionDiscoveryRequestSequence
         isLoadingYoutubeAcquisitionDiscovery = true
         youtubeAcquisitionDiscoveryErrorMessage = nil
-        defer { isLoadingYoutubeAcquisitionDiscovery = false }
+        defer {
+            if requestSequence == youtubeAcquisitionDiscoveryRequestSequence {
+                isLoadingYoutubeAcquisitionDiscovery = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
@@ -220,14 +241,23 @@ extension AppleBookCreateViewModel {
                 provider: requestProvider,
                 limit: 25
             )
+            guard requestSequence == youtubeAcquisitionDiscoveryRequestSequence else {
+                return youtubeAcquisitionDiscovery
+            }
             youtubeAcquisitionDiscovery = response
             loadedYoutubeAcquisitionDiscoveryCacheKey = discoveryCacheKey
             return response
         } catch APIClientError.httpError(let statusCode, _) where statusCode == 404 {
+            guard requestSequence == youtubeAcquisitionDiscoveryRequestSequence else {
+                return youtubeAcquisitionDiscovery
+            }
             youtubeAcquisitionDiscovery = nil
             youtubeAcquisitionDiscoveryErrorMessage = "This backend does not expose source discovery yet."
             return nil
         } catch {
+            guard requestSequence == youtubeAcquisitionDiscoveryRequestSequence else {
+                return youtubeAcquisitionDiscovery
+            }
             youtubeAcquisitionDiscovery = nil
             youtubeAcquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil
