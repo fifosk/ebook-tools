@@ -8,7 +8,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "backend-default-sentinel-discovery-fanout",
                     title: "Discovery defaults are backend-tolerant",
-                    detail: "The backend acquisition route now treats a leaked backend_defaults provider id as the same no-provider Default sources fan-out used by Web and Apple Create, so older clients do not break book/video discovery."
+                    detail: "The backend acquisition discovery service and route now treat a leaked backend_defaults provider id as the same no-provider Default sources fan-out used by Web and Apple Create, so older clients do not break book/video discovery."
                 ),
                 AppChangelogEntry(
                     id: "apple-create-default-source-request-normalization",

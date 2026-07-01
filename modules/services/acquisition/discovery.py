@@ -1447,6 +1447,8 @@ def _normalize_media_kind(media_kind: str) -> str:
 
 def _normalize_provider(provider: str | None) -> str | None:
     value = (provider or "").strip().lower()
+    if value == "backend_defaults":
+        return None
     return value or None
 
 
