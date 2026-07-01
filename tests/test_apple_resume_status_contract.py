@@ -234,6 +234,7 @@ def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() 
     assert "matchingSentenceNumber sentenceNumber: Int? = nil" in selection_source
     assert "seekSequencePlaybackWhenReady(" in selection_source
     assert "sequenceController.seekToTime(" in selection_source
+    assert "sequenceController.seekToTime(\n                time,\n                sentenceIndex: targetSentenceIndex" in selection_source
     assert "selectChunk(id: chunk.id, autoPlay: false)" in selection_source
     assert "func resumePlaybackTime(_ time: Double, matches sentenceNumber: Int, in chunk: InteractiveChunk) -> Bool" in selection_source
     assert "resumeValidationTimingTracks(for: chunk)" in selection_source
@@ -245,3 +246,12 @@ def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() 
     assert "func seekToTime(" in sequence_source
     assert "findTimeTarget(" in sequence_source
     assert "currentSegmentIndex = target.segmentIndex" in sequence_source
+    assert "let preferred = preferredTrack ?? currentTrack" in sequence_source
+    assert "if let sentenceIndex, segment.sentenceIndex != sentenceIndex" in sequence_source
+    assert "let clamped = min(max(time, match.segment.start), match.segment.end)" in sequence_source
+    assert "return (match.segmentIndex, match.segment.track, clamped)" in sequence_source
+
+    exact_time_index = selection_source.index("sequenceController.seekToTime(")
+    fallback_index = selection_source.index("Interactive sequence time seek fallback=sentenceStart")
+    assert exact_time_index < fallback_index
+    assert '"[PlaybackTransport] Interactive sequence time seek accepted sentence=\\(sentenceNumber ?? -1) time=\\(String(format: "%.3f", target.time)) track=\\(target.track.rawValue)"' in selection_source
