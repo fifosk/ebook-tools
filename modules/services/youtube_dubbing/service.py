@@ -447,7 +447,7 @@ def _run_dub_job(
                 candidates = (vtt_subtitle, subtitle_candidate, alt_subtitle)
                 for candidate in candidates:
                     try:
-                        if candidate.exists():
+                        if _path_exists(candidate):
                             copied_subtitle = _copy_into_storage(candidate)
                             if copied_subtitle not in subtitle_artifacts:
                                 subtitle_artifacts.append(copied_subtitle)
@@ -459,7 +459,7 @@ def _run_dub_job(
                                 continue
                             # If we already have an explicit VTT sibling for this video/subtitle pair,
                             # do not regenerate/realign another VTT from ASS/SRT.
-                            if vtt_subtitle.exists():
+                            if _path_exists(vtt_subtitle):
                                 continue
                             vtt_variant = _ensure_webvtt_variant(
                                 copied_subtitle,
@@ -622,9 +622,9 @@ def _run_dub_job(
                             logger.debug("Unable to publish stitching done progress for %s", job.job_id, exc_info=True)
                         # Ensure the stitched artifacts are registered for storage and listing.
                         _register_written_path(stitched_video)
-                        if stitched_vtt.exists():
+                        if _path_exists(stitched_vtt):
                             _copy_into_storage(stitched_vtt)
-                        if stitched_ass.exists():
+                        if _path_exists(stitched_ass):
                             _copy_into_storage(stitched_ass)
             except Exception:
                 logger.warning("Unable to stitch YouTube dub batches for job %s", job.job_id, exc_info=True)
@@ -636,7 +636,7 @@ def _run_dub_job(
                     stitched_video_path.with_suffix(".vtt"),
                     stitched_video_path.with_suffix(".ass"),
                 ):
-                    if candidate.exists():
+                    if _path_exists(candidate):
                         subtitle_only.append(candidate)
                 relative_prefix = Path("media")
                 stitched_generated_files_snapshot = _serialize_generated_files_batch(
@@ -683,7 +683,7 @@ def _run_dub_job(
                             stitched_video_path,
                             stitched_video_path.with_suffix(".ass"),
                         ):
-                            if not artifact.exists():
+                            if not _path_exists(artifact):
                                 continue
                             destination = mirror_dir / artifact.name
                             try:

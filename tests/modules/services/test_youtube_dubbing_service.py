@@ -10,6 +10,15 @@ from modules.services.youtube_dubbing import service as service_module
 pytestmark = pytest.mark.services
 
 
+def test_youtube_dubbing_service_uses_safe_stat_for_file_probes() -> None:
+    source = Path(service_module.__file__).read_text(encoding="utf-8")
+
+    assert ".exists(" not in source
+    assert ".is_file(" not in source
+    assert "_path_exists(" in source
+    assert "_path_is_file(" in source
+
+
 def test_resolve_partial_video_uses_safe_stat_for_completed_download(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
