@@ -18,7 +18,7 @@ import type {
   FormState,
   ImageDefaults,
 } from './bookNarrationFormTypes';
-import { DEFAULT_FORM_STATE } from './bookNarrationFormDefaults';
+import { DEFAULT_FORM_STATE, IMAGE_DEFAULT_FIELDS } from './bookNarrationFormDefaults';
 
 export type BookNarrationSectionMeta = Record<
   BookNarrationFormSection,
@@ -48,6 +48,17 @@ export type BookNarrationSubmitPresentation = {
 
 export type BookNarrationTemplateFormStateApplication = {
   appliedFormState: Partial<FormState>;
+  sharedPreferenceUpdate: BookNarrationSharedPreferenceUpdate | null;
+};
+
+export type BookNarrationFieldChangeApplication = {
+  allowed: boolean;
+  editedFields: Array<keyof FormState>;
+  imageDefaultFields: Array<keyof FormState>;
+  markStartEdited: boolean;
+  markInputEdited: boolean;
+  markEndEdited: boolean;
+  resetAutoEndSentence: boolean;
   sharedPreferenceUpdate: BookNarrationSharedPreferenceUpdate | null;
 };
 
@@ -233,6 +244,54 @@ export function applyBookNarrationFieldChange<K extends keyof FormState>(
   return {
     ...state,
     [key]: value,
+  };
+}
+
+export function resolveBookNarrationFieldChangeApplication<K extends keyof FormState>({
+  key,
+  value,
+  formState,
+  forcedBaseOutputFile,
+  sharedTargetLanguages,
+}: {
+  key: K;
+  value: FormState[K];
+  formState: FormState;
+  forcedBaseOutputFile: string | null | undefined;
+  sharedTargetLanguages: string[];
+}): BookNarrationFieldChangeApplication {
+  if (!canApplyBookNarrationFieldChange(key, forcedBaseOutputFile)) {
+    return {
+      allowed: false,
+      editedFields: [],
+      imageDefaultFields: [],
+      markStartEdited: false,
+      markInputEdited: false,
+      markEndEdited: false,
+      resetAutoEndSentence: false,
+      sharedPreferenceUpdate: null,
+    };
+  }
+
+  const editedFields: Array<keyof FormState> = [key];
+  if (key === 'custom_target_languages') {
+    editedFields.push('target_languages');
+  }
+
+  return {
+    allowed: true,
+    editedFields,
+    imageDefaultFields: IMAGE_DEFAULT_FIELDS.has(key) ? [key] : [],
+    markStartEdited: key === 'start_sentence',
+    markInputEdited: key === 'base_output_file',
+    markEndEdited: key === 'end_sentence',
+    resetAutoEndSentence: key === 'end_sentence',
+    sharedPreferenceUpdate: resolveBookNarrationSharedPreferenceUpdate({
+      key,
+      value,
+      formState,
+      sharedTargetLanguages,
+    }),
   };
 }
 

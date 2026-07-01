@@ -62,14 +62,13 @@ import {
   applyBookNarrationTemplateFormState,
   applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
-  canApplyBookNarrationFieldChange,
   normalizeBookNarrationPath,
   normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
   resolveBookNarrationSubmitPresentation,
-  resolveBookNarrationSharedPreferenceUpdate,
+  resolveBookNarrationFieldChangeApplication,
   resolveBookNarrationTemplateFormStateApplication,
   resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSectionMeta,
@@ -545,32 +544,25 @@ export function BookNarrationForm({
   });
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    if (!canApplyBookNarrationFieldChange(key, forcedBaseOutputFile)) {
-      return;
-    }
-    if (key === 'start_sentence') {
-      userEditedStartRef.current = true;
-    } else if (key === 'end_sentence') {
-      userEditedEndRef.current = true;
-      lastAutoEndSentenceRef.current = null;
-    } else if (key === 'base_output_file') {
-      userEditedInputRef.current = true;
-    }
-    markUserEditedField(key);
-    if (key === 'custom_target_languages') {
-      markUserEditedField('target_languages');
-    }
-    if (IMAGE_DEFAULT_FIELDS.has(key)) {
-      userEditedImageDefaultsRef.current.add(key);
-    }
-    setFormState((previous) => applyBookNarrationFieldChange(previous, key, value));
-
-    const sharedPreferenceUpdate = resolveBookNarrationSharedPreferenceUpdate({
+    const application = resolveBookNarrationFieldChangeApplication({
       key,
       value,
       formState,
+      forcedBaseOutputFile,
       sharedTargetLanguages
     });
+    if (!application.allowed) {
+      return;
+    }
+    if (application.markStartEdited) userEditedStartRef.current = true;
+    if (application.markEndEdited) userEditedEndRef.current = true;
+    if (application.resetAutoEndSentence) lastAutoEndSentenceRef.current = null;
+    if (application.markInputEdited) userEditedInputRef.current = true;
+    application.editedFields.forEach(markUserEditedField);
+    application.imageDefaultFields.forEach((field) => userEditedImageDefaultsRef.current.add(field));
+    setFormState((previous) => applyBookNarrationFieldChange(previous, key, value));
+
+    const { sharedPreferenceUpdate } = application;
     if (sharedPreferenceUpdate?.inputLanguage !== undefined) {
       setSharedInputLanguage(sharedPreferenceUpdate.inputLanguage);
     }

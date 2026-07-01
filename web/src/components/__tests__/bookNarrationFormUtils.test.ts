@@ -17,6 +17,7 @@ import {
   normalizeBookNarrationPath,
   normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
+  resolveBookNarrationFieldChangeApplication,
   resolveBookNarrationMissingRequirements,
   resolveBookNarrationSharedPreferenceUpdate,
   resolveBookNarrationTemplateFormStateApplication,
@@ -322,6 +323,82 @@ describe('bookNarrationFormUtils source/output state updates', () => {
     const next = applyBookNarrationFieldChange(previous, 'target_languages', nextTargets);
     expect(next).not.toBe(previous);
     expect(next.target_languages).toBe(nextTargets);
+  });
+
+  it('resolves field-change side effects for language and image edits', () => {
+    const state = {
+      ...DEFAULT_FORM_STATE,
+      target_languages: ['German'],
+      custom_target_languages: 'French',
+    };
+
+    expect(
+      resolveBookNarrationFieldChangeApplication({
+        key: 'custom_target_languages',
+        value: 'French, Italian',
+        formState: state,
+        forcedBaseOutputFile: null,
+        sharedTargetLanguages: ['German', 'French'],
+      }),
+    ).toMatchObject({
+      allowed: true,
+      editedFields: ['custom_target_languages', 'target_languages'],
+      imageDefaultFields: [],
+      markStartEdited: false,
+      markInputEdited: false,
+      markEndEdited: false,
+      resetAutoEndSentence: false,
+      sharedPreferenceUpdate: {
+        targetLanguages: ['German', 'French', 'Italian'],
+      },
+    });
+
+    expect(
+      resolveBookNarrationFieldChangeApplication({
+        key: 'image_width',
+        value: '768',
+        formState: state,
+        forcedBaseOutputFile: null,
+        sharedTargetLanguages: ['German', 'French'],
+      }),
+    ).toMatchObject({
+      allowed: true,
+      editedFields: ['image_width'],
+      imageDefaultFields: ['image_width'],
+      sharedPreferenceUpdate: null,
+    });
+  });
+
+  it('resolves sentence/output edit flags and forced-output blocking', () => {
+    expect(
+      resolveBookNarrationFieldChangeApplication({
+        key: 'end_sentence',
+        value: '120',
+        formState: DEFAULT_FORM_STATE,
+        forcedBaseOutputFile: null,
+        sharedTargetLanguages: DEFAULT_FORM_STATE.target_languages,
+      }),
+    ).toMatchObject({
+      allowed: true,
+      editedFields: ['end_sentence'],
+      markEndEdited: true,
+      resetAutoEndSentence: true,
+    });
+
+    expect(
+      resolveBookNarrationFieldChangeApplication({
+        key: 'base_output_file',
+        value: 'manual-output',
+        formState: DEFAULT_FORM_STATE,
+        forcedBaseOutputFile: 'forced-output',
+        sharedTargetLanguages: DEFAULT_FORM_STATE.target_languages,
+      }),
+    ).toMatchObject({
+      allowed: false,
+      editedFields: [],
+      imageDefaultFields: [],
+      sharedPreferenceUpdate: null,
+    });
   });
 });
 
