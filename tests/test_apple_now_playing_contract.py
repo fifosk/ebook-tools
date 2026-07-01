@@ -1041,11 +1041,12 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "private var shouldAdoptIgnoredObservedNonPlayingAsReaderPause",
     )
     assert "shouldAdoptIgnoredObservedNonPlayingAsReaderPause" in observed_non_playing_body
-    assert "Apple Music ignored non-playing converted to reader transport pause outside active tvOS narration" in observed_non_playing_body
+    assert "Apple Music ignored non-playing converted to reader transport pause during tvOS reading bed" in observed_non_playing_body
     assert "#if os(tvOS)" in ignored_observed_pause_body
     assert "ownershipState == .appleMusicBed" in ignored_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
-    assert "!isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
+    assert "!isReaderNarrationActiveForMusicBed" not in ignored_observed_pause_body
+    assert "!isManuallyPaused" in ignored_observed_pause_body
     assert "!isPausedByReaderTransport" in ignored_observed_pause_body
     assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in observed_non_playing_body
     assert 'adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")' in music

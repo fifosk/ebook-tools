@@ -910,7 +910,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     observed_pause_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "if shouldIgnoreNextNonPlayingStatus" in observed_pause_body
     assert "shouldAdoptIgnoredObservedNonPlayingAsReaderPause" in observed_pause_body
-    assert "Apple Music ignored non-playing converted to reader transport pause outside active tvOS narration" in observed_pause_body
+    assert "Apple Music ignored non-playing converted to reader transport pause during tvOS reading bed" in observed_pause_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in observed_pause_body
     assert "guard isBackgroundMode else { return }" in observed_pause_body
     assert "guard shouldTreatObservedNonPlayingAsReaderPause else" in observed_pause_body
@@ -945,7 +945,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "#if os(tvOS)" in ignored_observed_pause_body
     assert "ownershipState == .appleMusicBed" in ignored_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
-    assert "!isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
+    assert "!isReaderNarrationActiveForMusicBed" not in ignored_observed_pause_body
+    assert "!isManuallyPaused" in ignored_observed_pause_body
     assert "!isPausedByReaderTransport" in ignored_observed_pause_body
     immediate_observed_pause_body = _function_body(
         music,

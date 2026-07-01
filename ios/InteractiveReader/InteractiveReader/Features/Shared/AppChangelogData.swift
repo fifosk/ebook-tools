@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-ignored-music-pause-active-reader",
+                    title: "TV first pause reaches narration",
+                    detail: "Apple TV Music-bed playback now converts an otherwise ignored Music non-playing signal into a reader-owned pause while sentence narration is active, so a Siri Remote pause routed to Music should not leave the track playing until a second press."
+                ),
+                AppChangelogEntry(
                     id: "youtube-dub-generation-safe-stats",
                     title: "YouTube dubbing probes are NAS-tolerant",
                     detail: "Backend YouTube dubbing submission, generation, artifact handling, and video helper output paths now validate selected media, recovered partial downloads, and temporary mux artifacts through tolerant stat helpers, reducing flaky NAS path failures shared by Web and Apple Create flows."
