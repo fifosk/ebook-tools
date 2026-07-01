@@ -660,6 +660,21 @@ default `APPLE_PIPELINE_SMOKE_PROFILE` with every manifest simulator profile, so
 adding a new shared smoke lane requires updating the ebook-tools aggregate and
 single-profile dry-run defaults before the dogfood pipeline can pass.
 
+Latest shared-pipeline dogfood evidence from July 1, 2026:
+`make verify-apple-shared-pipeline` passed from the ebook-tools checkout at
+commit `5a15b4b1` after the Cinema translation-only single-track seek anchor
+guard landed. The run covered manifest-driven Apple contracts, live backend
+health/runtime checks, all registered backend pytest slices, Web focused/full
+Vitest checks, production/export builds, iPhone/iPad/tvOS/Cinema simulator
+smoke dry-runs, registered app-owned journey listing, and every app-owned
+journey dry-run including Create readiness, Music-bed sync, UI-test build,
+runtime Xcode readiness, and Mac iPad-style profiles. The dedicated
+`test-apple-playback-state-swift` lane included the explicit single-track
+time-seek anchor regression, proving a requested translation-only sentence
+number beats stale end-of-chunk player time while bare time seeks still fall
+back to active-track gates. The run did not boot simulators, load remote
+secrets for credential-free validation, or touch physical devices.
+
 Living Room Apple TV candidate gate:
 `make verify-apple-living-room-candidate` runs the full non-physical shared
 pipeline gate and then the real tvOS Music-bed XCUITest journey
@@ -766,6 +781,29 @@ install then deployed and verified `InteractiveReaderTV 2026.6.28
 (20260628074)` on Cinema and the 15-second launch-console timeout was treated
 as app-alive verification; the launch log showed tvOS remote Play/Pause routing
 through the reader broker and forcing a reader pause.
+
+Cinema Apple TV translation-only validation deploy from July 1, 2026:
+after an explicit Cinema test request, the unattended helper built, installed,
+verified, and launched commit `5b57214f1` with:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=30 \
+  bash scripts/apple_unattended_device_update.sh \
+    --profile appletv \
+    --device "Cinema" \
+    --install \
+    --launch \
+    --launch-console-timeout 30
+```
+
+The deploy source freshness check passed against `origin/main`; CoreDevice
+resolved Cinema to device id `571A83C9-DFA6-5F26-87C7-E4F8A77F3379`, installed
+`InteractiveReaderTV 2026.7.1 (20260701001)`, and the 30-second launch-console
+timeout was treated as app-alive verification. The launch evidence is archived
+at `test-results/apple-device-launch-console-Cinema-20260701T111856Z-20178.log`.
+The follow-up commit `5a15b4b1` did not deploy; it only added the executable
+single-track time-seek anchor guard and passed `make verify-apple-shared-pipeline`.
 
 The reusable Apple device pipeline also calls the repo-owned
 `src/check_poc_readiness.py` hook before signed build/install when readiness is

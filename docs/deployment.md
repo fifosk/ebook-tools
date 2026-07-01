@@ -377,6 +377,32 @@ diagnostic captures that also exercise an ignored stray Now Playing play
 callback and should contain the `reader-pause-guard` breadcrumb, or run
 `make apple-device-verify-music-bed-guarded-play-log APPLE_DEVICE_ID=<device>`
 for the named shortcut.
+
+Latest Cinema Apple TV translation-only validation deploy from July 1, 2026
+used the unattended tvOS helper path against explicit device name `Cinema` from
+commit `5b57214f1`, after the deploy source freshness check confirmed local
+`main` matched `origin/main`:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=30 \
+  bash scripts/apple_unattended_device_update.sh \
+    --profile appletv \
+    --device "Cinema" \
+    --install \
+    --launch \
+    --launch-console-timeout 30
+```
+
+CoreDevice resolved Cinema to `571A83C9-DFA6-5F26-87C7-E4F8A77F3379`, installed
+and verified `InteractiveReaderTV com.example.InteractiveReader.tvos` at
+`2026.7.1` build `20260701001`, then reached the 30-second launch-console
+timeout and treated it as app-alive verification. The archived launch log is
+`test-results/apple-device-launch-console-Cinema-20260701T111856Z-20178.log`.
+The next pushed checkpoint, `5a15b4b1`, added the executable single-track
+time-seek anchor regression and passed `make verify-apple-shared-pipeline`; it
+was not physically deployed.
+
 Pause-release and pause-resume validation also reject legacy hardware echo
 resume breadcrumbs such as `foregroundHardwareResume` and
 `brokerHardwareResume` before an explicit reader play command, matching the
