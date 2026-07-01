@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import shutil
+import stat as stat_module
 import threading
 from pathlib import Path
 from typing import Any, List, Mapping, Optional, Sequence
 
 from modules.progress_tracker import ProgressTracker
+from modules.services.source_discovery import safe_stat
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJob, PipelineJobManager, PipelineJobStatus
 from modules.services.job_manager.runtime_context import job_runtime_context
@@ -47,6 +49,15 @@ _PYTHON_TRANSLITERATION_ALIASES = {
 }
 
 
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _path_is_file(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
+
+
 def _normalize_translation_provider(value: Optional[str]) -> Optional[str]:
     if not value:
         return None
@@ -78,7 +89,7 @@ def _resolve_partial_video(path: Path) -> Path:
     if resolved.suffix.lower() != ".part":
         return resolved
     candidate = resolved.with_suffix("")
-    if candidate.exists():
+    if _path_exists(candidate):
         logger.info("Using completed download for %s (recovered from .part)", candidate)
         return candidate
     try:
@@ -873,9 +884,9 @@ class YoutubeDubbingService:
     ) -> PipelineJob:
         resolved_video = _resolve_partial_video(video_path)
         resolved_subtitle = subtitle_path.expanduser()
-        if not resolved_video.exists():
+        if not _path_is_file(resolved_video):
             raise FileNotFoundError(f"Video file '{resolved_video}' does not exist")
-        if not resolved_subtitle.exists():
+        if not _path_is_file(resolved_subtitle):
             raise FileNotFoundError(f"Subtitle file '{resolved_subtitle}' does not exist")
         if resolved_video.parent != resolved_subtitle.parent:
             raise ValueError("subtitle_path must be in the same directory as the video file")

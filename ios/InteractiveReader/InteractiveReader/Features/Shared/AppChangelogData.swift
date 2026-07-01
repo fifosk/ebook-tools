@@ -8,7 +8,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "youtube-dub-generation-safe-stats",
                     title: "YouTube dubbing probes are NAS-tolerant",
-                    detail: "Backend YouTube dubbing generation now validates selected video/subtitle inputs and temporary mux artifacts through tolerant stat helpers, reducing flaky NAS path failures shared by Web and Apple Create flows."
+                    detail: "Backend YouTube dubbing submission and generation now validate selected video/subtitle inputs, recovered partial downloads, and temporary mux artifacts through tolerant stat helpers, reducing flaky NAS path failures shared by Web and Apple Create flows."
                 ),
                 AppChangelogEntry(
                     id: "tvos-active-music-pause-confirms-reader",
