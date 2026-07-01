@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -157,6 +158,37 @@ def test_normalize_cover_path_uses_safe_stat_for_candidates(
     monkeypatch.setattr(Path, "exists", guarded_exists)
 
     assert file_ops.normalize_cover_path("cover.webp", job_root) == "metadata/cover.webp"
+
+
+def test_copy_cover_asset_compares_existing_cover_with_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    metadata_root = tmp_path / "job-1" / "metadata"
+    source_path = tmp_path / "source.jpg"
+    destination_path = metadata_root / "cover.jpg"
+    metadata_root.mkdir(parents=True)
+    source_path.write_bytes(b"cover")
+    destination_path.write_bytes(b"cover")
+    source_stat = os.stat(source_path)
+    os.utime(destination_path, (source_stat.st_atime, source_stat.st_mtime))
+    resolved_source_path = source_path.resolve()
+    original_stat = Path.stat
+
+    def guarded_stat(path: Path, *args, **kwargs):
+        if path in {source_path, resolved_source_path, destination_path}:
+            raise AssertionError("library cover copy should compare existing covers via safe_stat")
+        return original_stat(path, *args, **kwargs)
+
+    def fake_safe_stat(path: Path):
+        if path in {source_path, resolved_source_path, destination_path}:
+            return os.stat(path)
+        return original_stat(path)
+
+    monkeypatch.setattr(Path, "stat", guarded_stat)
+    monkeypatch.setattr(file_ops, "safe_stat", fake_safe_stat)
+
+    assert file_ops.copy_cover_asset(metadata_root, source_path) == "metadata/cover.jpg"
 
 
 def test_compact_metadata_generated_files_uses_safe_stat_for_chunk_payloads(

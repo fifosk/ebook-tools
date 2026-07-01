@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "interactive-resume-word-offset",
+                    title: "Reader resume keeps word position",
+                    detail: "Interactive book resume now records the current playback time alongside the sentence number and validates that offset before applying it, so Apple TV, iPad, and iPhone resume closer to the last-read word instead of always restarting the sentence."
+                ),
+                AppChangelogEntry(
+                    id: "library-cover-copy-safe-stat",
+                    title: "Library cover sync tolerates NAS races",
+                    detail: "Backend Library sync now compares existing cover assets through NAS-tolerant stat probes before copying, reducing transient media metadata failures shared by Web and Apple Library refreshes."
+                ),
+                AppChangelogEntry(
                     id: "webapi-startup-safe-path-probes",
                     title: "API startup tolerates NAS races",
                     detail: "Backend startup cleanup and bundled Web static-asset detection now use NAS-tolerant stat and directory scans, reducing transient boot-time cleanup or SPA serving failures shared by Web and Apple clients."

@@ -35,6 +35,7 @@ struct JobPlaybackView: View {
     @State var segmentDurations: [String: Double] = [:]
     @State var segmentDurationTask: Task<Void, Never>?
     @State var lastRecordedSentence: Int?
+    @State var lastRecordedSentenceTimeBucket: Int?
     @State var lastRecordedTimeBucket: Int?
     @State var lastVideoTime: Double = 0
     @State var resumeDecisionPending = false

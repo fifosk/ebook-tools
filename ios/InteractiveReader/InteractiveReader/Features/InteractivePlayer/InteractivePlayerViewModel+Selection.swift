@@ -812,6 +812,32 @@ extension InteractivePlayerViewModel {
         return nil
     }
 
+    func resumePlaybackTime(_ time: Double, matches sentenceNumber: Int, in chunk: InteractiveChunk) -> Bool {
+        guard time.isFinite, time >= 0 else { return false }
+        let activeTimingTrack = activeTimingTrack(for: chunk)
+        if let resolved = SentencePositionProvider.sentenceNumber(
+            in: chunk,
+            atTime: time,
+            activeTimingTrack: activeTimingTrack
+        ) {
+            return resolved == sentenceNumber
+        }
+        guard let index = SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber),
+              let start = startTimeForSentence(atIndex: index, in: chunk) else {
+            return false
+        }
+        let nextStart = chunk.sentences.indices.contains(index + 1)
+            ? startTimeForSentence(atIndex: index + 1, in: chunk)
+            : nil
+        if let nextStart, nextStart.isFinite, nextStart > start {
+            return time >= max(0, start - 0.05) && time < nextStart + 0.05
+        }
+        if let duration = playbackDuration(for: chunk), duration.isFinite, duration > start {
+            return time >= max(0, start - 0.05) && time <= duration + 0.05
+        }
+        return time >= max(0, start - 0.05)
+    }
+
     /// Get start time for a sentence by its 0-based array index
     func startTimeForSentence(atIndex index: Int, in chunk: InteractiveChunk) -> Double? {
         guard chunk.sentences.indices.contains(index) else { return nil }

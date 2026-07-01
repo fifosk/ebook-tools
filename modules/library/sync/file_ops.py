@@ -352,16 +352,15 @@ def copy_cover_asset(metadata_root: Path, source: Path) -> str:
     if destination_abs != resolved_source:
         should_copy = True
         if _path_exists(destination_path):
-            try:
-                src_stat = resolved_source.stat()
-                dest_stat = destination_path.stat()
-                if (
-                    src_stat.st_size == dest_stat.st_size
-                    and int(src_stat.st_mtime) == int(dest_stat.st_mtime)
-                ):
-                    should_copy = False
-            except OSError:
-                pass
+            src_stat = safe_stat(resolved_source)
+            dest_stat = safe_stat(destination_path)
+            if (
+                src_stat is not None
+                and dest_stat is not None
+                and src_stat.st_size == dest_stat.st_size
+                and int(src_stat.st_mtime) == int(dest_stat.st_mtime)
+            ):
+                should_copy = False
         if should_copy:
             shutil.copy2(resolved_source, destination_path)
 

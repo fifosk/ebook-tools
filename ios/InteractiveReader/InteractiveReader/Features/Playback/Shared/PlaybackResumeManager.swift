@@ -9,6 +9,7 @@ final class PlaybackResumeManager: ObservableObject {
     @Published var videoAutoPlay = false
     @Published var resumeDecisionPending = false
     @Published var lastRecordedSentence: Int?
+    @Published var lastRecordedSentenceTimeBucket: Int?
     @Published var lastRecordedTimeBucket: Int?
     @Published var lastVideoTime: Double = 0
 
@@ -32,6 +33,7 @@ final class PlaybackResumeManager: ObservableObject {
         videoAutoPlay = false
         resumeDecisionPending = true
         lastRecordedSentence = nil
+        lastRecordedSentenceTimeBucket = nil
         lastRecordedTimeBucket = nil
         lastVideoTime = 0
     }
@@ -73,21 +75,30 @@ final class PlaybackResumeManager: ObservableObject {
 
     // MARK: - Recording Resume State
 
-    func recordInteractiveResume(sentenceIndex: Int, force: Bool = false) {
+    func recordInteractiveResume(
+        sentenceIndex: Int,
+        playbackTime: Double? = nil,
+        force: Bool = false
+    ) {
         guard !resumeDecisionPending else { return }
         guard let userId else { return }
         guard sentenceIndex > 0 else { return }
-        if !force, sentenceIndex == lastRecordedSentence {
+        let normalizedPlaybackTime = playbackTime.flatMap(Self.normalizedInteractivePlaybackTime)
+        let timeBucket = normalizedPlaybackTime.map { Int($0.rounded(.down)) }
+        if !force,
+           sentenceIndex == lastRecordedSentence,
+           timeBucket == lastRecordedSentenceTimeBucket {
             return
         }
         lastRecordedSentence = sentenceIndex
+        lastRecordedSentenceTimeBucket = timeBucket
         let entry = PlaybackResumeEntry(
             jobId: jobId,
             itemType: itemType,
             kind: .sentence,
             updatedAt: Date().timeIntervalSince1970,
             sentenceNumber: sentenceIndex,
-            playbackTime: nil
+            playbackTime: normalizedPlaybackTime
         )
         PlaybackResumeStore.shared.updateEntry(entry, userId: userId)
     }
@@ -118,11 +129,11 @@ final class PlaybackResumeManager: ObservableObject {
         return true
     }
 
-    func persistOnExit(isVideoPreferred: Bool, sentenceIndex: Int?) {
+    func persistOnExit(isVideoPreferred: Bool, sentenceIndex: Int?, playbackTime: Double?) {
         if isVideoPreferred {
             recordVideoResume(time: lastVideoTime, isPlaying: false)
         } else if let sentenceIndex {
-            recordInteractiveResume(sentenceIndex: sentenceIndex, force: true)
+            recordInteractiveResume(sentenceIndex: sentenceIndex, playbackTime: playbackTime, force: true)
         }
         if let userId {
             Task {
@@ -143,6 +154,9 @@ final class PlaybackResumeManager: ObservableObject {
         switch entry.kind {
         case .sentence:
             let sentence = entry.sentenceNumber ?? 1
+            if let time = entry.playbackTime, time.isFinite, time > 1 {
+                return "Continue from sentence \(sentence) at \(formatPlaybackTime(time)).\n\(iCloudNote)"
+            }
             return "Continue from sentence \(sentence).\n\(iCloudNote)"
         case .time:
             let time = entry.playbackTime ?? 0
@@ -171,5 +185,10 @@ final class PlaybackResumeManager: ObservableObject {
         formatter.allowedUnits = time >= 3600 ? [.hour, .minute, .second] : [.minute, .second]
         formatter.zeroFormattingBehavior = .pad
         return formatter.string(from: time) ?? "0:00"
+    }
+
+    private static func normalizedInteractivePlaybackTime(_ time: Double) -> Double? {
+        guard time.isFinite, time >= 0 else { return nil }
+        return time
     }
 }

@@ -17,7 +17,7 @@ struct PlaybackResumeEntry: Codable, Equatable {
     var isMeaningful: Bool {
         switch kind {
         case .sentence:
-            return (sentenceNumber ?? 0) > 1
+            return (sentenceNumber ?? 0) > 1 || (playbackTime ?? 0) > 1
         case .time:
             return (playbackTime ?? 0) > 5
         }

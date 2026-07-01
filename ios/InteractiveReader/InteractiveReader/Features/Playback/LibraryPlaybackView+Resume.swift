@@ -14,17 +14,25 @@ extension LibraryPlaybackView {
         if isVideoPreferred {
             startVideoPlayback(at: entry.playbackTime ?? 0, presentPlayer: true)
         } else {
-            startInteractivePlayback(at: entry.sentenceNumber)
+            startInteractivePlayback(at: entry.sentenceNumber, playbackTime: entry.playbackTime)
         }
     }
 
-    func startInteractivePlayback(at sentence: Int?) {
+    func startInteractivePlayback(at sentence: Int?, playbackTime: Double? = nil) {
         if let sentence, sentence > 0 {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
-            viewModel.jumpToSentence(sentence, autoPlay: true)
+            if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
+                viewModel.jumpToTime(resumeTime.time, in: resumeTime.chunk, autoPlay: true)
+            } else {
+                viewModel.jumpToSentence(sentence, autoPlay: true)
+            }
             resumeAppleMusicBedAfterInteractiveStartIfNeeded()
-            scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)
+            scheduleInteractiveAutoplayRetry(
+                sentence: sentence,
+                requestID: pendingInteractiveAutoplayID,
+                playbackTime: playbackTime
+            )
         } else if !viewModel.audioCoordinator.isPlaying {
             pendingInteractiveAutoplaySentence = nil
             viewModel.audioCoordinator.play()
@@ -45,7 +53,7 @@ extension LibraryPlaybackView {
         #endif
     }
 
-    private func scheduleInteractiveAutoplayRetry(sentence: Int, requestID: UUID?) {
+    private func scheduleInteractiveAutoplayRetry(sentence: Int, requestID: UUID?, playbackTime: Double? = nil) {
         guard let requestID else { return }
         keyboardShortcutDebugLog("[KeyboardShortcut] Library autoplay requested sentence=\(sentence)")
         Task { @MainActor in
@@ -62,7 +70,11 @@ extension LibraryPlaybackView {
                     return
                 }
                 keyboardShortcutDebugLog("[KeyboardShortcut] Library autoplay retry sentence=\(sentence)")
-                viewModel.jumpToSentence(sentence, autoPlay: true)
+                if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
+                    viewModel.jumpToTime(resumeTime.time, in: resumeTime.chunk, autoPlay: true)
+                } else {
+                    viewModel.jumpToSentence(sentence, autoPlay: true)
+                }
             }
         }
     }
@@ -116,6 +128,31 @@ extension LibraryPlaybackView {
     }
 
     func persistResumeOnExit() {
-        resumeManager?.persistOnExit(isVideoPreferred: isVideoPreferred, sentenceIndex: sentenceIndexTracker.value)
+        resumeManager?.persistOnExit(
+            isVideoPreferred: isVideoPreferred,
+            sentenceIndex: sentenceIndexTracker.value,
+            playbackTime: currentInteractiveResumePlaybackTime()
+        )
+    }
+
+    func currentInteractiveResumePlaybackTime() -> Double? {
+        let highlightTime = viewModel.highlightingTime
+        guard highlightTime.isFinite, highlightTime >= 0 else { return nil }
+        return highlightTime
+    }
+
+    func validatedInteractiveResumePlaybackTime(
+        _ playbackTime: Double?,
+        sentenceNumber: Int
+    ) -> (time: Double, chunk: InteractiveChunk)? {
+        guard let time = playbackTime,
+              time.isFinite,
+              time >= 0,
+              let context = viewModel.jobContext,
+              let chunk = viewModel.resolveChunk(containing: sentenceNumber, in: context),
+              viewModel.resumePlaybackTime(time, matches: sentenceNumber, in: chunk) else {
+            return nil
+        }
+        return (time, chunk)
     }
 }

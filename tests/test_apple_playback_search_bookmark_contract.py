@@ -367,10 +367,10 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_resume
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_resume
     assert job_resume.index("resumeAppleMusicBedAfterInteractiveStartIfNeeded()") < job_resume.index(
-        "scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)"
+        "scheduleInteractiveAutoplayRetry("
     )
     assert library_resume.index("resumeAppleMusicBedAfterInteractiveStartIfNeeded()") < library_resume.index(
-        "scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)"
+        "scheduleInteractiveAutoplayRetry("
     )
     assert "func isInteractiveAutoplaySettled(for sentence: Int) -> Bool" in job_resume
     assert "func isInteractiveAutoplaySettled(for sentence: Int) -> Bool" in library_resume
