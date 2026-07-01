@@ -16,11 +16,12 @@ extension InteractivePlayerView {
         // switching tracks within the same sentence (e.g., original→translation).
         // During these transitions, we show all variants as fully revealed to avoid
         // the blip of showing partial reveal from the old track's perspective.
-        let isTransitioning = viewModel.isSequenceTransitioning
-        let isSameSentenceTrackSwitch = viewModel.sequenceController.isSameSentenceTrackSwitch
-        let isDwelling = viewModel.sequenceController.isDwelling
-        let currentSentenceIdx = viewModel.sequenceController.currentSentenceIndex
-        let expectedPosition = viewModel.sequenceController.expectedPosition
+        let sequenceRenderGuardsActive = viewModel.isSequenceModeActive
+        let isTransitioning = sequenceRenderGuardsActive && viewModel.isSequenceTransitioning
+        let isSameSentenceTrackSwitch = sequenceRenderGuardsActive && viewModel.sequenceController.isSameSentenceTrackSwitch
+        let isDwelling = sequenceRenderGuardsActive && viewModel.sequenceController.isDwelling
+        let currentSentenceIdx = sequenceRenderGuardsActive ? viewModel.sequenceController.currentSentenceIndex : nil
+        let expectedPosition = sequenceRenderGuardsActive ? viewModel.sequenceController.expectedPosition : nil
 
         // Get timing track directly from sequence controller during transitions
         // This avoids timing issues where isSequenceModeActive might not be updated yet

@@ -468,7 +468,7 @@ extension InteractivePlayerViewModel {
     /// Update sequence playback based on current time
     /// This should be called from the time observer
     func updateSequencePlayback(currentTime: Double, isPlaying: Bool) {
-        guard sequenceController.isEnabled, isPlaying else { return }
+        guard isSequenceModeActive, isPlaying else { return }
 
         // Check if we need to switch to the next segment
         if sequenceController.updateForTime(currentTime, isPlaying: isPlaying) {

@@ -442,6 +442,30 @@ def test_sentence_position_provider_priority_and_player_integration() -> None:
     assert "SentencePositionProvider.sentenceNumber(in: chunk, at: runtime.index) == sentenceNumber" in selection
 
 
+def test_single_track_rendering_ignores_stale_sequence_state() -> None:
+    playback = _source("InteractivePlayerViewModel+Playback.swift")
+    sequence = _source("InteractivePlayerViewModel+Sequence.swift")
+    content = _source("InteractivePlayerView+InteractiveContent.swift")
+
+    highlighting_body = _function_body(playback, "var highlightingTime: Double")
+    assert "if isSequenceModeActive && sequenceController.isTransitioning" in highlighting_body
+    assert "if isSequenceModeActive, let expected = sequenceController.expectedPosition" in highlighting_body
+
+    sequence_update_body = _function_body(
+        sequence,
+        "func updateSequencePlayback(currentTime: Double, isPlaying: Bool)",
+    )
+    assert "guard isSequenceModeActive, isPlaying else { return }" in sequence_update_body
+    assert "guard sequenceController.isEnabled, isPlaying else { return }" not in sequence_update_body
+
+    assert "let sequenceRenderGuardsActive = viewModel.isSequenceModeActive" in content
+    assert "let isTransitioning = sequenceRenderGuardsActive && viewModel.isSequenceTransitioning" in content
+    assert "let isSameSentenceTrackSwitch = sequenceRenderGuardsActive && viewModel.sequenceController.isSameSentenceTrackSwitch" in content
+    assert "let isDwelling = sequenceRenderGuardsActive && viewModel.sequenceController.isDwelling" in content
+    assert "let currentSentenceIdx = sequenceRenderGuardsActive ? viewModel.sequenceController.currentSentenceIndex : nil" in content
+    assert "let expectedPosition = sequenceRenderGuardsActive ? viewModel.sequenceController.expectedPosition : nil" in content
+
+
 def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
     models = _source("InteractivePlayerModels.swift")
     playback = _source("InteractivePlayerViewModel+Playback.swift")
@@ -692,6 +716,28 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "linguistSelection = nil" in generic_toggle_body
     assert "linguistSelectionRange = nil" in generic_toggle_body
     assert "trackToggle(label: trackLabel(kind), kind: kind)" in menu_controls
+
+    initial_playback_body = _function_body(
+        tracks,
+        "func prepareAudioModeForInitialPlayback(for chunk: InteractiveChunk)",
+    )
+    assert "let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)" in initial_playback_body
+    assert "if !appliedResumeTrack" in initial_playback_body
+    assert initial_playback_body.index("applyPendingResumeSingleTrackIfNeeded") < initial_playback_body.index(
+        "applyDefaultTrackSelection(for: chunk)"
+    )
+
+    resume_track_body = _function_body(
+        tracks,
+        "func applyPendingResumeSingleTrackIfNeeded(for chunk: InteractiveChunk) -> Bool",
+    )
+    assert "guard let resumeTrack = viewModel.pendingResumeSingleTrack else { return false }" in resume_track_body
+    assert "viewModel.pendingResumeSingleTrack = nil" in resume_track_body
+    assert "visibleTracks = [desiredTextTrack]" in resume_track_body
+    assert "hasCustomTrackSelection = true" in resume_track_body
+    assert "audioModeManager.setTracks(" in resume_track_body
+    assert "viewModel.sequenceController.audioMode = audioModeManager.currentMode" in resume_track_body
+    assert "viewModel.selectedAudioTrackID = targetID" in resume_track_body
 
 
 def test_audio_menu_selection_syncs_audio_mode() -> None:

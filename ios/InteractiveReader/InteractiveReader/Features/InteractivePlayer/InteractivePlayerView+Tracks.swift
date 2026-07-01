@@ -232,13 +232,38 @@ extension InteractivePlayerView {
 
     func prepareAudioModeForInitialPlayback(for chunk: InteractiveChunk) {
         viewModel.audioModeManager = audioModeManager
-        applyDefaultTrackSelection(for: chunk)
-        synchronizeAudioModeWithVisibleTextTracks(for: chunk)
+        let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)
+        if !appliedResumeTrack {
+            applyDefaultTrackSelection(for: chunk)
+            synchronizeAudioModeWithVisibleTextTracks(for: chunk)
+        }
         viewModel.sequenceController.audioMode = audioModeManager.currentMode
         if viewModel.selectedAudioTrackID == nil,
            let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
             viewModel.selectedAudioTrackID = targetID
         }
+    }
+
+    @discardableResult
+    func applyPendingResumeSingleTrackIfNeeded(for chunk: InteractiveChunk) -> Bool {
+        guard let resumeTrack = viewModel.pendingResumeSingleTrack else { return false }
+        viewModel.pendingResumeSingleTrack = nil
+
+        let desiredTextTrack: TextPlayerVariantKind = resumeTrack == .original ? .original : .translation
+        let available = Set(availableTracks(for: chunk))
+        guard available.contains(desiredTextTrack) else { return false }
+
+        visibleTracks = [desiredTextTrack]
+        hasCustomTrackSelection = true
+        audioModeManager.setTracks(
+            original: resumeTrack == .original,
+            translation: resumeTrack == .translation
+        )
+        viewModel.sequenceController.audioMode = audioModeManager.currentMode
+        if let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
+            viewModel.selectedAudioTrackID = targetID
+        }
+        return true
     }
 
     var trackAvailabilitySignature: String {

@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-resume-restores-single-track-before-seek",
+                    title: "Resume keeps single-track mode",
+                    detail: "Apple reader resume now applies a saved original-only or translation-only mode before the sentence seek starts and before visible tracks default back to All, so rendering and audio do not briefly reset to dual-track playback."
+                ),
+                AppChangelogEntry(
+                    id: "apple-single-track-ignores-stale-sequence-render",
+                    title: "Translation-only render ignores stale sequence state",
+                    detail: "Apple single-track playback now gates transition, dwell, expected-position, and sequence time-observer shortcuts behind the active audio mode, preventing Cinema/tvOS translation-only rendering from drifting when an old sequence plan is still settling."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-time-seek-render-anchor",
                     title: "Translation-only jumps keep rendered sentence",
                     detail: "Apple single-track time seeks now preserve an explicit sentence-number anchor when one is available, keeping Cinema/tvOS translation-only audio, rendering, and follow-up skips aligned after slider, bookmark, search, or legacy scrubber jumps."

@@ -115,7 +115,15 @@ Follow the suggested remediations to restore parity:
   `InteractivePlayerViewModel.isSequenceModeActive` must also respect
   `AudioModeManager.isSequenceMode`; a stale enabled `SequencePlaybackController`
   is not allowed to steal slider or skip handling once the user has switched to
-  Original-only or Translation-only mode.
+  Original-only or Translation-only mode. The transcript transition/dwell
+  shortcuts, expected-position highlight time, and sequence time observer must
+  all be gated by `isSequenceModeActive`, otherwise a settling sequence plan can
+  keep rendering or advancing the previous mode while translation-only audio is
+  already playing. Resume restores must apply the saved single-track mode before
+  `jumpToTime` / `jumpToSentence`, and `InteractivePlayerView` must consume the
+  pending resume track before defaulting visible tracks back to All; sequence
+  resumes should not persist the current segment track as if it were a
+  single-track preference.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

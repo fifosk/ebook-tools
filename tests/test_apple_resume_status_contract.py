@@ -200,6 +200,7 @@ def test_browse_resume_refresh_batches_backend_visible_rows() -> None:
 def test_interactive_resume_records_sentence_playback_time() -> None:
     manager_source = PLAYBACK_RESUME_MANAGER.read_text(encoding="utf-8")
     job_resume_source = JOB_PLAYBACK_RESUME.read_text(encoding="utf-8")
+    library_resume_source = LIBRARY_PLAYBACK_RESUME.read_text(encoding="utf-8")
     store_source = PLAYBACK_RESUME_STORE.read_text(encoding="utf-8")
     job_now_playing_source = JOB_PLAYBACK_NOW_PLAYING.read_text(encoding="utf-8")
     library_now_playing_source = LIBRARY_PLAYBACK_NOW_PLAYING.read_text(encoding="utf-8")
@@ -222,6 +223,8 @@ def test_interactive_resume_records_sentence_playback_time() -> None:
     assert "return (sentenceNumber ?? 0) > 1 || (playbackTime ?? 0) > 1" in store_source
     assert "playbackTime: currentInteractiveResumePlaybackTime()" in job_resume_source
     assert "playbackTrack: currentInteractiveResumePlaybackTrack()" in job_resume_source
+    assert "if viewModel.isSequenceModeActive {\n            return nil\n        }" in job_resume_source
+    assert "if viewModel.isSequenceModeActive {\n            return nil\n        }" in library_resume_source
 
 
 def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() -> None:
@@ -232,11 +235,16 @@ def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() 
 
     for source in (job_resume_source, library_resume_source):
         assert "preferredTrack: entry.resumeSequenceTrack" in source
+        assert "viewModel.prepareResumeSingleTrack(preferredTrack)" in source
         assert "validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence)" in source
         assert "matchingSentenceNumber: sentence" in source
         assert "preferredTrack: preferredTrack" in source
         assert "viewModel.jumpToSentence(sentence, autoPlay: true)" in source
 
+    assert "func prepareResumeSingleTrack(_ track: SequenceTrack?)" in selection_source
+    assert "pendingResumeSingleTrack = track" in selection_source
+    assert "audioModeManager.setTracks(" in selection_source
+    assert "sequenceController.audioMode = audioModeManager.currentMode" in selection_source
     assert "func jumpToTime(" in selection_source
     assert "matchingSentenceNumber sentenceNumber: Int? = nil" in selection_source
     assert "preferredTrack: SequenceTrack? = nil" in selection_source

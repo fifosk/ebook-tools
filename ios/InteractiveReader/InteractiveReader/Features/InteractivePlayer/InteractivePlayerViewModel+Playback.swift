@@ -30,7 +30,7 @@ extension InteractivePlayerViewModel {
 
         // During sequence transitions, use the current segment's start time
         // to prevent stale time values from causing incorrect highlighting
-        if sequenceController.isEnabled && sequenceController.isTransitioning {
+        if isSequenceModeActive && sequenceController.isTransitioning {
             if let segment = sequenceController.currentSegment {
                 return segment.start
             }
@@ -39,7 +39,7 @@ extension InteractivePlayerViewModel {
         // Right after a transition ends, use the expected position if available.
         // This provides a stable time value before audioCoordinator.currentTime settles,
         // preventing visual flicker on track switches.
-        if sequenceController.isEnabled, let expected = sequenceController.expectedPosition {
+        if isSequenceModeActive, let expected = sequenceController.expectedPosition {
             return expected
         }
 

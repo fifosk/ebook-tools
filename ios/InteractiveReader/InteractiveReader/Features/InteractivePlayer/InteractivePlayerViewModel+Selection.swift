@@ -11,6 +11,16 @@ private let interactiveSelectionLogger = Logger(
 private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0
 
 extension InteractivePlayerViewModel {
+    func prepareResumeSingleTrack(_ track: SequenceTrack?) {
+        pendingResumeSingleTrack = track
+        guard let track, let audioModeManager else { return }
+        audioModeManager.setTracks(
+            original: track == .original,
+            translation: track == .translation
+        )
+        sequenceController.audioMode = audioModeManager.currentMode
+    }
+
     /// Check if chunk sentences have gate data needed for combined (sequence) mode
     private func sentencesHaveGateData(_ sentences: [InteractiveChunk.Sentence]) -> Bool {
         guard let first = sentences.first else { return false }

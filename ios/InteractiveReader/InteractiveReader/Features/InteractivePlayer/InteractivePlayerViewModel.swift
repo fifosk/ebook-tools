@@ -83,6 +83,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     var prefetchedImageURLs: Set<URL> = []
     var pendingSentenceJump: PendingSentenceJump?
     var pendingTimeSeek: PendingTimeSeek?
+    var pendingResumeSingleTrack: SequenceTrack?
     var recentSingleTrackSentenceAnchor: RecentSingleTrackSentenceAnchor?
     let tokenNormalizationCache = TokenNormalizationCache()
     let defaultReadingBedPath = "/assets/reading-beds/lost-in-the-pages.mp3"

@@ -27,6 +27,7 @@ extension LibraryPlaybackView {
         playbackTime: Double? = nil,
         preferredTrack: SequenceTrack? = nil
     ) {
+        viewModel.prepareResumeSingleTrack(preferredTrack)
         if let sentence, sentence > 0 {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
@@ -181,7 +182,7 @@ extension LibraryPlaybackView {
 
     func currentInteractiveResumePlaybackTrack() -> String? {
         if viewModel.isSequenceModeActive {
-            return viewModel.sequenceController.currentTrack.rawValue
+            return nil
         }
         return viewModel.audioModeManager?.preferredTrack.rawValue
     }
