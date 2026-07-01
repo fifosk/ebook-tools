@@ -75,6 +75,9 @@ Follow the suggested remediations to restore parity:
   state while the next batch hydrates. The lifecycle pass should bind the view
   model to the current audio mode before default-track repair, and sequence mode
   should prefer the current batch's combined option over stale single-track IDs.
+  If the user has explicitly hidden Original or Translation, chunk lifecycle
+  setup must restore that visible single-track selection into `AudioModeManager`
+  before any default selection can expand the reader back to All.
   If rendering resets at the end of a sentence batch, compare those state
   transitions before regenerating timing metadata.
 - Spot-check a few chunk metadata files (`metadata/chunk_XXXX.json`) on each
@@ -139,9 +142,13 @@ Follow the suggested remediations to restore parity:
   default All-track selection or preparing audio. This preservation must be
   based on playable audio options too, not only currently hydrated visible text
   tracks, because a next batch can temporarily expose only the Original fallback
-  before sentence tokens load. Natural end-of-batch single-track advances should
-  establish a fresh next-batch anchor from the target index or chunk range before
-  autoplay starts, so placeholder metadata can still render the selected lane
+  before sentence tokens load. The SwiftUI lifecycle bridge must also recover a
+  one-track custom visible selection into `AudioModeManager` and the selected
+  audio option before `applyDefaultTrackSelection`, because visible track state
+  can outlive a transient audio-mode reset at a chunk boundary.
+  Natural end-of-batch single-track advances should
+  establish a fresh next-batch anchor from the target index or chunk range
+  before autoplay starts, so placeholder metadata can still render the selected lane
   while detailed sentence tokens hydrate. Natural and manual forward batch
   advances should also reapply the active single-track audio option before
   selecting the next chunk and pass an explicit sentence-0 target, because the

@@ -13,6 +13,7 @@ interactive_content = root / "ios/InteractiveReader/InteractiveReader/Features/I
 interactive_view = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView.swift"
 interactive_layout = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Layout.swift"
 input_handlers = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+InputHandlers.swift"
+tracks = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Tracks.swift"
 transcript = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Transcript.swift"
 linguist = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift"
 selection = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerViewModel+Selection.swift"
@@ -66,6 +67,7 @@ interactive_source = read(interactive_content)
 interactive_view_source = read(interactive_view)
 interactive_layout_source = read(interactive_layout)
 input_source = read(input_handlers)
+tracks_source = read(tracks)
 transcript_source = read(transcript)
 linguist_source = read(linguist)
 selection_source = read(selection)
@@ -450,6 +452,31 @@ if "let incomingChunk = jobContext?.chunk(withID: id)" not in select_chunk_body:
     fail("chunk switches must resolve the incoming chunk before publishing selectedChunkID")
 if select_chunk_body.find("synchronizeSelectedAudioTrackForChunkHandoff(for: incomingChunk)") > select_chunk_body.find("selectedChunkID = id"):
     fail("chunk switches must repair single-track audio selection before publishing selectedChunkID")
+configure_defaults_body = function_body(
+    selection_source,
+    "func configureDefaultSelections()",
+)
+if "synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)" not in configure_defaults_body:
+    fail("default chunk setup must use the shared audio-lane handoff helper")
+if "self.synchronizeSelectedAudioTrackForChunkHandoff(for: updatedChunk)" not in configure_defaults_body:
+    fail("metadata-loaded default setup must reassert the selected audio lane before preparing playback")
+
+initial_audio_mode_body = function_body(
+    tracks_source,
+    "func prepareAudioModeForInitialPlayback(for chunk: InteractiveChunk)",
+)
+if "restoreSingleTrackModeFromVisibleSelectionIfNeeded(for: chunk)" not in initial_audio_mode_body:
+    fail("chunk changes must restore single-track mode from visible track selection before defaulting to All")
+restore_visible_track_body = function_body(
+    tracks_source,
+    "func restoreSingleTrackModeFromVisibleSelectionIfNeeded(for chunk: InteractiveChunk) -> Bool",
+)
+if "guard hasCustomTrackSelection, visibleTracks.count == 1" not in restore_visible_track_body:
+    fail("visible-track restoration must only run for explicit one-track selections")
+if "viewModel.rememberAudioModePreference(audioModeManager.currentMode)" not in restore_visible_track_body:
+    fail("visible-track restoration must persist the single-track audio preference")
+if "viewModel.applySingleTrackSelection(requestedTrack, for: chunk)" not in restore_visible_track_body:
+    fail("visible-track restoration must apply the matching audio option before playback prepares")
 
 if "func wordNavigationSentenceDisplay(for chunk: InteractiveChunk)" not in transcript_source:
     fail("missing wordNavigationSentenceDisplay fallback for stale active displays")

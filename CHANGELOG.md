@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader single-track batch handoffs now restore original-only/translation-only audio mode from the user's visible track selection before any default chunk setup can expand back to All, so end-of-batch playback keeps rendering and narration on the selected lane.
 - Web PlayerPanel navigation chrome now lives in a dedicated tested hook, moving generated sentence-jump IDs, advanced-controls state, and panel/fullscreen control assembly out of the main player coordinator.
 - Apple reader batch-boundary lifecycle repair now binds the view model to the current audio mode before restoring defaults and makes sequence-mode resolution prefer the current batch's combined option, so track selection cannot reset and desync rendering at the end of a sentence batch.
 - Web PlayerPanel pending chunk-selection handoff now lives in a focused tested hook, trimming another playback effect out of the main coordinator while preserving chunk activation and stale-index cleanup.

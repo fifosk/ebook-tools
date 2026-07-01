@@ -235,9 +235,13 @@ extension InteractivePlayerViewModel {
         prefetchDirection = .none
         if let chunk = context.chunks.first(where: { !$0.audioOptions.isEmpty }) ?? context.chunks.first {
             selectedChunkID = chunk.id
-            if let option = chunk.audioOptions.first {
+            synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)
+            if let selectedAudioTrackID,
+               let option = chunk.audioOptions.first(where: { $0.id == selectedAudioTrackID }) {
+                preferredAudioKind = preferredAudioKindForCurrentMode(fallback: option.kind)
+            } else if let option = chunk.audioOptions.first {
                 selectedAudioTrackID = option.id
-                preferredAudioKind = option.kind
+                preferredAudioKind = preferredAudioKindForCurrentMode(fallback: option.kind)
             } else {
                 selectedAudioTrackID = nil
             }
@@ -279,6 +283,7 @@ extension InteractivePlayerViewModel {
                     interactiveSelectionLogger.debug("Configure defaults: still no sentences after metadata load")
                     return
                 }
+                self.synchronizeSelectedAudioTrackForChunkHandoff(for: updatedChunk)
                 self.prepareAudio(for: updatedChunk, autoPlay: false)
             }
         } else {

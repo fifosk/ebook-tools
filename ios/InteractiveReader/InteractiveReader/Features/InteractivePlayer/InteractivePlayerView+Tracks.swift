@@ -237,7 +237,10 @@ extension InteractivePlayerView {
         viewModel.audioModeManager = audioModeManager
         viewModel.sequenceController.audioMode = audioModeManager.currentMode
         let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)
-        let preservedSingleTrack = appliedResumeTrack ? true : preserveSingleTrackModeIfNeeded(for: chunk)
+        let restoredVisibleSingleTrack = appliedResumeTrack ? true : restoreSingleTrackModeFromVisibleSelectionIfNeeded(for: chunk)
+        let preservedSingleTrack = appliedResumeTrack
+            || restoredVisibleSingleTrack
+            || preserveSingleTrackModeIfNeeded(for: chunk)
         if !preservedSingleTrack {
             applyDefaultTrackSelection(for: chunk)
             synchronizeAudioModeWithVisibleTextTracks(for: chunk)
@@ -248,6 +251,36 @@ extension InteractivePlayerView {
            let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
             viewModel.selectedAudioTrackID = targetID
         }
+    }
+
+    @discardableResult
+    func restoreSingleTrackModeFromVisibleSelectionIfNeeded(for chunk: InteractiveChunk) -> Bool {
+        guard hasCustomTrackSelection, visibleTracks.count == 1 else { return false }
+        guard let onlyTrack = visibleTracks.first else { return false }
+        let requestedTrack: SequenceTrack?
+        switch onlyTrack {
+        case .original:
+            requestedTrack = .original
+        case .translation:
+            requestedTrack = .translation
+        case .transliteration:
+            requestedTrack = nil
+        }
+        guard let requestedTrack else { return false }
+
+        let available = Set(availableTracks(for: chunk))
+        guard available.contains(onlyTrack) || chunkSupportsAudioTrack(requestedTrack, in: chunk) else {
+            return false
+        }
+
+        audioModeManager.setTracks(
+            original: requestedTrack == .original,
+            translation: requestedTrack == .translation
+        )
+        viewModel.rememberAudioModePreference(audioModeManager.currentMode)
+        viewModel.sequenceController.audioMode = audioModeManager.currentMode
+        viewModel.applySingleTrackSelection(requestedTrack, for: chunk)
+        return true
     }
 
     @discardableResult
@@ -324,6 +357,7 @@ extension InteractivePlayerView {
             original: resumeTrack == .original,
             translation: resumeTrack == .translation
         )
+        viewModel.rememberAudioModePreference(audioModeManager.currentMode)
         viewModel.sequenceController.audioMode = audioModeManager.currentMode
         if let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
             viewModel.selectedAudioTrackID = targetID

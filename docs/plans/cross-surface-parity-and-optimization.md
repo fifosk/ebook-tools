@@ -822,9 +822,12 @@ Current Apple UI partially exposes:
   manager briefly reports sequence mode during a batch handoff. Stale
   audio-ended URL checks now live in the shared `PlaybackEndedURLPolicy` covered
   by the executable mode-switch harness, including combined-only batches where
-  the selected lane must reject hidden original-stream EOF callbacks. Destination
-  language pills prefer authoritative target-language request/config fields
-  instead of broad nested metadata scans. The repo-owned Apple contract lane includes
+  the selected lane must reject hidden original-stream EOF callbacks. The
+  lifecycle bridge also restores an explicit one-track visible selection back
+  into `AudioModeManager` and the selected chunk audio option before default
+  setup can expand to All, with the source-shape contract guarding that order.
+  Destination language pills prefer authoritative target-language request/config
+  fields instead of broad nested metadata scans. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Playback token normalization cache. Status: Apple interactive playback keeps a
   bounded per-player token normalization cache across live media refreshes and

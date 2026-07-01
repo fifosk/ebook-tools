@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-visible-single-track-batch-restore",
+                    title: "Single-track batch handoffs stay selected",
+                    detail: "Apple reader single-track batch handoffs now restore original-only or translation-only audio mode from the visible track selection before default chunk setup can expand back to All, keeping rendering and narration on the selected lane."
+                ),
+                AppChangelogEntry(
                     id: "web-player-panel-navigation-chrome-hook",
                     title: "Web player chrome is leaner",
                     detail: "Web PlayerPanel navigation chrome now lives in a dedicated tested hook, moving generated sentence-jump IDs, advanced-controls state, and panel/fullscreen control assembly out of the main player coordinator."
