@@ -72,8 +72,7 @@ extension InteractivePlayerViewModel {
 
     func playbackTime(for chunk: InteractiveChunk) -> Double {
         let baseTime = audioCoordinator.currentTime
-        if let audioModeManager,
-           case .singleTrack = audioModeManager.currentMode {
+        if requestedSingleTrackMode() != nil {
             return baseTime
         }
         guard let track = selectedAudioOption(for: chunk) else { return baseTime }

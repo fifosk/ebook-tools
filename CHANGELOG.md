@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader translation-only/original-only playback time now follows the durable requested single-track lane even if the SwiftUI audio manager briefly reports sequence mode at a sentence-batch boundary, preventing hidden-track offsets from drifting rendering out of sync.
 - Web Narrate Ebook submit orchestration now lives in a focused tested hook, keeping pipeline submit, intake refresh, and submit-button presentation together outside the main form coordinator.
 - Web Narrate Ebook backend image-default application now lives in a focused tested hook, preserving edited image fields and rerun `add_images` choices while trimming the main form coordinator.
 - Apple reader audio-track picker selections now stamp the shared original-only/translation-only mode immediately, so iPad and iPhone cannot carry a stale sequence mode into the next sentence batch and reset rendering out of sync.

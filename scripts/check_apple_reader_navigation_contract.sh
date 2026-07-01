@@ -432,16 +432,16 @@ playback_time_body = function_body(
     "func playbackTime(for chunk: InteractiveChunk) -> Double",
 )
 single_track_local_time = (
-    "if let audioModeManager,\n"
-    "           case .singleTrack = audioModeManager.currentMode {\n"
+    "if requestedSingleTrackMode() != nil {\n"
     "            return baseTime\n"
     "        }"
 )
 if single_track_local_time not in playback_time_body:
-    fail("single-track playback time must stay local to the active file before combined-queue offsets are considered")
-if playback_time_body.find("case .singleTrack = audioModeManager.currentMode") > playback_time_body.find("guard let track = selectedAudioOption"):
+    fail("single-track playback time must use durable requested lane state before combined-queue offsets are considered")
+single_track_guard_index = playback_time_body.find("requestedSingleTrackMode() != nil")
+if single_track_guard_index > playback_time_body.find("guard let track = selectedAudioOption"):
     fail("single-track playback time guard must run before selected combined audio option inspection")
-if playback_time_body.find("case .singleTrack = audioModeManager.currentMode") > playback_time_body.find("usesCombinedQueue(for: chunk)"):
+if single_track_guard_index > playback_time_body.find("usesCombinedQueue(for: chunk)"):
     fail("single-track playback time guard must run before combined-queue offset handling")
 select_chunk_body = function_body(
     selection_source,

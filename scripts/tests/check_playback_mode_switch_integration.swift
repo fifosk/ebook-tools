@@ -917,6 +917,43 @@ private func effectiveSelectedAudioKind(
 }
 
 @MainActor
+private func playbackTimeForIntegration(
+    baseTime: Double,
+    chunk: InteractiveChunk,
+    manager: AudioModeManager?,
+    sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
+    selectedAudioTrackID: String?,
+    activeURL: URL?,
+    durations: [URL: Double]
+) -> Double {
+    if requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ) != nil {
+        return baseTime
+    }
+    let track: InteractiveChunk.AudioOption? = {
+        guard let selectedAudioTrackID else { return chunk.audioOptions.first }
+        return chunk.audioOptions.first(where: { $0.id == selectedAudioTrackID }) ?? chunk.audioOptions.first
+    }()
+    guard let track else { return baseTime }
+    let urls = track.streamURLs
+    guard urls.count > 1,
+          let activeURL,
+          let activeIndex = urls.firstIndex(of: activeURL) else {
+        return baseTime
+    }
+    let offset = urls.prefix(activeIndex).reduce(0.0) { partial, url in
+        partial + (durations[url] ?? 0)
+    }
+    return offset + baseTime
+}
+
+@MainActor
 private func runChecks() {
     let originalURL = URL(string: "https://example.invalid/original.m4a")!
     let translationURL = URL(string: "https://example.invalid/translation.m4a")!
@@ -1295,6 +1332,39 @@ private func runChecks() {
         ),
         false,
         "Single-track sequence-controller mode should stop stale combined selections from rendering as sequence after a batch handoff"
+    )
+    let playbackTimeSequenceManager = AudioModeManager()
+    let durableSingleTrackPlaybackTime = playbackTimeForIntegration(
+        baseTime: 1.25,
+        chunk: nextBatch,
+        manager: playbackTimeSequenceManager,
+        sequenceAudioMode: .sequence,
+        preferredSingleTrackMode: .translation,
+        preferredAudioKind: .combined,
+        selectedAudioTrackID: "combined-next",
+        activeURL: translationURL,
+        durations: [originalURL: 8.0, translationURL: 4.0]
+    )
+    requireEqual(
+        durableSingleTrackPlaybackTime,
+        1.25,
+        "Single-track playback time should ignore hidden-track queue offsets even if the manager briefly reports sequence at a batch boundary"
+    )
+    let sequencePlaybackTime = playbackTimeForIntegration(
+        baseTime: 1.25,
+        chunk: nextBatch,
+        manager: playbackTimeSequenceManager,
+        sequenceAudioMode: .sequence,
+        preferredSingleTrackMode: nil,
+        preferredAudioKind: .combined,
+        selectedAudioTrackID: "combined-next",
+        activeURL: translationURL,
+        durations: [originalURL: 8.0, translationURL: 4.0]
+    )
+    requireEqual(
+        sequencePlaybackTime,
+        9.25,
+        "Sequence playback time should still include prior queue-file offsets when no single-track lane is requested"
     )
     var staleManagerSelectedTrackID: String? = "combined-next"
     var staleManagerPreferredKind: InteractiveChunk.AudioOption.Kind? = .combined

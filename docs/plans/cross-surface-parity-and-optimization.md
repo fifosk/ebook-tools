@@ -866,7 +866,10 @@ Current Apple UI partially exposes:
   audio preparation also reasserts the active lane and timing URL before same-URL
   reuse or URL reload paths can seek/play, keeping end-of-batch rendering on the
   narration lane even if the selected chunk was rebuilt around an already-loaded
-  player item. The audio coordinator now keeps reader playback intent alive
+  player item. Single-track playback time now also uses the durable requested
+  original/translation lane before considering multi-file queue offsets, so a
+  transient sequence-mode bridge at a batch boundary cannot add the hidden track
+  duration back into rendering. The audio coordinator now keeps reader playback intent alive
   through URL-aware EOF handoff callbacks until the view model loads the next
   sentence batch or pauses at end-of-book, and the playback mode-switch harness
   plus source-shape contract pin the EOF and same-URL reuse state transitions. The
