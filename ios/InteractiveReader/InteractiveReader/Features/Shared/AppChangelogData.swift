@@ -34,6 +34,11 @@ enum AppChangelogData {
                     id: "backend-openlibrary-discovery-helper",
                     title: "Open Library discovery is leaner",
                     detail: "Backend Open Library acquisition discovery now shares focused tested helpers for work and book key normalization, metadata URLs, and cover URLs, keeping Web and Apple Create book metadata handoff easier to maintain."
+                ),
+                AppChangelogEntry(
+                    id: "backend-internet-archive-discovery-helper",
+                    title: "Archive discovery is leaner",
+                    detail: "Backend Internet Archive acquisition discovery now shares focused tested helpers for search queries, EPUB eligibility, download URLs, metadata fetches, and rights classification used by Web and Apple Create book discovery."
                 )
             ]
         ),

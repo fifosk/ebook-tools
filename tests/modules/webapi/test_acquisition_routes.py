@@ -1155,12 +1155,16 @@ def test_acquisition_discover_rejects_invalid_internet_archive_source_id_before_
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from modules.services.acquisition import discovery as acquisition_discovery
+    from modules.services.acquisition import internet_archive_discovery
 
     def _fail_if_called(*args, **kwargs):
         raise AssertionError("Internet Archive metadata fetch should not run for invalid source_id")
 
-    monkeypatch.setattr(acquisition_discovery, "_fetch_internet_archive_metadata", _fail_if_called)
+    monkeypatch.setattr(
+        internet_archive_discovery,
+        "fetch_internet_archive_metadata",
+        _fail_if_called,
+    )
     app = create_app()
     app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
         {"ebooks_dir": str(tmp_path)}

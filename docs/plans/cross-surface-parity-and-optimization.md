@@ -686,7 +686,11 @@ Current Apple UI partially exposes:
   matching. Backend Open Library discovery path/book-key/URL normalization now
   lives in `modules/services/acquisition/openlibrary_discovery.py` with focused
   coverage, keeping metadata-only book handoff helpers small for Web Narrate
-  Ebook and Apple Create. Apple YouTube Dub candidate selection now also
+  Ebook and Apple Create. Backend Internet Archive discovery query construction,
+  EPUB eligibility, download URL, metadata fetch, and rights helpers now live in
+  `modules/services/acquisition/internet_archive_discovery.py` with focused
+  coverage, keeping public-catalog EPUB acquisition rules small and reusable for
+  Web/Apple book discovery. Apple YouTube Dub candidate selection now also
   passes the active discovery provider and query into saved `discovery_state`,
   and applying a saved template restores that provider/query in the native
   source picker, keeping Apple-saved video templates aligned with Web Video

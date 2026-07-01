@@ -11,6 +11,7 @@ import requests
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.indexer_discovery as indexer_discovery
+import modules.services.acquisition.internet_archive_discovery as internet_archive_discovery
 import modules.services.acquisition.openlibrary_discovery as openlibrary_discovery
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
 import modules.services.acquisition.youtube_discovery as youtube_discovery
@@ -1182,6 +1183,57 @@ def test_discover_internet_archive_source_ids_reject_unsafe_identifiers() -> Non
             provider="internet_archive",
             source_ids=["../secret"],
         )
+
+
+def test_internet_archive_discovery_helpers_filter_epubs_and_rights() -> None:
+    assert (
+        internet_archive_discovery.internet_archive_query("demo public", "en")
+        == "(demo public) AND mediatype:texts AND -access-restricted-item:true AND language:en"
+    )
+    assert (
+        internet_archive_discovery.internet_archive_download_url(
+            "demo public/book",
+            "files/Demo Book.epub",
+        )
+        == "https://archive.org/download/demo%20public%2Fbook/files/Demo%20Book.epub"
+    )
+
+    metadata = {
+        "files": [
+            {"name": "demo_daisy.epub", "size": "1"},
+            {"name": "demo_encrypted.epub", "size": "2"},
+            {"name": "demo_private.epub", "private": "true", "size": "3"},
+            {"name": "demo_ok.epub", "size": "4"},
+        ]
+    }
+    assert internet_archive_discovery.internet_archive_epub_file(metadata) == {
+        "name": "demo_ok.epub",
+        "size": "4",
+    }
+    assert (
+        internet_archive_discovery.internet_archive_epub_file(
+            {
+                "metadata": {"access-restricted-item": "true"},
+                "files": [{"name": "demo_ok.epub", "size": "4"}],
+            }
+        )
+        is None
+    )
+    assert (
+        internet_archive_discovery.internet_archive_rights(
+            {},
+            {"metadata": {"licenseurl": "https://creativecommons.org/licenses/by/4.0/"}},
+        )
+        == "open_license"
+    )
+    assert (
+        internet_archive_discovery.internet_archive_rights(
+            {"rights": "Public Domain"},
+            {},
+        )
+        == "public_domain"
+    )
+    assert internet_archive_discovery.internet_archive_rights({}, {}) == "unknown"
 
 
 def test_discover_openlibrary_normalizes_metadata_only_candidates() -> None:
