@@ -520,6 +520,11 @@ enum AppChangelogData {
                     detail: "Download Station polling now returns completed-file hints only when they resolve under configured manual/download roots, dropping URL-like or outside-root entries before Web and Apple Create reconnect to local artifacts."
                 ),
                 AppChangelogEntry(
+                    id: "tvos-active-music-pause-sync-adoption",
+                    title: "TV first pause mirrors faster",
+                    detail: "Apple TV now adopts an active-reader Apple Music bed pause on the same event pass, so a first Siri Remote pause has less room to stop only the bed while sentence narration keeps playing."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-default-fanout-bounds-remote-fetches",
                     title: "Default discovery fetches less",
                     detail: "Default sources discovery now keeps full local, manual-download, and NAS freshness checks while limiting remote provider pages to the remaining visible budget plus a one-result probe, reducing over-fetch for Web and Apple Create."

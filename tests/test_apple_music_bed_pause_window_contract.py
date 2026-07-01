@@ -98,7 +98,7 @@ def test_tvos_reader_pause_reasserts_against_stray_music_play() -> None:
         assert "e2eReaderTransportCommandCount == 0" in reassert_body, label
 
 
-def test_tvos_active_music_pause_confirms_reader_pause_before_recovery() -> None:
+def test_tvos_active_music_pause_adopts_reader_pause_before_recovery() -> None:
     music = _source(SERVICES / "MusicKitCoordinator.swift")
     observed_body = _function_body(music, "private func handleObservedNonPlayingStatus")
     confirm_gate_body = _function_body(
@@ -124,7 +124,8 @@ def test_tvos_active_music_pause_confirms_reader_pause_before_recovery() -> None
     assert "isReaderNarrationActiveForMusicBed" in confirm_gate_body
     assert "!isManuallyPaused" in confirm_gate_body
     assert "!isPausedByReaderTransport" in confirm_gate_body
-    assert "350_000_000" in confirm_body
+    assert "Task.sleep" not in confirm_body
+    assert "adopting active tvOS reader pause immediately" in confirm_body
     assert "ApplicationMusicPlayer.shared.state.playbackStatus != .playing" in confirm_body
     assert "adoptPauseAsReaderTransport(" in confirm_body
     assert 'source: "active observed non-playing"' in confirm_body

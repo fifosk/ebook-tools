@@ -1032,35 +1032,28 @@ final class MusicKitCoordinator: ObservableObject {
     private func confirmActiveNarrationNonPlayingAsReaderPause(reason: String) {
         #if os(tvOS)
         observedNonPlayingTask?.cancel()
-        logger.info("Apple Music observed non-playing confirming active tvOS reader pause")
-        observedNonPlayingTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 350_000_000)
-            guard !Task.isCancelled else { return }
-            guard self.isBackgroundMode else { return }
-            guard self.shouldConfirmActiveNarrationNonPlayingAsReaderPause else {
-                self.logger.info("Apple Music active reader pause confirmation ignored after state changed")
-                self.observedNonPlayingTask = nil
-                return
-            }
-            guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else {
-                self.isPlaying = true
-                self.observedPlayingAsReadingBed = true
-                self.observedNonPlayingTask = nil
-                return
-            }
-            self.observedNonPlayingTask = nil
-            self.isPlaying = false
-            self.observedPlayingAsReadingBed = false
-            self.adoptPauseAsReaderTransport(
-                reason: reason,
-                source: "active observed non-playing"
-            )
-            #if DEBUG
-            if self.isE2EMusicBedSyncTest {
-                self.e2eMusicBedSyncPhase = "observedPauseImmediate"
-            }
-            #endif
+        logger.info("Apple Music observed non-playing adopting active tvOS reader pause immediately")
+        guard shouldConfirmActiveNarrationNonPlayingAsReaderPause else {
+            logger.info("Apple Music active reader pause adoption ignored after state changed")
+            return
         }
+        guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else {
+            isPlaying = true
+            observedPlayingAsReadingBed = true
+            return
+        }
+        observedNonPlayingTask = nil
+        isPlaying = false
+        observedPlayingAsReadingBed = false
+        adoptPauseAsReaderTransport(
+            reason: reason,
+            source: "active observed non-playing"
+        )
+        #if DEBUG
+        if isE2EMusicBedSyncTest {
+            e2eMusicBedSyncPhase = "observedPauseImmediate"
+        }
+        #endif
         #endif
     }
 
