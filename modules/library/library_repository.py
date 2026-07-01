@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import stat as stat_module
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from modules.library.sync import metadata as metadata_utils
 from modules.permissions import resolve_access_policy
+from modules.services.source_discovery import safe_iterdir, safe_stat
 
 from .library_models import LibraryEntry, MetadataSnapshot
 
@@ -27,6 +29,16 @@ FTS_TOKEN_PATTERN = re.compile(r"[\w]+(?:\*)?", flags=re.UNICODE)
 
 class LibraryRepositoryError(RuntimeError):
     """Raised when low-level persistence operations fail."""
+
+
+def _path_is_dir(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
+
+
+def _path_is_file(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
 
 
 class LibraryRepository:
@@ -576,10 +588,14 @@ class LibraryRepository:
 
 
 def _sorted_migrations() -> List[Path]:
-    if not MIGRATIONS_DIR.exists():
+    if not _path_is_dir(MIGRATIONS_DIR):
         return []
     return sorted(
-        (path for path in MIGRATIONS_DIR.iterdir() if path.suffix == ".sql"),
+        (
+            path
+            for path in safe_iterdir(MIGRATIONS_DIR)
+            if path.suffix == ".sql" and _path_is_file(path)
+        ),
         key=lambda path: path.stem,
     )
 

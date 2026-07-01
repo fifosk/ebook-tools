@@ -1045,6 +1045,9 @@ Optimization candidates:
   Library item recovery, media-file serving, cover lookup, and filesystem
   recovery scans now check metadata manifests, directory candidates, and media
   files through tolerant stat probes, reducing Web/Apple read-path NAS races.
+  Library repository startup now discovers SQLite migration files through
+  tolerant stat and directory probes, keeping Web/Apple preflight startup
+  resilient when migration paths are unavailable or racing.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

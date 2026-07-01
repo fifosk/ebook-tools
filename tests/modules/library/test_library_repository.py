@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from modules.library import LibraryEntry, LibraryRepository, MetadataSnapshot
+from modules.library import library_repository as repository_module
 
 import pytest
 
@@ -65,3 +66,49 @@ def test_sync_from_filesystem(tmp_path: Path) -> None:
     assert stored is not None
     assert stored.book_title == "Shelf Title"
     assert stored.metadata.data["job_id"] == "job-2"
+
+
+def test_sorted_migrations_uses_safe_stat_for_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    migrations_dir = tmp_path / "migrations"
+    migrations_dir.mkdir()
+    migration_path = migrations_dir / "001_init.sql"
+    migration_path.write_text("SELECT 1;", encoding="utf-8")
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == migrations_dir:
+            raise AssertionError("library migration dirs should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == migration_path:
+            raise AssertionError("library migration files should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(repository_module, "MIGRATIONS_DIR", migrations_dir)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    assert repository_module._sorted_migrations() == [migration_path]
+
+
+def test_sorted_migrations_treats_unavailable_dir_as_empty(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    migrations_dir = tmp_path / "missing-migrations"
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == migrations_dir:
+            raise AssertionError("missing library migration dirs should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(repository_module, "MIGRATIONS_DIR", migrations_dir)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    assert repository_module._sorted_migrations() == []
