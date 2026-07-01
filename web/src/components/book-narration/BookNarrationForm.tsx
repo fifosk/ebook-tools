@@ -4,7 +4,6 @@ import {
   useRef,
   useState
 } from 'react';
-import type { FormEvent } from 'react';
 import {
   AUDIO_MODE_OPTIONS,
   AUDIO_QUALITY_OPTIONS,
@@ -15,7 +14,6 @@ import { useLanguagePreferences } from '../../context/LanguageProvider';
 import { useBookNarrationVoices } from './useBookNarrationVoices';
 import { useBookNarrationMetadata } from './useBookNarrationMetadata';
 import { useBookNarrationFiles } from './useBookNarrationFiles';
-import { useBookNarrationSubmit } from './useBookNarrationSubmit';
 import { BookNarrationFormSections } from './BookNarrationFormSections';
 import type { BookNarrationSourcePanel } from './BookNarrationSourceSection';
 import { useBookNarrationChapters } from './useBookNarrationChapters';
@@ -30,6 +28,7 @@ import { useBookNarrationSourceDefaults } from './useBookNarrationSourceDefaults
 import { useBookNarrationDiscoverySelection } from './useBookNarrationDiscoverySelection';
 import { useBookNarrationHistory } from './useBookNarrationHistory';
 import { useBookNarrationImageDefaults } from './useBookNarrationImageDefaults';
+import { useBookNarrationSubmitFlow } from './useBookNarrationSubmitFlow';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
@@ -51,7 +50,6 @@ import {
   buildBookNarrationInitialFormState,
   preserveBookNarrationUserEditedFields,
   resolveBookNarrationTargetLanguages,
-  resolveBookNarrationSubmitPresentation,
   resolveBookNarrationSectionMeta,
 } from './bookNarrationFormUtils';
 
@@ -405,7 +403,12 @@ export function BookNarrationForm({
     userEditedStartRef,
   });
 
-  const { handleSubmit } = useBookNarrationSubmit({
+  const {
+    handleSubmitAndRefreshIntake,
+    submitPresentation,
+  } = useBookNarrationSubmitFlow({
+    activeSection: activeTab,
+    sectionMeta,
     formState,
     normalizedTargetLanguages,
     chapterSelectionMode,
@@ -416,31 +419,12 @@ export function BookNarrationForm({
     isGeneratedSource,
     forcedBaseOutputFile,
     implicitEndOffsetThreshold: implicitEndOffsetThreshold ?? null,
-    onSubmit,
-    setError
-  });
-
-  const handleSubmitAndRefreshIntake = useCallback(
-    async (event: FormEvent<HTMLFormElement>) => {
-      const didSubmit = await handleSubmit(event);
-      if (didSubmit) {
-        await refreshIntakeStatus();
-      }
-    },
-    [handleSubmit, refreshIntakeStatus]
-  );
-
-  const submitPresentation = resolveBookNarrationSubmitPresentation({
-    activeSection: activeTab,
-    sectionMeta,
-    formState,
-    normalizedTargetLanguages,
-    isGeneratedSource,
-    chapterSelectionMode,
-    hasChapterSelection: Boolean(chapterSelection),
     isSubmitting,
     isIntakeAtCapacity,
-    submitLabel
+    onSubmit,
+    refreshIntakeStatus,
+    submitLabel,
+    setError
   });
   const canBrowseFiles = Boolean(fileOptions);
   return (

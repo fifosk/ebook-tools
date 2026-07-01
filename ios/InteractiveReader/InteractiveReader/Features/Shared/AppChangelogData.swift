@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-narrate-submit-flow-hook",
+                    title: "Narrate Ebook submit flow is leaner",
+                    detail: "Web Narrate Ebook submit orchestration now lives in a focused tested hook, keeping pipeline submit, intake refresh, and submit-button presentation together outside the main form coordinator."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-image-defaults-hook",
                     title: "Narrate Ebook image defaults are leaner",
                     detail: "Web Narrate Ebook backend image-default application now lives in a focused tested hook, preserving edited image fields and rerun add-images choices while trimming the main form coordinator."
