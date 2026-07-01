@@ -8,6 +8,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
 - Apple reader translation-only/original-only playback now survives unhydrated next-batch setup by preserving the active audio mode from playable chunk audio options even when visible text tracks temporarily fall back to Original, preventing batch-end resets and render/audio drift.
+- Web and Apple Narrate EPUB bounded source pickers now stream backend-visible EPUB discovery directly from the shared NAS-safe iterator instead of materializing the full tree before trimming, keeping latest-book defaults lighter on large books roots.
 - Apple Create now ignores stale acquisition-provider, server EPUB, subtitle-source, and NAS video library refreshes when a newer source-list request or delete/upload is in flight, keeping pickers aligned with the latest backend state.
 - Apple Create now ignores stale subtitle TV, YouTube TV, and YouTube metadata lookup responses after the lookup source changes or metadata is reset, so slow preview requests cannot overwrite the current reviewed metadata draft.
 - Apple Create now ignores stale chapter-index and embedded-subtitle inspection responses after the selected EPUB or NAS video changes, preventing old Load Chapters or subtitle-stream results from replacing the current source details.

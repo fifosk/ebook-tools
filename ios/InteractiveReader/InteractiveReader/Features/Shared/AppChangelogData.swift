@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-epub-picker-streaming-limit",
+                    title: "Latest EPUB picker is lighter",
+                    detail: "Web and Apple Narrate EPUB bounded source pickers now stream backend-visible EPUB discovery directly from the shared NAS-safe iterator instead of materializing the full books tree before trimming, keeping latest-book defaults lighter on large NAS roots."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-unhydrated-batch-preserve",
                     title: "Translation-only survives unloaded batches",
                     detail: "Apple reader translation-only and original-only playback now preserve the active audio mode from playable chunk audio options even when the next batch's visible text tracks have not hydrated yet, preventing batch-end resets and render/audio drift."

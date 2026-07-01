@@ -41,7 +41,7 @@ from ..schemas import (
 )
 from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
-from ...services.source_discovery import safe_iterdir, safe_stat, walk_visible_source_files
+from ...services.source_discovery import safe_iterdir, safe_stat, iter_visible_source_files
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -203,7 +203,7 @@ def _is_present_file(path: Path) -> bool:
 
 def _list_ebook_files(root: Path, *, limit: int | None = None) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
-    for candidate in walk_visible_source_files(root, suffixes={".epub"}):
+    for candidate in iter_visible_source_files(root, suffixes={".epub"}):
         path = candidate.path
         entry = PipelineFileEntry(
             name=path.name,

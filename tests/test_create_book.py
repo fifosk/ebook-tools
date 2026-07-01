@@ -17,6 +17,7 @@ import modules.webapi.routes.books_routes as books_routes
 from modules.services.job_manager.job import PipelineJob, PipelineJobStatus
 from modules.services.file_locator import FileLocator
 from modules.services.pipeline_service import PipelineRequest, PipelineResponse
+from modules.services.source_discovery import DiscoveredSourceFile
 from modules.user_management.user_store_base import UserRecord
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
@@ -200,6 +201,38 @@ def test_pipeline_ebook_listing_can_limit_newest_entries(tmp_path: Path) -> None
     entries = _list_ebook_files(books_dir, limit=2)
 
     assert [entry.name for entry in entries] == ["newest.epub", "middle.epub"]
+
+
+def test_pipeline_ebook_listing_uses_streaming_source_iterator(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    books_dir = tmp_path / "books"
+    books_dir.mkdir()
+    older = books_dir / "older.epub"
+    newer = books_dir / "newer.epub"
+    older.write_bytes(b"older")
+    newer.write_bytes(b"newer")
+    os.utime(older, (1_700_000_000, 1_700_000_000))
+    os.utime(newer, (1_700_000_300, 1_700_000_300))
+    calls: list[dict[str, object]] = []
+
+    def fake_iter_visible_source_files(root: Path, **kwargs):
+        calls.append({"root": root, **kwargs})
+        yield DiscoveredSourceFile(path=older, stat=older.stat())
+        yield DiscoveredSourceFile(path=newer, stat=newer.stat())
+
+    monkeypatch.setattr(books_routes, "iter_visible_source_files", fake_iter_visible_source_files)
+
+    entries = _list_ebook_files(books_dir, limit=1)
+
+    assert calls == [
+        {
+            "root": books_dir,
+            "suffixes": {".epub"},
+        }
+    ]
+    assert [entry.name for entry in entries] == ["newer.epub"]
 
 
 def test_pipeline_ebook_listing_accepts_uppercase_epub_suffix(tmp_path: Path) -> None:
