@@ -140,11 +140,45 @@ private func runTransitionCancellationCheck() {
     requireEqual(cleanupCount, 1, "Transition cancellation should clean up audio effects")
 }
 
+@MainActor
+private func runSingleTrackPlanInitialLaneCheck() {
+    let controller = SequencePlaybackController()
+    controller.buildPlan(
+        from: [
+            sentence(originalStart: 0.0, originalEnd: 1.0, translationStart: 0.0, translationEnd: 1.0),
+            sentence(originalStart: 1.0, originalEnd: 2.0, translationStart: 1.0, translationEnd: 2.0)
+        ],
+        originalTrackURL: URL(fileURLWithPath: "/tmp/original.m4a"),
+        translationTrackURL: URL(fileURLWithPath: "/tmp/translation.m4a"),
+        originalDuration: nil,
+        translationDuration: nil,
+        mode: .singleTrack(.translation)
+    )
+
+    requireTrue(!controller.isEnabled, "Translation-only plan should not enable sequence mode")
+    requireEqual(
+        controller.currentTrack,
+        .translation,
+        "Translation-only plan should keep the disabled sequence state on the selected lane"
+    )
+    requireEqual(
+        controller.currentSegmentIndex,
+        1,
+        "Translation-only plan should point at the first translation segment, not the first original segment"
+    )
+    requireEqual(
+        controller.currentSegment?.sentenceIndex,
+        0,
+        "Translation-only plan should still begin at the first sentence"
+    )
+}
+
 @main
 struct SequencePauseCancelCheck {
     @MainActor
     static func main() async {
         await runDwellCancellationCheck()
         runTransitionCancellationCheck()
+        runSingleTrackPlanInitialLaneCheck()
     }
 }

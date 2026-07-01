@@ -214,6 +214,8 @@ def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> No
     assert "controller.cancelPendingAutomaticAdvanceForPause()" in swift_check
     assert "Cancelled dwell should not advance after its timer fires" in swift_check
     assert "Pause cancellation should clear an in-flight transition" in swift_check
+    assert "runSingleTrackPlanInitialLaneCheck()" in swift_check
+    assert "Translation-only plan should point at the first translation segment" in swift_check
 
 
 def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> None:

@@ -356,9 +356,15 @@ final class SequencePlaybackController: ObservableObject {
             && hasTranslationSegments
             && bothTogglesEnabled
 
-        // Reset to beginning
-        currentSegmentIndex = 0
-        currentTrack = hasOriginalSegments ? .original : .translation
+        // Reset to the first segment for the active mode. Single-track readers
+        // still build a disabled plan so navigation/render helpers can inspect
+        // it; keep that disabled state on the selected lane instead of
+        // briefly defaulting back to original at batch boundaries.
+        currentTrack = initialTrackForMode(
+            hasOriginalSegments: hasOriginalSegments,
+            hasTranslationSegments: hasTranslationSegments
+        )
+        currentSegmentIndex = initialSegmentIndex(for: currentTrack) ?? 0
         phase = isEnabled ? .playing : .idle
 
         // Install boundary observer for the first segment
@@ -367,6 +373,30 @@ final class SequencePlaybackController: ObservableObject {
         }
 
         debugLog("Plan: \(segments.count) segs, enabled=\(isEnabled), origToggle=\(isOriginalAudioEnabled), transToggle=\(isTranslationAudioEnabled)")
+    }
+
+    private func initialTrackForMode(
+        hasOriginalSegments: Bool,
+        hasTranslationSegments: Bool
+    ) -> SequenceTrack {
+        switch audioMode {
+        case .singleTrack(.translation) where hasTranslationSegments:
+            return .translation
+        case .singleTrack(.original) where hasOriginalSegments:
+            return .original
+        case .singleTrack:
+            break
+        case .sequence:
+            break
+        }
+        if hasOriginalSegments {
+            return .original
+        }
+        return .translation
+    }
+
+    private func initialSegmentIndex(for track: SequenceTrack) -> Int? {
+        plan.firstIndex { $0.track == track }
     }
 
     // MARK: - Computed Properties

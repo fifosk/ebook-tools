@@ -147,7 +147,10 @@ Follow the suggested remediations to restore parity:
   a dedicated selected audio option, or the last preferred audio kind if the
   SwiftUI `AudioModeManager` bridge is temporarily unavailable or briefly reset
   to sequence at EOF; a stale combined selected id is never enough to re-enable
-  sequence rendering.
+  sequence rendering. Even when a new chunk builds a disabled sequence plan for
+  helper lookups, `currentTrack` and `currentSegmentIndex` must start on the
+  active single-track lane, so translation-only rendering cannot inherit the
+  first original segment at a sentence-batch boundary.
   When a batch handoff or metadata refresh leaves `selectedAudioTrackID` pointing
   at a stale combined/original option, Original-only or Translation-only mode
   remains authoritative for option repair, duration/progress, and prefetch
