@@ -4,6 +4,7 @@ from __future__ import annotations
 import errno
 import os
 import shutil
+import stat as stat_module
 from pathlib import Path
 from typing import Optional
 
@@ -14,12 +15,25 @@ from .constants import SCRIPT_DIR, DEFAULT_LIBRARY_ROOT
 logger = logging_manager.get_logger()
 
 
-def _path_exists(path: Path) -> bool:
+def _safe_stat(path: Path):
     try:
-        path.stat()
-        return True
+        return path.stat()
     except OSError:
-        return False
+        return None
+
+
+def _path_exists(path: Path) -> bool:
+    return _safe_stat(path) is not None
+
+
+def _path_is_dir(path: Path) -> bool:
+    path_stat = _safe_stat(path)
+    return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
+
+
+def _path_is_file(path: Path) -> bool:
+    path_stat = _safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
 
 
 def _cleanup_directory_path(path: Path) -> None:
@@ -31,13 +45,13 @@ def _cleanup_directory_path(path: Path) -> None:
 
         try:
             if candidate.is_symlink():
-                if candidate.exists():
+                if _path_exists(candidate):
                     continue
                 candidate.unlink()
                 continue
 
-            if candidate.exists() and not candidate.is_dir():
-                if candidate.is_file() or candidate.is_symlink():
+            if _path_exists(candidate) and not _path_is_dir(candidate):
+                if _path_is_file(candidate) or candidate.is_symlink():
                     candidate.unlink()
                 else:
                     shutil.rmtree(candidate)
@@ -80,7 +94,7 @@ def resolve_directory(path_value, default_relative: Path) -> Path:
             last_error = exc
         except OSError as exc:
             last_error = exc
-            if attempt.exists() and attempt.is_dir():
+            if _path_is_dir(attempt):
                 return attempt
             if getattr(exc, "errno", None) not in {errno.EPERM, errno.EACCES, errno.EROFS}:
                 raise

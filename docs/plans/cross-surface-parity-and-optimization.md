@@ -1048,6 +1048,9 @@ Optimization candidates:
   Library repository startup now discovers SQLite migration files through
   tolerant stat and directory probes, keeping Web/Apple preflight startup
   resilient when migration paths are unavailable or racing.
+  Runtime directory resolution now cleans broken configured roots and reuses
+  existing roots after transient mkdir failures through tolerant stat probes,
+  reducing Web/Apple Create/source-root startup races.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

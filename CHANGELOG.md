@@ -35,6 +35,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web and Apple Library enrichment, source reupload, and ISBN metadata actions now validate item roots, uploaded source files, and obsolete source cleanup through tolerant stat probes.
 - Web and Apple Library item recovery, media-file serving, cover lookup, and filesystem recovery scans now use tolerant stat probes for metadata manifests and file candidates.
 - Web and Apple Library repository startup now discovers SQLite migration files through tolerant stat and directory probes, avoiding raw migration-path existence checks during app/preflight startup.
+- Web and Apple runtime directory resolution now cleans and reuses configured roots through tolerant stat probes, reducing Create/source-root startup races around transient filesystems.
 
 ## 2026-06-30
 
