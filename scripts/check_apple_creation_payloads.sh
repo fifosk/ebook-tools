@@ -19,6 +19,7 @@ swiftc \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreatePresentationHelpers.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateDiscoveryPresentation.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateDownloadStationPresentation.swift" \
+  "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateVideoDiscoveryPresentation.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateNormalization.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateDrafts.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateHistoryParsing.swift" \

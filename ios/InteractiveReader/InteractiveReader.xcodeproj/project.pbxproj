@@ -68,6 +68,8 @@
 		CREATEDISC001A0002 /* AppleBookCreateDiscoveryPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEDISC002A0001 /* AppleBookCreateDiscoveryPresentation.swift */; };
 		CREATEDLST001A0001 /* AppleBookCreateDownloadStationPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEDLST002A0001 /* AppleBookCreateDownloadStationPresentation.swift */; };
 		CREATEDLST001A0002 /* AppleBookCreateDownloadStationPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEDLST002A0001 /* AppleBookCreateDownloadStationPresentation.swift */; };
+		CREATEVIDDISC001A0001 /* AppleBookCreateVideoDiscoveryPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVIDDISC002A0001 /* AppleBookCreateVideoDiscoveryPresentation.swift */; };
+		CREATEVIDDISC001A0002 /* AppleBookCreateVideoDiscoveryPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVIDDISC002A0001 /* AppleBookCreateVideoDiscoveryPresentation.swift */; };
 		CREATENORM001A0001 /* AppleBookCreateNormalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATENORM002A0001 /* AppleBookCreateNormalization.swift */; };
 		CREATENORM001A0002 /* AppleBookCreateNormalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATENORM002A0001 /* AppleBookCreateNormalization.swift */; };
 		CREATEDRAFT001A0001 /* AppleBookCreateDrafts.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEDRAFT002A0001 /* AppleBookCreateDrafts.swift */; };
@@ -784,6 +786,7 @@
 		CREATEPRES002A0001 /* AppleBookCreatePresentationHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreatePresentationHelpers.swift; sourceTree = "<group>"; };
 		CREATEDISC002A0001 /* AppleBookCreateDiscoveryPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateDiscoveryPresentation.swift; sourceTree = "<group>"; };
 		CREATEDLST002A0001 /* AppleBookCreateDownloadStationPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateDownloadStationPresentation.swift; sourceTree = "<group>"; };
+		CREATEVIDDISC002A0001 /* AppleBookCreateVideoDiscoveryPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateVideoDiscoveryPresentation.swift; sourceTree = "<group>"; };
 		CREATENORM002A0001 /* AppleBookCreateNormalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateNormalization.swift; sourceTree = "<group>"; };
 		CREATEDRAFT002A0001 /* AppleBookCreateDrafts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateDrafts.swift; sourceTree = "<group>"; };
 		CREATEDRAFTACT002A0001 /* AppleBookCreateDraftActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateDraftActions.swift; sourceTree = "<group>"; };
@@ -1031,6 +1034,7 @@
 				CREATEPRES002A0001 /* AppleBookCreatePresentationHelpers.swift */,
 				CREATEDISC002A0001 /* AppleBookCreateDiscoveryPresentation.swift */,
 				CREATEDLST002A0001 /* AppleBookCreateDownloadStationPresentation.swift */,
+				CREATEVIDDISC002A0001 /* AppleBookCreateVideoDiscoveryPresentation.swift */,
 				CREATENORM002A0001 /* AppleBookCreateNormalization.swift */,
 				CREATEDRAFT002A0001 /* AppleBookCreateDrafts.swift */,
 				CREATEDRAFTACT002A0001 /* AppleBookCreateDraftActions.swift */,
@@ -1952,6 +1956,7 @@
 				CREATEPRES001A0001 /* AppleBookCreatePresentationHelpers.swift in Sources */,
 				CREATEDISC001A0001 /* AppleBookCreateDiscoveryPresentation.swift in Sources */,
 				CREATEDLST001A0001 /* AppleBookCreateDownloadStationPresentation.swift in Sources */,
+				CREATEVIDDISC001A0001 /* AppleBookCreateVideoDiscoveryPresentation.swift in Sources */,
 				CREATENORM001A0001 /* AppleBookCreateNormalization.swift in Sources */,
 				CREATEDRAFT001A0001 /* AppleBookCreateDrafts.swift in Sources */,
 				CREATEDRAFTACT001A0001 /* AppleBookCreateDraftActions.swift in Sources */,
@@ -2255,6 +2260,7 @@
 				CREATEPRES001A0002 /* AppleBookCreatePresentationHelpers.swift in Sources */,
 				CREATEDISC001A0002 /* AppleBookCreateDiscoveryPresentation.swift in Sources */,
 				CREATEDLST001A0002 /* AppleBookCreateDownloadStationPresentation.swift in Sources */,
+				CREATEVIDDISC001A0002 /* AppleBookCreateVideoDiscoveryPresentation.swift in Sources */,
 				CREATENORM001A0002 /* AppleBookCreateNormalization.swift in Sources */,
 				CREATEDRAFT001A0002 /* AppleBookCreateDrafts.swift in Sources */,
 				CREATEDRAFTACT001A0002 /* AppleBookCreateDraftActions.swift in Sources */,

@@ -576,10 +576,13 @@ Current Apple UI partially exposes:
   decisions, including NAS YouTube scope refreshes, live in
   `AppleBookCreateSourceSelection.swift`, while source refresh, delete,
   discovery-application, Download Station, and chapter-load side effects now
-  live in `AppleBookCreateSourceActions.swift`. Book and video acquisition discovery
-  metadata/state payload shaping now lives in
-  `AppleBookCreateDiscoveryPresentation.swift`, keeping source-selection
-  actions focused on applying paths and reviewed metadata. Subtitle time-range and YouTube
+  live in `AppleBookCreateSourceActions.swift`. Shared/default and book
+  acquisition discovery metadata shaping now lives in
+  `AppleBookCreateDiscoveryPresentation.swift`, while video discovery
+  availability, provider options, candidate filtering, YouTube/NAS labels, and
+  template discovery-state shaping live in
+  `AppleBookCreateVideoDiscoveryPresentation.swift`; source-selection actions
+  stay focused on applying paths and reviewed metadata. Subtitle time-range and YouTube
   offset-range validation now use pure support helpers that preserve the
   existing visible error messages. Backend default resolution and edited-field
   preservation now live in support too, so backend-driven Apple Create defaults

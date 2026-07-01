@@ -312,6 +312,15 @@ CREATE_DOWNLOAD_STATION_PRESENTATION = (
     / "Create"
     / "AppleBookCreateDownloadStationPresentation.swift"
 )
+CREATE_VIDEO_DISCOVERY_PRESENTATION = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateVideoDiscoveryPresentation.swift"
+)
 CREATE_NORMALIZATION = (
     ROOT
     / "ios"
@@ -1580,10 +1589,13 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "@State var youtubeDiscoveryState: [String: JSONValue]?" in view_source
     assert "private func youtubeDiscoveryStatePayload(" not in view_source
     discovery_source = _source(CREATE_DISCOVERY_PRESENTATION)
-    assert "static func videoDiscoveryStatePayload(" in discovery_source
-    assert "static func videoDiscoveryState(" in discovery_source
-    assert 'state["selected_subtitle_path"] = .string(trimmed)' in discovery_source
-    assert 'state.removeValue(forKey: "selected_subtitle_path")' in discovery_source
+    video_discovery_source = _source(CREATE_VIDEO_DISCOVERY_PRESENTATION)
+    assert "static func videoDiscoveryStatePayload(" in video_discovery_source
+    assert "static func videoDiscoveryState(" in video_discovery_source
+    assert 'state["selected_subtitle_path"] = .string(trimmed)' in video_discovery_source
+    assert 'state.removeValue(forKey: "selected_subtitle_path")' in video_discovery_source
+    assert "static func videoDiscoveryStatePayload(" not in discovery_source
+    assert "static func videoDiscoveryState(" not in discovery_source
     assert "AppleBookCreatePresentation.videoDiscoveryStatePayload(" in source_actions
     assert "AppleBookCreatePresentation.videoDiscoveryState(" in source_actions
     assert 'youtubeDiscoveryState?["selected_subtitle_path"]' not in view_source
@@ -1597,12 +1609,12 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "videoPath: youtubeVideoPath(formState: formState, discoveryState: discoveryState)" in template_settings_source
     assert "subtitlePath: youtubeSubtitlePath(formState: formState, discoveryState: discoveryState)" in template_settings_source
     assert "AppleBookCreateTemplateSettings.discoveryState(from: template)" in template_application_source
-    assert '"media_kind": .string("video")' in discovery_source
-    assert '"candidate_id": .string(candidate.candidateId)' in discovery_source
-    assert "selectedProvider: String? = nil" in discovery_source
-    assert "query: String? = nil" in discovery_source
-    assert 'state["selected_provider"] = .string(selectedProvider)' in discovery_source
-    assert 'state["query"] = .string(query)' in discovery_source
+    assert '"media_kind": .string("video")' in video_discovery_source
+    assert '"candidate_id": .string(candidate.candidateId)' in video_discovery_source
+    assert "selectedProvider: String? = nil" in video_discovery_source
+    assert "query: String? = nil" in video_discovery_source
+    assert 'state["selected_provider"] = .string(selectedProvider)' in video_discovery_source
+    assert 'state["query"] = .string(query)' in video_discovery_source
     assert "payload[\"discovery_state\"] = .object(discoveryState)" in template_save_factory_source
     assert "private static func makeVideoDiscoveryState(" in template_save_factory_source
     assert 'trimmedKey.lowercased().contains("token")' in template_save_factory_source
@@ -2300,9 +2312,12 @@ def test_create_presentation_helpers_are_split_from_support_and_target_wired() -
     assert project.count("AppleBookCreateDiscoveryPresentation.swift in Sources") == 4
     assert "AppleBookCreateDownloadStationPresentation.swift in Sources" in project
     assert project.count("AppleBookCreateDownloadStationPresentation.swift in Sources") == 4
+    assert "AppleBookCreateVideoDiscoveryPresentation.swift in Sources" in project
+    assert project.count("AppleBookCreateVideoDiscoveryPresentation.swift in Sources") == 4
     assert "AppleBookCreatePresentationHelpers.swift" in payload_script
     assert "AppleBookCreateDiscoveryPresentation.swift" in payload_script
     assert "AppleBookCreateDownloadStationPresentation.swift" in payload_script
+    assert "AppleBookCreateVideoDiscoveryPresentation.swift" in payload_script
 
 
 def test_create_normalization_helpers_are_split_from_support_and_target_wired() -> None:
@@ -3398,7 +3413,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "let availableDefaults = backendDefaults.filter { availableOptionIds.contains($0) }" in book_default_body
     assert "availableDefaults.count >= 2" in book_default_body
     assert "return defaultBookDiscoveryProvider" in book_default_body
-    defaultable_body = _swift_function_body(discovery_source, "private static func defaultableProviderIDs(")
+    defaultable_body = _swift_function_body(discovery_source, "static func defaultableProviderIDs(")
     assert "providersByID[$0]?.defaultEligibleMediaKinds" in defaultable_body
     assert "return defaultEligibleMediaKinds.contains(mediaKind)" in defaultable_body
     assert 'guard mediaKind == "video" else' in defaultable_body
@@ -3467,8 +3482,8 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "provider.status.replacingOccurrences" not in controls_source
     assert "static func bookDiscoveryProviderUnavailableMessage(" in discovery_source
     assert "Direct Z-Library automation is intentionally disabled" in discovery_source
-    assert "private static func discoveryProviderUnavailableMessage(" in discovery_source
-    assert "private static func sourceFallbackAction(for provider: AcquisitionProviderEntry) -> String" in discovery_source
+    assert "static func discoveryProviderUnavailableMessage(" in discovery_source
+    assert "static func sourceFallbackAction(for provider: AcquisitionProviderEntry) -> String" in discovery_source
     assert "provider.sourceLabel?" in discovery_source
     assert 'sourceName = "the backend source root"' in discovery_source
     assert 'return "Configure \\(sourceName) or choose another discovery source."' in discovery_source
@@ -3609,12 +3624,15 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate, String, String) -> Void" in source
     discovery_source = _source(CREATE_DISCOVERY_PRESENTATION)
     download_station_source = _source(CREATE_DOWNLOAD_STATION_PRESENTATION)
-    assert "struct AppleBookCreateVideoDiscoveryAvailability" in discovery_source
-    assert "static func youtubeVideoDiscoveryAvailability(" in discovery_source
-    assert 'providers.first { $0.id == "youtube_search" }' in discovery_source
-    assert 'providers.first { $0.id == "download_station" }' in discovery_source
-    assert "let hasProviderInventory = !providers.isEmpty" in discovery_source
-    assert "isYoutubeSearchAvailable: youtubeSearchProvider?.available ?? !hasProviderInventory" in discovery_source
+    video_discovery_source = _source(CREATE_VIDEO_DISCOVERY_PRESENTATION)
+    assert "struct AppleBookCreateVideoDiscoveryAvailability" in video_discovery_source
+    assert "static func youtubeVideoDiscoveryAvailability(" in video_discovery_source
+    assert 'providers.first { $0.id == "youtube_search" }' in video_discovery_source
+    assert 'providers.first { $0.id == "download_station" }' in video_discovery_source
+    assert "let hasProviderInventory = !providers.isEmpty" in video_discovery_source
+    assert "isYoutubeSearchAvailable: youtubeSearchProvider?.available ?? !hasProviderInventory" in video_discovery_source
+    assert "struct AppleBookCreateVideoDiscoveryAvailability" not in discovery_source
+    assert "static func youtubeVideoDiscoveryAvailability(" not in discovery_source
     assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in source_factory_source
     assert "youtubeDiscoveryState: youtubeDiscoveryState" in source_factory_source
     assert "acquisitionProviders: viewModel.acquisitionProviders" in source_factory_source
@@ -3672,12 +3690,12 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "selectedProvider: provider" in source_actions
     assert "query: query" in source_actions
     assert "preparedMetadata: prepared.metadata" in source_actions
-    assert "preparedMetadata: [String: JSONValue]? = nil" in discovery_source
-    assert '?? candidate.metadata?["source_provider"]?.stringValue?' in discovery_source
-    assert 'state["acquisition_provider"] = .string(acquisitionProvider)' in discovery_source
-    assert '?? candidate.metadata?["acquisition_provider"]?.stringValue?' in discovery_source
-    assert 'state["acquisition_candidate_id"] = .string(acquisitionCandidateID)' in discovery_source
-    assert '?? candidate.metadata?["acquisition_candidate_id"]?.stringValue?' in discovery_source
+    assert "preparedMetadata: [String: JSONValue]? = nil" in video_discovery_source
+    assert '?? candidate.metadata?["source_provider"]?.stringValue?' in video_discovery_source
+    assert 'state["acquisition_provider"] = .string(acquisitionProvider)' in video_discovery_source
+    assert '?? candidate.metadata?["acquisition_provider"]?.stringValue?' in video_discovery_source
+    assert 'state["acquisition_candidate_id"] = .string(acquisitionCandidateID)' in video_discovery_source
+    assert '?? candidate.metadata?["acquisition_candidate_id"]?.stringValue?' in video_discovery_source
     assert "prepared.videoPath?.trimmingCharacters" in source_actions
     assert "prepared.subtitlePath?.trimmingCharacters" in source_actions
     assert "prepared.subtitles.first?.path.trimmingCharacters" in source_actions
@@ -3696,12 +3714,13 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "videoDiscoveryProvider" in youtube_source
     assert "@State private var videoDiscoveryProvider = AppleBookCreatePresentation.defaultVideoDiscoveryProviderID" in youtube_source
     presentation_source = _source(CREATE_PRESENTATION_HELPERS)
-    assert "struct AppleBookCreateVideoDiscoveryProviderOption" in discovery_source
+    assert "struct AppleBookCreateVideoDiscoveryProviderOption" in video_discovery_source
+    assert "struct AppleBookCreateVideoDiscoveryProviderOption" not in discovery_source
     assert "let defaultEligibleMediaKinds: [String]?" in _source(PIPELINE_CREATION_API_MODELS)
-    assert "static func videoDiscoveryProviderOptions(" in discovery_source
-    assert "defaultProviderIds: [String: [String]] = [:]" in discovery_source
-    assert "defaultVideoDiscoveryProviderID" in discovery_source
-    assert "isDefaultVideoDiscoveryProviderID" in discovery_source
+    assert "static func videoDiscoveryProviderOptions(" in video_discovery_source
+    assert "defaultProviderIds: [String: [String]] = [:]" in video_discovery_source
+    assert "defaultVideoDiscoveryProviderID" in video_discovery_source
+    assert "isDefaultVideoDiscoveryProviderID" in video_discovery_source
     assert "static func defaultDiscoveryProviderID(" in discovery_source
     assert "availableOptionIds: [String]? = nil" in discovery_source
     assert "let availableOptionIdSet = Set(availableOptionIds ?? optionIds)" in discovery_source
@@ -3711,13 +3730,13 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "explicitOnlyDefaultVideoDiscoveryProviderIDs" in discovery_source
     assert '"youtube_url"' in discovery_source
     assert "static func videoDiscoveryProviderOptions(" not in presentation_source
-    assert "private static let fallbackVideoDiscoveryProviders" in discovery_source
-    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true)' in discovery_source
-    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true)' in discovery_source
-    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_url", label: "YouTube URL", available: true)' in discovery_source
-    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true)' in discovery_source
-    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)' in discovery_source
-    assert 'label: "Default sources"' in discovery_source
+    assert "private static let fallbackVideoDiscoveryProviders" in video_discovery_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true)' in video_discovery_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true)' in video_discovery_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_url", label: "YouTube URL", available: true)' in video_discovery_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true)' in video_discovery_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)' in video_discovery_source
+    assert 'label: "Default sources"' in video_discovery_source
     assert "ForEach(videoDiscoveryProviderOptions)" in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryProviderOptions(" in youtube_source
     assert "from: acquisitionProviders" in youtube_source
@@ -3751,12 +3770,12 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     )[0]
     assert "!didApplyBackendVideoDiscoveryDefault" not in video_default_body
     assert "videoDiscoveryProvider != providerID || !currentProviderIsKnown" in video_default_body
-    assert "provider.mediaKinds.contains(\"video\")" in discovery_source
-    assert 'return discoveryMediaKinds.contains("video")' in discovery_source
-    assert "videoDiscoveryCapabilities.contains($0)" in discovery_source
-    assert "private static func videoDiscoveryProviderRank(" in discovery_source
-    assert "private static func videoDiscoveryProviderLabel(" in discovery_source
-    assert "static func videoDiscoveryProviderFallbackLabel(for providerID: String)" in discovery_source
+    assert "provider.mediaKinds.contains(\"video\")" in video_discovery_source
+    assert 'return discoveryMediaKinds.contains("video")' in video_discovery_source
+    assert "videoDiscoveryCapabilities.contains($0)" in video_discovery_source
+    assert "private static func videoDiscoveryProviderRank(" in video_discovery_source
+    assert "private static func videoDiscoveryProviderLabel(" in video_discovery_source
+    assert "static func videoDiscoveryProviderFallbackLabel(for providerID: String)" in video_discovery_source
     assert "private func videoDiscoveryProviderRank(" not in youtube_source
     assert "private func videoDiscoveryProviderLabel(" not in youtube_source
     assert "private func fallbackVideoDiscoveryProviderLabel(" not in youtube_source
@@ -3771,9 +3790,9 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "AppleBookCreatePresentation.videoDiscoveryProviderUnavailableMessage(" in youtube_source
     assert "provider.policyNotes.first" not in youtube_source
     assert "provider.status.replacingOccurrences" not in youtube_source
-    assert "static func videoDiscoveryProviderUnavailableMessage(" in discovery_source
-    assert 'if provider.id == "youtube_search"' in discovery_source
-    assert 'if provider.id == "newznab_torznab"' in discovery_source
+    assert "static func videoDiscoveryProviderUnavailableMessage(" in video_discovery_source
+    assert 'if provider.id == "youtube_search"' in video_discovery_source
+    assert 'if provider.id == "newznab_torznab"' in video_discovery_source
     assert "|| !isSelectedVideoDiscoveryProviderAvailable" in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryCandidates(" in youtube_source
     assert "providers: acquisitionProviders" in youtube_source
@@ -3787,31 +3806,33 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "AppleBookCreatePresentation.videoDiscoveryCandidateDetail(candidate)" in youtube_source
     assert 'accessibilityIdentifier("createYoutubeDiscoveryPrepareProgress")' in youtube_source
     assert ".disabled(isPreparingAcquisitionCandidate)" in youtube_source
-    assert "static func videoDiscoveryCandidates(" in discovery_source
-    video_candidates_body = discovery_source.split("static func videoDiscoveryCandidates(", 1)[1].split(
+    assert "static func videoDiscoveryCandidates(" in video_discovery_source
+    assert "static func videoDiscoveryCandidates(" not in discovery_source
+    video_candidates_body = video_discovery_source.split("static func videoDiscoveryCandidates(", 1)[1].split(
         "\n    static func videoDiscoveryStatePayload",
         1,
     )[0]
     assert "defaultableProviderIDs(" in video_candidates_body
     assert "providers: providers" in video_candidates_body
     assert "isDefaultVideoDiscoveryProviderID(providerID)" in video_candidates_body
-    assert "static func isYoutubeMetadataVideoDiscoveryProviderID(" in discovery_source
-    assert "static func youtubeMetadataSourceURL(for candidate: AcquisitionCandidate)" in discovery_source
-    assert 'normalized == "youtube_search" || normalized == "youtube_url"' in discovery_source
-    assert "static func videoDiscoveryQueryPlaceholder(" in discovery_source
-    assert "static func noVideoDiscoveryCandidatesMessage(" in discovery_source
-    assert "No default video sources matched this discovery search." in discovery_source
-    assert "No YouTube URL metadata matched this discovery search." in discovery_source
-    assert "static func youtubeVideoLabel(" in discovery_source
-    assert "static func youtubeSubtitleLabel(" in discovery_source
-    assert "static func filenameFromPath(" in discovery_source
-    assert "static func videoDiscoveryCandidateDetail(" in discovery_source
+    assert "static func isYoutubeMetadataVideoDiscoveryProviderID(" in video_discovery_source
+    assert "static func youtubeMetadataSourceURL(for candidate: AcquisitionCandidate)" in video_discovery_source
+    assert 'normalized == "youtube_search" || normalized == "youtube_url"' in video_discovery_source
+    assert "static func videoDiscoveryQueryPlaceholder(" in video_discovery_source
+    assert "static func noVideoDiscoveryCandidatesMessage(" in video_discovery_source
+    assert "No default video sources matched this discovery search." in video_discovery_source
+    assert "No YouTube URL metadata matched this discovery search." in video_discovery_source
+    assert "static func youtubeVideoLabel(" in video_discovery_source
+    assert "static func youtubeSubtitleLabel(" in video_discovery_source
+    assert "static func filenameFromPath(" in video_discovery_source
+    assert "static func videoDiscoveryCandidateDetail(" in video_discovery_source
     assert "static func isDownloadStationHandoffCandidate(_ candidate: AcquisitionCandidate) -> Bool" in download_station_source
     assert 'candidate.metadata?["handoff_provider"]?.stringValue?' in download_station_source
     assert '.localizedCaseInsensitiveCompare("download_station") == .orderedSame' in download_station_source
     assert 'candidate.metadata?["has_download_url"]?.stringValue?' in download_station_source
     assert '.localizedCaseInsensitiveCompare("true") == .orderedSame' in download_station_source
-    assert "Download Station handoff" in discovery_source
+    assert "Download Station handoff" in video_discovery_source
+    assert "static func videoDiscoveryCandidateDetail(" not in discovery_source
     assert "private func youtubeVideoLabel(" not in youtube_source
     assert "private func youtubeSubtitleLabel(" not in youtube_source
     assert "private func filenameFromPath(" not in youtube_source

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-video-discovery-presentation-helper",
+                    title: "Video discovery is leaner",
+                    detail: "Apple Create video discovery availability, provider options, YouTube metadata labels, candidate filtering, and template discovery-state shaping now live in a focused Swift helper, keeping YouTube Dub easier to compare with Web Video Dubbing."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-passive-mode-observation",
                     title: "Single-track handoffs hold",
                     detail: "Apple reader single-track mode now treats passive SwiftUI audio-mode observation as non-authoritative, so an end-of-batch or default refresh cannot clear the remembered Original-only or Translation-only lane and reset rendering out of sync."
