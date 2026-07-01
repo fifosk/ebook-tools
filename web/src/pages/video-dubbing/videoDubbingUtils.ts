@@ -3,8 +3,6 @@ import type {
   CreationTemplateEntry,
   CreationTemplatePayload,
   JobParameterSnapshot,
-  MacOSVoice,
-  VoiceInventoryResponse,
   YoutubeInlineSubtitleStream,
   YoutubeDubRequest,
   YoutubeNasSubtitle,
@@ -12,7 +10,6 @@ import type {
 } from '../../api/dtos';
 import type { JobState } from '../../components/JobList';
 import { resolveLanguageName } from '../../constants/languageCodes';
-import { VOICE_OPTIONS } from '../../constants/menuOptions';
 import { sanitizeCreationTemplatePayloadExtras } from '../../utils/creationTemplatePayloadExtras';
 import { sanitizeTemplateValue } from '../../utils/creationTemplateSanitizer';
 import { resolveSubtitleLanguageLabel } from '../../utils/subtitles';
@@ -97,24 +94,6 @@ export function formatEpisodeCode(season: unknown, episode: unknown): string | n
     return null;
   }
   return `S${seasonInt.toString().padStart(2, '0')}E${episodeInt.toString().padStart(2, '0')}`;
-}
-
-export function formatMacOSVoiceIdentifier(voice: MacOSVoice): string {
-  const quality = voice.quality ? voice.quality : 'Default';
-  const genderSuffix = voice.gender ? ` - ${voice.gender}` : '';
-  return `${voice.name} - ${voice.lang} - (${quality})${genderSuffix}`;
-}
-
-export function formatMacOSVoiceLabel(voice: MacOSVoice): string {
-  const descriptors: string[] = [voice.lang];
-  if (voice.gender) {
-    descriptors.push(voice.gender);
-  }
-  if (voice.quality) {
-    descriptors.push(voice.quality);
-  }
-  const meta = descriptors.length > 0 ? ` (${descriptors.join(', ')})` : '';
-  return `${voice.name}${meta}`;
 }
 
 export function formatBytes(bytes: number): string {
@@ -388,72 +367,6 @@ export function resolveSubtitleNotice(
     return 'No subtitles were found next to this video.';
   }
   return null;
-}
-
-export function buildVoiceOptions(
-  voiceInventory: VoiceInventoryResponse | null,
-  targetLanguageCode: string
-): { value: string; label: string }[] {
-  const base = VOICE_OPTIONS.map((option) => ({
-    value: option.value,
-    label: option.label
-  }));
-  if (!voiceInventory) {
-    return base;
-  }
-
-  const targetCode = (targetLanguageCode || '').toLowerCase();
-  const targetBase = targetCode.split(/[-_]/)[0];
-  const matchesTarget = (lang: string): boolean => {
-    if (!targetCode) {
-      return true;
-    }
-    const normalized = (lang || '').toLowerCase();
-    if (!normalized) {
-      return false;
-    }
-    if (normalized === targetCode) {
-      return true;
-    }
-    return normalized.split(/[-_]/)[0] === targetBase;
-  };
-
-  const macVoices = voiceInventory.macos
-    .filter((voice) => matchesTarget(voice.lang))
-    .map((voice) => ({
-      value: formatMacOSVoiceIdentifier(voice),
-      label: formatMacOSVoiceLabel(voice)
-    }));
-
-  const piperVoices = (voiceInventory.piper ?? [])
-    .filter((voice) => matchesTarget(voice.lang))
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((voice) => ({
-      value: voice.name,
-      label: `Piper: ${voice.name}`
-    }));
-
-  const gttsSeen = new Set<string>();
-  const gttsVoices: { value: string; label: string }[] = [];
-  for (const entry of voiceInventory.gtts) {
-    const entryCode = entry.code.toLowerCase();
-    if (!matchesTarget(entryCode)) {
-      continue;
-    }
-    const shortCode = entryCode.split(/[-_]/)[0];
-    if (!shortCode || gttsSeen.has(shortCode)) {
-      continue;
-    }
-    gttsSeen.add(shortCode);
-    gttsVoices.push({ value: `gTTS-${shortCode}`, label: `gTTS (${entry.name})` });
-  }
-
-  const merged = new Map<string, { value: string; label: string }>();
-  [...base, ...macVoices, ...piperVoices, ...gttsVoices].forEach((entry) =>
-    merged.set(entry.value, entry)
-  );
-  return Array.from(merged.values()).sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export function resolveOutputPath(job: JobState): string | null {

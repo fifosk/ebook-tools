@@ -132,9 +132,10 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/video-dubbing/useVideoDubbingLanguageState.ts` with focused
   hook coverage, including a guard against treating a raw subtitle language
   code as an arbitrary catalog label. Voice inventory loading, target-language
-  voice option construction, sample synthesis, browser audio cleanup, and
-  preview error handling now live in
-  `web/src/pages/video-dubbing/useVideoDubbingVoiceState.ts` with focused hook
+  sample synthesis, browser audio cleanup, and preview error handling now live in
+  `web/src/pages/video-dubbing/useVideoDubbingVoiceState.ts`, while macOS,
+  Piper, gTTS, and bundled target-language voice option construction lives in
+  `web/src/pages/video-dubbing/videoDubbingVoiceOptions.ts`, both with focused
   coverage. Translation model inventory loading, model-load error handling, and
   selected translation/transliteration provider/model state now live in
   `web/src/pages/video-dubbing/useVideoDubbingModelState.ts` with focused hook

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type {
   AcquisitionCandidate,
   CreationTemplateEntry,
-  VoiceInventoryResponse,
   YoutubeInlineSubtitleStream,
   YoutubeNasSubtitle,
   YoutubeNasVideo
@@ -10,7 +9,6 @@ import type {
 import {
   buildVideoDubbingGeneratePayload,
   buildVideoDubbingTemplatePayload,
-  buildVoiceOptions,
   canExtractEmbeddedSubtitles,
   extractVideoDubbingTemplateFormState,
   filterPlayableSubtitles,
@@ -773,35 +771,6 @@ describe('videoDubbingUtils', () => {
     ]);
 
     expect(Array.from(defaults)).toEqual([]);
-  });
-
-  it('builds target-matched voice options from backend inventory', () => {
-    const inventory: VoiceInventoryResponse = {
-      macos: [
-        { name: 'Monica', lang: 'es-MX', quality: 'Enhanced', gender: 'Female' },
-        { name: 'Daniel', lang: 'en-GB', quality: 'Enhanced', gender: 'Male' }
-      ],
-      piper: [
-        { name: 'en_US-lessac', lang: 'en_US', quality: 'medium' },
-        { name: 'es_ES-sharvard', lang: 'es_ES', quality: 'high' }
-      ],
-      gtts: [
-        { code: 'es', name: 'Spanish' },
-        { code: 'es-US', name: 'Spanish (US)' },
-        { code: 'en', name: 'English' }
-      ]
-    };
-
-    const options = buildVoiceOptions(inventory, 'es-MX');
-
-    expect(options).toContainEqual({
-      value: 'Monica - es-MX - (Enhanced) - Female',
-      label: 'Monica (es-MX, Female, Enhanced)'
-    });
-    expect(options).toContainEqual({ value: 'es_ES-sharvard', label: 'Piper: es_ES-sharvard' });
-    expect(options).toContainEqual({ value: 'gTTS-es', label: 'gTTS (Spanish)' });
-    expect(options).not.toContainEqual({ value: 'en_US-lessac', label: 'Piper: en_US-lessac' });
-    expect(options.some((option) => option.value === 'gTTS-en')).toBe(false);
   });
 
   it('resolves complete job parameter snapshots into video dub prefill values', () => {

@@ -11,6 +11,11 @@ enum AppChangelogData {
                     detail: "Apple reader single-track rendering now bypasses combined-phase timing whenever the durable original-only or translation-only lane is active, so hydrated batch boundaries cannot reset rendering away from the selected audio track."
                 ),
                 AppChangelogEntry(
+                    id: "web-video-voice-option-utils",
+                    title: "Video voice options are leaner",
+                    detail: "Web Video Dubbing target-language voice option construction now lives in a focused tested helper, making backend voice inventory filtering easier to mirror in Apple YouTube Dub."
+                ),
+                AppChangelogEntry(
                     id: "web-video-download-station-utils",
                     title: "Download handoff helpers are leaner",
                     detail: "Web Video Dubbing Download Station handoff detection, completed-file extraction, and refreshed NAS-video matching now live in a focused tested helper, keeping downloader handoff behavior easier to mirror in Apple YouTube Dub."

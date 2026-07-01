@@ -363,6 +363,7 @@ test-web-video-dubbing-focused:
 		src/pages/__tests__/VideoDownloadStationPanel.test.tsx \
 		src/pages/__tests__/useVideoDubbingJobActions.test.tsx \
 		src/pages/__tests__/videoDubbingUtils.test.ts \
+		src/pages/__tests__/videoDubbingVoiceOptions.test.ts \
 		src/pages/__tests__/useVideoDubbingSelectionState.test.tsx \
 		src/pages/__tests__/useVideoDubbingResolvedSelection.test.tsx \
 		src/pages/__tests__/useVideoDubbingMetadata.test.tsx \

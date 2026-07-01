@@ -4,7 +4,7 @@ import type { VoiceInventoryResponse } from '../../api/dtos';
 import { resolveLanguageName } from '../../constants/languageCodes';
 import { sampleSentenceFor } from '../../utils/sampleSentences';
 import { preferLanguageLabel, resolveLanguageCode } from '../../utils/languages';
-import { buildVoiceOptions } from './videoDubbingUtils';
+import { buildVoiceOptions } from './videoDubbingVoiceOptions';
 
 type VideoDubbingVoiceStateOptions = {
   subtitleLanguageLabel?: string | null;
