@@ -245,7 +245,7 @@ class LibrarySync:
         """Move ``job_id`` from the queue storage into the Library."""
 
         source_job_root = self._locator.job_root(job_id)
-        if not source_job_root.exists():
+        if not _path_exists(source_job_root):
             raise LibraryNotFoundError(f"Job {job_id} not found in queue storage")
 
         with DirectoryLock(source_job_root) as lock:
@@ -286,7 +286,7 @@ class LibrarySync:
             target_path = file_ops.resolve_library_path(self._library_root, metadata, job_id)
 
             existing_item = self._repository.get_entry_by_id(job_id)
-            if target_path.exists():
+            if _path_exists(target_path):
                 if not force:
                     raise LibraryConflictError(
                         f"Library path {target_path} already exists for job {job_id}"
@@ -304,8 +304,10 @@ class LibrarySync:
             if str(metadata.get("job_type", "")).strip().lower() == "youtube_dub":
                 media_root = source_job_root / "media"
                 has_stitched = False
-                if media_root.exists():
+                if _path_is_dir(media_root):
                     for candidate in media_root.glob("*.mp4"):
+                        if not _path_is_file(candidate):
+                            continue
                         lowered = candidate.name.lower()
                         if ".dub.full." in lowered or lowered.endswith(".dub.full.mp4"):
                             has_stitched = True
@@ -332,7 +334,7 @@ class LibrarySync:
             try:
                 atomic_move(move_root, target_path)
             except (AtomicMoveError, ChecksumMismatchError) as exc:
-                if cleanup_source_after_move and move_root != source_job_root and move_root.exists():
+                if cleanup_source_after_move and move_root != source_job_root and _path_exists(move_root):
                     shutil.rmtree(move_root, ignore_errors=True)
                 raise LibraryError(f"Failed to move job {job_id} into library: {exc}") from exc
 
@@ -396,7 +398,7 @@ class LibrarySync:
 
             file_ops.write_metadata(target_path, metadata)
 
-            if cleanup_source_after_move and source_job_root.exists():
+            if cleanup_source_after_move and _path_exists(source_job_root):
                 cleanup_target = source_job_root.parent / f".{job_id}.moved.{uuid4().hex}"
                 try:
                     source_job_root.replace(cleanup_target)
@@ -408,7 +410,7 @@ class LibrarySync:
                     try:
                         lock_path = path / ".lock"
                         for _ in range(100):
-                            if not lock_path.exists():
+                            if not _path_exists(lock_path):
                                 break
                             time.sleep(0.1)
                         shutil.rmtree(path, ignore_errors=True)

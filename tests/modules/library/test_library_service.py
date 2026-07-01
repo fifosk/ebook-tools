@@ -15,6 +15,7 @@ from modules.library import (
     LibrarySync,
     MetadataSnapshot,
 )
+from modules.library import library_sync as library_sync_module
 from modules.library.sync import file_ops
 from modules.services.file_locator import FileLocator
 
@@ -136,6 +137,86 @@ def test_move_to_library_and_index(tmp_path):
     metadata_path = library_path / 'metadata' / 'job.json'
     payload = json.loads(metadata_path.read_text(encoding='utf-8'))
     assert payload['status'] == 'finished'
+    assert job_manager.deleted == [job_id]
+
+
+def test_move_to_library_uses_safe_stat_for_roots(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, locator, library_root, job_manager = create_service(tmp_path)
+    job_id = "job-safe-roots"
+    queue_root = locator.job_root(job_id)
+    queue_root.mkdir(parents=True)
+    write_metadata(queue_root, build_job_metadata(job_id))
+    (queue_root / "media").mkdir(parents=True, exist_ok=True)
+    (queue_root / "media" / "clip.mp3").write_bytes(b"123")
+    target_path = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    original_exists = Path.exists
+
+    def fake_atomic_move(source: Path, destination: Path, **_kwargs) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, destination)
+        shutil.rmtree(source)
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path in {queue_root, target_path}:
+            raise AssertionError("library move roots should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(library_sync_module, "atomic_move", fake_atomic_move)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    item = service.move_to_library(job_id, status_override="finished")
+
+    assert item.id == job_id
+    assert item.library_path == str(target_path.resolve())
+    assert original_exists(target_path / "metadata" / "job.json")
+    assert job_manager.deleted == [job_id]
+
+
+def test_move_youtube_dub_to_library_uses_safe_stat_for_stitched_detection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, locator, library_root, job_manager = create_service(tmp_path)
+    job_id = "video-safe-roots"
+    queue_root = locator.job_root(job_id)
+    media_root = queue_root / "media"
+    media_root.mkdir(parents=True)
+    metadata = build_job_metadata(job_id)
+    metadata["job_type"] = "youtube_dub"
+    write_metadata(queue_root, metadata)
+    video_path = media_root / "sample.dub.full.mp4"
+    video_path.write_bytes(b"video")
+    target_path = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def fake_atomic_move(source: Path, destination: Path, **_kwargs) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, destination)
+        shutil.rmtree(source)
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path in {queue_root, target_path, media_root}:
+            raise AssertionError("library YouTube move roots should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == video_path:
+            raise AssertionError("library YouTube stitched candidates should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(library_sync_module, "atomic_move", fake_atomic_move)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    item = service.move_to_library(job_id, status_override="finished")
+
+    assert item.id == job_id
+    assert item.item_type == "video"
+    assert original_exists(target_path / "media" / "sample.dub.full.mp4")
     assert job_manager.deleted == [job_id]
 
 

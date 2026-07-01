@@ -1029,6 +1029,10 @@ Optimization candidates:
   Library YouTube-dub bundling now checks source videos, subtitle companions,
   staging roots, and copied metadata through tolerant stat probes, reducing
   Web/Apple video Library move races around NAS-backed media folders.
+  Library move-to-Library promotion now checks queue roots, target conflicts,
+  YouTube stitched-media detection, cleanup staging roots, and lock waits
+  through tolerant stat probes, reducing shared Web/Apple NAS races during
+  book/video promotion.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in
