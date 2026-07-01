@@ -2,10 +2,12 @@ import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { AcquisitionJobStatusResponse } from '../../api/dtos';
 import {
-  findDownloadStationCompletedVideo,
-  resolveDefaultSubtitle,
-  resolveDownloadStationCompletedFiles
+  resolveDefaultSubtitle
 } from './videoDubbingUtils';
+import {
+  findDownloadStationCompletedVideo,
+  resolveDownloadStationCompletedFiles
+} from './videoDubbingDownloadStationUtils';
 import type { VideoDubbingLibraryRefreshResult } from './useVideoDubbingLibraryState';
 
 type DownloadStationCompletionResult = {

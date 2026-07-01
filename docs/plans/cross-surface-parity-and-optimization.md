@@ -99,6 +99,11 @@ Large Web UI hotspots to split before redesign work:
   hook coverage, and completed-task NAS refresh plus safe completed-file
   matching now lives in
   `web/src/pages/video-dubbing/useVideoDubbingDownloadStationCompletion.ts`.
+  Download Station handoff detection, completed-file extraction, and refreshed
+  NAS-video matching now live in
+  `web/src/pages/video-dubbing/videoDubbingDownloadStationUtils.ts` with
+  focused coverage, keeping downloader handoff behavior small enough to compare
+  against Apple YouTube Dub.
   The Download Station handoff chrome now lives in
   `web/src/pages/video-dubbing/VideoDownloadStationPanel.tsx` with rendered
   Vitest coverage. Video source-panel discovery placeholders, source hints,

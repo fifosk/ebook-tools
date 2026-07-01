@@ -8,9 +8,9 @@ import type {
   AcquisitionJobStatusResponse
 } from '../../api/dtos';
 import {
-  basenameFromPath,
-  resolveDownloadStationCompletedFiles
+  basenameFromPath
 } from './videoDubbingUtils';
+import { resolveDownloadStationCompletedFiles } from './videoDubbingDownloadStationUtils';
 
 type VideoDubbingDownloadStationOptions = {
   isDownloadStationAvailable: boolean;

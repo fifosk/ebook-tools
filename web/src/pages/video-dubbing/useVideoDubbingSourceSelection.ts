@@ -10,10 +10,10 @@ import type {
 import { prepareAcquisitionArtifact } from '../../api/client';
 import type { VideoDubbingTab, VideoMetadataSection } from './videoDubbingTypes';
 import {
-  isDownloadStationHandoffCandidate,
   makeVideoDiscoveryTemplateState,
   resolveDefaultSubtitle
 } from './videoDubbingUtils';
+import { isDownloadStationHandoffCandidate } from './videoDubbingDownloadStationUtils';
 import { isYoutubeMetadataVideoDiscoveryProvider } from './videoDubbingDiscovery';
 
 type VideoDubbingSourceSelectionOptions = {

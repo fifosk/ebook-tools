@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Web Video Dubbing Download Station handoff detection, completed-file extraction, and refreshed NAS-video matching now live in a focused tested helper, keeping downloader handoff behavior easier to mirror in Apple YouTube Dub.
 - Web Video Dubbing source-panel discovery placeholders, hints, filename fallbacks, and candidate summary labels now live in a focused tested helper, keeping video discovery behavior easier to mirror in Apple Create.
 - Apple reader single-track metadata hydration now prepares the refreshed chunk even when the selected Original/Translation audio option was already correct, so end-of-batch playback cannot keep a stale pre-hydration lane and drift rendering.
 - Web Narrate Ebook image style options, prompt-pipeline options, quality slider mapping, and image-throughput estimates now live in a focused tested module, making image settings easier to mirror in Apple Create.

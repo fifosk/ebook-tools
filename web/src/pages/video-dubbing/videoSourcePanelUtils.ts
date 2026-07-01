@@ -1,9 +1,9 @@
 import type { AcquisitionCandidate } from '../../api/dtos';
 import {
   formatBytes,
-  formatDurationSeconds,
-  isDownloadStationHandoffCandidate
+  formatDurationSeconds
 } from './videoDubbingUtils';
+import { isDownloadStationHandoffCandidate } from './videoDubbingDownloadStationUtils';
 import {
   DEFAULT_VIDEO_DISCOVERY_PROVIDER,
   isYoutubeMetadataVideoDiscoveryProvider,

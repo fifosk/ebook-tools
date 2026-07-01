@@ -3,9 +3,9 @@ import type {
   AcquisitionJobStatusResponse
 } from '../../api/dtos';
 import {
-  basenameFromPath,
-  resolveDownloadStationCompletedFiles
+  basenameFromPath
 } from './videoDubbingUtils';
+import { resolveDownloadStationCompletedFiles } from './videoDubbingDownloadStationUtils';
 import styles from '../VideoDubbingPage.module.css';
 
 type VideoDownloadStationPanelProps = {
