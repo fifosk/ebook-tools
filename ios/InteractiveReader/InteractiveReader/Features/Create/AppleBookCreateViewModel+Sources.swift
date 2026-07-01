@@ -19,14 +19,22 @@ extension AppleBookCreateViewModel {
             return acquisitionProviders
         }
 
+        acquisitionProvidersRequestSequence += 1
+        let requestSequence = acquisitionProvidersRequestSequence
         acquisitionProvidersErrorMessage = nil
         do {
             let client = APIClient(configuration: configuration)
             let response = try await client.fetchAcquisitionProviders()
+            guard requestSequence == acquisitionProvidersRequestSequence else {
+                return acquisitionProviders
+            }
             acquisitionProviders = response.providers
             acquisitionDefaultProviderIds = response.defaultProviderIds ?? [:]
             loadedAcquisitionProvidersCacheKey = cacheKey
         } catch {
+            guard requestSequence == acquisitionProvidersRequestSequence else {
+                return acquisitionProviders
+            }
             acquisitionProvidersErrorMessage = error.localizedDescription
         }
         return acquisitionProviders
@@ -44,17 +52,29 @@ extension AppleBookCreateViewModel {
             return pipelineFiles
         }
 
+        pipelineFilesRequestSequence += 1
+        let requestSequence = pipelineFilesRequestSequence
         isLoadingPipelineFiles = true
         pipelineFilesErrorMessage = nil
-        defer { isLoadingPipelineFiles = false }
+        defer {
+            if requestSequence == pipelineFilesRequestSequence {
+                isLoadingPipelineFiles = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
             let response = try await client.fetchPipelineFiles()
+            guard requestSequence == pipelineFilesRequestSequence else {
+                return pipelineFiles
+            }
             pipelineFiles = response
             loadedPipelineFilesCacheKey = cacheKey
             return response
         } catch {
+            guard requestSequence == pipelineFilesRequestSequence else {
+                return pipelineFiles
+            }
             pipelineFiles = nil
             pipelineFilesErrorMessage = error.localizedDescription
             return nil
@@ -384,6 +404,7 @@ extension AppleBookCreateViewModel {
 
         isDeletingPipelineEbook = true
         pipelineFilesErrorMessage = nil
+        pipelineFilesRequestSequence += 1
         defer { isDeletingPipelineEbook = false }
 
         do {
@@ -417,6 +438,7 @@ extension AppleBookCreateViewModel {
         isUploadingPipelineEbook = true
         pipelineFilesErrorMessage = nil
         errorMessage = nil
+        pipelineFilesRequestSequence += 1
         defer { isUploadingPipelineEbook = false }
 
         do {
@@ -444,17 +466,29 @@ extension AppleBookCreateViewModel {
             return subtitleSources
         }
 
+        subtitleSourcesRequestSequence += 1
+        let requestSequence = subtitleSourcesRequestSequence
         isLoadingSubtitleSources = true
         subtitleSourcesErrorMessage = nil
-        defer { isLoadingSubtitleSources = false }
+        defer {
+            if requestSequence == subtitleSourcesRequestSequence {
+                isLoadingSubtitleSources = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
             let response = try await client.fetchSubtitleSources()
+            guard requestSequence == subtitleSourcesRequestSequence else {
+                return subtitleSources
+            }
             subtitleSources = response
             loadedSubtitleSourcesCacheKey = cacheKey
             return response
         } catch {
+            guard requestSequence == subtitleSourcesRequestSequence else {
+                return subtitleSources
+            }
             subtitleSources = nil
             subtitleSourcesErrorMessage = error.localizedDescription
             return nil
@@ -477,6 +511,7 @@ extension AppleBookCreateViewModel {
 
         isDeletingSubtitleSource = true
         subtitleSourcesErrorMessage = nil
+        subtitleSourcesRequestSequence += 1
         defer { isDeletingSubtitleSource = false }
 
         do {
@@ -507,17 +542,29 @@ extension AppleBookCreateViewModel {
             return youtubeLibrary
         }
 
+        youtubeLibraryRequestSequence += 1
+        let requestSequence = youtubeLibraryRequestSequence
         isLoadingYoutubeLibrary = true
         youtubeLibraryErrorMessage = nil
-        defer { isLoadingYoutubeLibrary = false }
+        defer {
+            if requestSequence == youtubeLibraryRequestSequence {
+                isLoadingYoutubeLibrary = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
             let response = try await client.fetchYoutubeLibrary(baseDir: baseDir)
+            guard requestSequence == youtubeLibraryRequestSequence else {
+                return youtubeLibrary
+            }
             youtubeLibrary = response
             loadedYoutubeLibraryCacheKey = cacheKey
             return response
         } catch {
+            guard requestSequence == youtubeLibraryRequestSequence else {
+                return youtubeLibrary
+            }
             youtubeLibrary = nil
             youtubeLibraryErrorMessage = error.localizedDescription
             return nil

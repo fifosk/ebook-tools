@@ -1950,6 +1950,81 @@ def test_create_view_model_source_actions_are_split_and_target_wired() -> None:
     assert project.count("AppleBookCreateViewModel+Sources.swift in Sources") == 4
 
 
+def test_create_view_model_ignores_stale_source_list_refreshes() -> None:
+    source = _source(CREATE_VIEW_MODEL)
+    source_actions = _source(CREATE_VIEW_MODEL_SOURCES)
+    providers_body = _swift_function_body(
+        source_actions,
+        "func loadAcquisitionProviders(\n        using appState: AppState,\n        cacheKey: String,\n        force: Bool = false\n    ) async -> [AcquisitionProviderEntry]",
+    )
+    pipeline_body = _swift_function_body(
+        source_actions,
+        "func loadPipelineFiles(\n        using appState: AppState,\n        cacheKey: String,\n        force: Bool = false\n    ) async -> PipelineFileBrowserResponse?",
+    )
+    delete_pipeline_body = _swift_function_body(
+        source_actions,
+        "func deletePipelineEbook(\n        path: String,\n        using appState: AppState\n    ) async -> Bool",
+    )
+    upload_pipeline_body = _swift_function_body(
+        source_actions,
+        "func uploadPipelineEbook(\n        fileURL: URL,\n        filename: String?,\n        using appState: AppState\n    ) async -> PipelineFileEntry?",
+    )
+    subtitle_sources_body = _swift_function_body(
+        source_actions,
+        "func loadSubtitleSources(\n        using appState: AppState,\n        cacheKey: String,\n        force: Bool = false\n    ) async -> SubtitleSourceListResponse?",
+    )
+    delete_subtitle_body = _swift_function_body(
+        source_actions,
+        "func deleteSubtitleSource(\n        path: String,\n        using appState: AppState\n    ) async -> Bool",
+    )
+    youtube_library_body = _swift_function_body(
+        source_actions,
+        "func loadYoutubeLibrary(\n        using appState: AppState,\n        cacheKey: String,\n        baseDir: String? = nil,\n        force: Bool = false\n    ) async -> YoutubeNasLibraryResponse?",
+    )
+
+    assert "var acquisitionProvidersRequestSequence = 0" in source
+    assert "acquisitionProvidersRequestSequence += 1" in providers_body
+    assert "let requestSequence = acquisitionProvidersRequestSequence" in providers_body
+    assert "guard requestSequence == acquisitionProvidersRequestSequence else" in providers_body
+    assert providers_body.index("guard requestSequence == acquisitionProvidersRequestSequence else") < providers_body.index(
+        "acquisitionProviders = response.providers"
+    )
+    assert providers_body.count("guard requestSequence == acquisitionProvidersRequestSequence else") == 2
+
+    assert "var pipelineFilesRequestSequence = 0" in source
+    assert "pipelineFilesRequestSequence += 1" in pipeline_body
+    assert "let requestSequence = pipelineFilesRequestSequence" in pipeline_body
+    assert "if requestSequence == pipelineFilesRequestSequence" in pipeline_body
+    assert "guard requestSequence == pipelineFilesRequestSequence else" in pipeline_body
+    assert pipeline_body.index("guard requestSequence == pipelineFilesRequestSequence else") < pipeline_body.index(
+        "pipelineFiles = response"
+    )
+    assert pipeline_body.count("guard requestSequence == pipelineFilesRequestSequence else") == 2
+    assert "pipelineFilesRequestSequence += 1" in delete_pipeline_body
+    assert "pipelineFilesRequestSequence += 1" in upload_pipeline_body
+
+    assert "var subtitleSourcesRequestSequence = 0" in source
+    assert "subtitleSourcesRequestSequence += 1" in subtitle_sources_body
+    assert "let requestSequence = subtitleSourcesRequestSequence" in subtitle_sources_body
+    assert "if requestSequence == subtitleSourcesRequestSequence" in subtitle_sources_body
+    assert "guard requestSequence == subtitleSourcesRequestSequence else" in subtitle_sources_body
+    assert subtitle_sources_body.index("guard requestSequence == subtitleSourcesRequestSequence else") < subtitle_sources_body.index(
+        "subtitleSources = response"
+    )
+    assert subtitle_sources_body.count("guard requestSequence == subtitleSourcesRequestSequence else") == 2
+    assert "subtitleSourcesRequestSequence += 1" in delete_subtitle_body
+
+    assert "var youtubeLibraryRequestSequence = 0" in source
+    assert "youtubeLibraryRequestSequence += 1" in youtube_library_body
+    assert "let requestSequence = youtubeLibraryRequestSequence" in youtube_library_body
+    assert "if requestSequence == youtubeLibraryRequestSequence" in youtube_library_body
+    assert "guard requestSequence == youtubeLibraryRequestSequence else" in youtube_library_body
+    assert youtube_library_body.index("guard requestSequence == youtubeLibraryRequestSequence else") < youtube_library_body.index(
+        "youtubeLibrary = response"
+    )
+    assert youtube_library_body.count("guard requestSequence == youtubeLibraryRequestSequence else") == 2
+
+
 def test_create_view_model_ignores_stale_acquisition_discovery_refreshes() -> None:
     source = _source(CREATE_VIEW_MODEL)
     source_actions = _source(CREATE_VIEW_MODEL_SOURCES)

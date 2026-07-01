@@ -1590,7 +1590,10 @@ After Narrate Ebook:
   metadata omits the `.epub` suffix or display name. Apple Create now also
   ignores stale chapter-index responses after the selected EPUB changes or the
   chapter state is cleared, so slow Load Chapters results cannot replace the
-  current source's chapter picker.
+  current source's chapter picker. Acquisition-provider and server EPUB picker
+  refreshes now use newest-request-wins guards, and EPUB delete/upload actions
+  invalidate older list refreshes so stale NAS scans cannot reintroduce removed
+  or superseded picker rows.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
   files, including NAS library video/subtitle pickers, remembered base
@@ -1625,7 +1628,10 @@ After Narrate Ebook:
   visible candidate list after the user switches discovery sources. Embedded
   subtitle inspection now uses the same selected-source freshness guard, so
   slow stream probes cannot refill the inline subtitle list after the selected
-  NAS video changes or the extraction state is reset. The
+  NAS video changes or the extraction state is reset. Subtitle-source and NAS
+  video library list refreshes also ignore stale responses, and subtitle
+  deletion invalidates older source-list refreshes so pickers stay aligned with
+  the current backend-visible files. The
   subtitle and YouTube Dub enqueue endpoints now emit aggregate submission
   timing metrics for Apple/Web Create diagnostics without leaking NAS paths,
   language/voice choices, metadata content, user ids, tokens, or created job

@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Apple Create now ignores stale acquisition-provider, server EPUB, subtitle-source, and NAS video library refreshes when a newer source-list request or delete/upload is in flight, keeping pickers aligned with the latest backend state.
 - Apple Create now ignores stale subtitle TV, YouTube TV, and YouTube metadata lookup responses after the lookup source changes or metadata is reset, so slow preview requests cannot overwrite the current reviewed metadata draft.
 - Apple Create now ignores stale chapter-index and embedded-subtitle inspection responses after the selected EPUB or NAS video changes, preventing old Load Chapters or subtitle-stream results from replacing the current source details.
 - Apple Create now ignores stale book and video discovery responses when a newer provider/query search is in flight, keeping Web-style Default sources, NAS, manual-download, YouTube, and indexer candidates from replacing each other after slow backend scans.

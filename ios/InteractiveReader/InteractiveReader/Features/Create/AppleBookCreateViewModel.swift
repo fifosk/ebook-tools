@@ -86,14 +86,18 @@ final class AppleBookCreateViewModel: ObservableObject {
     private var intakeStatusRequestSequence = 0
     var creationTemplatesRequestSequence = 0
     var loadedPipelineFilesCacheKey: String?
+    var pipelineFilesRequestSequence = 0
     var loadedAcquisitionProvidersCacheKey: String?
+    var acquisitionProvidersRequestSequence = 0
     var loadedEbookAcquisitionDiscoveryCacheKey: String?
     var ebookAcquisitionDiscoveryRequestSequence = 0
     var loadedYoutubeAcquisitionDiscoveryCacheKey: String?
     var youtubeAcquisitionDiscoveryRequestSequence = 0
     var loadedCreationTemplatesCacheKey: String?
     var loadedSubtitleSourcesCacheKey: String?
+    var subtitleSourcesRequestSequence = 0
     var loadedYoutubeLibraryCacheKey: String?
+    var youtubeLibraryRequestSequence = 0
     var youtubeSubtitleStreamsRequestSequence = 0
     var narrateChaptersRequestSequence = 0
     var subtitleTvMetadataRequestSequence = 0
