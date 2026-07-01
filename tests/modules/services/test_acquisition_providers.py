@@ -14,6 +14,7 @@ import modules.services.acquisition.discovery_normalization as discovery_normali
 import modules.services.acquisition.gutenberg_discovery as gutenberg_discovery
 import modules.services.acquisition.indexer_discovery as indexer_discovery
 import modules.services.acquisition.internet_archive_discovery as internet_archive_discovery
+import modules.services.acquisition.models as acquisition_models
 import modules.services.acquisition.openlibrary_discovery as openlibrary_discovery
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
 import modules.services.acquisition.source_candidates as source_candidates
@@ -28,6 +29,9 @@ from modules.services.acquisition.tokens import decode_acquisition_token, encode
 from modules.services.acquisition.url_safety import looks_sensitive_key, strip_sensitive_url_parts
 from modules.services.acquisition import (
     AcquisitionProviderDiscoveryError,
+    AcquisitionCandidate,
+    AcquisitionDiscoveryResult,
+    AcquisitionSubtitleHint,
     DISCOVERY_PROVIDER_MEDIA_KINDS,
     acquire_acquisition_candidate,
     default_discovery_provider_ids,
@@ -52,6 +56,14 @@ def _candidate_token(payload: dict[str, object]) -> str:
 
 def _discovered_source(path: Path) -> DiscoveredSourceFile:
     return DiscoveredSourceFile(path=path, stat=path.stat())
+
+
+def test_acquisition_model_contracts_are_reexported_from_package_root() -> None:
+    assert AcquisitionCandidate is acquisition_models.AcquisitionCandidate
+    assert AcquisitionDiscoveryResult is acquisition_models.AcquisitionDiscoveryResult
+    assert AcquisitionProviderDiscoveryError is acquisition_models.AcquisitionProviderDiscoveryError
+    assert AcquisitionSubtitleHint is acquisition_models.AcquisitionSubtitleHint
+    assert acquisition_discovery.AcquisitionCandidate is acquisition_models.AcquisitionCandidate
 
 
 def test_acquisition_discovery_planning_orders_default_sources_and_limits() -> None:

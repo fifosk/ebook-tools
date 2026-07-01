@@ -7,11 +7,13 @@ from .acquire import (
     prepare_acquisition_artifact,
 )
 from .discovery import (
+    discover_acquisition_candidates,
+)
+from .models import (
     AcquisitionCandidate,
     AcquisitionDiscoveryResult,
     AcquisitionProviderDiscoveryError,
     AcquisitionSubtitleHint,
-    discover_acquisition_candidates,
 )
 from .download_station import (
     AcquisitionJobStatus,

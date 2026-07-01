@@ -706,7 +706,11 @@ Current Apple UI partially exposes:
   lives in `modules/services/acquisition/discovery_normalization.py`, and
   Internet Archive source-id validation/deduping lives with the Internet Archive
   helper, keeping media kind, provider, query, limit, language, and archive
-  source filters out of the large shared discovery fanout. Apple YouTube Dub candidate selection now also
+  source filters out of the large shared discovery fanout. Backend discovery
+  result models now live in `modules/services/acquisition/models.py` and remain
+  re-exported from the package root plus the discovery module, so follow-up
+  provider helpers can construct shared Web/Apple candidate contracts without
+  importing the orchestration fanout. Apple YouTube Dub candidate selection now also
   passes the active discovery provider and query into saved `discovery_state`,
   and applying a saved template restores that provider/query in the native
   source picker, keeping Apple-saved video templates aligned with Web Video

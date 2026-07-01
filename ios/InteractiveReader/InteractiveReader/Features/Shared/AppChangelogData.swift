@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-acquisition-models-module",
+                    title: "Discovery models are shared",
+                    detail: "Backend acquisition discovery result models now live in a focused shared module and are re-exported through existing package APIs, making provider helpers easier to split without changing Web or Apple Create contracts."
+                ),
+                AppChangelogEntry(
                     id: "backend-discovery-normalization-helper",
                     title: "Discovery requests are leaner",
                     detail: "Backend acquisition discovery request normalization now lives in focused tested helpers for media kind, provider, query, limit, language, and Internet Archive source-id handling, keeping Web and Apple Create discovery fanout easier to maintain."
