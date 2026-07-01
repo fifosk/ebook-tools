@@ -1235,6 +1235,54 @@ def test_acquire_candidate_reserves_destination_with_safe_stat(
     assert (books_root / "Frankenstein-1.epub").read_bytes() == b"new epub"
 
 
+def test_acquire_candidate_verifies_downloaded_epub_with_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_content(self, *, chunk_size):
+            yield b"new epub"
+
+        def close(self) -> None:
+            return None
+
+    class _FakeSession:
+        def get(self, url, *, stream, timeout, allow_redirects):
+            return _FakeResponse()
+
+    books_root = tmp_path / "books"
+    token = _candidate_token(
+        {
+            "provider": "gutenberg",
+            "media_kind": "book",
+            "gutenberg_id": 84,
+            "epub_url": "https://www.gutenberg.org/ebooks/84.epub3.images",
+        }
+    )
+    original_safe_stat = acquisition_acquire.safe_stat
+
+    def fake_safe_stat(path: Path):
+        if path == books_root / "Frankenstein.epub":
+            return None
+        return original_safe_stat(path)
+
+    monkeypatch.setattr(acquisition_acquire, "safe_stat", fake_safe_stat)
+
+    with pytest.raises(ValueError, match="downloaded EPUB could not be verified"):
+        acquire_acquisition_candidate(
+            candidate_token=token,
+            confirmed=True,
+            filename="Frankenstein.epub",
+            config={"ebooks_dir": str(books_root)},
+            session=_FakeSession(),
+        )
+
+
 def test_acquire_internet_archive_candidate_persists_epub_in_books_root(tmp_path: Path) -> None:
     class _FakeResponse:
         status_code = 200

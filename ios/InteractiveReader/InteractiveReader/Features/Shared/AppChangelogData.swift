@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "public-epub-acquire-safe-verify",
+                    title: "Public EPUB imports verify safely",
+                    detail: "Reviewed Gutenberg and Internet Archive EPUB acquisition now verifies downloaded files through the same NAS-tolerant stat helper used by source discovery, returning a controlled error if final metadata cannot be read."
+                ),
+                AppChangelogEntry(
                     id: "video-discovery-bounded-newest",
                     title: "Video source pickers stay lighter",
                     detail: "Backend NAS and manual-download video discovery now keeps only the newest requested candidates while scanning, so Web and Apple Create source pickers avoid building giant intermediate lists from large download folders."

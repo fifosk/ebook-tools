@@ -121,7 +121,9 @@ def acquire_acquisition_candidate(
         session=session,
         max_bytes=_download_limit(config or {}),
     )
-    stat = destination.stat()
+    stat = safe_stat(destination)
+    if stat is None or not stat_module.S_ISREG(stat.st_mode):
+        raise ValueError("downloaded EPUB could not be verified")
     local_path = _relative_path(destination, books_root)
     artifact_token_payload: dict[str, Any] = {
         "provider": provider,
