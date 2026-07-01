@@ -546,7 +546,7 @@ def compact_metadata_generated_files(
             if not normalized:
                 return None
             candidate = job_root / normalized
-        if not candidate.exists():
+        if not _path_exists(candidate):
             return None
         try:
             with candidate.open("r", encoding="utf-8") as handle:
@@ -876,7 +876,7 @@ def serialize_media_entries(
             return None
         loader_attempted = True
         manifest_path = job_root / "metadata" / "job.json"
-        if not manifest_path.exists():
+        if not _path_exists(manifest_path):
             return None
         try:
             loader = MetadataLoader(job_root)
@@ -1136,12 +1136,9 @@ def build_media_record(
 
     size: Optional[int] = None
     updated_at: Optional[str] = None
-    if include_stats and absolute_path is not None and absolute_path.exists():
-        try:
-            stat_result = absolute_path.stat()
-        except OSError:
-            pass
-        else:
+    if include_stats and absolute_path is not None:
+        stat_result = safe_stat(absolute_path)
+        if stat_result is not None:
             size = int(stat_result.st_size)
             updated_at = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc).isoformat()
 

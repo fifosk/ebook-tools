@@ -1011,6 +1011,9 @@ Optimization candidates:
   Library cover-source resolution and normalized cover-path scans now use
   tolerant stat checks too, keeping Web/Apple Library artwork refreshes
   resilient when metadata folders race with cleanup or remounts.
+  Library generated-file compaction, chunk metadata loader gating, and media
+  file stat collection now also use tolerant stat checks, reducing Web/Apple
+  playback-manifest races around NAS-backed job roots.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in
