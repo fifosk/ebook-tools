@@ -11,6 +11,7 @@ from typing import Dict, Iterable, Optional
 from modules import logging_manager
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager
+from modules.services.source_discovery import safe_stat
 
 from .library_metadata import LibraryMetadataManager
 from .library_models import LibraryEntry, LibraryQuery
@@ -24,6 +25,10 @@ from .library_sync import (
 )
 
 LOGGER = logging_manager.get_logger().getChild("library.service")
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 @dataclass
@@ -109,11 +114,11 @@ class LibraryService:
         """Import an external directory into the library."""
 
         resolved_source = Path(source_path).expanduser()
-        if not resolved_source.exists():
+        if not _path_exists(resolved_source):
             raise LibraryNotFoundError(f"Source path {resolved_source} does not exist")
 
         metadata_path = resolved_source / "metadata" / "job.json"
-        if not metadata_path.exists():
+        if not _path_exists(metadata_path):
             raise LibraryError("Source path does not contain metadata/job.json")
 
         metadata = self._repository.load_metadata(resolved_source)
@@ -122,7 +127,7 @@ class LibraryService:
             raise LibraryError("Source metadata must include a job_id")
 
         target_root = self._sync.resolve_library_path(metadata, job_id)
-        if target_root.exists():
+        if _path_exists(target_root):
             raise LibraryConflictError(f"Library target {target_root} already exists")
 
         target_root.parent.mkdir(parents=True, exist_ok=True)
@@ -139,7 +144,7 @@ class LibraryService:
             raise LibraryNotFoundError(f"Library entry {entry_id} not found")
 
         source = Path(entry.library_path)
-        if not source.exists():
+        if not _path_exists(source):
             raise LibraryNotFoundError(f"Library entry {entry_id} is missing on disk")
 
         if destination is None:

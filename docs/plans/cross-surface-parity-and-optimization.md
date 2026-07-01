@@ -1017,6 +1017,9 @@ Optimization candidates:
   Library media-presence, media cleanup, and stored-cover probes now use
   tolerant stat checks, keeping Web/Apple paused-item playability and artwork
   badges stable when NAS folders remount or vanish during refresh.
+  Library import/export service gates now use tolerant stat checks for source
+  directories, metadata manifests, target conflicts, and export sources, keeping
+  shared Web/Apple Library actions resilient around NAS-backed library roots.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

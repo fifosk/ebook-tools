@@ -5,7 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from modules.library import LibraryError, LibraryNotFoundError, LibraryRepository, LibrarySync
+from modules.library import (
+    LibraryEntry,
+    LibraryError,
+    LibraryNotFoundError,
+    LibraryRepository,
+    LibraryService,
+    LibrarySync,
+    MetadataSnapshot,
+)
 from modules.library.sync import file_ops
 from modules.services.file_locator import FileLocator
 
@@ -83,6 +91,72 @@ def test_move_to_library_and_index(tmp_path):
     payload = json.loads(metadata_path.read_text(encoding='utf-8'))
     assert payload['status'] == 'finished'
     assert job_manager.deleted == [job_id]
+
+
+def test_library_service_import_book_uses_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    library_root = tmp_path / "library"
+    source_root = tmp_path / "incoming"
+    metadata = build_job_metadata("job-import")
+    write_metadata(source_root, metadata)
+    target_root = library_root / "Jane Doe" / "Sample Book" / "en" / "job-import"
+    service = LibraryService(library_root=library_root)
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path in {source_root, source_root / "metadata" / "job.json", target_root}:
+            raise AssertionError("library import paths should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    entry = service.import_book(source_root)
+
+    assert entry.id == "job-import"
+    assert original_exists(target_root / "metadata" / "job.json")
+    assert service.repository.get_entry_by_id("job-import") is not None
+
+
+def test_library_service_export_entry_uses_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    library_root = tmp_path / "library"
+    source_root = library_root / "job-export"
+    write_metadata(source_root, build_job_metadata("job-export"))
+    repository = LibraryRepository(library_root)
+    repository.add_entry(
+        LibraryEntry(
+            id="job-export",
+            author="Jane Doe",
+            book_title="Sample Book",
+            item_type="book",
+            genre="Fiction",
+            language="en",
+            status="finished",
+            created_at="2024-01-01T00:00:00+00:00",
+            updated_at="2024-01-01T00:00:00+00:00",
+            library_path=str(source_root),
+            metadata=MetadataSnapshot(metadata=build_job_metadata("job-export")),
+        )
+    )
+    service = LibraryService(library_root=library_root, repository=repository)
+    destination = tmp_path / "exports" / "job-export.zip"
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == source_root:
+            raise AssertionError("library export source should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    exported = service.export_entry("job-export", destination=destination)
+
+    assert exported == destination
+    assert original_exists(destination)
 
 
 def test_remove_media_and_entry(tmp_path):
