@@ -1275,6 +1275,27 @@ private func runChecks() {
         .translation,
         "Translation-only header/progress helpers should keep the active lane when selected ID still points at combined"
     )
+    let reorderedSequenceBatch = InteractiveChunk(
+        id: "chapter-2-reordered",
+        startSentence: 104,
+        sentences: [
+            .init(id: 4, displayIndex: 104, startGate: 0.0, originalStartGate: 0.0)
+        ],
+        audioOptions: [
+            audioOption("original-next", kind: .original, urls: [originalURL]),
+            audioOption("translation-next", kind: .translation, urls: [translationURL]),
+            audioOption("combined-next", kind: .combined, urls: [originalURL, translationURL])
+        ]
+    )
+    let sequenceBoundaryManager = AudioModeManager()
+    requireSequenceInstruction(
+        sequenceBoundaryManager.resolveAudioInstruction(
+            for: reorderedSequenceBatch,
+            selectedTrackID: "translation-next"
+        ),
+        optionID: "combined-next",
+        "Sequence-mode batch handoff should prefer the current chunk's combined option over a valid stale single-track selection"
+    )
     let placeholderNextBatch = InteractiveChunk(
         id: "chapter-3-placeholder",
         startSentence: 106,

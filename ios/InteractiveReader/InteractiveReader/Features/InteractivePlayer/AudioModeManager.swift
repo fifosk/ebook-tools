@@ -313,6 +313,9 @@ extension AudioModeManager {
             if track.kind == .combined {
                 return .sequence(combinedOption: track)
             }
+            if let combinedOption = chunk.audioOptions.first(where: { $0.kind == .combined }) {
+                return .sequence(combinedOption: combinedOption)
+            }
             // Selected track isn't combined — play it directly
             return .singleOption(option: track, timingTrack: timingTrackForKind(track.kind))
 

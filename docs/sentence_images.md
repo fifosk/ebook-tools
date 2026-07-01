@@ -16,8 +16,11 @@ audio option and sentence anchor through chunk selection, next/previous batch
 navigation, metadata hydration, retry paths, and end-of-file batch callbacks
 before preparing audio. The lane must survive even when the SwiftUI audio-mode
 bridge is briefly unavailable, so a stale combined selected id cannot reset the
-next batch to sequence rendering. This also keeps batched sentence images and
-transcript rendering aligned when playback crosses a sentence-batch boundary.
+next batch to sequence rendering. Lifecycle repair should bind the view model
+to the active audio mode before restoring chunk defaults, and sequence-mode
+resolution should prefer the current batch's combined option over stale
+single-track ids. This also keeps batched sentence images and transcript
+rendering aligned when playback crosses a sentence-batch boundary.
 
 ## Configuration
 

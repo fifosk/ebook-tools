@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-batch-boundary-lifecycle-lane-repair",
+                    title: "Batch-boundary track selection holds",
+                    detail: "Apple reader lifecycle repair now binds the view model to the active audio mode before restoring chunk defaults and makes sequence playback prefer the current batch's combined option, preventing end-of-batch selection resets from desyncing rendering."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-remembered-lane-authority",
                     title: "Translation-only wins batch handoffs",
                     detail: "Apple reader single-track playback now lets the remembered original-only or translation-only lane override transient sequence state in timing, duration, role, and sequence helpers, preventing batch endings from resetting rendering to combined audio."

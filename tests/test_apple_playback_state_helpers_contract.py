@@ -430,6 +430,8 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     assert "case .sequence:" in instruction_body
     assert "track.kind == .combined" in instruction_body
     assert "return .sequence(combinedOption: track)" in instruction_body
+    assert "chunk.audioOptions.first(where: { $0.kind == .combined })" in instruction_body
+    assert "return .sequence(combinedOption: combinedOption)" in instruction_body
     assert "case .singleTrack(let enabledTrack):" in instruction_body
     assert "return resolveSingleFromCombined" in instruction_body
     assert "track.kind == audioOptionKind(for: enabledTrack)" in instruction_body
@@ -840,15 +842,24 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
         tracks,
         "func prepareAudioModeForInitialPlayback(for chunk: InteractiveChunk)",
     )
+    assert "viewModel.audioModeManager = audioModeManager" in initial_playback_body
+    assert "viewModel.sequenceController.audioMode = audioModeManager.currentMode" in initial_playback_body
     assert "let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)" in initial_playback_body
     assert "preserveSingleTrackModeIfNeeded(for: chunk)" in initial_playback_body
     assert "if !preservedSingleTrack" in initial_playback_body
+    assert "viewModel.synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)" in initial_playback_body
+    assert initial_playback_body.index("viewModel.audioModeManager = audioModeManager") < initial_playback_body.index(
+        "let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)"
+    )
     assert initial_playback_body.index("applyPendingResumeSingleTrackIfNeeded") < initial_playback_body.index(
         "applyDefaultTrackSelection(for: chunk)"
     )
     assert initial_playback_body.index("preserveSingleTrackModeIfNeeded") < initial_playback_body.index(
         "applyDefaultTrackSelection(for: chunk)"
     )
+    assert initial_playback_body.index(
+        "viewModel.synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)"
+    ) < initial_playback_body.index("if viewModel.selectedAudioTrackID == nil")
 
     preserve_body = _function_body(
         tracks,
