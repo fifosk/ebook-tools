@@ -17,7 +17,7 @@ type UsePlayerPanelSelectionStateArgs = {
   rememberSelection: RememberSelection;
 };
 
-type PendingChunkSelection = { index: number; token: number };
+export type PendingChunkSelection = { index: number; token: number };
 
 type UsePlayerPanelSelectionStateResult = {
   selectedItemIds: Record<MediaCategory, string | null>;

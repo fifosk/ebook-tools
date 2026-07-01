@@ -1451,9 +1451,11 @@ Refactor before restyling:
   a focused hook that reuses the shared chapter resolver utilities. Active text
   selection, selected chunk lookup, interactive audio cataloging, and
   audio-driven active chunk fallback now live in a focused tested hook rather
-  than inline in the panel coordinator. Interactive document preview/fallback
-  content and placeholder visibility now resolve through a tested pure helper so
-  the panel coordinator no longer owns those display-state branches inline.
+  than inline in the panel coordinator. Pending chunk-selection handoff now
+  lives in a focused tested hook, so stale-index cleanup and chunk activation
+  no longer sit in the main panel effect list. Interactive document
+  preview/fallback content and placeholder visibility now resolve through a
+  tested pure helper so the panel coordinator no longer owns those display-state branches inline.
   Panel chrome decisions for initial loading, media presence,
   playback/fullscreen disabled states, wake-lock intent, back-to-library
   visibility, and advanced-control gating now also live in a tested pure helper.

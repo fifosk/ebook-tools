@@ -56,6 +56,7 @@ import { usePlayerPanelChapterNavigation } from './player-panel/usePlayerPanelCh
 import { useAudioTrackVisibility } from './player-panel/useAudioTrackVisibility';
 import { usePlayerPanelActiveText } from './player-panel/usePlayerPanelActiveText';
 import { usePlayerPanelTextActivation } from './player-panel/usePlayerPanelTextActivation';
+import { usePendingChunkSelection } from './player-panel/usePendingChunkSelection';
 import { SleepTimerControl } from './SleepTimerControl';
 import {
   buildPlayerPanelDocumentState,
@@ -495,20 +496,12 @@ export default function PlayerPanel({
     requestAutoPlay,
   });
 
-  useEffect(() => {
-    if (!pendingChunkSelection) {
-      return;
-    }
-
-    const { index } = pendingChunkSelection;
-    if (index < 0 || index >= chunks.length) {
-      setPendingChunkSelection(null);
-      return;
-    }
-
-    activateChunk(chunks[index], { scrollRatio: 0 });
-    setPendingChunkSelection(null);
-  }, [activateChunk, chunks, pendingChunkSelection]);
+  usePendingChunkSelection({
+    chunks,
+    pendingChunkSelection,
+    setPendingChunkSelection,
+    activateChunk,
+  });
 
   const {
     isFirstDisabled,

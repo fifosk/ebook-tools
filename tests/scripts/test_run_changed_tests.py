@@ -356,6 +356,11 @@ def test_select_targets_for_web_changes_runs_web_checks() -> None:
         "test-web-full",
         "build-web-production",
     ]
+    assert select_targets(["web/src/components/__tests__/usePendingChunkSelection.test.tsx"]) == [
+        "test-web-playback-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
     assert select_targets(["web/src/components/transcript/TranscriptView.tsx"]) == [
         "test-web-playback-focused",
         "test-web-full",

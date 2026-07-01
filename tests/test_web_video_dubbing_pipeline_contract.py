@@ -240,6 +240,7 @@ def test_playback_focused_web_target_covers_player_and_media_state() -> None:
         "src/components/__tests__/playerPanelChromeState.test.ts",
         "src/components/__tests__/playerPanelDocumentState.test.ts",
         "src/components/__tests__/usePlayerPanelActiveText.test.tsx",
+        "src/components/__tests__/usePendingChunkSelection.test.tsx",
         "src/components/__tests__/usePlayerPanelChapterNavigation.test.tsx",
         "src/components/__tests__/usePlayerPanelMediaNavigation.test.tsx",
         "src/components/__tests__/PlayerPanelBoundaryState.test.tsx",

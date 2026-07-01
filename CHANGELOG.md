@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Web PlayerPanel pending chunk-selection handoff now lives in a focused tested hook, trimming another playback effect out of the main coordinator while preserving chunk activation and stale-index cleanup.
 - Apple reader single-track playback now lets the remembered original-only/translation-only lane override transient sequence manager state in timing, duration, role, and sequence-activity helpers, preventing sentence-batch endings from resetting rendering back to combined audio.
 - Apple reader stale EOF lane checks now live in the shared playback URL policy covered by the executable mode-switch harness, so combined-only original/translation stream handling is verified in the simulator pipeline instead of only by source-shape assertions.
 - Apple reader combined-only audio batches now apply the stale EOF guard per selected lane, so translation-only playback rejects hidden original-stream end callbacks instead of treating them as valid batch endings.

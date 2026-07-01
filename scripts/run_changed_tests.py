@@ -353,6 +353,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "web/src/components/__tests__/playerPanel",
             "web/src/components/__tests__/TranscriptView",
             "web/src/components/__tests__/TranscriptWord",
+            "web/src/components/__tests__/usePendingChunkSelection.test.tsx",
             "web/src/components/__tests__/usePlayerPanel",
             "web/src/components/__tests__/VideoPlayer.test.tsx",
             "web/src/components/__tests__/YoutubeDubPlayer.test.tsx",
