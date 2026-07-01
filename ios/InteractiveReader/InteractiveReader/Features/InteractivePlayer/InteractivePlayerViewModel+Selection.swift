@@ -404,8 +404,40 @@ extension InteractivePlayerViewModel {
         case .translation:
             return .translation
         case .combined, .other, .none:
+            break
+        }
+        if let track = loadedSingleURLTrackMode() {
+            return track
+        }
+        return nil
+    }
+
+    private func loadedSingleURLTrackMode() -> SequenceTrack? {
+        guard !sequenceController.isEnabled,
+              let chunk = selectedChunk,
+              audioCoordinator.activeURLs.count == 1,
+              let activeURL = audioCoordinator.activeURLs.first else {
             return nil
         }
+        return singleTrackMode(forAudioURL: activeURL, in: chunk)
+    }
+
+    private func singleTrackMode(forAudioURL url: URL, in chunk: InteractiveChunk) -> SequenceTrack? {
+        if chunk.audioOptions.contains(where: { $0.kind == .original && $0.streamURLs.contains(url) }) {
+            return .original
+        }
+        if chunk.audioOptions.contains(where: { $0.kind == .translation && $0.streamURLs.contains(url) }) {
+            return .translation
+        }
+        if let combined = chunk.audioOptions.first(where: { $0.kind == .combined }) {
+            if combined.streamURLs.first == url {
+                return .original
+            }
+            if combined.streamURLs.dropFirst().contains(url) {
+                return .translation
+            }
+        }
+        return nil
     }
 
     func synchronizeSelectedAudioTrackForChunkHandoff(for chunk: InteractiveChunk) {
@@ -671,19 +703,19 @@ extension InteractivePlayerViewModel {
             audioCoordinator.pause()
             return
         }
-        let preservedSingleTrack = singleTrackModeForCompletedPlayback(
-            endedURL: endedURL,
-            in: chunk
-        )
-        if let preservedSingleTrack {
-            preferredSingleTrackMode = preservedSingleTrack
-        }
         if let endedURL,
            !playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk) {
             interactiveSelectionLogger.debug(
                 "Ignoring stale playback-ended callback url=\(endedURL.lastPathComponent, privacy: .private), chunk=\(chunk.id, privacy: .private), selectedTrackID=\(self.selectedAudioTrackID ?? "nil", privacy: .private)"
             )
             return
+        }
+        let preservedSingleTrack = singleTrackModeForCompletedPlayback(
+            endedURL: endedURL,
+            in: chunk
+        )
+        if let preservedSingleTrack {
+            preferredSingleTrackMode = preservedSingleTrack
         }
         selectChunkPreservingAudioLane(
             nextChunk,

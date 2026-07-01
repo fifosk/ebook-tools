@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-loaded-url-lane",
+                    title: "Single-track batch ends stay selected",
+                    detail: "Apple reader single-track playback now treats the loaded single audio URL as the durable lane during batch-end handoffs and rejects wrong-lane EOF callbacks before mutating selection state, preventing Original or Translation picker resets from drifting rendering."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-section-state-hook",
                     title: "Narrate Ebook sections are leaner",
                     detail: "Web Narrate Ebook section tabs and metadata overrides now resolve through the focused section-state hook, trimming the form coordinator while keeping Create step presentation covered."

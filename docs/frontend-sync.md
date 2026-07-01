@@ -78,6 +78,12 @@ Follow the suggested remediations to restore parity:
   When the audio-mode manager reports a single-track mode, the view model should
   refresh its durable preferred single-track lane immediately so batch-end
   callbacks cannot race ahead with only a stale selected audio id.
+  If the manager and selected picker id both briefly reset to sequence/combined
+  at a batch boundary, a currently loaded single audio URL is still authoritative
+  for Original-only or Translation-only playback while the sequence controller is
+  inactive. EOF callbacks must be checked against the selected lane before they
+  can stamp durable state, so hidden original/translation endings cannot mutate
+  the next-batch selection.
   If the user has explicitly hidden Original or Translation, chunk lifecycle
   setup must restore that visible single-track selection into `AudioModeManager`
   before any default selection can expand the reader back to All.

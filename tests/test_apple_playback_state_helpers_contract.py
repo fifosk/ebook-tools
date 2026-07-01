@@ -238,6 +238,9 @@ def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
     ended_body = _function_body(selection, "func handlePlaybackEnded(endedURL: URL? = nil)")
     assert "playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk)" in ended_body
     assert "Ignoring stale playback-ended callback" in ended_body
+    assert ended_body.index("playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk)") < ended_body.index(
+        "let preservedSingleTrack = singleTrackModeForCompletedPlayback("
+    )
     assert "selectChunkPreservingAudioLane(" in ended_body
 
     belongs_body = _function_body(
@@ -752,6 +755,9 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert "let nextChunk = jobContext?.nextChunk(after: chunk.id)" in ended_body
     assert "let preservedSingleTrack = singleTrackModeForCompletedPlayback(" in ended_body
     assert "playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk)" in ended_body
+    assert ended_body.index("playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk)") < ended_body.index(
+        "let preservedSingleTrack = singleTrackModeForCompletedPlayback("
+    )
     assert "selectChunkPreservingAudioLane(" in ended_body
     assert "nextChunk," in ended_body
     assert "autoPlay: true" in ended_body
@@ -766,6 +772,13 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert "kind == .original && $0.streamURLs.contains(endedURL)" in completed_lane_body
     assert "kind == .translation && $0.streamURLs.contains(endedURL)" in completed_lane_body
     assert "combined.streamURLs.dropFirst().contains(endedURL)" in completed_lane_body
+
+    requested_body = _function_body(selection, "func requestedSingleTrackMode() -> SequenceTrack?")
+    assert "loadedSingleURLTrackMode()" in requested_body
+    loaded_url_body = _function_body(selection, "private func loadedSingleURLTrackMode() -> SequenceTrack?")
+    assert "guard !sequenceController.isEnabled" in loaded_url_body
+    assert "audioCoordinator.activeURLs.count == 1" in loaded_url_body
+    assert "singleTrackMode(forAudioURL: activeURL, in: chunk)" in loaded_url_body
 
     assert "preservedSingleTrack: SequenceTrack? = nil" in selection
     handoff_body = _function_body(selection, "private func selectChunkPreservingAudioLane(")

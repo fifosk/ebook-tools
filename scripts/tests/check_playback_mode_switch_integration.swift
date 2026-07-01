@@ -566,6 +566,53 @@ private func requestedSingleTrackMode(
     }
 }
 
+private func singleTrackModeForAudioURL(
+    _ url: URL,
+    in chunk: InteractiveChunk
+) -> SequenceTrack? {
+    if chunk.audioOptions.contains(where: { $0.kind == .original && $0.streamURLs.contains(url) }) {
+        return .original
+    }
+    if chunk.audioOptions.contains(where: { $0.kind == .translation && $0.streamURLs.contains(url) }) {
+        return .translation
+    }
+    if let combined = chunk.audioOptions.first(where: { $0.kind == .combined }) {
+        if combined.streamURLs.first == url {
+            return .original
+        }
+        if combined.streamURLs.dropFirst().contains(url) {
+            return .translation
+        }
+    }
+    return nil
+}
+
+@MainActor
+private func requestedSingleTrackMode(
+    manager: AudioModeManager?,
+    sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
+    chunk: InteractiveChunk,
+    sequenceEnabled: Bool,
+    activeURLs: [URL]
+) -> SequenceTrack? {
+    if let requested = requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ) {
+        return requested
+    }
+    guard !sequenceEnabled,
+          activeURLs.count == 1,
+          let activeURL = activeURLs.first else {
+        return nil
+    }
+    return singleTrackModeForAudioURL(activeURL, in: chunk)
+}
+
 @MainActor
 private func applySingleTrackSelection(
     _ track: SequenceTrack,
@@ -1698,6 +1745,19 @@ private func runChecks() {
         ),
         true,
         "Combined-only original playback should accept original EOF callbacks"
+    )
+    requireEqual(
+        requestedSingleTrackMode(
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined,
+            chunk: combinedOnlyNextBatch,
+            sequenceEnabled: false,
+            activeURLs: [translationURL]
+        ),
+        .translation,
+        "Loaded single translation URL should preserve the selected lane even when manager and picker state reset to combined at a batch boundary"
     )
     let staleCompletedLane = singleTrackModeForCompletedPlayback(
         endedURL: translationURL,
