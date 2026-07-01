@@ -441,7 +441,12 @@ Large Web UI hotspots to split before redesign work:
   selected-node ordering now live in
   `web/src/components/book-narration/useBookNarrationImageNodeAvailability.ts`
   with focused hook coverage, keeping the image generation controls lighter for
-  Apple Create parity comparisons. Submit orchestration now lives in
+  Apple Create parity comparisons. Image style and prompt-pipeline option
+  catalogs, quality-to-step mapping, duration formatting, and image throughput
+  estimates now live in
+  `web/src/components/book-narration/bookNarrationImageSettings.ts` with
+  focused utility coverage, giving Apple Create a smaller settings contract to
+  mirror. Submit orchestration now lives in
   `web/src/components/book-narration/useBookNarrationSubmitFlow.ts`, keeping
   pipeline submit, intake refresh, and submit-button presentation under focused
   hook coverage while trimming the coordinator to 540 lines.

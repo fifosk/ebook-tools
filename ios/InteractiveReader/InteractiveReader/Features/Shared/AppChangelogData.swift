@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-narrate-image-settings-module",
+                    title: "Narrate Ebook image settings are leaner",
+                    detail: "Web Narrate Ebook image style options, prompt-pipeline options, quality slider mapping, and image-throughput estimates now live in a focused tested module, making image settings easier to mirror in Apple Create."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-image-node-hook",
                     title: "Narrate Ebook image controls are leaner",
                     detail: "Web Narrate Ebook Draw Things node availability checks now live in a focused hook with fallback-node and ordering coverage, keeping image generation controls lighter for cross-surface Create parity work."
