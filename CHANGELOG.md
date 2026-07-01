@@ -16,6 +16,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web and Apple playback media manifests now check lazy chunk metadata availability through the tolerant stat helper, avoiding direct metadata existence checks on flaky NAS-backed job roots.
 - Web and Apple reading-bed catalogs now load their manifest through the tolerant stat helper, keeping background-music catalog sync resilient when NAS-backed storage races with remounts.
 - Web and Apple media search now resolves generated text, media, subtitle, job-root, and metadata-manifest paths through tolerant stat checks, so reader search pills skip vanished NAS files without breaking the whole search.
+- Web and Apple resume/bookmark playback-state files now load and clear through tolerant stat checks, keeping Continue and bookmark sync steadier when shared storage races with remounts.
 
 ## 2026-06-30
 

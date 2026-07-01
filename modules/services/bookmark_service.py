@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from .file_locator import FileLocator
+from .source_discovery import safe_stat
 from .. import logging_manager
 
 
@@ -37,6 +38,10 @@ def _atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
     tmp_path.replace(path)
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 @dataclass(frozen=True)
@@ -137,7 +142,7 @@ class BookmarkService:
 
     def _load_payload(self, job_id: str, user_id: str) -> Dict[str, Any]:
         path = self._job_path(job_id, user_id)
-        if not path.exists():
+        if not _path_exists(path):
             return {"version": 1, "job_id": job_id, "user_id": user_id, "bookmarks": []}
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))

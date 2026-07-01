@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
-from modules.services.resume_service import ResumeEntry
+from modules.services.file_locator import FileLocator
+from modules.services.resume_service import ResumeEntry, ResumeService
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import RequestUserContext, get_request_user, get_resume_service
 from modules.webapi.routers import resume as resume_router
@@ -259,6 +261,54 @@ def test_list_resume_positions_with_only_blank_filters_skips_service(
     assert "Resume route operation=list result=success" in logs
     assert "entries=0" in logs
     assert "alice" not in logs
+
+
+def test_resume_service_uses_safe_stat_for_playback_state_file(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = ResumeService(file_locator=FileLocator(storage_dir=tmp_path))
+    user_id = "alice.secret@example.test"
+    job_id = "secret-job-1"
+    storage_path = service._job_path(job_id, user_id)  # noqa: SLF001 - pins storage behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_path.write_text(
+        """
+        {
+          "version": 1,
+          "job_id": "secret-job-1",
+          "user_id": "alice.secret@example.test",
+          "updated_at": 1800000000.0,
+          "entry": {
+            "job_id": "secret-job-1",
+            "kind": "time",
+            "updated_at": 1800000000.0,
+            "position": 42.5,
+            "media_type": "audio",
+            "base_id": "chunk-1"
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == storage_path:
+            raise AssertionError("resume service should stat playback state files via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    loaded = service.get(job_id, user_id)
+    listed = service.list(user_id, job_ids=[job_id])
+    deleted = service.clear(job_id, user_id)
+
+    assert loaded is not None
+    assert loaded.position == 42.5
+    assert [entry.job_id for entry in listed] == [job_id]
+    assert deleted is True
+    assert not original_exists(storage_path)
 
 
 @pytest.mark.parametrize(

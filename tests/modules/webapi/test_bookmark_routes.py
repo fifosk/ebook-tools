@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -478,6 +479,53 @@ def test_bookmark_corrupt_storage_logs_token_safe_recovery(
     assert str(storage_path) not in logs
     assert "/nas/private/book.epub" not in logs
     assert "bad-json" not in logs
+
+
+def test_bookmark_service_uses_safe_stat_for_playback_state_file(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = BookmarkService(file_locator=FileLocator(storage_dir=tmp_path))
+    user_id = "alice.secret@example.test"
+    job_id = "secret-job-1"
+    storage_path = service._job_path(job_id, user_id)  # noqa: SLF001 - pins storage behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_path.write_text(
+        """
+        {
+          "version": 1,
+          "job_id": "secret-job-1",
+          "user_id": "alice.secret@example.test",
+          "bookmarks": [
+            {
+              "id": "bookmark-1",
+              "job_id": "secret-job-1",
+              "kind": "sentence",
+              "created_at": 1800000000.0,
+              "label": "Important sentence",
+              "sentence": 42,
+              "media_type": "text",
+              "chunk_id": "chunk-1"
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == storage_path:
+            raise AssertionError("bookmark service should stat playback state files via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    entries = service.list_bookmarks(job_id, user_id)
+
+    assert len(entries) == 1
+    assert entries[0].id == "bookmark-1"
+    assert entries[0].sentence == 42
 
 
 @pytest.mark.parametrize(

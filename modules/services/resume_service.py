@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
 from .file_locator import FileLocator
+from .source_discovery import safe_stat
 from .. import logging_manager
 
 
@@ -36,6 +37,10 @@ def _atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
     tmp_path.replace(path)
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 def normalize_resume_job_ids(job_ids: Optional[Sequence[str]]) -> list[str]:
@@ -91,7 +96,7 @@ class ResumeService:
 
         user_fragment = _sanitize_fragment(user_id, "user")
         root = self._file_locator.storage_root / "resume" / user_fragment
-        if not root.exists():
+        if not _path_exists(root):
             return []
 
         if requested_job_ids:
@@ -117,7 +122,7 @@ class ResumeService:
 
     def clear(self, job_id: str, user_id: str) -> bool:
         path = self._job_path(job_id, user_id)
-        if not path.exists():
+        if not _path_exists(path):
             return False
         try:
             path.unlink()
@@ -150,7 +155,7 @@ class ResumeService:
 
     def _load_payload(self, job_id: str, user_id: str) -> Dict[str, Any]:
         path = self._job_path(job_id, user_id)
-        if not path.exists():
+        if not _path_exists(path):
             return {}
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
@@ -164,7 +169,7 @@ class ResumeService:
     def _load_entry_from_path(
         self, fallback_job_id: str, path: Path
     ) -> Optional[ResumeEntry]:
-        if not path.exists():
+        if not _path_exists(path):
             return None
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))

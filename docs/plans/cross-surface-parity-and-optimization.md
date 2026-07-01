@@ -987,6 +987,10 @@ Optimization candidates:
   generated text, media, subtitle, job-root, and metadata-manifest checks, so
   Web and Apple reader search pills skip vanished NAS files without failing the
   whole search route.
+  Resume and bookmark filesystem playback-state files now use the same tolerant
+  stat helper for load/list/delete checks, so Web and Apple Continue/bookmark
+  sync treats transient shared-storage races as ordinary missing state instead
+  of leaking backend filesystem errors.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in
