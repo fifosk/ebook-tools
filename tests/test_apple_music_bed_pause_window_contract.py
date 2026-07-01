@@ -128,4 +128,5 @@ def test_tvos_active_music_pause_confirms_reader_pause_before_recovery() -> None
     assert "ApplicationMusicPlayer.shared.state.playbackStatus != .playing" in confirm_body
     assert "adoptPauseAsReaderTransport(" in confirm_body
     assert 'source: "active observed non-playing"' in confirm_body
+    assert 'e2eMusicBedSyncPhase = "observedPauseImmediate"' in confirm_body
     assert "shouldAdoptObservedNonPlayingImmediately" in defer_body

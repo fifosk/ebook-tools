@@ -1054,6 +1054,11 @@ final class MusicKitCoordinator: ObservableObject {
                 reason: reason,
                 source: "active observed non-playing"
             )
+            #if DEBUG
+            if self.isE2EMusicBedSyncTest {
+                self.e2eMusicBedSyncPhase = "observedPauseImmediate"
+            }
+            #endif
         }
         #endif
     }

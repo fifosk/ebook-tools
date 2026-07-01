@@ -376,7 +376,7 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert steps[observed_pause_index + 1] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
-        "text": "phase=play",
+        "text": "phase=observedPauseImmediate",
         "platforms": ["tvOS"],
         "timeout": 10,
     }
@@ -390,12 +390,47 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert steps[observed_pause_index + 3] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
-        "text": "reader=playing",
+        "text": "reader=paused",
         "platforms": ["tvOS"],
         "timeout": 10,
         "screenshot": "music_bed_observed_music_pause_observed",
     }
-    assert steps[observed_pause_index + 9] == {
+    assert steps[observed_pause_index + 4] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "music=paused",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[observed_pause_index + 5] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "readerPause=true",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[observed_pause_index + 6] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "guard=true",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[observed_pause_index + 7] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "phase=play",
+        "platforms": ["tvOS"],
+        "timeout": 12,
+    }
+    assert steps[observed_pause_index + 8] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=playing",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[observed_pause_index + 14] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "guard=false",
