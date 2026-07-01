@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Iterator
 from pathlib import Path
@@ -318,6 +319,46 @@ def test_reading_bed_upload_size_uses_safe_stat(
     assert response.status_code == 201
     assert response.json()["id"] == "rain-room"
     assert stored_file.read_bytes() == b"fake mp3 bytes"
+
+
+def test_reading_bed_manifest_load_uses_safe_stat(
+    reading_bed_client: tuple[TestClient, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _admin_token, storage_root = reading_bed_client
+    manifest_path = storage_root / "reading_beds" / "manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "default_id": reading_beds.DEFAULT_BUNDLED_BED_ID,
+                "beds": [
+                    {
+                        "id": reading_beds.DEFAULT_BUNDLED_BED_ID,
+                        "label": reading_beds.DEFAULT_BUNDLED_BED_LABEL,
+                        "kind": "bundled",
+                        "bundled_url": reading_beds.DEFAULT_BUNDLED_BED_URL,
+                        "content_type": "audio/mpeg",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    original_exists = Path.exists
+
+    def fail_manifest_exists(path: Path) -> bool:
+        if path == manifest_path:
+            raise AssertionError("reading-bed manifest load should use safe_stat")
+        return original_exists(path)
+
+    monkeypatch.setattr(Path, "exists", fail_manifest_exists)
+
+    response = client.get("/api/reading-beds")
+
+    assert response.status_code == 200
+    assert response.json()["default_id"] == reading_beds.DEFAULT_BUNDLED_BED_ID
 
 
 def test_reading_bed_routes_normalize_route_ids(

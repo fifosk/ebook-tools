@@ -206,7 +206,7 @@ def _ensure_manifest(file_locator: FileLocator) -> Tuple[Path, Dict[str, Any]]:
     _files_root(root).mkdir(parents=True, exist_ok=True)
 
     manifest_path = _manifest_path(root)
-    if manifest_path.exists():
+    if safe_stat(manifest_path) is not None:
         try:
             payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         except Exception:

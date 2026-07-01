@@ -980,6 +980,9 @@ Optimization candidates:
   Pipeline defaults now validate a configured default `input_file` with the
   same tolerant stat helper before preserving it for Web/Apple Create, avoiding
   direct existence checks on NAS-backed book roots.
+  Reading-bed catalog sync now also checks its manifest through the tolerant
+  stat helper, keeping Web and Apple background-music route initialization
+  aligned with the NAS-safe playback/media route pattern.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

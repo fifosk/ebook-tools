@@ -14,6 +14,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web and Apple YouTube NAS subtitle deletion now validates the selected video through the tolerant stat helper, and changed-test selection runs the focused YouTube dubbing backend gate for these route edits.
 - Web and Apple pipeline defaults now validate configured default EPUB inputs with the same tolerant stat helper, so transient NAS existence checks do not leak as defaults-route failures.
 - Web and Apple playback media manifests now check lazy chunk metadata availability through the tolerant stat helper, avoiding direct metadata existence checks on flaky NAS-backed job roots.
+- Web and Apple reading-bed catalogs now load their manifest through the tolerant stat helper, keeping background-music catalog sync resilient when NAS-backed storage races with remounts.
 
 ## 2026-06-30
 
