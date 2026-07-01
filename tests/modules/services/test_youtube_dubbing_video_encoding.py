@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -8,6 +9,72 @@ from modules.services.youtube_dubbing import video_utils
 import pytest
 
 pytestmark = pytest.mark.services
+
+
+def test_video_utils_uses_safe_stat_for_file_probes() -> None:
+    source = Path(video_utils.__file__).read_text(encoding="utf-8")
+
+    assert ".exists(" not in source
+    assert ".is_file(" not in source
+    assert "_path_exists(" in source
+
+
+def test_resolve_batch_output_path_uses_safe_stat_for_collisions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base_output = tmp_path / "dubbed.mp4"
+    first_collision = tmp_path / "00-00-12-dubbed.mp4"
+    second_collision = tmp_path / "00-00-12-dubbed-2.mp4"
+    first_collision.write_bytes(b"existing")
+    second_collision.write_bytes(b"existing")
+    guarded_paths = {first_collision, second_collision}
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs):
+        if path in guarded_paths:
+            raise AssertionError("batch output collisions should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    def fake_safe_stat(path: Path):
+        try:
+            return os.stat(path)
+        except FileNotFoundError:
+            return None
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(video_utils, "safe_stat", fake_safe_stat)
+
+    assert video_utils._resolve_batch_output_path(base_output, 12.0) == tmp_path / "00-00-12-dubbed-3.mp4"
+
+
+def test_resolve_temp_output_path_uses_safe_stat_for_temp_collisions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base_output = tmp_path / "dubbed.mp4"
+    temp_root = tmp_path / "tmp"
+    temp_root.mkdir()
+    first_collision = temp_root / "dubbed.mp4"
+    first_collision.write_bytes(b"existing")
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs):
+        if path == first_collision:
+            raise AssertionError("temp output collisions should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    def fake_safe_stat(path: Path):
+        try:
+            return os.stat(path)
+        except FileNotFoundError:
+            return None
+
+    monkeypatch.setattr(video_utils, "_TEMP_DIR", temp_root)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(video_utils, "safe_stat", fake_safe_stat)
+
+    assert video_utils._resolve_temp_output_path(base_output) == temp_root / "dubbed-2.mp4"
 
 
 def test_downscale_forces_ios_friendly_h264_aac(monkeypatch, tmp_path: Path) -> None:

@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
+from modules.services.source_discovery import safe_stat
 from modules.services.youtube_subtitles import trim_stem_preserving_id
 
 from .audio_utils import _build_atempo_filters, _has_audio_stream
@@ -28,6 +29,10 @@ _IOS_VIDEO_CODEC_ARGS = (
     "yuv420p",
 )
 _IOS_AUDIO_CODEC_ARGS = ("-c:a", "aac", "-ac", "2", "-ar", "44100")
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 def _movflags_args(destination: Path) -> list[str]:
@@ -287,7 +292,7 @@ def _downscale_video(
 
     destination = output_path or path
     if target_height <= 0:
-        if destination != path and path.exists():
+        if destination != path and _path_exists(path):
             try:
                 shutil.move(str(path), destination)
                 return destination
@@ -296,7 +301,7 @@ def _downscale_video(
         return path
     current_height = _probe_video_height(path)
     if current_height is not None and current_height <= target_height:
-        if destination != path and path.exists():
+        if destination != path and _path_exists(path):
             try:
                 shutil.move(str(path), destination)
                 return destination
@@ -351,7 +356,7 @@ def _downscale_video(
             result.returncode,
             extra={"event": "youtube.dub.downscale.failed", "path": path.as_posix()},
         )
-        if destination != path and path.exists():
+        if destination != path and _path_exists(path):
             try:
                 shutil.move(str(path), destination)
                 return destination
@@ -363,7 +368,7 @@ def _downscale_video(
     except Exception:
         logger.debug("Unable to replace %s with downscaled copy", destination, exc_info=True)
         temp_output.unlink(missing_ok=True)
-        if destination != path and path.exists():
+        if destination != path and _path_exists(path):
             try:
                 shutil.move(str(path), destination)
             except Exception:
@@ -420,7 +425,7 @@ def _downscale_video(
             "Fallback downscale failed; keeping existing output",
             extra={"event": "youtube.dub.downscale.retry_failed", "path": destination.as_posix()},
         )
-    if destination != path and path.exists():
+    if destination != path and _path_exists(path):
         try:
             path.unlink(missing_ok=True)
         except Exception:
@@ -554,7 +559,7 @@ def _resolve_batch_output_path(base_output: Path, start_seconds: float) -> Path:
     prefix = _format_time_prefix(start_seconds)
     candidate = base_output.with_name(f"{prefix}-{stem}{suffix}")
     counter = 2
-    while candidate.exists():
+    while _path_exists(candidate):
         candidate = base_output.with_name(f"{prefix}-{stem}-{counter}{suffix}")
         counter += 1
     return candidate
@@ -569,7 +574,7 @@ def _resolve_temp_batch_path(base_output: Path, start_seconds: float, *, suffix:
     while True:
         name = f"{prefix}-{stem}{'' if counter == 1 else f'-{counter}'}{suffix}"
         candidate = _TEMP_DIR / name
-        if not candidate.exists():
+        if not _path_exists(candidate):
             return candidate
         counter += 1
 
@@ -583,7 +588,7 @@ def _resolve_temp_output_path(base_output: Path) -> Path:
     while True:
         name = f"{stem}{'' if counter == 1 else f'-{counter}'}{suffix}"
         candidate = _TEMP_DIR / name
-        if not candidate.exists():
+        if not _path_exists(candidate):
             return candidate
         counter += 1
 
@@ -597,7 +602,7 @@ def _resolve_temp_target(target: Path) -> Path:
     while True:
         name = f"{stem}{'' if counter == 1 else f'-{counter}'}{suffix}"
         candidate = _TEMP_DIR / name
-        if not candidate.exists():
+        if not _path_exists(candidate):
             return candidate
         counter += 1
 
