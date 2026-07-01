@@ -210,6 +210,27 @@ export function applyBookNarrationForcedBaseOutput(
   };
 }
 
+export function canApplyBookNarrationFieldChange(
+  key: keyof FormState,
+  forcedBaseOutputFile: string | null | undefined,
+): boolean {
+  return !(key === 'base_output_file' && forcedBaseOutputFile !== null && forcedBaseOutputFile !== undefined);
+}
+
+export function applyBookNarrationFieldChange<K extends keyof FormState>(
+  state: FormState,
+  key: K,
+  value: FormState[K],
+): FormState {
+  if (state[key] === value) {
+    return state;
+  }
+  return {
+    ...state,
+    [key]: value,
+  };
+}
+
 export function targetLanguageFieldsFromLanguages(languages: string[]): Pick<
   FormState,
   'target_languages' | 'custom_target_languages'

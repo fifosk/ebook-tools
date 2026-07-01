@@ -55,12 +55,14 @@ import {
 import {
   areLanguageArraysEqual,
   applyBookNarrationForcedBaseOutput,
+  applyBookNarrationFieldChange,
   applyBookNarrationGeneratedSourceDefaults,
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillInputFile,
   applyBookNarrationPrefillParameters,
   applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
+  canApplyBookNarrationFieldChange,
   normalizeBookNarrationPath,
   normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
@@ -560,7 +562,7 @@ export function BookNarrationForm({
   });
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    if (key === 'base_output_file' && forcedBaseOutputFile !== null && forcedBaseOutputFile !== undefined) {
+    if (!canApplyBookNarrationFieldChange(key, forcedBaseOutputFile)) {
       return;
     }
     if (key === 'start_sentence') {
@@ -578,15 +580,7 @@ export function BookNarrationForm({
     if (IMAGE_DEFAULT_FIELDS.has(key)) {
       userEditedImageDefaultsRef.current.add(key);
     }
-    setFormState((previous) => {
-      if (previous[key] === value) {
-        return previous;
-      }
-      return {
-        ...previous,
-        [key]: value
-      };
-    });
+    setFormState((previous) => applyBookNarrationFieldChange(previous, key, value));
 
     const sharedPreferenceUpdate = resolveBookNarrationSharedPreferenceUpdate({
       key,

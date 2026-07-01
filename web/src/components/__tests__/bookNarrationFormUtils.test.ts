@@ -9,6 +9,8 @@ import {
   applyBookNarrationPrefillParameters,
   applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
+  applyBookNarrationFieldChange,
+  canApplyBookNarrationFieldChange,
   compactBookNarrationPipelineDefaults,
   extractBookMetadata,
   normalizeBookNarrationPath,
@@ -293,6 +295,31 @@ describe('bookNarrationFormUtils source/output state updates', () => {
     expect(applyBookNarrationForcedBaseOutput(previous, 'draft-output')).toBe(previous);
     expect(applyBookNarrationForcedBaseOutput(previous, null)).toBe(previous);
     expect(applyBookNarrationForcedBaseOutput(previous, undefined)).toBe(previous);
+  });
+
+  it('blocks direct output field edits when an output name is forced', () => {
+    expect(canApplyBookNarrationFieldChange('base_output_file', 'forced-output')).toBe(false);
+    expect(canApplyBookNarrationFieldChange('input_file', 'forced-output')).toBe(true);
+    expect(canApplyBookNarrationFieldChange('base_output_file', null)).toBe(true);
+    expect(canApplyBookNarrationFieldChange('base_output_file', undefined)).toBe(true);
+  });
+
+  it('applies generic form field changes with identity preservation', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      input_language: 'English',
+      target_languages: ['Arabic'],
+    };
+
+    expect(applyBookNarrationFieldChange(previous, 'input_language', 'English')).toBe(previous);
+    expect(applyBookNarrationFieldChange(previous, 'input_language', 'Spanish')).toMatchObject({
+      input_language: 'Spanish',
+    });
+
+    const nextTargets = ['German'];
+    const next = applyBookNarrationFieldChange(previous, 'target_languages', nextTargets);
+    expect(next).not.toBe(previous);
+    expect(next.target_languages).toBe(nextTargets);
   });
 });
 
