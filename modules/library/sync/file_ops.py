@@ -15,6 +15,7 @@ from urllib.parse import quote
 
 from modules import logging_manager
 from modules.metadata_manager import MetadataLoader
+from modules.services.source_discovery import safe_stat
 
 from conf.sync_config import (
     AUDIO_SUFFIXES,
@@ -32,11 +33,15 @@ from . import utils
 LOGGER = logging_manager.get_logger().getChild("library.sync.file_ops")
 
 
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
 def load_metadata(job_root: Path) -> Dict[str, Any]:
     """Read the ``job.json`` payload for ``job_root``."""
 
     metadata_path = job_root / "metadata" / "job.json"
-    if not metadata_path.exists():
+    if not _path_exists(metadata_path):
         raise FileNotFoundError(f"No metadata found at {metadata_path}")
     with metadata_path.open("r", encoding="utf-8") as handle:
         return json.load(handle)

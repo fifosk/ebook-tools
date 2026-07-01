@@ -1000,6 +1000,10 @@ Optimization candidates:
   Metadata enrichment caches now load and delete cached lookup files through
   the tolerant stat helper, so Web and Apple Create metadata review can treat
   transient cache-file races as misses instead of filesystem failures.
+  Library sync now loads job metadata manifests through the same tolerant stat
+  helper, so Web and Apple Library item refreshes treat transient NAS-backed
+  metadata races as ordinary missing metadata instead of direct `Path.exists()`
+  failures.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in
