@@ -214,6 +214,24 @@ private func singleTrackNavigationTarget(
 }
 
 @MainActor
+private func singleTrackTimeSeekAnchor(
+    time: Double,
+    sentenceNumber: Int?,
+    in chunk: InteractiveChunk,
+    activeTimingTrack: TextPlayerTimingTrack
+) -> Int? {
+    if let sentenceNumber,
+       SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber) != nil {
+        return sentenceNumber
+    }
+    return SentencePositionProvider.sentenceNumber(
+        in: chunk,
+        atTime: time,
+        activeTimingTrack: activeTimingTrack
+    )
+}
+
+@MainActor
 private func usesCombinedQueue(
     isSequenceModeActive: Bool,
     audioModeManager: AudioModeManager?,
@@ -447,6 +465,26 @@ private func runChecks() {
         ),
         .sentence(chunkID: "chunk_2220", localIndex: 6, startTime: 12.0),
         "Translation-only slider anchor should beat stale end-of-chunk time so next moves one sentence, not one batch"
+    )
+    requireEqual(
+        singleTrackTimeSeekAnchor(
+            time: 18.25,
+            sentenceNumber: 2225,
+            in: dutchOnlyChunks[1],
+            activeTimingTrack: .translation
+        ),
+        2225,
+        "Explicit translation-only time seeks should preserve the requested visible sentence anchor instead of stale player time"
+    )
+    requireEqual(
+        singleTrackTimeSeekAnchor(
+            time: 18.25,
+            sentenceNumber: nil,
+            in: dutchOnlyChunks[1],
+            activeTimingTrack: .translation
+        ),
+        2229,
+        "Bare translation-only time seeks should still fall back to active-track gate timing"
     )
     let sliderJumpTargetIndex = SentencePositionProvider.targetSentenceIndex(
         in: dutchOnlyChunks[1],
