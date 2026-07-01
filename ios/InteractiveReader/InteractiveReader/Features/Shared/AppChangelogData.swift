@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-prepublish-batch-selection",
+                    title: "Translation-only batch handoff is tighter",
+                    detail: "Apple reader chunk switches now repair the incoming batch's selected audio option before publishing the new chunk, preventing a stale combined selection from briefly resetting single-track rendering at sentence-batch boundaries."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-context-rebuild-lock",
                     title: "Translation-only survives metadata refresh",
                     detail: "Apple reader original-only and translation-only playback now re-resolves the selected audio option after live media or chunk metadata rebuilds, so new sentence batches cannot keep stale track IDs and drift rendering from narration."

@@ -446,6 +446,10 @@ if "let isTargetedJump = targetSentenceIndex != nil || pendingSentenceJump?.chun
     fail("targeted chunk switches must detect pending sentence/time jumps")
 if "audioCoordinator.pauseForDwell()" not in select_chunk_body:
     fail("targeted chunk switches must pause stale narration while metadata and seek settle")
+if "let incomingChunk = jobContext?.chunk(withID: id)" not in select_chunk_body:
+    fail("chunk switches must resolve the incoming chunk before publishing selectedChunkID")
+if select_chunk_body.find("synchronizeSelectedAudioTrackForChunkHandoff(for: incomingChunk)") > select_chunk_body.find("selectedChunkID = id"):
+    fail("chunk switches must repair single-track audio selection before publishing selectedChunkID")
 
 if "func wordNavigationSentenceDisplay(for chunk: InteractiveChunk)" not in transcript_source:
     fail("missing wordNavigationSentenceDisplay fallback for stale active displays")

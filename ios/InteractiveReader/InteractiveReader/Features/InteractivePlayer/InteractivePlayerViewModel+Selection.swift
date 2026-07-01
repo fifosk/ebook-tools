@@ -77,13 +77,17 @@ extension InteractivePlayerViewModel {
         if isTargetedJump, audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying || autoPlay {
             audioCoordinator.pauseForDwell()
         }
+        let incomingChunk = jobContext?.chunk(withID: id)
+        if let incomingChunk {
+            synchronizeSelectedAudioTrackForChunkHandoff(for: incomingChunk)
+        }
         selectedChunkID = id
         if recentSingleTrackSentenceAnchor?.chunkID != id {
             recentSingleTrackSentenceAnchor = nil
         }
         lastPrefetchSentenceNumber = nil
         prefetchDirection = .none
-        guard let chunk = selectedChunk else {
+        guard let chunk = incomingChunk ?? selectedChunk else {
             audioCoordinator.reset()
             selectedTimingURL = nil
             return
