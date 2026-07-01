@@ -162,6 +162,11 @@ Follow the suggested remediations to restore parity:
   selected chunk must re-resolve the selected option from the active mode too;
   otherwise fresh chunk objects can inherit old batch option ids while the audio
   clock continues on the selected single track.
+  Audio-player end callbacks must carry the ended URL into the reader view model;
+  a natural single-track batch advance should only run when that URL belongs to
+  the current selected audio option. Late EOF notifications from a hidden track
+  or previous batch must be ignored so they cannot advance another batch while
+  rendering is already locked to the translation-only or original-only lane.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

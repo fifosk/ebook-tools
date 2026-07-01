@@ -98,6 +98,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     /// This preserves the user's volume mix setting across sentence/track transitions.
     private(set) var targetVolume: Double = 1.0
     var onPlaybackEnded: (() -> Void)?
+    var onPlaybackEndedWithURL: ((URL?) -> Void)?
     /// Called when playback has been stalled (buffer starved) for an extended
     /// period without recovery. The view layer can use this to force-advance
     /// the sequence so the user isn't stuck on a broken segment.
@@ -855,6 +856,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 guard let endedItem = notification.object as? AVPlayerItem else { return }
                 let identifier = ObjectIdentifier(endedItem)
                 guard let index = self.itemOrder[identifier] else { return }
+                let endedURL = self.itemURLMap[identifier]
                 if self.shouldLoop {
                     self.currentTime = 0
                     self.player?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
@@ -874,7 +876,11 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 self.currentTime = 0
                 AudioPlaybackRegistry.shared.endPlayback(for: self)
                 self.setIdleTimerDisabled(false)
-                self.onPlaybackEnded?()
+                if let handler = self.onPlaybackEndedWithURL {
+                    handler(endedURL)
+                } else {
+                    self.onPlaybackEnded?()
+                }
                 return
             }
         }

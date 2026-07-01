@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-stale-eof-url-guard",
+                    title: "Translation-only batch endings stay put",
+                    detail: "Apple reader single-track playback now ignores stale audio-ended callbacks from URLs outside the active selected lane, preventing late EOF events from skipping a batch and drifting rendering away from narration."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-adjacent-batch-helper",
                     title: "Translation-only batch jumps stay aligned",
                     detail: "Apple reader next/previous and end-of-batch advances now share one audio-lane-preserving chunk handoff, so stale combined selections cannot reset translation-only or original-only rendering when sentence batches change."

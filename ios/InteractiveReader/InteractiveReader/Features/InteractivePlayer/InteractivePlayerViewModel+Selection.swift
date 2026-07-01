@@ -573,7 +573,7 @@ extension InteractivePlayerViewModel {
         }
     }
 
-    func handlePlaybackEnded() {
+    func handlePlaybackEnded(endedURL: URL? = nil) {
         guard let chunk = selectedChunk,
               let nextChunk = jobContext?.nextChunk(after: chunk.id) else {
             // No next chunk — end of book. Stop narration audio so the reading bed
@@ -581,11 +581,30 @@ extension InteractivePlayerViewModel {
             audioCoordinator.pause()
             return
         }
+        if let endedURL,
+           !playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk) {
+            interactiveSelectionLogger.debug(
+                "Ignoring stale playback-ended callback url=\(endedURL.lastPathComponent, privacy: .private), chunk=\(chunk.id, privacy: .private), selectedTrackID=\(self.selectedAudioTrackID ?? "nil", privacy: .private)"
+            )
+            return
+        }
         selectChunkPreservingAudioLane(
             nextChunk,
             autoPlay: true,
             targetSentenceIndex: 0
         )
+    }
+
+    private func playbackEndedURLBelongsToCurrentChunk(
+        _ endedURL: URL,
+        chunk: InteractiveChunk
+    ) -> Bool {
+        if let selectedOption = selectedAudioOption(for: chunk) {
+            return selectedOption.streamURLs.contains(endedURL)
+        }
+        return chunk.audioOptions.contains { option in
+            option.streamURLs.contains(endedURL)
+        }
     }
 
     func selectAdjacentChunk(

@@ -121,8 +121,8 @@ final class InteractivePlayerViewModel: ObservableObject {
                 // It will be cleared when expectedPosition is cleared (time stabilized).
             }
 
-        audioCoordinator.onPlaybackEnded = { [weak self] in
-            self?.handlePlaybackEnded()
+        audioCoordinator.onPlaybackEndedWithURL = { [weak self] endedURL in
+            self?.handlePlaybackEnded(endedURL: endedURL)
         }
 
         // Persistent-stall recovery: AVPlayer streams that exhaust their buffer

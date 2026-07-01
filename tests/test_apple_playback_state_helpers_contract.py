@@ -200,6 +200,42 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "guard audioModeManager?.isSequenceMode != false else" in sequence_active_body
 
 
+def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
+    audio_coordinator = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "AudioPlayerCoordinator.swift"
+    ).read_text(encoding="utf-8")
+    view_model = _source("InteractivePlayerViewModel.swift")
+    selection = _source("InteractivePlayerViewModel+Selection.swift")
+
+    assert "var onPlaybackEndedWithURL: ((URL?) -> Void)?" in audio_coordinator
+    end_observer_body = _function_body(audio_coordinator, "private func installEndObserver(for player: AVPlayer)")
+    assert "let endedURL = self.itemURLMap[identifier]" in end_observer_body
+    assert "if let handler = self.onPlaybackEndedWithURL" in end_observer_body
+    assert "handler(endedURL)" in end_observer_body
+    assert "self.onPlaybackEnded?()" in end_observer_body
+
+    assert "audioCoordinator.onPlaybackEndedWithURL = { [weak self] endedURL in" in view_model
+    assert "self?.handlePlaybackEnded(endedURL: endedURL)" in view_model
+
+    ended_body = _function_body(selection, "func handlePlaybackEnded(endedURL: URL? = nil)")
+    assert "playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk)" in ended_body
+    assert "Ignoring stale playback-ended callback" in ended_body
+    assert "selectChunkPreservingAudioLane(" in ended_body
+
+    belongs_body = _function_body(
+        selection,
+        "private func playbackEndedURLBelongsToCurrentChunk(\n        _ endedURL: URL,\n        chunk: InteractiveChunk\n    ) -> Bool",
+    )
+    assert "if let selectedOption = selectedAudioOption(for: chunk)" in belongs_body
+    assert "return selectedOption.streamURLs.contains(endedURL)" in belongs_body
+    assert "return chunk.audioOptions.contains" in belongs_body
+
+
 def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
     check_script = SEQUENCE_PAUSE_CHECK.read_text(encoding="utf-8")
@@ -656,8 +692,9 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
 def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     selection = _source("InteractivePlayerViewModel+Selection.swift")
 
-    ended_body = _function_body(selection, "func handlePlaybackEnded()")
+    ended_body = _function_body(selection, "func handlePlaybackEnded(endedURL: URL? = nil)")
     assert "let nextChunk = jobContext?.nextChunk(after: chunk.id)" in ended_body
+    assert "playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk)" in ended_body
     assert "selectChunkPreservingAudioLane(" in ended_body
     assert "nextChunk," in ended_body
     assert "autoPlay: true" in ended_body

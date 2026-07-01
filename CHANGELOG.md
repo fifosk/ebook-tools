@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader single-track batch endings now ignore stale AVPlayer end callbacks from URLs outside the active selected lane, preventing late EOF notifications from advancing another sentence batch and drifting translation-only rendering from narration.
 - Web Narrate Ebook static audio, voice, and written-mode option lists now flow directly from shared constants instead of being re-memoized in the large form coordinator.
 - Web Narrate Ebook selected and manual target-language merging now resolves through the tested Create intake utility, keeping submit payloads, voice overrides, and shared language preferences on the same deduped list outside the large form coordinator.
 - Web Narrate Ebook saved-template application now resolves clear/skip/incompatible/apply decisions through the tested template helper, keeping apply-key and compatibility messages outside the large form coordinator.
