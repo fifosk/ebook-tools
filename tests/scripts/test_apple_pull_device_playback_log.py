@@ -37,8 +37,10 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     assert "apple-device-pull-playback-log" in makefile
     assert "apple-device-pull-and-verify-playback-transport-log" in makefile
     assert "apple-device-pull-and-verify-playback-transport-pause-resume-log" in makefile
+    assert "apple-device-pull-and-verify-playback-resume-offset-log" in makefile
     assert "apple-device-verify-playback-transport-log" in makefile
     assert "apple-device-verify-playback-transport-pause-resume-log" in makefile
+    assert "apple-device-verify-playback-resume-offset-log" in makefile
     assert "APPLE_DEVICE_PLAYBACK_LOG ?=" in makefile
     assert "APPLE_PLAYBACK_TRANSPORT_LOG_MODE ?= pause-release" in makefile
     assert "scripts/apple_pull_device_playback_log.sh" in makefile
@@ -50,15 +52,22 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
         "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
         "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=pause-resume"
     ) in makefile
+    assert (
+        "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
+        "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=resume-offset"
+    ) in makefile
 
 
 def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_players() -> None:
     shortcuts = _source(APP / "App" / "GlobalKeyboardShortcuts.swift")
     job = _source(APP / "Features" / "Playback" / "JobPlaybackView.swift")
+    job_resume = _source(APP / "Features" / "Playback" / "JobPlaybackView+Resume.swift")
     job_now_playing = _source(APP / "Features" / "Playback" / "JobPlaybackView+NowPlaying.swift")
     library = _source(APP / "Features" / "Playback" / "LibraryPlaybackView.swift")
+    library_resume = _source(APP / "Features" / "Playback" / "LibraryPlaybackView+Resume.swift")
     library_now_playing = _source(APP / "Features" / "Playback" / "LibraryPlaybackView+NowPlaying.swift")
     music = _source(APP / "Services" / "MusicKitCoordinator.swift")
+    selection = _source(APP / "Features" / "InteractivePlayer" / "InteractivePlayerViewModel+Selection.swift")
 
     assert "func playbackTransportDebugLog" in shortcuts
     assert "PlaybackTransportDebugLogger" in shortcuts
@@ -69,12 +78,20 @@ def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_player
 
     for source, label in (
         (job, "Job"),
+        (job_resume, "Job resume"),
         (job_now_playing, "Job"),
         (library, "Library"),
+        (library_resume, "Library resume"),
         (library_now_playing, "Library"),
+        (selection, "Interactive selection"),
     ):
         assert "playbackTransportDebugLog(" in source, label
         assert "[PlaybackTransport]" in source, label
         debug_lines = "\n".join(line for line in source.splitlines() if "playbackTransportDebugLog" in line)
         assert "bookTitle" not in debug_lines, label
         assert "author" not in debug_lines, label
+
+    assert "resume offset requested sentence=" in job_resume
+    assert "resume offset requested sentence=" in library_resume
+    assert "Interactive sequence time seek accepted sentence=" in selection
+    assert "Interactive time seek accepted sequence=false sentence=" in selection

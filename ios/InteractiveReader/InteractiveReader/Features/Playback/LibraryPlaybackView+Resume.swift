@@ -23,6 +23,9 @@ extension LibraryPlaybackView {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
             if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
+                playbackTransportDebugLog(
+                    "[PlaybackTransport] Library resume offset requested sentence=\(sentence) time=\(String(format: "%.3f", resumeTime.time)) sequence=\(viewModel.isSequenceModeActive)"
+                )
                 viewModel.jumpToTime(
                     resumeTime.time,
                     in: resumeTime.chunk,
@@ -30,6 +33,11 @@ extension LibraryPlaybackView {
                     matchingSentenceNumber: sentence
                 )
             } else {
+                if let playbackTime, playbackTime.isFinite {
+                    playbackTransportDebugLog(
+                        "[PlaybackTransport] Library resume offset fallback=sentenceStart sentence=\(sentence) time=\(String(format: "%.3f", playbackTime))"
+                    )
+                }
                 viewModel.jumpToSentence(sentence, autoPlay: true)
             }
             resumeAppleMusicBedAfterInteractiveStartIfNeeded()
@@ -76,6 +84,9 @@ extension LibraryPlaybackView {
                 }
                 keyboardShortcutDebugLog("[KeyboardShortcut] Library autoplay retry sentence=\(sentence)")
                 if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
+                    playbackTransportDebugLog(
+                        "[PlaybackTransport] Library resume offset retry sentence=\(sentence) time=\(String(format: "%.3f", resumeTime.time)) sequence=\(viewModel.isSequenceModeActive)"
+                    )
                     viewModel.jumpToTime(
                         resumeTime.time,
                         in: resumeTime.chunk,

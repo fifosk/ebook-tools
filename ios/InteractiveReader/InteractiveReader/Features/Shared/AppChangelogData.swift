@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "resume-offset-device-log-check",
+                    title: "Resume offset logs are verifiable",
+                    detail: "Apple DEBUG builds now write token-safe resume-offset breadcrumbs to the shared playback transport log, with a resume-offset verifier for pulled device logs so Cinema/iPad retests can distinguish exact in-sentence resume from sentence-start fallback."
+                ),
+                AppChangelogEntry(
                     id: "interactive-sequence-resume-offset",
                     title: "Reader resume seeks inside sequence playback",
                     detail: "Apple interactive reader resume now routes saved in-sentence offsets through the sequence playback controller, so combined original/translation playback can resume near the last-read word instead of only at the beginning of the saved sentence."

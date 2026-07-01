@@ -680,6 +680,9 @@ extension InteractivePlayerViewModel {
         let chunkId = chunk.id
         if audioCoordinator.isReady {
             rememberSingleTrackSentenceAnchor(atTime: time, in: chunk)
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Interactive time seek accepted sequence=false sentence=\(sentenceNumber ?? -1) time=\(String(format: "%.3f", time))"
+            )
             seekPlayback(to: time, in: chunk)
             if autoPlay && !audioCoordinator.isPlaying {
                 audioCoordinator.play()
@@ -705,6 +708,9 @@ extension InteractivePlayerViewModel {
                 guard seenLoadingState || isFirstEmission else { return }
                 isFirstEmission = false
                 self.rememberSingleTrackSentenceAnchor(atTime: time, in: currentChunk)
+                playbackTransportDebugLog(
+                    "[PlaybackTransport] Interactive time seek accepted sequence=false sentence=\(sentenceNumber ?? -1) time=\(String(format: "%.3f", time))"
+                )
                 self.seekPlayback(to: time, in: currentChunk)
                 if autoPlay && !self.audioCoordinator.isPlaying {
                     self.audioCoordinator.play()
@@ -731,13 +737,22 @@ extension InteractivePlayerViewModel {
                 sentenceIndex: targetSentenceIndex,
                 preferredTrack: audioModeManager?.preferredTrack
             ) ?? targetSentenceIndex.flatMap({
-                sequenceController.seekToSentence(
+                playbackTransportDebugLog(
+                    "[PlaybackTransport] Interactive sequence time seek fallback=sentenceStart sentence=\(sentenceNumber ?? -1) time=\(String(format: "%.3f", time))"
+                )
+                return sequenceController.seekToSentence(
                     $0,
                     preferredTrack: audioModeManager?.preferredTrack ?? .original
                 )
             }) else {
+                playbackTransportDebugLog(
+                    "[PlaybackTransport] Interactive sequence time seek failed sentence=\(sentenceNumber ?? -1) time=\(String(format: "%.3f", time))"
+                )
                 return
             }
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Interactive sequence time seek accepted sentence=\(sentenceNumber ?? -1) time=\(String(format: "%.3f", target.time)) track=\(target.track.rawValue)"
+            )
             if let sentenceNumber {
                 rememberSingleTrackSentenceAnchor(chunkID: currentChunk.id, sentenceNumber: sentenceNumber)
             } else {

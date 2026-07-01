@@ -31,6 +31,18 @@ PAUSE_RESUME_LOG = (
 )
 
 
+RESUME_OFFSET_LOG = """
+1782670003.000 [PlaybackTransport] Library resume offset requested sentence=2190 time=14.250 sequence=true
+1782670003.050 [PlaybackTransport] Interactive sequence time seek accepted sentence=2190 time=14.250 track=translation
+"""
+
+
+RESUME_OFFSET_SINGLE_TRACK_LOG = """
+1782670003.000 [PlaybackTransport] Job resume offset requested sentence=42 time=8.125 sequence=false
+1782670003.050 [PlaybackTransport] Interactive time seek accepted sequence=false sentence=42 time=8.125
+"""
+
+
 MUSIC_ADOPTION_PAUSE_LOG = """
 1782670000.000 [PlaybackTransport] Apple Music reader transport pause adopted source=observed non-playing reason=observedNonPlaying
 1782670000.020 [PlaybackTransport] Library mirroring adopted Apple Music pause requested=true playing=true musicPlaying=false
@@ -68,6 +80,48 @@ def test_pause_resume_playback_transport_log_validation_passes(tmp_path: Path) -
     log.write_text(PAUSE_RESUME_LOG, encoding="utf-8")
 
     assert module.validate_log(log, mode="pause-resume") == []
+
+
+def test_resume_offset_playback_transport_log_validation_passes(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(RESUME_OFFSET_LOG, encoding="utf-8")
+
+    assert module.validate_log(log, mode="resume-offset") == []
+
+
+def test_resume_offset_accepts_single_track_exact_seek(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(RESUME_OFFSET_SINGLE_TRACK_LOG, encoding="utf-8")
+
+    assert module.validate_log(log, mode="resume-offset") == []
+
+
+def test_resume_offset_rejects_sentence_start_fallback(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        """
+1782670003.000 [PlaybackTransport] Library resume offset requested sentence=2190 time=14.250 sequence=true
+1782670003.050 [PlaybackTransport] Interactive sequence time seek fallback=sentenceStart sentence=2190 time=14.250
+1782670003.060 [PlaybackTransport] Interactive sequence time seek accepted sentence=2190 time=12.000 track=translation
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="resume-offset")
+
+    assert missing == ["sequence resume offset fell back to the beginning of the sentence"]
+
+
+def test_resume_offset_requires_request_and_exact_seek(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(PAUSE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="resume-offset")
+
+    assert missing == [
+        "reader requested saved resume offset",
+        "reader applied exact resume offset",
+    ]
 
 
 def test_pause_release_accepts_music_pause_adoption_when_narration_mirrors_same_episode(tmp_path: Path) -> None:

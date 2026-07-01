@@ -62,6 +62,24 @@ RESUME_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
+RESUME_OFFSET_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "reader requested saved resume offset",
+        (
+            r"\[PlaybackTransport\] (?:Job|Library) resume offset requested sentence=\d+ time=\d",
+            r"\[PlaybackTransport\] (?:Job|Library) resume offset retry sentence=\d+ time=\d",
+        ),
+    ),
+    (
+        "reader applied exact resume offset",
+        (
+            r"\[PlaybackTransport\] Interactive sequence time seek accepted sentence=\d+ time=\d",
+            r"\[PlaybackTransport\] Interactive time seek accepted sequence=false sentence=\d+ time=\d",
+        ),
+    ),
+)
+
+
 DEAD_RESUME_PATTERN = re.compile(
     r"\[PlaybackTransport\] (?:Job|Library) forced play source=(?:brokerResume|interactiveOverride) "
     r"requested=false playing=false musicPlaying=false systemMusicPlaying=false\s*\n"
@@ -82,6 +100,8 @@ PLAYBACK_TRANSPORT_BREADCRUMB_PATTERNS: tuple[str, ...] = (
     r"Apple Music reader transport pause adopted",
     r"(?:Job|Library) (?:foreground|broker) tvOS Play/Pause command",
     r"(?:Job|Library) (?:forced pause|forced play|pause command accepted|play command accepted)",
+    r"(?:Job|Library) resume offset (?:requested|retry|fallback)",
+    r"Interactive (?:sequence )?time seek",
 )
 
 
@@ -236,6 +256,28 @@ def _consecutive_broker_pause_violations(text: str) -> list[str]:
     return []
 
 
+def _resume_offset_violations(text: str) -> list[str]:
+    if re.search(
+        r"\[PlaybackTransport\] (?:Job|Library) resume offset fallback=sentenceStart",
+        text,
+        flags=re.MULTILINE,
+    ):
+        return ["reader resume offset fell back to the beginning of the sentence"]
+    if re.search(
+        r"\[PlaybackTransport\] Interactive sequence time seek fallback=sentenceStart",
+        text,
+        flags=re.MULTILINE,
+    ):
+        return ["sequence resume offset fell back to the beginning of the sentence"]
+    if re.search(
+        r"\[PlaybackTransport\] Interactive sequence time seek failed",
+        text,
+        flags=re.MULTILINE,
+    ):
+        return ["sequence resume offset could not be applied"]
+    return []
+
+
 def validate_log(path: Path, *, mode: str) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -247,12 +289,17 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
     requirements = PAUSE_REQUIREMENTS
     if mode == "pause-resume":
         requirements = PAUSE_REQUIREMENTS + RESUME_REQUIREMENTS
+    elif mode == "resume-offset":
+        requirements = RESUME_OFFSET_REQUIREMENTS
     missing = _missing_requirements(text, requirements)
-    missing.extend(_pause_guard_violations(text))
-    missing.extend(_first_pause_episode_violations(text))
+    if mode != "resume-offset":
+        missing.extend(_pause_guard_violations(text))
+        missing.extend(_first_pause_episode_violations(text))
     if mode == "pause-resume":
         missing.extend(_dead_resume_violations(text))
         missing.extend(_consecutive_broker_pause_violations(text))
+    elif mode == "resume-offset":
+        missing.extend(_resume_offset_violations(text))
     return missing
 
 
@@ -277,9 +324,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=("pause-release", "pause-resume"),
+        choices=("pause-release", "pause-resume", "resume-offset"),
         default=os.environ.get("APPLE_PLAYBACK_TRANSPORT_LOG_MODE", "pause-release"),
-        help="pause-release checks the reader-owned pause route; pause-resume also checks explicit resume.",
+        help=(
+            "pause-release checks the reader-owned pause route; pause-resume also checks explicit resume; "
+            "resume-offset checks saved in-sentence resume offsets."
+        ),
     )
     return parser.parse_args(argv)
 

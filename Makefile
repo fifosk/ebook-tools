@@ -30,7 +30,7 @@
        test-apple-contracts \
        build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-host-readiness apple-device-update \
-       apple-device-preflight apple-device-launch-console apple-device-pull-playback-log apple-device-pull-and-verify-playback-transport-log apple-device-pull-and-verify-playback-transport-pause-resume-log apple-device-verify-playback-transport-log apple-device-verify-playback-transport-pause-resume-log apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-guarded-play-log apple-device-verify-music-bed-pause-resume-log apple-device-signed-build-only apple-device-deploy-dry-run \
+       apple-device-preflight apple-device-launch-console apple-device-pull-playback-log apple-device-pull-and-verify-playback-transport-log apple-device-pull-and-verify-playback-transport-pause-resume-log apple-device-pull-and-verify-playback-resume-offset-log apple-device-verify-playback-transport-log apple-device-verify-playback-transport-pause-resume-log apple-device-verify-playback-resume-offset-log apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-guarded-play-log apple-device-verify-music-bed-pause-resume-log apple-device-signed-build-only apple-device-deploy-dry-run \
        apple-device-full-entitlement-plan apple-device-full-entitlement-build \
        apple-device-full-entitlement-install apple-device-full-entitlement-fallback-install \
        apple-device-full-entitlement-stable-install \
@@ -604,6 +604,9 @@ apple-device-pull-and-verify-playback-transport-log:
 apple-device-pull-and-verify-playback-transport-pause-resume-log:
 	$(MAKE) apple-device-pull-and-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_LOG_MODE=pause-resume
 
+apple-device-pull-and-verify-playback-resume-offset-log:
+	$(MAKE) apple-device-pull-and-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_LOG_MODE=resume-offset
+
 apple-device-verify-playback-transport-log:
 	$(PYTHON) scripts/check_apple_playback_transport_log.py \
 		--device "$(APPLE_DEVICE_ID)" \
@@ -612,6 +615,9 @@ apple-device-verify-playback-transport-log:
 
 apple-device-verify-playback-transport-pause-resume-log:
 	$(MAKE) apple-device-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_LOG_MODE=pause-resume
+
+apple-device-verify-playback-resume-offset-log:
+	$(MAKE) apple-device-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_LOG_MODE=resume-offset
 
 apple-device-verify-music-bed-launch-log:
 	$(PYTHON) scripts/check_apple_music_bed_launch_log.py \

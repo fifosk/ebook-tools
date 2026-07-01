@@ -62,6 +62,9 @@ extension JobPlaybackView {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
             if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
+                playbackTransportDebugLog(
+                    "[PlaybackTransport] Job resume offset requested sentence=\(sentence) time=\(String(format: "%.3f", resumeTime.time)) sequence=\(viewModel.isSequenceModeActive)"
+                )
                 viewModel.jumpToTime(
                     resumeTime.time,
                     in: resumeTime.chunk,
@@ -69,6 +72,11 @@ extension JobPlaybackView {
                     matchingSentenceNumber: sentence
                 )
             } else {
+                if let playbackTime, playbackTime.isFinite {
+                    playbackTransportDebugLog(
+                        "[PlaybackTransport] Job resume offset fallback=sentenceStart sentence=\(sentence) time=\(String(format: "%.3f", playbackTime))"
+                    )
+                }
                 // jumpToSentence with autoPlay: true handles seeking and starting playback
                 // after the audio is loaded and seeked to the target position.
                 // Do NOT call play() here as it would start playback from position 0
@@ -122,6 +130,9 @@ extension JobPlaybackView {
                 }
                 keyboardShortcutDebugLog("[KeyboardShortcut] Job autoplay retry sentence=\(sentence)")
                 if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
+                    playbackTransportDebugLog(
+                        "[PlaybackTransport] Job resume offset retry sentence=\(sentence) time=\(String(format: "%.3f", resumeTime.time)) sequence=\(viewModel.isSequenceModeActive)"
+                    )
                     viewModel.jumpToTime(
                         resumeTime.time,
                         in: resumeTime.chunk,
