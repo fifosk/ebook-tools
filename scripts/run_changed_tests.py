@@ -270,6 +270,17 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "modules/webapi/routers/subtitle_utils/youtube_routes.py",
+            "modules/services/youtube_dubbing/",
+            "modules/services/youtube_subtitles.py",
+            "tests/modules/webapi/test_youtube_library_route.py",
+            "tests/modules/services/test_youtube_dubbing_subtitles.py",
+            "tests/modules/services/test_youtube_subtitles.py",
+        ),
+        ("test-backend-youtube-dubbing-service",),
+    ),
+    (
+        (
             "modules/notifications/",
             "modules/webapi/routes/notification_routes.py",
             "tests/modules/test_notification_service.py",

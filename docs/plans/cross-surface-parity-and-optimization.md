@@ -938,6 +938,11 @@ Optimization candidates:
   the discovered video tokens, prefilters unrelated stored jobs by filename
   before path normalization, reuses each discovered video token while building
   response rows, and empty NAS listings skip job metadata reads entirely.
+  YouTube NAS subtitle deletion now validates the selected video through the
+  shared tolerant stat helper before deleting sidecars, and changed-test
+  selection routes YouTube/NAS route or service edits through the focused
+  backend YouTube dubbing gate instead of relying only on the broad WebAPI
+  suite.
 - Keep backend source pickers resilient on NAS-backed folders. Status:
   `/api/pipelines/files` now stats each visible ebook/output candidate once and
   skips entries that disappear or become unreadable during listing; EPUB

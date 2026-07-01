@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from modules import logging_manager as log_mgr
 from modules.services.job_manager import PipelineJobManager
 from modules.services.job_manager.metadata import PipelineJobMetadata
+from modules.services.source_discovery import safe_stat
 from modules.services.youtube_subtitles import (
     SubtitleKind,
     download_video as perform_youtube_video_download,
@@ -505,7 +506,7 @@ def delete_youtube_subtitle(
     video_path = Path(payload.video_path).expanduser()
     subtitle_path = Path(payload.subtitle_path).expanduser()
 
-    if not video_path.exists():
+    if safe_stat(video_path) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Video file not found.")
     if video_path.parent != subtitle_path.parent:
         raise HTTPException(

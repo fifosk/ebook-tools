@@ -605,6 +605,18 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
         "test-backend-reading-beds",
         "test-webapi",
     ]
+    assert select_targets(["modules/webapi/routers/subtitle_utils/youtube_routes.py"]) == [
+        "test-backend-youtube-dubbing-service",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/services/youtube_dubbing/service.py"]) == [
+        "test-backend-youtube-dubbing-service",
+        "test-services",
+    ]
+    assert select_targets(["tests/modules/webapi/test_youtube_library_route.py"]) == [
+        "test-backend-youtube-dubbing-service",
+        "test-webapi",
+    ]
     assert select_targets(["modules/notifications/notification_service.py"]) == [
         "test-backend-notifications",
     ]
