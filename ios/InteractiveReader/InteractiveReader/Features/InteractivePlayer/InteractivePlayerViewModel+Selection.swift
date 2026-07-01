@@ -600,10 +600,34 @@ extension InteractivePlayerViewModel {
         chunk: InteractiveChunk
     ) -> Bool {
         if let selectedOption = selectedAudioOption(for: chunk) {
+            if selectedOption.kind == .combined,
+               let singleTrack = requestedSingleTrackMode() {
+                return playbackEndedURL(
+                    endedURL,
+                    belongsToSingleTrack: singleTrack,
+                    in: selectedOption
+                )
+            }
             return selectedOption.streamURLs.contains(endedURL)
         }
         return chunk.audioOptions.contains { option in
             option.streamURLs.contains(endedURL)
+        }
+    }
+
+    private func playbackEndedURL(
+        _ endedURL: URL,
+        belongsToSingleTrack track: SequenceTrack,
+        in option: InteractiveChunk.AudioOption
+    ) -> Bool {
+        switch track {
+        case .original:
+            return option.streamURLs.first == endedURL
+        case .translation:
+            guard option.streamURLs.count > 1 else {
+                return option.streamURLs.first == endedURL
+            }
+            return option.streamURLs.dropFirst().contains(endedURL)
         }
     }
 

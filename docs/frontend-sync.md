@@ -167,6 +167,10 @@ Follow the suggested remediations to restore parity:
   the current selected audio option. Late EOF notifications from a hidden track
   or previous batch must be ignored so they cannot advance another batch while
   rendering is already locked to the translation-only or original-only lane.
+  For combined-only audio options, URL membership must be checked against the
+  selected lane inside the combined stream list; translation-only playback must
+  reject the original stream's EOF even though that URL belongs to the combined
+  option object.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

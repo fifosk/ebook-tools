@@ -232,8 +232,20 @@ def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
         "private func playbackEndedURLBelongsToCurrentChunk(\n        _ endedURL: URL,\n        chunk: InteractiveChunk\n    ) -> Bool",
     )
     assert "if let selectedOption = selectedAudioOption(for: chunk)" in belongs_body
+    assert "if selectedOption.kind == .combined" in belongs_body
+    assert "let singleTrack = requestedSingleTrackMode()" in belongs_body
+    assert "playbackEndedURL(\n                    endedURL,\n                    belongsToSingleTrack: singleTrack" in belongs_body
     assert "return selectedOption.streamURLs.contains(endedURL)" in belongs_body
     assert "return chunk.audioOptions.contains" in belongs_body
+
+    lane_body = _function_body(
+        selection,
+        "private func playbackEndedURL(\n        _ endedURL: URL,\n        belongsToSingleTrack track: SequenceTrack,\n        in option: InteractiveChunk.AudioOption\n    ) -> Bool",
+    )
+    assert "case .original:" in lane_body
+    assert "return option.streamURLs.first == endedURL" in lane_body
+    assert "case .translation:" in lane_body
+    assert "return option.streamURLs.dropFirst().contains(endedURL)" in lane_body
 
 
 def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> None:
