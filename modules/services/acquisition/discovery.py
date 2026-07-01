@@ -37,6 +37,14 @@ from .discovery_planning import (
     order_default_discovery_candidates,
     provider_query_limit,
 )
+from .youtube_discovery import (
+    parse_iso8601_duration,
+    parse_youtube_url_or_id,
+    youtube_api_key,
+    youtube_error_reason,
+    youtube_thumbnail,
+    youtube_video_id,
+)
 
 
 _LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES.items()}
@@ -49,10 +57,6 @@ _INTERNET_ARCHIVE_METADATA_URL = "https://archive.org/metadata"
 _DEFAULT_DISCOVERY_LIMIT = 20
 _MAX_DISCOVERY_LIMIT = 50
 _INTERNET_ARCHIVE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
-_YOUTUBE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{11}$")
-_ISO8601_DURATION_PATTERN = re.compile(
-    r"^P(?:(?P<days>\d+)D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$"
-)
 
 
 @dataclass(frozen=True)
@@ -966,7 +970,7 @@ def _append_bounded_newest_candidate(
 def _discover_youtube_url(query: str, limit: int) -> list[AcquisitionCandidate]:
     if limit <= 0:
         return []
-    video_id = _parse_youtube_url_or_id(query)
+    video_id = parse_youtube_url_or_id(query)
     if not video_id:
         return []
     url = f"https://www.youtube.com/watch?v={video_id}"
@@ -1009,7 +1013,7 @@ def _discover_youtube_search(
     language: str | None,
     session: requests.Session | None,
 ) -> list[AcquisitionCandidate]:
-    api_key = _youtube_api_key(config)
+    api_key = youtube_api_key(config)
     if not api_key or not query:
         return []
 
@@ -1032,11 +1036,11 @@ def _discover_youtube_search(
         return []
 
     search_items = [item for item in items if isinstance(item, Mapping)]
-    video_ids = [_youtube_video_id(item) for item in search_items]
+    video_ids = [youtube_video_id(item) for item in search_items]
     details_by_id = _fetch_youtube_video_details(client, api_key, video_ids)
     candidates: list[AcquisitionCandidate] = []
     for item in search_items:
-        video_id = _youtube_video_id(item)
+        video_id = youtube_video_id(item)
         if not video_id:
             continue
         snippet = item.get("snippet")
@@ -1067,8 +1071,8 @@ def _discover_youtube_search(
                 ),
                 published_at=_string_value(snippet.get("publishedAt")),
                 source_url=url,
-                thumbnail_url=_youtube_thumbnail(snippet),
-                duration_seconds=_parse_iso8601_duration(
+                thumbnail_url=youtube_thumbnail(snippet),
+                duration_seconds=parse_iso8601_duration(
                     _string_value(details.get("duration"))
                 ),
                 requires_confirmation=True,
@@ -1278,7 +1282,7 @@ def _youtube_provider_error(
 ) -> AcquisitionProviderDiscoveryError:
     response = exc.response
     status_code = response.status_code if response is not None else None
-    reason = _youtube_error_reason(response)
+    reason = youtube_error_reason(response)
     normalized_reason = reason.casefold()
     if normalized_reason in {
         "quotaexceeded",
@@ -1313,42 +1317,6 @@ def _youtube_provider_error(
         reason=reason or f"http_{status_code or 'unknown'}",
         message=message,
     )
-
-
-def _youtube_error_reason(response: requests.Response | None) -> str:
-    if response is None:
-        return ""
-    try:
-        payload = response.json()
-    except ValueError:
-        return ""
-    if not isinstance(payload, Mapping):
-        return ""
-    error = payload.get("error")
-    if not isinstance(error, Mapping):
-        return ""
-    errors = error.get("errors")
-    if isinstance(errors, Sequence):
-        for item in errors:
-            if not isinstance(item, Mapping):
-                continue
-            reason = _string_value(item.get("reason"))
-            if reason:
-                return reason
-    status_reason = _string_value(error.get("status"))
-    return status_reason or _string_value(error.get("reason")) or ""
-
-
-def _youtube_api_key(config: Mapping[str, Any]) -> str | None:
-    for key in ("youtube_api_key", "youtube_data_api_key"):
-        value = config.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    for key in ("YOUTUBE_API_KEY", "EBOOK_YOUTUBE_API_KEY"):
-        value = os.environ.get(key, "").strip()
-        if value:
-            return value
-    return None
 
 
 def _indexer_endpoint(config: Mapping[str, Any]) -> str | None:
@@ -1474,58 +1442,6 @@ def _title_from_filename(path: Path) -> str:
 
 def _candidate_token(payload: Mapping[str, Any]) -> str:
     return encode_acquisition_token(payload)
-
-
-def _youtube_video_id(item: Mapping[str, Any]) -> str | None:
-    item_id = item.get("id")
-    if isinstance(item_id, Mapping):
-        return _string_value(item_id.get("videoId"))
-    return None
-
-
-def _parse_youtube_url_or_id(value: str) -> str | None:
-    candidate = str(value or "").strip()
-    if not candidate:
-        return None
-    if _YOUTUBE_ID_PATTERN.fullmatch(candidate):
-        return candidate
-    if candidate.casefold().startswith(
-        (
-            "youtube.com/",
-            "www.youtube.com/",
-            "m.youtube.com/",
-            "youtu.be/",
-            "www.youtu.be/",
-        )
-    ):
-        candidate = f"https://{candidate}"
-    parsed = urlsplit(candidate)
-    hostname = (parsed.hostname or "").casefold()
-    if hostname in {"youtu.be", "www.youtu.be"}:
-        video_id = parsed.path.strip("/").split("/", 1)[0]
-        return video_id if _YOUTUBE_ID_PATTERN.fullmatch(video_id) else None
-    if hostname.endswith("youtube.com"):
-        path_parts = [part for part in parsed.path.split("/") if part]
-        if path_parts and path_parts[0] in {"shorts", "embed", "live"} and len(path_parts) > 1:
-            video_id = path_parts[1]
-            return video_id if _YOUTUBE_ID_PATTERN.fullmatch(video_id) else None
-        query_params = dict(parse_qsl(parsed.query, keep_blank_values=False))
-        video_id = query_params.get("v")
-        return video_id if video_id and _YOUTUBE_ID_PATTERN.fullmatch(video_id) else None
-    return None
-
-
-def _youtube_thumbnail(snippet: Mapping[str, Any]) -> str | None:
-    thumbnails = snippet.get("thumbnails")
-    if not isinstance(thumbnails, Mapping):
-        return None
-    for key in ("high", "medium", "default"):
-        entry = thumbnails.get(key)
-        if isinstance(entry, Mapping):
-            value = _string_value(entry.get("url"))
-            if value:
-                return value
-    return None
 
 
 def _gutenberg_epub_url(formats: Mapping[str, Any]) -> str | None:
@@ -1664,19 +1580,6 @@ def _gutenberg_person_names(value: Any) -> tuple[str, ...]:
         if name:
             names.append(name)
     return tuple(names)
-
-
-def _parse_iso8601_duration(value: str | None) -> int | None:
-    if not value:
-        return None
-    match = _ISO8601_DURATION_PATTERN.match(value)
-    if not match:
-        return None
-    days = int(match.group("days") or 0)
-    hours = int(match.group("hours") or 0)
-    minutes = int(match.group("minutes") or 0)
-    seconds = int(match.group("seconds") or 0)
-    return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
 def _normalize_language_code(value: str | None) -> str | None:

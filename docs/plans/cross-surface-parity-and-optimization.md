@@ -1301,7 +1301,12 @@ Optimization candidates:
   shared Web/Apple error logs and responses. These YouTube discovery, download,
   cleanup, linked-job tagging, and Dub submission failure paths also avoid
   traceback attachments in token-safe logs so raw URLs, NAS paths, titles,
-  languages, voices, and tokens do not leak through exception frames.
+  languages, voices, and tokens do not leak through exception frames. YouTube
+  discovery URL parsing, metadata normalization, duration parsing, API-key
+  lookup, and error-reason extraction now live in
+  `modules/services/acquisition/youtube_discovery.py` with focused acquisition
+  coverage, keeping Web and Apple video discovery behavior easier to evolve
+  without reopening the full acquisition service.
   Acquisition provider defaults keep
   local EPUB and NAS video as the primary choices when those roots are readable,
   include readable explicit manual/download-station inboxes in the backend-owned

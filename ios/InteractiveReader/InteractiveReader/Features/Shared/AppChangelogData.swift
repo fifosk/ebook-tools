@@ -14,6 +14,11 @@ enum AppChangelogData {
                     id: "backend-default-discovery-planning-helper",
                     title: "Default discovery stays aligned",
                     detail: "Backend Default sources discovery planning now lives in a focused tested helper, keeping local, manual-download, NAS, and remote-provider ordering rules aligned for Web and Apple Create source pickers."
+                ),
+                AppChangelogEntry(
+                    id: "backend-youtube-discovery-helper",
+                    title: "YouTube discovery is leaner",
+                    detail: "Backend YouTube acquisition discovery now shares focused tested helpers for URL parsing, metadata normalization, duration parsing, API-key lookup, and token-safe error reason extraction across Web and Apple Create video discovery."
                 )
             ]
         ),

@@ -10,6 +10,7 @@ import requests
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
+import modules.services.acquisition.youtube_discovery as youtube_discovery
 from modules.services.acquisition.discovery_planning import (
     order_default_discovery_candidates,
     provider_query_limit,
@@ -1862,6 +1863,52 @@ def test_acquire_gutenberg_candidate_rejects_untrusted_redirect(tmp_path: Path) 
             config={"ebooks_dir": str(tmp_path)},
             session=_FakeSession(),
         )
+
+
+def test_youtube_discovery_helpers_normalize_metadata_and_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert youtube_discovery.parse_youtube_url_or_id(
+        "https://www.youtube.com/watch?v=AbC123_xYz9&t=42s"
+    ) == "AbC123_xYz9"
+    assert youtube_discovery.parse_youtube_url_or_id(
+        "https://www.youtube.com/live/AbC123_xYz9?feature=share"
+    ) == "AbC123_xYz9"
+    assert youtube_discovery.parse_youtube_url_or_id("not-a-youtube-url") is None
+    assert youtube_discovery.youtube_video_id(
+        {"id": {"videoId": "AbC123_xYz9"}}
+    ) == "AbC123_xYz9"
+    assert youtube_discovery.youtube_thumbnail(
+        {
+            "thumbnails": {
+                "default": {"url": "https://img.example/default.jpg"},
+                "high": {"url": "https://img.example/high.jpg"},
+            }
+        }
+    ) == "https://img.example/high.jpg"
+    assert youtube_discovery.parse_iso8601_duration("P1DT2H3M4S") == 93784
+    assert youtube_discovery.parse_iso8601_duration("not-duration") is None
+
+    monkeypatch.setenv("EBOOK_YOUTUBE_API_KEY", "env-youtube-key")
+    assert youtube_discovery.youtube_api_key({}) == "env-youtube-key"
+    assert youtube_discovery.youtube_api_key(
+        {"youtube_data_api_key": " config-youtube-key "}
+    ) == "config-youtube-key"
+
+    class _FakeErrorResponse:
+        def json(self):
+            return {
+                "error": {
+                    "errors": [
+                        {
+                            "reason": "quotaExceeded",
+                            "message": "secret-youtube-key should not leak",
+                        }
+                    ]
+                }
+            }
+
+    assert youtube_discovery.youtube_error_reason(_FakeErrorResponse()) == "quotaExceeded"
 
 
 def test_discover_youtube_search_normalizes_metadata_without_secret() -> None:
