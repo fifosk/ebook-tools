@@ -332,7 +332,7 @@ Large Web UI hotspots to split before redesign work:
   coverage. The repo-owned `test-web-sidebar-focused` target now runs the root
   Sidebar, player entry, creation links, job overview/row, and sidebar utility
   tests so the reusable Web pipeline covers the split navigation shell directly.
-- `web/src/components/book-narration/BookNarrationForm.tsx` - 561 lines.
+- `web/src/components/book-narration/BookNarrationForm.tsx` - 557 lines.
   Status: server EPUB discovery, generated-source skips, latest-book default
   selection, upload validation, and history-derived start defaults now have
   focused hook coverage through `useBookNarrationFiles.ts`, and the repo-owned
@@ -402,7 +402,8 @@ Large Web UI hotspots to split before redesign work:
   named form callback rather than inline JSX, keeping the local/acquire/archive
   bridge and metadata-only handoff easier to compare with the Apple Create
   picker flow. Active Create tab initialization, external active-section sync,
-  and parent callback forwarding now live in
+  parent callback forwarding, default tab sections, and section metadata
+  override merging now live in
   `web/src/components/book-narration/useBookNarrationSectionState.ts` with
   focused hook coverage, matching the rest of the form's delegated state
   ownership. Saved-template application lifecycle now lives in
@@ -434,7 +435,7 @@ Large Web UI hotspots to split before redesign work:
   coverage. Submit orchestration now lives in
   `web/src/components/book-narration/useBookNarrationSubmitFlow.ts`, keeping
   pipeline submit, intake refresh, and submit-button presentation under focused
-  hook coverage while trimming the coordinator to 568 lines.
+  hook coverage while trimming the coordinator to 557 lines.
 
 ### Apple Apps
 

@@ -15,6 +15,23 @@ describe('useBookNarrationSectionState', () => {
     expect(result.current.activeTab).toBe('metadata');
   });
 
+  it('returns default tab sections and merged section metadata', () => {
+    const { result } = renderHook(() =>
+      useBookNarrationSectionState({
+        sectionOverrides: {
+          metadata: {
+            title: 'Review details',
+          },
+        },
+      }),
+    );
+
+    expect(result.current.tabSections).toEqual(BOOK_NARRATION_TAB_SECTIONS);
+    expect(result.current.sectionMeta.metadata.title).toBe('Review details');
+    expect(result.current.sectionMeta.metadata.description).toContain('Open Library');
+    expect(result.current.sectionMeta.source.title).toBe('Source');
+  });
+
   it('falls back to source when the requested section is not in the tab list', () => {
     const { result } = renderHook(() =>
       useBookNarrationSectionState({

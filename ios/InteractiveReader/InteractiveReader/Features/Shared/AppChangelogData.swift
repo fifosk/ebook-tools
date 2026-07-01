@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-narrate-section-state-hook",
+                    title: "Narrate Ebook sections are leaner",
+                    detail: "Web Narrate Ebook section tabs and metadata overrides now resolve through the focused section-state hook, trimming the form coordinator while keeping Create step presentation covered."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-prefetch-lane",
                     title: "Single-track prefetch holds",
                     detail: "Apple reader adjacent-batch prefetch now treats the durable original-only or translation-only lane as authoritative and warms the selected stream inside combined-only batches, reducing batch-end races where rendering could reset away from the chosen audio track."

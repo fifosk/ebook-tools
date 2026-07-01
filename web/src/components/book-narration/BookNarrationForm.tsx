@@ -38,17 +38,13 @@ import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
 import { filterBookNarrationDiscoveryCandidates } from './bookNarrationDiscoveryProviders';
 import type {
   BookNarrationFormProps,
-  BookNarrationFormSection,
   FormState
 } from './bookNarrationFormTypes';
 import {
-  BOOK_NARRATION_SECTION_META,
-  BOOK_NARRATION_TAB_SECTIONS,
   DEFAULT_FORM_STATE
 } from './bookNarrationFormDefaults';
 import {
   buildBookNarrationInitialFormState,
-  resolveBookNarrationSectionMeta,
 } from './bookNarrationFormUtils';
 
 export type { BookNarrationFormSection } from './bookNarrationFormTypes';
@@ -138,10 +134,6 @@ export function BookNarrationForm({
     userEditedStartRef,
   } = useBookNarrationWorkflowRefs();
 
-  const sectionMeta = useMemo(() => {
-    return resolveBookNarrationSectionMeta(BOOK_NARRATION_SECTION_META, sectionOverrides);
-  }, [sectionOverrides]);
-
   const {
     normalizePath,
     resolveLatestJobSelection,
@@ -201,10 +193,14 @@ export function BookNarrationForm({
     implicitEndOffsetThreshold: implicitEndOffsetThreshold ?? null,
     normalizedInputPath: normalizedInputForBookMetadataCache
   });
-  const tabSections: BookNarrationFormSection[] = BOOK_NARRATION_TAB_SECTIONS;
-  const { activeTab, handleSectionChange } = useBookNarrationSectionState({
-    activeSection,
+  const {
+    activeTab,
+    handleSectionChange,
+    sectionMeta,
     tabSections,
+  } = useBookNarrationSectionState({
+    activeSection,
+    sectionOverrides,
     onSectionChange
   });
 
