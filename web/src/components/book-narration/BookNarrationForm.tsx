@@ -29,8 +29,7 @@ import { useBookNarrationWorkflowRefs } from './useBookNarrationWorkflowRefs';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
-import { BookNarrationFileDialog } from './BookNarrationFileDialog';
-import { BookNarrationDiscoveryDialog } from './BookNarrationDiscoveryDialog';
+import { BookNarrationFormDialogs } from './BookNarrationFormDialogs';
 import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
 import type {
   BookNarrationFormProps,
@@ -508,37 +507,30 @@ export function BookNarrationForm({
           />
         </div>
       </form>
-      <BookNarrationFileDialog
+      <BookNarrationFormDialogs
         activeFileDialog={activeFileDialog}
         fileOptions={fileOptions}
         onInputFileSelect={handleInputFileChange}
         onOutputPathSelect={(path) => handleChange('base_output_file', path)}
-        onClose={() => setActiveFileDialog(null)}
-        onDeleteEbook={(entry) => {
-          void handleDeleteEbook(entry);
-        }}
-      />
-      <BookNarrationDiscoveryDialog
-        active={activeDiscoveryDialog}
-        provider={discoveryProvider}
-        query={discoveryQuery}
-        candidates={discoveryCandidates}
-        policyNotes={discoveryResponse?.policy_notes ?? []}
-        providersQueried={discoveryResponse?.providers_queried ?? []}
-        isLoading={isDiscovering}
+        onCloseFileDialog={() => setActiveFileDialog(null)}
+        onDeleteEbook={handleDeleteEbook}
+        activeDiscoveryDialog={activeDiscoveryDialog}
+        discoveryProvider={discoveryProvider}
+        discoveryQuery={discoveryQuery}
+        discoveryCandidates={discoveryCandidates}
+        discoveryResponse={discoveryResponse}
+        discoveryError={discoveryError}
+        isDiscovering={isDiscovering}
         isLoadingProviders={isLoadingProviders}
         acquiringCandidateId={acquiringCandidateId}
         providerOptions={providerOptions}
-        error={discoveryError}
         providerError={providerError}
         selectedProviderUnavailableMessage={selectedProviderUnavailableMessage}
-        onProviderChange={changeDiscoveryProvider}
-        onQueryChange={setDiscoveryQuery}
-        onSearch={(query) => {
-          void runDiscoverySearch(query);
-        }}
-        onSelect={handleDiscoveryCandidateSelect}
-        onClose={closeDiscoveryDialog}
+        onDiscoveryProviderChange={changeDiscoveryProvider}
+        onDiscoveryQueryChange={setDiscoveryQuery}
+        onDiscoverySearch={runDiscoverySearch}
+        onDiscoverySelect={handleDiscoveryCandidateSelect}
+        onCloseDiscoveryDialog={closeDiscoveryDialog}
       />
     </div>
   );

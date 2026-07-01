@@ -332,7 +332,7 @@ Large Web UI hotspots to split before redesign work:
   coverage. The repo-owned `test-web-sidebar-focused` target now runs the root
   Sidebar, player entry, creation links, job overview/row, and sidebar utility
   tests so the reusable Web pipeline covers the split navigation shell directly.
-- `web/src/components/book-narration/BookNarrationForm.tsx` - 548 lines.
+- `web/src/components/book-narration/BookNarrationForm.tsx` - 540 lines.
   Status: server EPUB discovery, generated-source skips, latest-book default
   selection, upload validation, and history-derived start defaults now have
   focused hook coverage through `useBookNarrationFiles.ts`, and the repo-owned
@@ -398,7 +398,10 @@ Large Web UI hotspots to split before redesign work:
   repo-owned `test-web-create-intake-focused`
   target now runs those rendered component tests with the narration form and
   intake utility slices, so the shared Web pipeline covers the split Create
-  shell before full Vitest. Discovery candidate selection now routes through a
+  shell before full Vitest. File and discovery dialog wiring now lives in
+  `web/src/components/book-narration/BookNarrationFormDialogs.tsx`, keeping
+  modal selection, deletion, and search routing covered outside the form
+  coordinator. Discovery candidate selection now routes through a
   named form callback rather than inline JSX, keeping the local/acquire/archive
   bridge and metadata-only handoff easier to compare with the Apple Create
   picker flow. Discovery response candidate filtering, including backend-default

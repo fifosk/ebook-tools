@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-narrate-dialog-wrapper",
+                    title: "Narrate Ebook dialogs are leaner",
+                    detail: "Web Narrate Ebook file and discovery dialog wiring now lives in a focused rendered wrapper, keeping modal routing out of the main form coordinator while preserving source selection and search behavior."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-discovery-candidates-hook",
                     title: "Narrate Ebook discovery is leaner",
                     detail: "Web Narrate Ebook discovery candidate filtering now lives in the discovery hook with focused coverage, keeping backend-default source filtering out of the main form coordinator."
