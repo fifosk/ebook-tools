@@ -68,6 +68,29 @@ def create_service(tmp_path: Path) -> tuple[LibrarySync, FileLocator, Path, Trac
     return service, locator, library_root, job_manager
 
 
+def add_library_entry(
+    service: LibrarySync,
+    job_root: Path,
+    metadata: dict,
+) -> LibraryEntry:
+    write_metadata(job_root, metadata)
+    entry = LibraryEntry(
+        id=metadata["job_id"],
+        author=metadata.get("author"),
+        book_title=metadata.get("book_title"),
+        item_type=metadata.get("item_type", "book"),
+        genre=metadata.get("genre"),
+        language=metadata.get("language"),
+        status=metadata.get("status", "completed"),
+        created_at=metadata.get("created_at"),
+        updated_at=metadata.get("updated_at"),
+        library_path=str(job_root),
+        metadata=MetadataSnapshot(metadata=metadata),
+    )
+    service._repository.add_entry(entry)
+    return entry
+
+
 def test_prepare_youtube_dub_bundle_uses_safe_stat_for_media_sources(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -324,6 +347,109 @@ def test_remove_media_and_entry(tmp_path, monkeypatch: pytest.MonkeyPatch):
 
     with pytest.raises(LibraryNotFoundError):
         service.remove_entry(job_id)
+
+
+def test_update_metadata_uses_safe_stat_for_root_and_relocation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
+    job_id = "job-edit"
+    job_root = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    metadata = build_job_metadata(job_id)
+    add_library_entry(service, job_root, metadata)
+    target_path = library_root / "Jane Doe" / "Renamed Book" / "en" / job_id
+    original_exists = Path.exists
+
+    def fake_atomic_move(source: Path, destination: Path, **_kwargs) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, destination)
+        shutil.rmtree(source)
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path in {job_root, target_path}:
+            raise AssertionError("library metadata edit paths should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(library_sync_module, "atomic_move", fake_atomic_move)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    updated = service.update_metadata(job_id, title="Renamed Book")
+
+    assert updated.book_title == "Renamed Book"
+    assert updated.library_path == str(target_path.resolve())
+    assert original_exists(target_path / "metadata" / "job.json")
+
+
+def test_update_access_uses_safe_stat_for_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
+    job_id = "job-access"
+    job_root = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    metadata = build_job_metadata(job_id)
+    add_library_entry(service, job_root, metadata)
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == job_root:
+            raise AssertionError("library access edit roots should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    updated = service.update_access(job_id, visibility="private", actor_id="tester")
+
+    assert updated.metadata.data["access"]["visibility"] == "private"
+
+
+def test_refresh_metadata_uses_safe_stat_for_root_and_relocation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
+    job_id = "job-refresh"
+    job_root = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    metadata = build_job_metadata(job_id)
+    add_library_entry(service, job_root, metadata)
+    target_path = library_root / "Jane Doe" / "Refreshed Book" / "en" / job_id
+    original_exists = Path.exists
+
+    def fake_refresh_metadata(
+        _job_id: str,
+        _job_root: Path,
+        payload: dict,
+        *_args,
+        **_kwargs,
+    ) -> dict:
+        refreshed = dict(payload)
+        refreshed["book_title"] = "Refreshed Book"
+        media_metadata = dict(refreshed.get("media_metadata") or {})
+        media_metadata["book_title"] = "Refreshed Book"
+        media_metadata["book_author"] = refreshed.get("author")
+        refreshed["media_metadata"] = media_metadata
+        return refreshed
+
+    def fake_atomic_move(source: Path, destination: Path, **_kwargs) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, destination)
+        shutil.rmtree(source)
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path in {job_root, target_path}:
+            raise AssertionError("library metadata refresh paths should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(library_sync_module.remote_sync, "refresh_metadata", fake_refresh_metadata)
+    monkeypatch.setattr(library_sync_module, "atomic_move", fake_atomic_move)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    updated = service.refresh_metadata(job_id)
+
+    assert updated.book_title == "Refreshed Book"
+    assert updated.library_path == str(target_path.resolve())
+    assert original_exists(target_path / "metadata" / "job.json")
 
 
 def test_move_paused_job_requires_completed_media(tmp_path):

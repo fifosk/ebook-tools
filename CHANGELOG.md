@@ -31,6 +31,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web and Apple Library YouTube-dub bundling now discovers source videos, subtitle companions, staging roots, and copied metadata through tolerant stat probes, reducing NAS races when moving video jobs into the Library.
 - Web and Apple Library moves now validate queue roots, target conflicts, YouTube stitched-media detection, and post-move cleanup waits through tolerant stat probes, reducing NAS races during book/video promotion.
 - Web and Apple Library media-removal and entry-delete actions now validate item roots and prune ancestors through tolerant stat probes, reducing shared-storage races during cleanup.
+- Web and Apple Library metadata edits, access edits, and refresh relocations now validate item roots and rename targets through tolerant stat probes, reducing NAS races during item maintenance.
 
 ## 2026-06-30
 

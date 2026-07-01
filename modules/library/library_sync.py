@@ -506,7 +506,7 @@ class LibrarySync:
             raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
 
         job_root = Path(item.library_path)
-        if not job_root.exists():
+        if not _path_exists(job_root):
             raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
 
         normalized_title = (title or item.book_title or "").strip() or item.book_title
@@ -570,7 +570,7 @@ class LibrarySync:
             target_resolved = target_path.resolve()
 
             if target_resolved != current_resolved:
-                if target_resolved.exists():
+                if _path_exists(target_resolved):
                     raise LibraryConflictError(
                         f"Library path {target_resolved} already exists for job {job_id}"
                     )
@@ -610,7 +610,7 @@ class LibrarySync:
             raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
 
         job_root = Path(item.library_path)
-        if not job_root.exists():
+        if not _path_exists(job_root):
             raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
 
         with DirectoryLock(job_root):
@@ -644,7 +644,7 @@ class LibrarySync:
             raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
 
         job_root = Path(item.library_path)
-        if not job_root.exists():
+        if not _path_exists(job_root):
             raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
 
         with DirectoryLock(job_root) as lock:
@@ -669,7 +669,7 @@ class LibrarySync:
             current_resolved = job_root.resolve()
             target_resolved = target_path.resolve()
             if target_resolved != current_resolved:
-                if target_resolved.exists():
+                if _path_exists(target_resolved):
                     raise LibraryConflictError(
                         f"Library path {target_resolved} already exists for job {job_id}"
                     )

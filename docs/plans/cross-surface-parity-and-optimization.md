@@ -1036,6 +1036,9 @@ Optimization candidates:
   Library media-removal and entry-delete actions now check item roots and
   ancestor-pruning directories through tolerant stat probes, reducing
   Web/Apple cleanup races around shared library storage.
+  Library metadata edits, access edits, and refresh relocations now check item
+  roots and rename targets through tolerant stat probes, reducing Web/Apple
+  item-maintenance races around NAS-backed library folders.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in
