@@ -409,8 +409,12 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/book-narration/useBookNarrationFormEditing.ts`, keeping
   ordinary field-change side effects, shared language preference sync,
   image-default edit markers, voice override edits, and override-language
-  derivation under focused hook coverage while trimming the coordinator to 716
-  lines.
+  derivation under focused hook coverage. Prefilled input-file and rerun
+  parameter application now live in
+  `web/src/components/book-narration/useBookNarrationPrefill.ts`, keeping cached
+  metadata hydration, history-derived starts, duplicate prefill suppression,
+  and edited-field preservation covered outside the coordinator while trimming
+  it to 680 lines.
 
 ### Apple Apps
 

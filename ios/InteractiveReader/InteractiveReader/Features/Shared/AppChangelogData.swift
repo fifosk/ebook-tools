@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-narrate-prefill-hook",
+                    title: "Narrate Ebook prefill is leaner",
+                    detail: "Web Narrate Ebook prefilled input-file and rerun-parameter application now run through a focused tested hook, moving cached metadata hydration, history-derived starts, and edited-field preservation out of the main form coordinator."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-same-url-lane-reassert",
                     title: "Single-track batches stay locked",
                     detail: "Apple reader single-track audio preparation now reasserts the active original-only or translation-only lane and timing URL even when the next batch reuses an already loaded URL, preventing rendering from drifting away from narration."

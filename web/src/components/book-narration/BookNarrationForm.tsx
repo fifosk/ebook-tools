@@ -13,7 +13,6 @@ import {
   VOICE_OPTIONS,
   WRITTEN_MODE_OPTIONS
 } from '../../constants/menuOptions';
-import { loadCachedMediaMetadataJson } from '../../utils/mediaMetadataCache';
 import { useLanguagePreferences } from '../../context/LanguageProvider';
 import { useBookNarrationVoices } from './useBookNarrationVoices';
 import { useBookNarrationMetadata } from './useBookNarrationMetadata';
@@ -28,6 +27,7 @@ import { useBookNarrationFormEditing } from './useBookNarrationFormEditing';
 import { useBookNarrationSectionState } from './useBookNarrationSectionState';
 import { useBookNarrationTemplateApply } from './useBookNarrationTemplateApply';
 import { useBookNarrationTemplateSave } from './useBookNarrationTemplateSave';
+import { useBookNarrationPrefill } from './useBookNarrationPrefill';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
@@ -54,8 +54,6 @@ import {
   applyBookNarrationForcedBaseOutput,
   applyBookNarrationGeneratedSourceDefaults,
   applyBookNarrationImageDefaults,
-  applyBookNarrationPrefillInputFile,
-  applyBookNarrationPrefillParameters,
   buildBookNarrationInitialFormState,
   normalizeBookNarrationPath,
   preserveBookNarrationUserEditedFields,
@@ -152,7 +150,6 @@ export function BookNarrationForm({
   const [selectedDiscoveryTemplateState, setSelectedDiscoveryTemplateState] =
     useState<Record<string, unknown> | null>(null);
   const prefillAppliedRef = useRef<string | null>(null);
-  const prefillParametersRef = useRef<string | null>(null);
   const creationTemplateAppliedRef = useRef<string | null>(null);
   const recentJobsRef = useRef<PipelineStatusResponse[] | null>(recentJobs ?? null);
   const userEditedStartRef = useRef<boolean>(false);
@@ -409,53 +406,20 @@ export function BookNarrationForm({
     selectDiscoveryCandidate
   ]);
 
-  useEffect(() => {
-    if (prefillInputFile === undefined) {
-      return;
-    }
-    const normalizedPrefill = prefillInputFile && prefillInputFile.trim();
-    if (!normalizedPrefill) {
-      prefillAppliedRef.current = null;
-      return;
-    }
-    if (prefillAppliedRef.current === normalizedPrefill) {
-      return;
-    }
-    userEditedStartRef.current = false;
-    userEditedInputRef.current = false;
-    userEditedEndRef.current = false;
-    lastAutoEndSentenceRef.current = null;
-    const normalizedInput = normalizePath(normalizedPrefill);
-    const cachedBookMetadata = normalizedInput ? loadCachedMediaMetadataJson(normalizedInput) : null;
-    const suggestedStart = resolveStartFromHistory(normalizedPrefill);
-    setFormState((previous) => {
-      return applyBookNarrationPrefillInputFile({
-        previous,
-        inputFile: normalizedPrefill,
-        forcedBaseOutputFile,
-        cachedBookMetadata,
-        suggestedStartSentence: suggestedStart
-      });
-    });
-    prefillAppliedRef.current = normalizedPrefill;
-  }, [prefillInputFile, resolveStartFromHistory, forcedBaseOutputFile, normalizePath]);
-
-  useEffect(() => {
-    if (!prefillParameters) {
-      prefillParametersRef.current = null;
-      return;
-    }
-    const key = JSON.stringify(prefillParameters);
-    if (prefillParametersRef.current === key) {
-      return;
-    }
-    prefillParametersRef.current = key;
-
-    setFormState((previous) => {
-      const next = applyBookNarrationPrefillParameters(previous, prefillParameters, forcedBaseOutputFile);
-      return preserveUserEditedFields(previous, next);
-    });
-  }, [prefillParameters, forcedBaseOutputFile, preserveUserEditedFields]);
+  useBookNarrationPrefill({
+    forcedBaseOutputFile,
+    lastAutoEndSentenceRef,
+    normalizePath,
+    prefillAppliedRef,
+    prefillInputFile,
+    prefillParameters,
+    preserveUserEditedFields,
+    resolveStartFromHistory,
+    setFormState,
+    userEditedEndRef,
+    userEditedInputRef,
+    userEditedStartRef,
+  });
 
   const {
     effectiveTemplateError,

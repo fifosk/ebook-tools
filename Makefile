@@ -252,6 +252,7 @@ test-web-create-intake-focused:
 		src/components/__tests__/useBookNarrationChapters.test.tsx \
 		src/components/__tests__/useBookNarrationFiles.test.tsx \
 		src/components/__tests__/useBookNarrationFormEditing.test.tsx \
+		src/components/__tests__/useBookNarrationPrefill.test.tsx \
 		src/components/__tests__/useBookNarrationTemplateApply.test.tsx \
 		src/components/__tests__/useBookNarrationTemplateSave.test.tsx \
 		src/components/__tests__/useBookNarrationVoices.test.tsx \
