@@ -54,6 +54,8 @@ import {
 } from './bookNarrationFormDefaults';
 import {
   areLanguageArraysEqual,
+  applyBookNarrationForcedBaseOutput,
+  applyBookNarrationGeneratedSourceDefaults,
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillInputFile,
   applyBookNarrationPrefillParameters,
@@ -638,26 +640,11 @@ export function BookNarrationForm({
     userEditedStartRef.current = false;
     userEditedEndRef.current = false;
     lastAutoEndSentenceRef.current = null;
-    setFormState((previous) => ({
-      ...previous,
-      start_sentence: 1,
-      end_sentence: ''
-    }));
+    setFormState((previous) => applyBookNarrationGeneratedSourceDefaults(previous));
   }, [isGeneratedSource]);
 
   useEffect(() => {
-    if (forcedBaseOutputFile === null || forcedBaseOutputFile === undefined) {
-      return;
-    }
-    setFormState((previous) => {
-      if (previous.base_output_file === forcedBaseOutputFile) {
-        return previous;
-      }
-      return {
-        ...previous,
-        base_output_file: forcedBaseOutputFile
-      };
-    });
+    setFormState((previous) => applyBookNarrationForcedBaseOutput(previous, forcedBaseOutputFile));
   }, [forcedBaseOutputFile]);
 
   const { handleSubmit } = useBookNarrationSubmit({

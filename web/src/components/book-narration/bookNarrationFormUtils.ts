@@ -183,6 +183,33 @@ export function applyBookNarrationVoiceOverride(
   };
 }
 
+export function applyBookNarrationGeneratedSourceDefaults(state: FormState): FormState {
+  if (state.start_sentence === 1 && state.end_sentence === '') {
+    return state;
+  }
+  return {
+    ...state,
+    start_sentence: 1,
+    end_sentence: '',
+  };
+}
+
+export function applyBookNarrationForcedBaseOutput(
+  state: FormState,
+  forcedBaseOutputFile: string | null | undefined,
+): FormState {
+  if (forcedBaseOutputFile === null || forcedBaseOutputFile === undefined) {
+    return state;
+  }
+  if (state.base_output_file === forcedBaseOutputFile) {
+    return state;
+  }
+  return {
+    ...state,
+    base_output_file: forcedBaseOutputFile,
+  };
+}
+
 export function targetLanguageFieldsFromLanguages(languages: string[]): Pick<
   FormState,
   'target_languages' | 'custom_target_languages'

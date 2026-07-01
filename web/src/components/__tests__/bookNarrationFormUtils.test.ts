@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { PipelineStatusResponse } from '../../api/dtos';
 import { BOOK_NARRATION_SECTION_META, DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults';
 import {
+  applyBookNarrationForcedBaseOutput,
+  applyBookNarrationGeneratedSourceDefaults,
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillInputFile,
   applyBookNarrationPrefillParameters,
@@ -245,6 +247,52 @@ describe('bookNarrationFormUtils voice override edits', () => {
     expect(applyBookNarrationVoiceOverride(previous, '   ', 'Thomas')).toBe(previous);
     expect(applyBookNarrationVoiceOverride(previous, 'de', ' Anna ')).toBe(previous);
     expect(applyBookNarrationVoiceOverride(previous, 'it', '   ')).toBe(previous);
+  });
+});
+
+describe('bookNarrationFormUtils source/output state updates', () => {
+  it('resets generated-source sentence bounds without mutating previous state', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      start_sentence: 34,
+      end_sentence: '89',
+    };
+
+    const next = applyBookNarrationGeneratedSourceDefaults(previous);
+
+    expect(next).not.toBe(previous);
+    expect(next).toMatchObject({
+      start_sentence: 1,
+      end_sentence: '',
+    });
+    expect(previous).toMatchObject({
+      start_sentence: 34,
+      end_sentence: '89',
+    });
+  });
+
+  it('keeps generated-source state identity when sentence bounds are already reset', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      start_sentence: 1,
+      end_sentence: '',
+    };
+
+    expect(applyBookNarrationGeneratedSourceDefaults(previous)).toBe(previous);
+  });
+
+  it('applies forced output names and preserves identity for unchanged or absent values', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      base_output_file: 'draft-output',
+    };
+
+    expect(applyBookNarrationForcedBaseOutput(previous, 'forced-output')).toMatchObject({
+      base_output_file: 'forced-output',
+    });
+    expect(applyBookNarrationForcedBaseOutput(previous, 'draft-output')).toBe(previous);
+    expect(applyBookNarrationForcedBaseOutput(previous, null)).toBe(previous);
+    expect(applyBookNarrationForcedBaseOutput(previous, undefined)).toBe(previous);
   });
 });
 
