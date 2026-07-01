@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Apple reader single-track batch advances now reapply the active original-only/translation-only audio option before selecting the next chunk and explicitly target the first next-batch sentence, preventing end-of-batch resets that made rendering drift from narration.
 - Apple Create book/video discovery now shows response-level policy notes from partial Default sources searches, matching Web Video Dubbing when local results remain available but YouTube or indexer providers warn.
 - Web Video Dubbing discovery now shows backend policy notes from partial Default sources searches, so NAS/manual candidates remain selectable while YouTube or indexer warnings stay visible.
 - Apple reader single-track playback now treats the active original-only/translation-only mode as authoritative when a new sentence batch still carries a stale selected audio-track id, keeping header progress, prefetch, rendering, and narration on the selected lane instead of drifting back to combined/original.

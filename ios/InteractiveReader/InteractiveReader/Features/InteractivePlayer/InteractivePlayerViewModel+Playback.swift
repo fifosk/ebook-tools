@@ -500,7 +500,7 @@ extension InteractivePlayerViewModel {
             }
             if forward {
                 if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
-                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: 0)
                 }
             } else {
                 if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
@@ -533,7 +533,7 @@ extension InteractivePlayerViewModel {
             }
             if forward {
                 if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
-                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: 0)
                 }
             } else if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
                 selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
@@ -553,7 +553,7 @@ extension InteractivePlayerViewModel {
                 return
             }
             if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
-                selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: 0)
             }
         } else {
             let targetIndex = activeIndex - 1
@@ -688,7 +688,7 @@ extension InteractivePlayerViewModel {
             // No more sentences in this direction, try next/previous chunk
             if forward {
                 if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
-                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: 0)
                 }
             } else {
                 if let previousChunk = jobContext?.previousChunk(before: chunk.id) {

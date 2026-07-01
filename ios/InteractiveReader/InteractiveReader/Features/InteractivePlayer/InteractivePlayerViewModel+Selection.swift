@@ -473,6 +473,10 @@ extension InteractivePlayerViewModel {
             audioCoordinator.pause()
             return
         }
+        if audioModeManager?.isSequenceMode == false {
+            synchronizeSelectedAudioTrackWithCurrentMode(for: nextChunk)
+            rememberSingleTrackSentenceAnchor(in: nextChunk, targetIndex: 0)
+        }
         selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)
     }
 

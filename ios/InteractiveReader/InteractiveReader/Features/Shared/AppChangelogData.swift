@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-boundary-option-lock",
+                    title: "Translation-only survives batch boundaries",
+                    detail: "Apple reader single-track batch advances now reapply the active original-only or translation-only audio option before selecting the next chunk and explicitly target the first next-batch sentence, keeping rendering and narration on the same lane."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-discovery-policy-notes",
                     title: "Discovery warnings stay visible",
                     detail: "Apple Create book and video discovery now shows response-level policy notes from partial Default sources searches, so local candidates stay selectable while YouTube or indexer warnings remain visible."

@@ -132,8 +132,12 @@ Follow the suggested remediations to restore parity:
   before sentence tokens load. Natural end-of-batch single-track advances should
   establish a fresh next-batch anchor from the target index or chunk range before
   autoplay starts, so placeholder metadata can still render the selected lane
-  while detailed sentence tokens hydrate. Otherwise end-of-batch playback can
-  reset to combined/sequence audio and render out of sync with the selected track.
+  while detailed sentence tokens hydrate. Natural and manual forward batch
+  advances should also reapply the active single-track audio option before
+  selecting the next chunk and pass an explicit sentence-0 target, because the
+  audio player may have cleared its requested-playback flag by the time the
+  end-of-file callback fires. Otherwise end-of-batch playback can reset to
+  combined/sequence audio and render out of sync with the selected track.
   When a batch handoff or metadata refresh leaves `selectedAudioTrackID` pointing
   at a stale combined/original option, Original-only or Translation-only mode
   remains authoritative for option repair, duration/progress, and prefetch

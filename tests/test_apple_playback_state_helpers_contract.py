@@ -188,7 +188,8 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "chunk/batch setup must preserve that single-track mode" in frontend_sync
     assert "based on playable audio options too, not only currently hydrated visible text\n  tracks" in frontend_sync
     assert "Natural end-of-batch single-track advances should\n  establish a fresh next-batch anchor" in frontend_sync
-    assert "end-of-batch playback can\n  reset to combined/sequence audio" in frontend_sync
+    assert "reapply the active single-track audio option before\n  selecting the next chunk" in frontend_sync
+    assert "pass an explicit sentence-0 target" in frontend_sync
     sequence_source = (INTERACTIVE / "InteractivePlayerViewModel+Sequence.swift").read_text(encoding="utf-8")
     sequence_active_body = sequence_source.split("var isSequenceModeActive: Bool", 1)[1].split("\n}", 1)[0]
     assert "guard audioModeManager?.isSequenceMode != false else" in sequence_active_body
@@ -650,8 +651,20 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
 
     ended_body = _function_body(selection, "func handlePlaybackEnded()")
     assert "let nextChunk = jobContext?.nextChunk(after: chunk.id)" in ended_body
+    assert "audioModeManager?.isSequenceMode == false" in ended_body
+    assert "synchronizeSelectedAudioTrackWithCurrentMode(for: nextChunk)" in ended_body
+    assert "rememberSingleTrackSentenceAnchor(in: nextChunk, targetIndex: 0)" in ended_body
+    assert ended_body.index("synchronizeSelectedAudioTrackWithCurrentMode(for: nextChunk)") < ended_body.index(
+        "selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)"
+    )
     assert "selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)" in ended_body
     assert "selectChunk(id: nextChunk.id, autoPlay: true)" not in ended_body
+
+    playback = _source("InteractivePlayerViewModel+Playback.swift")
+    assert playback.count(
+        "selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: 0)"
+    ) >= 4
+    assert "selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)" not in playback
 
 
 def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
