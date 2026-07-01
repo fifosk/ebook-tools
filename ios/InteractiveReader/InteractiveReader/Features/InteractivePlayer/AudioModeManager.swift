@@ -269,6 +269,7 @@ extension AudioModeManager {
         let track: InteractiveChunk.AudioOption? = {
             if let id = selectedTrackID {
                 return chunk.audioOptions.first(where: { $0.id == id })
+                    ?? chunk.audioOptions.first
             }
             return chunk.audioOptions.first
         }()
@@ -374,6 +375,7 @@ extension AudioModeManager {
         let track: InteractiveChunk.AudioOption? = {
             if let id = selectedTrackID {
                 return chunk.audioOptions.first(where: { $0.id == id })
+                    ?? chunk.audioOptions.first
             }
             return chunk.audioOptions.first
         }()

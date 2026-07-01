@@ -189,6 +189,7 @@ extension InteractivePlayerViewModel {
             mediaResponse = mergedMedia
             jobContext = context
             if let selectedChunkID, context.chunk(withID: selectedChunkID) != nil {
+                reassertSelectedAudioTrackAfterContextRebuild()
                 return
             }
             configureDefaultSelections()
@@ -462,6 +463,9 @@ extension InteractivePlayerViewModel {
             )
             mediaResponse = refreshedMedia
             jobContext = context
+            if selectedChunkID == chunkID {
+                reassertSelectedAudioTrackAfterContextRebuild()
+            }
             if let updatedChunk = context.chunk(withID: chunkID) {
                 attemptPendingSentenceJump(in: updatedChunk)
             }

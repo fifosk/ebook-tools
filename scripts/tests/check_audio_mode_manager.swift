@@ -188,6 +188,27 @@ private func runChecks() {
         "Translation-only mode should ignore a stale original selected track"
     )
 
+    let nextOriginalURL = URL(string: "https://example.invalid/chunk-2-original.m4a")!
+    let nextTranslationURL = URL(string: "https://example.invalid/chunk-2-translation.m4a")!
+    let nextCombined = audioOption("next-combined", kind: .combined, urls: [nextOriginalURL, nextTranslationURL])
+    let nextOriginal = audioOption("next-original", kind: .original, urls: [nextOriginalURL])
+    let nextTranslation = audioOption("next-translation", kind: .translation, urls: [nextTranslationURL])
+    let nextChunk = InteractiveChunk(
+        id: "chunk-2",
+        audioOptions: [nextCombined, nextOriginal, nextTranslation]
+    )
+    requireEqual(
+        manager.resolvePreferredTrackID(for: nextChunk),
+        "next-translation",
+        "Translation-only mode should resolve the fresh next-batch translation option"
+    )
+    requireInstruction(
+        manager.resolveAudioInstruction(for: nextChunk, selectedTrackID: "translation"),
+        optionID: "next-translation",
+        timing: .translation,
+        "Translation-only mode should ignore the previous batch's selected track id"
+    )
+
     manager.enableSequenceMode()
     requireInstruction(
         manager.resolveAudioInstruction(for: chunk, selectedTrackID: "combined"),

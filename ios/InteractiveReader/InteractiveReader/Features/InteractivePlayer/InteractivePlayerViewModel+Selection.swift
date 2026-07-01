@@ -329,6 +329,26 @@ extension InteractivePlayerViewModel {
         repairSelectedAudioTrackIfNeeded(for: chunk)
     }
 
+    @discardableResult
+    func reassertSelectedAudioTrackAfterContextRebuild() -> Bool {
+        guard let chunk = selectedChunk else { return false }
+        let previousTrackID = selectedAudioTrackID
+        let previousPreferredKind = preferredAudioKind
+        let previousAudioMode = sequenceController.audioMode
+
+        synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)
+
+        let changed = previousTrackID != selectedAudioTrackID
+            || previousPreferredKind != preferredAudioKind
+            || previousAudioMode != sequenceController.audioMode
+        if changed {
+            interactiveSelectionLogger.debug(
+                "Context rebuild reasserted audio selection chunk=\(chunk.id, privacy: .private), trackID=\(self.selectedAudioTrackID ?? "nil", privacy: .private), mode=\(self.sequenceController.audioMode.description, privacy: .public)"
+            )
+        }
+        return changed
+    }
+
     func applySingleTrackSelection(_ track: SequenceTrack, for chunk: InteractiveChunk) {
         if let audioModeManager {
             audioModeManager.setTracks(

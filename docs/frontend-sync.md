@@ -155,7 +155,10 @@ Follow the suggested remediations to restore parity:
   default lane. `prepareAudio` must also reapply that single-track option
   immediately before resolving URLs so an EOF callback, metadata retry, or view
   lifecycle refresh cannot prepare the next batch from a stale combined/default
-  selection.
+  selection. Live-media and chunk-metadata context rebuilds that keep the same
+  selected chunk must re-resolve the selected option from the active mode too;
+  otherwise fresh chunk objects can inherit old batch option ids while the audio
+  clock continues on the selected single track.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

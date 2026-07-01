@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-context-rebuild-lock",
+                    title: "Translation-only survives metadata refresh",
+                    detail: "Apple reader original-only and translation-only playback now re-resolves the selected audio option after live media or chunk metadata rebuilds, so new sentence batches cannot keep stale track IDs and drift rendering from narration."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-prepare-option-lock",
                     title: "Translation-only survives prepare",
                     detail: "Apple reader original-only and translation-only playback now reasserts the active single-track audio option every time audio prepares, so stale combined or original selections cannot reset rendering after a sentence-batch handoff."
