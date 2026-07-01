@@ -481,6 +481,9 @@ extension InteractivePlayerViewModel {
         guard audioModeManager?.isSequenceMode != false else {
             return false
         }
+        if case .singleTrack = sequenceController.audioMode {
+            return false
+        }
         guard let chunk = selectedChunk,
               let trackID = selectedAudioTrackID,
               let track = chunk.audioOptions.first(where: { $0.id == trackID }) else {

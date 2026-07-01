@@ -13,9 +13,11 @@ Image prompting supports two pipelines:
 
 Apple single-track original-only/translation-only playback keeps the active
 audio option and sentence anchor through chunk selection, metadata hydration,
-and retry paths before preparing audio. This also keeps batched sentence images
-and transcript rendering aligned when playback crosses a sentence-batch
-boundary.
+retry paths, and end-of-file batch callbacks before preparing audio. The lane
+must survive even when the SwiftUI audio-mode bridge is briefly unavailable, so
+a stale combined selected id cannot reset the next batch to sequence rendering.
+This also keeps batched sentence images and transcript rendering aligned when
+playback crosses a sentence-batch boundary.
 
 ## Configuration
 

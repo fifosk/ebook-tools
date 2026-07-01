@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-eof-bridge-fallback",
+                    title: "Translation-only survives EOF handoff",
+                    detail: "Apple reader original-only and translation-only playback now preserves the active single-track lane across end-of-file batch callbacks even if the SwiftUI audio-mode bridge is briefly unavailable, preventing the next batch from falling back to combined audio."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-retry-anchor-sync",
                     title: "Translation-only retry stays in sync",
                     detail: "Apple reader single-track batch retries now reassert the active original-only or translation-only audio option and reuse the latest sentence anchor before preparing playback, preventing retry or same-batch target paths from drifting out of sync."

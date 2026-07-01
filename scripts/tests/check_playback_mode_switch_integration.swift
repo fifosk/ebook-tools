@@ -456,6 +456,99 @@ private func synchronizeSelectedAudioTrackWithCurrentMode(
 }
 
 @MainActor
+private func requestedSingleTrackMode(
+    manager: AudioModeManager?,
+    sequenceAudioMode: AudioMode,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?
+) -> SequenceTrack? {
+    if let manager {
+        if case .singleTrack(let track) = manager.currentMode {
+            return track
+        }
+        return nil
+    }
+    if case .singleTrack(let track) = sequenceAudioMode {
+        return track
+    }
+    switch preferredAudioKind {
+    case .original:
+        return .original
+    case .translation:
+        return .translation
+    case .combined, .other, .none:
+        return nil
+    }
+}
+
+@MainActor
+private func applySingleTrackSelection(
+    _ track: SequenceTrack,
+    for chunk: InteractiveChunk,
+    manager: AudioModeManager?,
+    sequenceAudioMode: inout AudioMode,
+    selectedAudioTrackID: inout String?,
+    preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?
+) {
+    if let manager {
+        manager.setTracks(
+            original: track == .original,
+            translation: track == .translation
+        )
+        sequenceAudioMode = manager.currentMode
+        synchronizeSelectedAudioTrackWithCurrentMode(
+            for: chunk,
+            manager: manager,
+            selectedAudioTrackID: &selectedAudioTrackID,
+            preferredAudioKind: &preferredAudioKind,
+            sequenceAudioMode: &sequenceAudioMode
+        )
+        if chunk.audioOptions.contains(where: { $0.id == selectedAudioTrackID }) {
+            return
+        }
+    } else {
+        sequenceAudioMode = .singleTrack(track)
+    }
+
+    preferredAudioKind = track == .original ? .original : .translation
+    selectedAudioTrackID = preferredSingleTrackAudioOption(for: track, in: chunk)?.id
+}
+
+private func preferredSingleTrackAudioOption(
+    for track: SequenceTrack,
+    in chunk: InteractiveChunk
+) -> InteractiveChunk.AudioOption? {
+    let dedicatedKind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
+    if let dedicated = chunk.audioOptions.first(where: { $0.kind == dedicatedKind }) {
+        return dedicated
+    }
+    if let combined = chunk.audioOptions.first(where: { $0.kind == .combined }) {
+        return combined
+    }
+    return chunk.audioOptions.first
+}
+
+@MainActor
+private func isSequenceModeActive(
+    manager: AudioModeManager?,
+    sequenceAudioMode: AudioMode,
+    selectedAudioTrackID: String?,
+    chunk: InteractiveChunk,
+    sequenceEnabled: Bool
+) -> Bool {
+    guard manager?.isSequenceMode != false else {
+        return false
+    }
+    if case .singleTrack = sequenceAudioMode {
+        return false
+    }
+    guard let selectedAudioTrackID,
+          let track = chunk.audioOptions.first(where: { $0.id == selectedAudioTrackID }) else {
+        return false
+    }
+    return track.kind == .combined && sequenceEnabled
+}
+
+@MainActor
 private func effectiveSelectedAudioOption(
     for chunk: InteractiveChunk,
     manager: AudioModeManager,
@@ -753,6 +846,47 @@ private func runChecks() {
         optionID: "translation-next",
         timing: .translation,
         "Chunk handoff should resolve translation-only audio before SwiftUI lifecycle preservation runs"
+    )
+    var bridgelessSelectedTrackID: String? = "combined-next"
+    var bridgelessPreferredKind: InteractiveChunk.AudioOption.Kind? = .translation
+    var bridgelessSequenceAudioMode: AudioMode = .singleTrack(.translation)
+    requireEqual(
+        requestedSingleTrackMode(
+            manager: nil,
+            sequenceAudioMode: bridgelessSequenceAudioMode,
+            preferredAudioKind: bridgelessPreferredKind
+        ),
+        .translation,
+        "End-of-batch handoff should preserve translation-only selection even if the view manager bridge is unavailable"
+    )
+    applySingleTrackSelection(
+        .translation,
+        for: nextBatch,
+        manager: nil,
+        sequenceAudioMode: &bridgelessSequenceAudioMode,
+        selectedAudioTrackID: &bridgelessSelectedTrackID,
+        preferredAudioKind: &bridgelessPreferredKind
+    )
+    requireEqual(
+        bridgelessSelectedTrackID,
+        "translation-next",
+        "Bridgeless end-of-batch handoff should select translation audio instead of falling back to combined"
+    )
+    requireEqual(
+        bridgelessPreferredKind,
+        .translation,
+        "Bridgeless end-of-batch handoff should keep later repair pinned to translation"
+    )
+    requireEqual(
+        isSequenceModeActive(
+            manager: nil,
+            sequenceAudioMode: bridgelessSequenceAudioMode,
+            selectedAudioTrackID: "combined-next",
+            chunk: nextBatch,
+            sequenceEnabled: true
+        ),
+        false,
+        "Single-track sequence-controller mode should stop stale combined selections from rendering as sequence after a batch handoff"
     )
     let combinedOnlyNextBatch = InteractiveChunk(
         id: "chapter-2-combined",

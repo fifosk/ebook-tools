@@ -177,6 +177,10 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "synchronizeSelectedAudioTrackWithCurrentMode(" in swift_check
     assert "Chunk handoff should switch the selected audio option before immediate playback can load the next batch" in swift_check
     assert "Combined-only chunk handoff should extract the translation stream before rendering follows the wrong track" in swift_check
+    assert "requestedSingleTrackMode(" in swift_check
+    assert "End-of-batch handoff should preserve translation-only selection even if the view manager bridge is unavailable" in swift_check
+    assert "Bridgeless end-of-batch handoff should select translation audio instead of falling back to combined" in swift_check
+    assert "Single-track sequence-controller mode should stop stale combined selections from rendering as sequence after a batch handoff" in swift_check
     assert "rememberSingleTrackBatchStartAnchorIfNeeded(" in swift_check
     assert "Natural translation-only batch advance should anchor the placeholder batch start before audio autoplay can reset rendering" in swift_check
     assert "Targeted translation-only batch selection should derive a visible sentence anchor from placeholder range metadata" in swift_check
@@ -651,10 +655,10 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
 
     ended_body = _function_body(selection, "func handlePlaybackEnded()")
     assert "let nextChunk = jobContext?.nextChunk(after: chunk.id)" in ended_body
-    assert "audioModeManager?.isSequenceMode == false" in ended_body
-    assert "synchronizeSelectedAudioTrackWithCurrentMode(for: nextChunk)" in ended_body
+    assert "if let track = requestedSingleTrackMode()" in ended_body
+    assert "applySingleTrackSelection(track, for: nextChunk)" in ended_body
     assert "rememberSingleTrackSentenceAnchor(in: nextChunk, targetIndex: 0)" in ended_body
-    assert ended_body.index("synchronizeSelectedAudioTrackWithCurrentMode(for: nextChunk)") < ended_body.index(
+    assert ended_body.index("applySingleTrackSelection(track, for: nextChunk)") < ended_body.index(
         "selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)"
     )
     assert "selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)" in ended_body

@@ -292,19 +292,65 @@ extension InteractivePlayerViewModel {
         sequenceController.audioMode = audioModeManager.currentMode
     }
 
+    func requestedSingleTrackMode() -> SequenceTrack? {
+        if let audioModeManager {
+            if case .singleTrack(let track) = audioModeManager.currentMode {
+                return track
+            }
+            return nil
+        }
+        if case .singleTrack(let track) = sequenceController.audioMode {
+            return track
+        }
+        switch preferredAudioKind {
+        case .original:
+            return .original
+        case .translation:
+            return .translation
+        case .combined, .other, .none:
+            return nil
+        }
+    }
+
+    func applySingleTrackSelection(_ track: SequenceTrack, for chunk: InteractiveChunk) {
+        if let audioModeManager {
+            audioModeManager.setTracks(
+                original: track == .original,
+                translation: track == .translation
+            )
+            sequenceController.audioMode = audioModeManager.currentMode
+            synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)
+            if chunk.audioOptions.contains(where: { $0.id == selectedAudioTrackID }) {
+                return
+            }
+        } else {
+            sequenceController.audioMode = .singleTrack(track)
+        }
+
+        preferredAudioKind = track == .original ? .original : .translation
+        selectedAudioTrackID = preferredSingleTrackAudioOption(for: track, in: chunk)?.id
+    }
+
+    private func preferredSingleTrackAudioOption(
+        for track: SequenceTrack,
+        in chunk: InteractiveChunk
+    ) -> InteractiveChunk.AudioOption? {
+        let dedicatedKind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
+        if let dedicated = chunk.audioOptions.first(where: { $0.kind == dedicatedKind }) {
+            return dedicated
+        }
+        if let combined = chunk.audioOptions.first(where: { $0.kind == .combined }) {
+            return combined
+        }
+        return chunk.audioOptions.first
+    }
+
     func repairSelectedAudioTrackIfNeeded(for chunk: InteractiveChunk) {
         if chunk.audioOptions.contains(where: { $0.id == selectedAudioTrackID }) {
             return
         }
-        if let audioModeManager,
-           case .singleTrack = audioModeManager.currentMode,
-           let targetID = audioModeManager.resolvePreferredTrackID(for: chunk),
-           let targetOption = chunk.audioOptions.first(where: { $0.id == targetID }) {
-            selectedAudioTrackID = targetID
-            preferredAudioKind = preferredAudioKindForCurrentMode(
-                fallback: targetOption.kind
-            )
-            sequenceController.audioMode = audioModeManager.currentMode
+        if let track = requestedSingleTrackMode() {
+            applySingleTrackSelection(track, for: chunk)
             return
         }
         let preferred = preferredAudioKind.flatMap { kind in
@@ -476,8 +522,8 @@ extension InteractivePlayerViewModel {
             audioCoordinator.pause()
             return
         }
-        if audioModeManager?.isSequenceMode == false {
-            synchronizeSelectedAudioTrackWithCurrentMode(for: nextChunk)
+        if let track = requestedSingleTrackMode() {
+            applySingleTrackSelection(track, for: nextChunk)
             rememberSingleTrackSentenceAnchor(in: nextChunk, targetIndex: 0)
         }
         selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)
@@ -995,7 +1041,7 @@ extension InteractivePlayerViewModel {
         targetSentenceIndex: Int?,
         autoPlay: Bool
     ) {
-        guard audioModeManager?.isSequenceMode == false else { return }
+        guard requestedSingleTrackMode() != nil else { return }
         let inferredTargetIndex: Int? = {
             if let targetSentenceIndex {
                 return targetSentenceIndex
@@ -1009,7 +1055,7 @@ extension InteractivePlayerViewModel {
     }
 
     func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int? {
-        guard !isSequenceModeActive else { return nil }
+        guard requestedSingleTrackMode() != nil, !isSequenceModeActive else { return nil }
         guard let anchor = recentSingleTrackSentenceAnchor,
               anchor.chunkID == chunk.id,
               Date().timeIntervalSince(anchor.createdAt) <= recentSingleTrackSentenceAnchorLifetime else {

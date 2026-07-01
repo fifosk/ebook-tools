@@ -142,7 +142,11 @@ Follow the suggested remediations to restore parity:
   selecting the next chunk and pass an explicit sentence-0 target, because the
   audio player may have cleared its requested-playback flag by the time the
   end-of-file callback fires. Otherwise end-of-batch playback can reset to
-  combined/sequence audio and render out of sync with the selected track.
+  combined/sequence audio and render out of sync with the selected track. That
+  handoff must also preserve the lane from `SequencePlaybackController.audioMode`
+  or the last preferred audio kind if the SwiftUI `AudioModeManager` bridge is
+  temporarily unavailable at EOF; a stale combined selected id is never enough
+  to re-enable sequence rendering.
   When a batch handoff or metadata refresh leaves `selectedAudioTrackID` pointing
   at a stale combined/original option, Original-only or Translation-only mode
   remains authoritative for option repair, duration/progress, and prefetch
