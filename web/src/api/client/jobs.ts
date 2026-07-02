@@ -346,7 +346,93 @@ export async function discoverAcquisitionCandidates({
   const response = await apiFetch(
     `${WEB_CREATE_RUNTIME_CONTRACT.acquisitionDiscoverPath}?${params.toString()}`
   );
-  return handleResponse<AcquisitionDiscoveryResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertAcquisitionDiscoveryResponse(payload);
+  return payload;
+}
+
+function assertAcquisitionDiscoveryResponse(
+  payload: unknown
+): asserts payload is AcquisitionDiscoveryResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid acquisition discovery response.');
+  }
+  if (!Array.isArray(payload.candidates)) {
+    throw new Error('Invalid acquisition discovery response: missing candidates.');
+  }
+  assertDiscoveryStringArray(payload.policy_notes, 'policy_notes');
+  assertDiscoveryStringArray(payload.providers_queried, 'providers_queried');
+  for (const candidate of payload.candidates) {
+    if (!isRecord(candidate)) {
+      throw new Error('Invalid acquisition discovery response: missing candidate entry.');
+    }
+    assertDiscoveryStringField(candidate, 'candidate_id');
+    assertDiscoveryStringField(candidate, 'provider');
+    assertDiscoveryStringField(candidate, 'media_kind');
+    assertDiscoveryStringField(candidate, 'title');
+    assertDiscoveryStringField(candidate, 'rights');
+    assertDiscoveryStringField(candidate, 'candidate_token');
+    assertDiscoveryStringArray(candidate.capabilities, 'capabilities');
+    assertDiscoveryStringArray(candidate.contributors, 'contributors');
+    assertDiscoverySubtitleHints(candidate.subtitles);
+    if (!isRecord(candidate.metadata)) {
+      throw new Error('Invalid acquisition discovery response: missing metadata.');
+    }
+    if (typeof candidate.requires_confirmation !== 'boolean') {
+      throw new Error('Invalid acquisition discovery response: missing requires_confirmation.');
+    }
+    assertDiscoveryStringArray(candidate.policy_notes, 'policy_notes');
+    assertOptionalString(candidate.subtitle, 'subtitle');
+    assertOptionalString(candidate.language, 'language');
+    assertOptionalString(candidate.published_at, 'published_at');
+    assertOptionalString(candidate.source_url, 'source_url');
+    assertOptionalString(candidate.thumbnail_url, 'thumbnail_url');
+    assertOptionalString(candidate.cover_url, 'cover_url');
+    assertOptionalString(candidate.local_path, 'local_path');
+    assertOptionalString(candidate.modified_at, 'modified_at');
+    assertOptionalNumber(candidate.year, 'year');
+    assertOptionalNumber(candidate.size_bytes, 'size_bytes');
+    assertOptionalNumber(candidate.duration_seconds, 'duration_seconds');
+  }
+}
+
+function assertDiscoveryStringField(record: Record<string, unknown>, key: string): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid acquisition discovery response: missing ${key}.`);
+  }
+}
+
+function assertDiscoveryStringArray(value: unknown, key: string): void {
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+    throw new Error(`Invalid acquisition discovery response: missing ${key}.`);
+  }
+}
+
+function assertDiscoverySubtitleHints(value: unknown): void {
+  if (!Array.isArray(value)) {
+    throw new Error('Invalid acquisition discovery response: missing subtitles.');
+  }
+  for (const subtitle of value) {
+    if (!isRecord(subtitle)) {
+      throw new Error('Invalid acquisition discovery response: missing subtitle entry.');
+    }
+    assertDiscoveryStringField(subtitle, 'path');
+    assertDiscoveryStringField(subtitle, 'filename');
+    assertOptionalString(subtitle.language, 'language');
+    assertOptionalString(subtitle.format, 'format');
+  }
+}
+
+function assertOptionalString(value: unknown, key: string): void {
+  if (value !== undefined && value !== null && typeof value !== 'string') {
+    throw new Error(`Invalid acquisition discovery response: invalid ${key}.`);
+  }
+}
+
+function assertOptionalNumber(value: unknown, key: string): void {
+  if (value !== undefined && value !== null && typeof value !== 'number') {
+    throw new Error(`Invalid acquisition discovery response: invalid ${key}.`);
+  }
 }
 
 export async function acquireAcquisitionCandidate(

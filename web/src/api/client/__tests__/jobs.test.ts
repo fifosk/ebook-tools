@@ -68,6 +68,33 @@ function acquisitionProviderListResponse(overrides: Record<string, unknown> = {}
   };
 }
 
+function acquisitionCandidate(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    candidate_id: 'local-book',
+    provider: 'local_epub',
+    media_kind: 'book',
+    title: 'Local Book',
+    rights: 'user_provided',
+    capabilities: ['import_local'],
+    candidate_token: 'candidate-token',
+    contributors: [],
+    subtitles: [],
+    metadata: {},
+    requires_confirmation: false,
+    policy_notes: [],
+    ...overrides
+  };
+}
+
+function acquisitionDiscoveryResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    candidates: [acquisitionCandidate()],
+    policy_notes: [],
+    providers_queried: ['local_epub'],
+    ...overrides
+  };
+}
+
 describe('jobs API client', () => {
   const originalFetch = globalThis.fetch;
 
@@ -110,8 +137,11 @@ describe('jobs API client', () => {
   it('uses shared acquisition routes and encodes artifact and task ids', async () => {
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
       .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse()))
-      .mockResolvedValueOnce(jsonResponse({}))
-      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(jsonResponse(acquisitionDiscoveryResponse()))
+      .mockResolvedValueOnce(jsonResponse(acquisitionDiscoveryResponse({
+        candidates: [acquisitionCandidate({ provider: 'nas_video', media_kind: 'video' })],
+        providers_queried: ['nas_video']
+      })))
       .mockResolvedValueOnce(jsonResponse({}))
       .mockResolvedValueOnce(jsonResponse({}))
       .mockResolvedValueOnce(jsonResponse({}))
@@ -211,6 +241,44 @@ describe('jobs API client', () => {
     );
     await expect(fetchAcquisitionProviders()).rejects.toThrow(
       'Invalid acquisition provider response: missing policy_notes.'
+    );
+  });
+
+  it('rejects malformed acquisition discovery payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse(acquisitionDiscoveryResponse({ candidates: undefined })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionDiscoveryResponse({ providers_queried: [42] })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionDiscoveryResponse({
+        candidates: [
+          acquisitionCandidate({ candidate_token: undefined })
+        ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionDiscoveryResponse({
+        candidates: [
+          acquisitionCandidate({ metadata: null })
+        ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionDiscoveryResponse({
+        candidates: [
+          acquisitionCandidate({ subtitles: [{ path: '/subs.srt' }] })
+        ]
+      })));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(discoverAcquisitionCandidates({ mediaKind: 'book' })).rejects.toThrow(
+      'Invalid acquisition discovery response: missing candidates.'
+    );
+    await expect(discoverAcquisitionCandidates({ mediaKind: 'book' })).rejects.toThrow(
+      'Invalid acquisition discovery response: missing providers_queried.'
+    );
+    await expect(discoverAcquisitionCandidates({ mediaKind: 'book' })).rejects.toThrow(
+      'Invalid acquisition discovery response: missing candidate_token.'
+    );
+    await expect(discoverAcquisitionCandidates({ mediaKind: 'book' })).rejects.toThrow(
+      'Invalid acquisition discovery response: missing metadata.'
+    );
+    await expect(discoverAcquisitionCandidates({ mediaKind: 'book' })).rejects.toThrow(
+      'Invalid acquisition discovery response: missing filename.'
     );
   });
 

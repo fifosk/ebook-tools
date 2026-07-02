@@ -146,7 +146,7 @@ export default function YoutubeVideoPage() {
         limit: 12
       });
       setDiscoveryCandidates(
-        (response.candidates ?? []).filter(
+        response.candidates.filter(
           (candidate) => candidate.provider === 'youtube_search' && Boolean(candidate.source_url?.trim())
         )
       );

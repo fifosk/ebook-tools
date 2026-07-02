@@ -179,6 +179,13 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "assertStringArray(provider.next_actions, 'next_actions')" in api_client
     assert "assertStringArray(provider.capabilities, 'capabilities')" in api_client
     assert "assertStringArray(provider.rights, 'rights')" in api_client
+    assert "assertAcquisitionDiscoveryResponse(payload)" in api_client
+    assert "Invalid acquisition discovery response: missing candidates." in api_client
+    assert "assertDiscoveryStringArray(payload.providers_queried, 'providers_queried')" in api_client
+    assert "assertDiscoveryStringField(candidate, 'candidate_token')" in api_client
+    assert "assertDiscoveryStringArray(candidate.capabilities, 'capabilities')" in api_client
+    assert "assertDiscoverySubtitleHints(candidate.subtitles)" in api_client
+    assert "Invalid acquisition discovery response: missing metadata." in api_client
     assert "resolveDefaultBookDiscoveryProvider(" in discovery_hook
     assert "defaultProviderIds?.book" in discovery_providers
     assert "hasUserSelectedDiscoveryProvider.current" in discovery_hook
