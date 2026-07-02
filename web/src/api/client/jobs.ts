@@ -39,29 +39,19 @@ import { apiFetch, handleResponse, getAuthToken, withBase } from './base';
 import {
   replaceRuntimePathParameter,
   replaceRuntimePathParameters,
+  WEB_ACQUISITION_RUNTIME_CONTRACT,
   WEB_CREATE_RUNTIME_CONTRACT,
   WEB_LINGUIST_RUNTIME_CONTRACT,
   WEB_PIPELINE_JOBS_RUNTIME_CONTRACT,
   WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT
 } from './runtimeContract';
 
-const ACQUISITION_MEDIA_KINDS = new Set(['book', 'video']);
-const ACQUISITION_CAPABILITIES = new Set([
-  'search',
-  'metadata',
-  'acquire',
-  'poll',
-  'extract_subtitles',
-  'import_local'
-]);
-const ACQUISITION_RIGHTS = new Set([
-  'public_domain',
-  'open_license',
-  'user_provided',
-  'unknown',
-  'restricted'
-]);
-const ACQUISITION_PROVIDER_STATUSES = new Set(['available', 'not_configured', 'planned']);
+const ACQUISITION_MEDIA_KINDS = new Set(WEB_ACQUISITION_RUNTIME_CONTRACT.mediaKinds);
+const ACQUISITION_CAPABILITIES = new Set(WEB_ACQUISITION_RUNTIME_CONTRACT.capabilities);
+const ACQUISITION_RIGHTS = new Set(WEB_ACQUISITION_RUNTIME_CONTRACT.rights);
+const ACQUISITION_PROVIDER_STATUSES = new Set(
+  WEB_ACQUISITION_RUNTIME_CONTRACT.providerStatuses
+);
 
 export const DEFAULT_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesDefaultLimit;
 export const MIN_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesMinLimit;

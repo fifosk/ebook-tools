@@ -57,6 +57,7 @@ from modules.services.acquisition import (
 
 ROOT = Path(__file__).resolve().parents[3]
 WEB_JOBS_API_CLIENT = ROOT / "web" / "src" / "api" / "client" / "jobs.ts"
+WEB_RUNTIME_CONTRACT_CLIENT = ROOT / "web" / "src" / "api" / "client" / "runtimeContract.ts"
 APPLE_PIPELINE_CREATION_API_MODELS = (
     ROOT
     / "ios"
@@ -657,32 +658,48 @@ def test_acquisition_contract_values_are_shared_with_openapi_schema() -> None:
 
 def test_acquisition_contract_values_stay_aligned_across_web_apple_and_readiness() -> None:
     web_source = WEB_JOBS_API_CLIENT.read_text()
+    web_runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text()
     apple_source = APPLE_PIPELINE_CREATION_API_MODELS.read_text()
     readiness_source = APPLE_CREATE_READINESS_SCRIPT.read_text()
 
+    assert "WEB_ACQUISITION_RUNTIME_CONTRACT" in web_source
+    assert (
+        "const ACQUISITION_MEDIA_KINDS = new Set(WEB_ACQUISITION_RUNTIME_CONTRACT.mediaKinds)"
+        in web_source
+    )
+    assert (
+        "const ACQUISITION_CAPABILITIES = new Set(WEB_ACQUISITION_RUNTIME_CONTRACT.capabilities)"
+        in web_source
+    )
+    assert (
+        "const ACQUISITION_RIGHTS = new Set(WEB_ACQUISITION_RUNTIME_CONTRACT.rights)"
+        in web_source
+    )
+    assert "WEB_ACQUISITION_RUNTIME_CONTRACT.providerStatuses" in web_source
+
     assert _quoted_values_from_assignment(
-        web_source,
-        "const ACQUISITION_MEDIA_KINDS = new Set([",
+        web_runtime_source,
+        "  mediaKinds: [",
         quote="'",
-        suffix="]);",
+        suffix="],",
     ) == discovery_values.ACQUISITION_MEDIA_KINDS
     assert _quoted_values_from_assignment(
-        web_source,
-        "const ACQUISITION_CAPABILITIES = new Set([",
+        web_runtime_source,
+        "  capabilities: [",
         quote="'",
-        suffix="]);",
+        suffix="],",
     ) == discovery_values.ACQUISITION_CAPABILITIES
     assert _quoted_values_from_assignment(
-        web_source,
-        "const ACQUISITION_RIGHTS = new Set([",
+        web_runtime_source,
+        "  rights: [",
         quote="'",
-        suffix="]);",
+        suffix="],",
     ) == discovery_values.ACQUISITION_RIGHTS
     assert _quoted_values_from_assignment(
-        web_source,
-        "const ACQUISITION_PROVIDER_STATUSES = new Set([",
+        web_runtime_source,
+        "  providerStatuses: [",
         quote="'",
-        suffix="]);",
+        suffix="],",
     ) == discovery_values.ACQUISITION_PROVIDER_STATUSES
 
     assert _quoted_values_from_assignment(

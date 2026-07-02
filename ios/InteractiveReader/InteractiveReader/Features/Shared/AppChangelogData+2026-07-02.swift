@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "web-acquisition-runtime-value-validation",
+                    title: "Web validates source values from runtime",
+                    detail: "Web acquisition provider and discovery validators now derive their allowed media-kind, capability, rights, and status values from the shared runtime contract instead of duplicating the list in the jobs client."
+                ),
+                AppChangelogEntry(
                     id: "runtime-acquisition-value-contract",
                     title: "Runtime advertises source values",
                     detail: "The public runtime descriptor now exposes the shared acquisition media-kind, capability, rights, and provider-status vocabulary so Web and Apple contract checks can catch source-picker drift earlier."

@@ -182,6 +182,8 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "assertStringArray(provider.next_actions, 'next_actions')" in api_client
     assert "assertStringArray(provider.capabilities, 'capabilities')" in api_client
     assert "assertStringArray(provider.rights, 'rights')" in api_client
+    assert "WEB_ACQUISITION_RUNTIME_CONTRACT" in api_client
+    assert "new Set(WEB_ACQUISITION_RUNTIME_CONTRACT.mediaKinds)" in api_client
     assert "assertAcquisitionDiscoveryResponse(payload)" in api_client
     assert "Invalid acquisition discovery response: missing candidates." in api_client
     assert "assertDiscoveryStringArray(payload.providers_queried, 'providers_queried')" in api_client
