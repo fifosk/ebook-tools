@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-reader-music-pause-recovery-latch",
+                    title: "Music-bed pause stays paused",
+                    detail: "Apple reader pause adoption now lets active MusicKit pause signals outrank stale resume echoes, blocks muted-audio recovery after reader-owned pauses until explicit play, and leaves sequence-mode sentence transitions to the sequence controller."
+                ),
+                AppChangelogEntry(
+                    id: "backend-acquisition-bounded-inserts",
+                    title: "Source discovery scans lighter",
+                    detail: "Backend source pickers now keep bounded newest file and acquisition-candidate matches with direct binary search, reducing repeated sort-key work while scanning large NAS and manual-download roots."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-muted-start-recovery",
                     title: "TV startup restarts stuck narration",
                     detail: "Apple TV Music-bed startup recovery now breaks stale muted or paused reader states when narration is requested and the player is ready, keeping Music-bed tests and device starts from hanging with only the bed audible."
