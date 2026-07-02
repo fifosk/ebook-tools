@@ -308,8 +308,16 @@ def test_select_targets_for_release_metadata_changes() -> None:
     ]
     assert select_targets(
         [
+            "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData+2026-07-02.swift"
+        ]
+    ) == [
+        "test-release-version",
+        "test-apple-contracts",
+    ]
+    assert select_targets(
+        [
             "CHANGELOG.md",
-            "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData.swift",
+            "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData+2026-07-02.swift",
         ]
     ) == [
         "test-release-version",

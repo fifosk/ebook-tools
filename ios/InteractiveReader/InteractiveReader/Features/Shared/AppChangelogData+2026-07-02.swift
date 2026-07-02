@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-changelog-shard-test-routing",
+                    title: "Changelog shard gates hold",
+                    detail: "make test-changed now treats dated Apple in-app changelog shards as release metadata, so shard-only edits still run release-version and Apple contract gates without unnecessary simulator builds."
+                ),
+                AppChangelogEntry(
                     id: "apple-language-pill-empty-active-state",
                     title: "Track pills stay honest",
                     detail: "Apple reader language/audio pills now keep inactive lanes visually inactive during transient loading states while still supporting Original + Translation, Original-only, and Translation-only playback modes."

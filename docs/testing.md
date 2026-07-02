@@ -318,8 +318,8 @@ Native Apple app shell, DTO model, utility, and shared UI helper changes also
 route to those simulator builds, because they are imported across the iOS,
 iPadOS, tvOS, and local Mac-style surfaces.
 Release metadata edits, including `CHANGELOG.md`, Apple app plists, Xcode build
-version settings, `AppChangelogData.swift`, `AppVersion.swift`, and
-`scripts/check_release_version_contract.py`, route to `test-release-version`;
+version settings, `AppChangelogData.swift`, dated `AppChangelogData+*.swift`
+shards, `AppVersion.swift`, and `scripts/check_release_version_contract.py`, route to `test-release-version`;
 when those files also live under `ios/`, `test-changed` additionally runs the
 Apple contract lane.
 

@@ -35,6 +35,10 @@ RELEASE_METADATA_ONLY_FILES = {
     "ios/InteractiveReader/NotificationServiceExtension/Info.plist",
 }
 
+RELEASE_METADATA_ONLY_PREFIXES = (
+    "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData+",
+)
+
 SIMULATOR_BUILD_TARGETS = {
     "build-apple-ios-simulators",
     "build-apple-tvos-simulator",
@@ -46,6 +50,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "CHANGELOG.md",
             "ios/InteractiveReader/InteractiveReader.xcodeproj/project.pbxproj",
             "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData.swift",
+            "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData+",
             "ios/InteractiveReader/InteractiveReader/Features/Shared/AppVersion.swift",
             "ios/InteractiveReader/InteractiveReader/Supporting/Info.plist",
             "ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist",
@@ -596,6 +601,10 @@ def _matches(path: str, prefixes: Iterable[str]) -> bool:
     return any(path == prefix.rstrip("/") or path.startswith(prefix) for prefix in prefixes)
 
 
+def _is_release_metadata_only(path: str) -> bool:
+    return path in RELEASE_METADATA_ONLY_FILES or _matches(path, RELEASE_METADATA_ONLY_PREFIXES)
+
+
 def select_targets(paths: Iterable[str]) -> list[str]:
     normalized = sorted({path.strip().lstrip("./") for path in paths if path.strip()})
     if not normalized:
@@ -611,7 +620,7 @@ def select_targets(paths: Iterable[str]) -> list[str]:
                 if target not in targets:
                     targets.append(target)
 
-    if targets and all(path in RELEASE_METADATA_ONLY_FILES for path in normalized):
+    if targets and all(_is_release_metadata_only(path) for path in normalized):
         targets = [target for target in targets if target not in SIMULATOR_BUILD_TARGETS]
 
     if targets:
