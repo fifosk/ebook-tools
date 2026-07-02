@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.004",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-target-audio-translation-role",
+                    title: "Translation track stays available",
+                    detail: "Apple reader media context now treats target, translated, and dubbed audio aliases as Translation tracks, keeping the TV language pill selectable when archived or library media uses those backend-visible names."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-header-single-track-role-tap",
                     title: "TV track pills select directly",
                     detail: "Apple reader header language pills now use the same durable single-track selection path as slider, jump, and batch handoffs, so choosing Translation stamps the audio lane before tvOS playback is reconfigured."

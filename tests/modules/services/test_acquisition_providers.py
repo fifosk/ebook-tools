@@ -334,6 +334,10 @@ def test_acquisition_discovery_normalization_helpers_normalize_request_values() 
     with pytest.raises(ValueError, match="media_kind"):
         discovery_normalization.normalize_media_kind("audio")
 
+    assert (
+        discovery_normalization.normalize_provider(" LOCAL_EPUB ")
+        == provider_catalog.normalized_provider_id(" LOCAL_EPUB ")
+    )
     assert discovery_normalization.normalize_provider(" backend_defaults ") is None
     assert discovery_normalization.normalize_provider(" LOCAL_EPUB ") == "local_epub"
     assert discovery_normalization.normalize_provider("   ") is None

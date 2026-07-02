@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from modules.language_constants import LANGUAGE_CODES
+from modules.services.acquisition.provider_catalog import normalized_provider_id
 
 DEFAULT_DISCOVERY_LIMIT = 20
 MAX_DISCOVERY_LIMIT = 50
@@ -20,7 +21,7 @@ def normalize_media_kind(media_kind: str) -> str:
 
 
 def normalize_provider(provider: str | None) -> str | None:
-    value = (provider or "").strip().lower()
+    value = normalized_provider_id(provider)
     if value == "backend_defaults":
         return None
     return value or None

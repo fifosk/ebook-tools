@@ -773,6 +773,30 @@ def test_apple_interactive_context_uses_chunk_local_timing_fallbacks() -> None:
     assert "let originalTimingTokens = timingTokensForSentence(" in source
 
 
+def test_apple_interactive_context_maps_target_audio_aliases_to_translation() -> None:
+    source = INTERACTIVE_CONTEXT_BUILDER.read_text(encoding="utf-8")
+
+    audio_key_body = source.split("private static func audioKind(for key: String)", 1)[1].split(
+        "private static func audioKind(for file: PipelineMediaFile)",
+        1,
+    )[0]
+    audio_file_body = source.split("private static func audioKind(for file: PipelineMediaFile)", 1)[1].split(
+        "private static func dedupedURLKey",
+        1,
+    )[0]
+    label_body = source.split("private static func labelForAudioFile", 1)[1].split(
+        "private static func audioKind(for key: String)",
+        1,
+    )[0]
+
+    for alias in ["translated", "target", "target_audio", "dubbed", "dubbed_audio"]:
+        assert f'normalized == "{alias}"' in audio_key_body
+    for marker in ["_translated", "-translated", "_target", "-target", "_dubbed", "-dubbed"]:
+        assert f'rawName.contains("{marker}")' in audio_file_body
+        assert f'lowercased.contains("{marker}")' in label_body
+    assert "return .translation" in audio_key_body
+
+
 def test_docs_publish_shared_pipeline_targets() -> None:
     docs = TESTING_DOC.read_text(encoding="utf-8")
     developer_doc = DEVELOPER_DOC.read_text(encoding="utf-8")

@@ -754,7 +754,9 @@ Current Apple UI partially exposes:
   live as a module constant so normal and zero-limit responses cannot drift.
   The acquisition Web API route now aliases provider-id normalization to the
   shared discovery normalization helper, keeping `backend_defaults` handling
-  identical at the route boundary and in service fanout for Web/Apple Create.
+  identical at the route boundary and in service fanout for Web/Apple Create;
+  that discovery helper now reuses the provider catalog's basic provider-id
+  normalization before applying the backend-default sentinel.
   Discovery fanout also normalizes language once before calling providers, so
   YouTube search and public book catalogs receive the same compact language
   code from Web and Apple Create. Acquisition `source_id` query trimming and

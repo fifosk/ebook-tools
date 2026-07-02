@@ -583,6 +583,15 @@ enum JobContextBuilder {
         if lowercased.contains("_translation") || lowercased.contains("-translation") {
             return "Translation"
         }
+        if lowercased.contains("_translated") || lowercased.contains("-translated") {
+            return "Translation"
+        }
+        if lowercased.contains("_target") || lowercased.contains("-target") {
+            return "Translation"
+        }
+        if lowercased.contains("_dubbed") || lowercased.contains("-dubbed") {
+            return "Translation"
+        }
         if lowercased.contains("_trans") || lowercased.contains("-trans") {
             return "Translation"
         }
@@ -596,11 +605,20 @@ enum JobContextBuilder {
     }
 
     private static func audioKind(for key: String) -> InteractiveChunk.AudioOption.Kind {
-        let normalized = key.lowercased()
+        let normalized = key
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "-", with: "_")
         if normalized == "orig_trans" || normalized == "mix" {
             return .combined
         }
-        if normalized == "translation" || normalized == "trans" {
+        if normalized == "translation"
+            || normalized == "translated"
+            || normalized == "target"
+            || normalized == "target_audio"
+            || normalized == "dubbed"
+            || normalized == "dubbed_audio"
+            || normalized == "trans" {
             return .translation
         }
         if normalized == "orig" || normalized == "original" {
@@ -617,7 +635,11 @@ enum JobContextBuilder {
         if rawName.contains("_original") || rawName.contains("-original") || rawName.contains("_orig") || rawName.contains("-orig") {
             return .original
         }
-        if rawName.contains("_translation") || rawName.contains("-translation") || rawName.contains("_trans") || rawName.contains("-trans") {
+        if rawName.contains("_translation") || rawName.contains("-translation")
+            || rawName.contains("_translated") || rawName.contains("-translated")
+            || rawName.contains("_target") || rawName.contains("-target")
+            || rawName.contains("_dubbed") || rawName.contains("-dubbed")
+            || rawName.contains("_trans") || rawName.contains("-trans") {
             return .translation
         }
         return .other
