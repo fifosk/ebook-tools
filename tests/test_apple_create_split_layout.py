@@ -3343,6 +3343,45 @@ def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
     assert "onDeletePipelineEbook: requestDeletePipelineEbook" in source_factory_source
 
 
+def test_apple_acquisition_api_validates_backend_enum_contracts() -> None:
+    api_models_source = _source(PIPELINE_CREATION_API_MODELS)
+    api_client_source = _source(API_CLIENT_CREATION)
+
+    assert "enum AcquisitionContractValidation" in api_models_source
+    assert 'static let mediaKinds: Set<String> = ["book", "video"]' in api_models_source
+    for value in [
+        '"search"',
+        '"metadata"',
+        '"acquire"',
+        '"poll"',
+        '"extract_subtitles"',
+        '"import_local"',
+        '"public_domain"',
+        '"open_license"',
+        '"user_provided"',
+        '"unknown"',
+        '"restricted"',
+        '"available"',
+        '"not_configured"',
+        '"planned"',
+    ]:
+        assert value in api_models_source
+    for field in [
+        '"status"',
+        '"media_kinds"',
+        '"capabilities"',
+        '"rights"',
+        '"discovery_media_kinds"',
+        '"default_eligible_media_kinds"',
+        '"media_kind"',
+    ]:
+        assert field in api_models_source
+    assert "invalidDefaultProviderMediaKind(mediaKind: mediaKind)" in api_models_source
+    assert "let payload = try decode(AcquisitionProviderListResponse.self, from: data)" in api_client_source
+    assert "let payload = try decode(AcquisitionDiscoveryResponse.self, from: data)" in api_client_source
+    assert api_client_source.count("try AcquisitionContractValidation.validate(payload)") >= 2
+
+
 def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
     source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)

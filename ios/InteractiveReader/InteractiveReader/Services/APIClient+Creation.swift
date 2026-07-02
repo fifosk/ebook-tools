@@ -146,7 +146,9 @@ extension APIClient {
 
     func fetchAcquisitionProviders() async throws -> AcquisitionProviderListResponse {
         let data = try await sendRequest(path: AppleCreateRuntimeContract.acquisitionProvidersPath)
-        return try decode(AcquisitionProviderListResponse.self, from: data)
+        let payload = try decode(AcquisitionProviderListResponse.self, from: data)
+        try AcquisitionContractValidation.validate(payload)
+        return payload
     }
 
     func discoverAcquisitionCandidates(
@@ -185,7 +187,9 @@ extension APIClient {
             path += "?\(encodedQuery)"
         }
         let data = try await sendRequest(path: path)
-        return try decode(AcquisitionDiscoveryResponse.self, from: data)
+        let payload = try decode(AcquisitionDiscoveryResponse.self, from: data)
+        try AcquisitionContractValidation.validate(payload)
+        return payload
     }
 
     func acquireAcquisitionCandidate(

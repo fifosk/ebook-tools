@@ -316,6 +316,135 @@ struct AcquisitionDiscoveryResponse: Decodable, Equatable {
     let providersQueried: [String]
 }
 
+enum AcquisitionContractValidationError: Error, LocalizedError, Equatable {
+    case invalidProviderValue(providerID: String, field: String, value: String)
+    case invalidDefaultProviderMediaKind(mediaKind: String)
+    case invalidCandidateValue(candidateID: String, field: String, value: String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .invalidProviderValue(providerID, field, value):
+            return "Invalid acquisition provider response: provider \(providerID) has unsupported \(field) value \(value)."
+        case let .invalidDefaultProviderMediaKind(mediaKind):
+            return "Invalid acquisition provider response: default providers include unsupported media kind \(mediaKind)."
+        case let .invalidCandidateValue(candidateID, field, value):
+            return "Invalid acquisition discovery response: candidate \(candidateID) has unsupported \(field) value \(value)."
+        }
+    }
+}
+
+enum AcquisitionContractValidation {
+    static let mediaKinds: Set<String> = ["book", "video"]
+    static let capabilities: Set<String> = [
+        "search",
+        "metadata",
+        "acquire",
+        "poll",
+        "extract_subtitles",
+        "import_local",
+    ]
+    static let rights: Set<String> = [
+        "public_domain",
+        "open_license",
+        "user_provided",
+        "unknown",
+        "restricted",
+    ]
+    static let providerStatuses: Set<String> = ["available", "not_configured", "planned"]
+
+    static func validate(_ response: AcquisitionProviderListResponse) throws {
+        for provider in response.providers {
+            try validate(provider.status, in: providerStatuses, providerID: provider.id, field: "status")
+            try validate(provider.mediaKinds, in: mediaKinds, providerID: provider.id, field: "media_kinds")
+            try validate(provider.capabilities, in: capabilities, providerID: provider.id, field: "capabilities")
+            try validate(provider.rights, in: rights, providerID: provider.id, field: "rights")
+            try validate(
+                provider.discoveryMediaKinds,
+                in: mediaKinds,
+                providerID: provider.id,
+                field: "discovery_media_kinds"
+            )
+            try validate(
+                provider.defaultEligibleMediaKinds,
+                in: mediaKinds,
+                providerID: provider.id,
+                field: "default_eligible_media_kinds"
+            )
+        }
+        for mediaKind in response.defaultProviderIds.keys where !mediaKinds.contains(mediaKind) {
+            throw AcquisitionContractValidationError.invalidDefaultProviderMediaKind(mediaKind: mediaKind)
+        }
+    }
+
+    static func validate(_ response: AcquisitionDiscoveryResponse) throws {
+        for candidate in response.candidates {
+            try validate(candidate.mediaKind, in: mediaKinds, candidateID: candidate.candidateId, field: "media_kind")
+            try validate(candidate.rights, in: rights, candidateID: candidate.candidateId, field: "rights")
+            try validate(candidate.capabilities, in: capabilities, candidateID: candidate.candidateId, field: "capabilities")
+        }
+    }
+
+    private static func validate(
+        _ value: String,
+        in allowedValues: Set<String>,
+        providerID: String,
+        field: String
+    ) throws {
+        guard allowedValues.contains(value) else {
+            throw AcquisitionContractValidationError.invalidProviderValue(
+                providerID: providerID,
+                field: field,
+                value: value
+            )
+        }
+    }
+
+    private static func validate(
+        _ values: [String],
+        in allowedValues: Set<String>,
+        providerID: String,
+        field: String
+    ) throws {
+        for value in values where !allowedValues.contains(value) {
+            throw AcquisitionContractValidationError.invalidProviderValue(
+                providerID: providerID,
+                field: field,
+                value: value
+            )
+        }
+    }
+
+    private static func validate(
+        _ value: String,
+        in allowedValues: Set<String>,
+        candidateID: String,
+        field: String
+    ) throws {
+        guard allowedValues.contains(value) else {
+            throw AcquisitionContractValidationError.invalidCandidateValue(
+                candidateID: candidateID,
+                field: field,
+                value: value
+            )
+        }
+    }
+
+    private static func validate(
+        _ values: [String],
+        in allowedValues: Set<String>,
+        candidateID: String,
+        field: String
+    ) throws {
+        for value in values where !allowedValues.contains(value) {
+            throw AcquisitionContractValidationError.invalidCandidateValue(
+                candidateID: candidateID,
+                field: field,
+                value: value
+            )
+        }
+    }
+}
+
 struct AcquisitionAcquireRequest: Encodable, Equatable {
     let candidateToken: String
     let confirmed: Bool

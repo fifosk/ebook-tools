@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-acquisition-enum-contracts",
+                    title: "Apple discovery values stay valid",
+                    detail: "Apple Create now rejects acquisition provider and discovery payloads with unknown media kinds, rights, capabilities, or provider status values before native source pickers render them."
+                ),
+                AppChangelogEntry(
                     id: "web-acquisition-enum-contracts",
                     title: "Discovery values stay valid",
                     detail: "Web Create and Video Dubbing now reject acquisition provider and candidate payloads with unknown media kinds, rights, capabilities, or provider status values before source pickers render them."
