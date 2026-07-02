@@ -926,6 +926,7 @@ def test_acquisition_provider_inventory_reports_unavailable_default_providers() 
                 "id": provider_id,
                 "media_kinds": sorted(requirements["media_kinds"]),
                 "discovery_media_kinds": sorted(requirements["media_kinds"]),
+                "default_eligible_media_kinds": sorted(requirements["media_kinds"]),
                 "capabilities": sorted(requirements["capabilities"]),
                 "available": provider_id
                 not in {"local_epub", "nas_video", "zlibrary_attended"},

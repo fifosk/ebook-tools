@@ -475,8 +475,8 @@ Acquisition task fields:
   - Status: Web Video Dubbing and Apple YouTube Dub defensively ignore
      explicit-only video providers such as `youtube_url` when choosing or
      rendering backend default-source options, using the backend
-     `default_eligible_media_kinds` contract when present and preserving the
-     old explicit-only fallback for older servers.
+     required `default_eligible_media_kinds` contract while preserving the old
+     explicit-only fallback only before provider inventory has loaded.
    - Status: Web Video Dubbing and Apple YouTube Dub also filter returned
      `Default sources` candidates through the same provider default-eligibility
      contract, so a direct URL candidate can only appear when the user chooses

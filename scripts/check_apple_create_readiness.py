@@ -779,10 +779,7 @@ def acquisition_default_provider_issues(
                 issues.append(f"{media_kind}.{provider_id}.media_kind")
                 continue
             default_eligible_media_kinds = acquisition_provider_default_eligible_media_kinds(provider)
-            if (
-                default_eligible_media_kinds is not None
-                and media_kind not in default_eligible_media_kinds
-            ):
+            if media_kind not in default_eligible_media_kinds:
                 issues.append(f"{media_kind}.{provider_id}.default_eligible")
                 continue
             compatible_providers.append(provider)
@@ -799,14 +796,14 @@ def acquisition_provider_discovery_media_kinds(provider: dict[str, Any]) -> set[
     discovery_media_kinds = provider.get("discovery_media_kinds")
     if isinstance(discovery_media_kinds, list):
         return _string_set(discovery_media_kinds)
-    return _string_set(provider.get("media_kinds"))
+    return set()
 
 
-def acquisition_provider_default_eligible_media_kinds(provider: dict[str, Any]) -> set[str] | None:
+def acquisition_provider_default_eligible_media_kinds(provider: dict[str, Any]) -> set[str]:
     default_eligible_media_kinds = provider.get("default_eligible_media_kinds")
     if isinstance(default_eligible_media_kinds, list):
         return _string_set(default_eligible_media_kinds)
-    return None
+    return set()
 
 
 def acquisition_discovery_payload_issues(
