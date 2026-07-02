@@ -509,7 +509,12 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
     assert 'accessibilityIdentifier: "settingsAuthContractRow"' in source
     assert 'title: "Create Contract"' in source
     assert 'accessibilityIdentifier: "settingsCreateContractRow"' in source
+    assert "var jobIntakeContractState: BackendRuntimeContractState?" in source
+    assert 'title: "Job Intake Contract"' in source
+    assert 'accessibilityIdentifier: "settingsJobIntakeContractRow"' in source
     view_source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
+    assert "jobIntakeContract: Self.jobIntakeContractState(from: descriptor.creation)" in view_source
+    assert "private static func jobIntakeContractState(" in view_source
     assert "AppleCreateRuntimeContract.pipelineIntakeStatusPath" in view_source
     assert "var libraryActionsContractState: BackendRuntimeContractState?" in source
     assert 'title: "Library Contract"' in source

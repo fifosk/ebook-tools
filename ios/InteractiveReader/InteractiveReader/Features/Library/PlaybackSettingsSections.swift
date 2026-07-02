@@ -8,6 +8,7 @@ enum BackendRuntimeState: Equatable {
         version: String,
         authContract: BackendRuntimeContractState,
         createContract: BackendRuntimeContractState,
+        jobIntakeContract: BackendRuntimeContractState,
         pipelineJobsContract: BackendRuntimeContractState,
         pipelineMediaContract: BackendRuntimeContractState,
         linguistContract: BackendRuntimeContractState,
@@ -22,7 +23,7 @@ enum BackendRuntimeState: Equatable {
         switch self {
         case .idle, .checking:
             return "Checking"
-        case let .verified(service, version, _, _, _, _, _, _, _, _, _):
+        case let .verified(service, version, _, _, _, _, _, _, _, _, _, _):
             let serviceLabel = service.nonEmptyValue ?? "Backend"
             let versionLabel = version.nonEmptyValue ?? "unknown"
             return "\(serviceLabel) · \(versionLabel)"
@@ -44,8 +45,17 @@ enum BackendRuntimeState: Equatable {
 
     var createContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, _, createContract, _, _, _, _, _, _, _):
+        case let .verified(_, _, _, createContract, _, _, _, _, _, _, _, _):
             return createContract
+        case .idle, .checking, .unavailable:
+            return nil
+        }
+    }
+
+    var jobIntakeContractState: BackendRuntimeContractState? {
+        switch self {
+        case let .verified(_, _, _, _, jobIntakeContract, _, _, _, _, _, _, _):
+            return jobIntakeContract
         case .idle, .checking, .unavailable:
             return nil
         }
@@ -53,7 +63,7 @@ enum BackendRuntimeState: Equatable {
 
     var authContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, authContract, _, _, _, _, _, _, _, _):
+        case let .verified(_, _, authContract, _, _, _, _, _, _, _, _, _):
             return authContract
         case .idle, .checking, .unavailable:
             return nil
@@ -62,7 +72,7 @@ enum BackendRuntimeState: Equatable {
 
     var pipelineJobsContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, _, _, pipelineJobsContract, _, _, _, _, _, _):
+        case let .verified(_, _, _, _, _, pipelineJobsContract, _, _, _, _, _, _):
             return pipelineJobsContract
         case .idle, .checking, .unavailable:
             return nil
@@ -71,7 +81,7 @@ enum BackendRuntimeState: Equatable {
 
     var pipelineMediaContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, _, _, _, pipelineMediaContract, _, _, _, _, _):
+        case let .verified(_, _, _, _, _, _, pipelineMediaContract, _, _, _, _, _):
             return pipelineMediaContract
         case .idle, .checking, .unavailable:
             return nil
@@ -80,7 +90,7 @@ enum BackendRuntimeState: Equatable {
 
     var linguistContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, _, _, _, _, linguistContract, _, _, _, _):
+        case let .verified(_, _, _, _, _, _, _, linguistContract, _, _, _, _):
             return linguistContract
         case .idle, .checking, .unavailable:
             return nil
@@ -89,7 +99,7 @@ enum BackendRuntimeState: Equatable {
 
     var libraryActionsContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, _, _, _, _, _, libraryActionsContract, _, _, _):
+        case let .verified(_, _, _, _, _, _, _, _, libraryActionsContract, _, _, _):
             return libraryActionsContract
         case .idle, .checking, .unavailable:
             return nil
@@ -98,7 +108,7 @@ enum BackendRuntimeState: Equatable {
 
     var offlineExportsContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, _, _, _, _, _, _, offlineExportsContract, _, _):
+        case let .verified(_, _, _, _, _, _, _, _, _, offlineExportsContract, _, _):
             return offlineExportsContract
         case .idle, .checking, .unavailable:
             return nil
@@ -107,7 +117,7 @@ enum BackendRuntimeState: Equatable {
 
     var playbackStateContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, _, _, _, _, _, _, _, playbackStateContract, _):
+        case let .verified(_, _, _, _, _, _, _, _, _, _, playbackStateContract, _):
             return playbackStateContract
         case .idle, .checking, .unavailable:
             return nil
@@ -116,7 +126,7 @@ enum BackendRuntimeState: Equatable {
 
     var notificationsContractState: BackendRuntimeContractState? {
         switch self {
-        case let .verified(_, _, _, _, _, _, _, _, _, _, notificationsContract):
+        case let .verified(_, _, _, _, _, _, _, _, _, _, _, notificationsContract):
             return notificationsContract
         case .idle, .checking, .unavailable:
             return nil
@@ -194,6 +204,15 @@ struct SettingsConnectionSection: View {
                     value: createContractState.label,
                     systemImage: createContractState.systemImage,
                     accessibilityIdentifier: "settingsCreateContractRow"
+                )
+            }
+
+            if let jobIntakeContractState = backendRuntimeState.jobIntakeContractState {
+                SettingsInfoRow(
+                    title: "Job Intake Contract",
+                    value: jobIntakeContractState.label,
+                    systemImage: jobIntakeContractState.systemImage,
+                    accessibilityIdentifier: "settingsJobIntakeContractRow"
                 )
             }
 

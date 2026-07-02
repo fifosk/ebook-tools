@@ -147,6 +147,7 @@ struct PlaybackSettingsView: View {
                 version: descriptor.version,
                 authContract: Self.authContractState(from: descriptor.auth),
                 createContract: Self.createContractState(from: descriptor.creation),
+                jobIntakeContract: Self.jobIntakeContractState(from: descriptor.creation),
                 pipelineJobsContract: Self.pipelineJobsContractState(from: descriptor.pipelineJobs),
                 pipelineMediaContract: Self.pipelineMediaContractState(from: descriptor.pipelineMedia),
                 linguistContract: Self.linguistContractState(from: descriptor.linguist),
@@ -262,8 +263,23 @@ struct PlaybackSettingsView: View {
             return .mismatch(summary: allMismatches.joined(separator: " · "))
         }
         return .ready(
-            summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.pipelineIntakeStatusPath) · \(AppleCreateRuntimeContract.pipelineDefaultsPath) · \(AppleCreateRuntimeContract.pipelineLlmModelsPath) · \(AppleCreateRuntimeContract.pipelineSearchPath) · \(AppleCreateRuntimeContract.audioVoicesPath) · \(AppleCreateRuntimeContract.subtitleDeleteSourcePath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath) · \(AppleCreateRuntimeContract.acquisitionProvidersPath) · \(AppleCreateRuntimeContract.acquisitionDiscoverPath) · \(AppleCreateRuntimeContract.acquisitionAcquirePath) · \(AppleCreateRuntimeContract.acquisitionArtifactPreparePathTemplate) · \(AppleCreateRuntimeContract.acquisitionJobsPath) · \(AppleCreateRuntimeContract.acquisitionJobPathTemplate) · \(AppleCreateRuntimeContract.templateListPath) · \(AppleCreateRuntimeContract.templatePathTemplate)"
+            summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.pipelineDefaultsPath) · \(AppleCreateRuntimeContract.pipelineLlmModelsPath) · \(AppleCreateRuntimeContract.pipelineSearchPath) · \(AppleCreateRuntimeContract.audioVoicesPath) · \(AppleCreateRuntimeContract.subtitleDeleteSourcePath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath) · \(AppleCreateRuntimeContract.acquisitionProvidersPath) · \(AppleCreateRuntimeContract.acquisitionDiscoverPath) · \(AppleCreateRuntimeContract.acquisitionAcquirePath) · \(AppleCreateRuntimeContract.acquisitionArtifactPreparePathTemplate) · \(AppleCreateRuntimeContract.acquisitionJobsPath) · \(AppleCreateRuntimeContract.acquisitionJobPathTemplate) · \(AppleCreateRuntimeContract.templateListPath) · \(AppleCreateRuntimeContract.templatePathTemplate)"
         )
+    }
+
+    private static func jobIntakeContractState(
+        from creation: BackendRuntimeDescriptorResponse.CreationContract?
+    ) -> BackendRuntimeContractState {
+        guard let creation else {
+            return .unavailable
+        }
+        let normalized = creation.pipelineIntakeStatusPath?.nonEmptyValue
+        guard normalized == AppleCreateRuntimeContract.pipelineIntakeStatusPath else {
+            return .mismatch(
+                summary: "pipelineIntakeStatusPath=\(normalized ?? "<missing>") expected \(AppleCreateRuntimeContract.pipelineIntakeStatusPath)"
+            )
+        }
+        return .ready(summary: "1 endpoint · \(AppleCreateRuntimeContract.pipelineIntakeStatusPath)")
     }
 
     private static func libraryActionsContractState(

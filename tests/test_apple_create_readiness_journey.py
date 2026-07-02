@@ -37,6 +37,7 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
     runtime_steps = steps[settings_index:create_index]
 
     assert any(step.get("selector") == "settingsCreateContractRow" for step in runtime_steps)
+    assert any(step.get("selector") == "settingsJobIntakeContractRow" for step in runtime_steps)
     assert any(step.get("selector") == "settingsLibraryActionsContractRow" for step in runtime_steps)
     assert any(step.get("selector") == "settingsOfflineExportsContractRow" for step in runtime_steps)
     assert any(step.get("selector") == "settingsPlaybackStateContractRow" for step in runtime_steps)
@@ -60,8 +61,13 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
         "timeout": 20,
     } in runtime_steps
     assert {
+        "action": "assert_visible",
+        "selector": "settingsJobIntakeContractRow",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
         "action": "assert_value_contains",
-        "selector": "settingsCreateContractRow",
+        "selector": "settingsJobIntakeContractRow",
         "text": "/api/pipelines/intake/status",
         "timeout": 20,
     } in runtime_steps

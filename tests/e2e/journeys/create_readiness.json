@@ -38,8 +38,13 @@
       "timeout": 20
     },
     {
+      "action": "assert_visible",
+      "selector": "settingsJobIntakeContractRow",
+      "timeout": 20
+    },
+    {
       "action": "assert_value_contains",
-      "selector": "settingsCreateContractRow",
+      "selector": "settingsJobIntakeContractRow",
       "text": "/api/pipelines/intake/status",
       "timeout": 20
     },
