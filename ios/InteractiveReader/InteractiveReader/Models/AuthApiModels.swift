@@ -82,6 +82,13 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let templatePathTemplate: String?
     }
 
+    struct AcquisitionContract: Decodable, Equatable {
+        let mediaKinds: [String]
+        let capabilities: [String]
+        let rights: [String]
+        let providerStatuses: [String]
+    }
+
     struct OfflineExportContract: Decodable, Equatable {
         let createPath: String
         let downloadPathTemplate: String
@@ -177,6 +184,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     let clientConfig: ClientConfig
     let applePipeline: ApplePipelineContract?
     let creation: CreationContract?
+    let acquisition: AcquisitionContract?
     let offlineExports: OfflineExportContract?
     let pipelineJobs: PipelineJobsContract?
     let pipelineMedia: PipelineMediaContract?

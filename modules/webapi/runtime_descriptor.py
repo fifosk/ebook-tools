@@ -2,7 +2,29 @@
 
 from __future__ import annotations
 
+import importlib.util
 from collections.abc import Mapping, Sequence
+from pathlib import Path
+
+_DISCOVERY_VALUES_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "services"
+    / "acquisition"
+    / "discovery_values.py"
+)
+_DISCOVERY_VALUES_SPEC = importlib.util.spec_from_file_location(
+    "ebook_tools_acquisition_discovery_values",
+    _DISCOVERY_VALUES_PATH,
+)
+if _DISCOVERY_VALUES_SPEC is None or _DISCOVERY_VALUES_SPEC.loader is None:
+    raise RuntimeError(f"Unable to load acquisition values from {_DISCOVERY_VALUES_PATH}")
+_discovery_values = importlib.util.module_from_spec(_DISCOVERY_VALUES_SPEC)
+_DISCOVERY_VALUES_SPEC.loader.exec_module(_discovery_values)
+
+ACQUISITION_CAPABILITIES = _discovery_values.ACQUISITION_CAPABILITIES
+ACQUISITION_MEDIA_KINDS = _discovery_values.ACQUISITION_MEDIA_KINDS
+ACQUISITION_PROVIDER_STATUSES = _discovery_values.ACQUISITION_PROVIDER_STATUSES
+ACQUISITION_RIGHTS = _discovery_values.ACQUISITION_RIGHTS
 
 API_BASE_URL_ENVIRONMENT = (
     "INTERACTIVE_READER_API_BASE_URL",
@@ -84,6 +106,12 @@ CREATION_DESCRIPTOR = {
     "acquisitionJobPathTemplate": "/api/acquisition/jobs/{task_id}",
     "templateListPath": "/api/creation/templates",
     "templatePathTemplate": "/api/creation/templates/{template_id}",
+}
+ACQUISITION_DESCRIPTOR = {
+    "mediaKinds": ACQUISITION_MEDIA_KINDS,
+    "capabilities": ACQUISITION_CAPABILITIES,
+    "rights": ACQUISITION_RIGHTS,
+    "providerStatuses": ACQUISITION_PROVIDER_STATUSES,
 }
 OFFLINE_EXPORTS_DESCRIPTOR = {
     "createPath": "/api/exports",
@@ -249,6 +277,7 @@ _PUBLIC_RUNTIME_DESCRIPTOR_TEMPLATE: dict[str, object] = {
     "clientConfig": CLIENT_CONFIG_DESCRIPTOR,
     "applePipeline": APPLE_PIPELINE_DESCRIPTOR,
     "creation": CREATION_DESCRIPTOR,
+    "acquisition": ACQUISITION_DESCRIPTOR,
     "offlineExports": OFFLINE_EXPORTS_DESCRIPTOR,
     "pipelineJobs": PIPELINE_JOBS_DESCRIPTOR,
     "pipelineMedia": PIPELINE_MEDIA_DESCRIPTOR,

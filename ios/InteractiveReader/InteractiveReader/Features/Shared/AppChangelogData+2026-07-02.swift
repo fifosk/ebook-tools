@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "runtime-acquisition-value-contract",
+                    title: "Runtime advertises source values",
+                    detail: "The public runtime descriptor now exposes the shared acquisition media-kind, capability, rights, and provider-status vocabulary so Web and Apple contract checks can catch source-picker drift earlier."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-readiness-provider-value-gate",
                     title: "Readiness validates provider values",
                     detail: "Apple Create readiness preflight now rejects acquisition provider inventory entries with unsupported status, media kind, rights, or capability values before unattended simulator or device checks."

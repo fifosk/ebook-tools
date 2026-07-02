@@ -24,6 +24,7 @@ from modules.webapi.dependencies import (
 from modules.webapi import runtime_descriptor as runtime_descriptor_module
 from modules.webapi.routes import system_routes as pipeline_system_routes
 from modules.webapi.runtime_descriptor import (
+    ACQUISITION_DESCRIPTOR,
     CREATION_DESCRIPTOR,
     LIBRARY_ACTIONS_DESCRIPTOR,
     NOTIFICATIONS_DESCRIPTOR,
@@ -172,6 +173,25 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
         "deviceProfiles": ["iphone", "ipad", "appletv", "cinema"],
     }
     assert payload["creation"] == CREATION_DESCRIPTOR
+    assert payload["acquisition"] == ACQUISITION_DESCRIPTOR | {
+        "mediaKinds": ["book", "video"],
+        "capabilities": [
+            "search",
+            "metadata",
+            "acquire",
+            "poll",
+            "extract_subtitles",
+            "import_local",
+        ],
+        "rights": [
+            "public_domain",
+            "open_license",
+            "user_provided",
+            "unknown",
+            "restricted",
+        ],
+        "providerStatuses": ["available", "not_configured", "planned"],
+    }
     assert payload["creation"]["acquisitionProvidersPath"] == "/api/acquisition/providers"
     assert payload["creation"]["acquisitionDiscoverPath"] == "/api/acquisition/discover"
     assert payload["creation"]["acquisitionAcquirePath"] == "/api/acquisition/acquire"

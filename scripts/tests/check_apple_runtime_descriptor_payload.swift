@@ -82,6 +82,12 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "templateListPath": "/api/creation/templates",
             "templatePathTemplate": "/api/creation/templates/{template_id}"
           },
+          "acquisition": {
+            "mediaKinds": ["book", "video"],
+            "capabilities": ["search", "metadata", "acquire", "poll", "extract_subtitles", "import_local"],
+            "rights": ["public_domain", "open_license", "user_provided", "unknown", "restricted"],
+            "providerStatuses": ["available", "not_configured", "planned"]
+          },
           "offlineExports": {
             "createPath": "/api/exports",
             "downloadPathTemplate": "/api/exports/{export_id}/download",
@@ -389,6 +395,22 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.creation?.templatePathTemplate == "/api/creation/templates/{template_id}",
             "Apple runtime descriptor should decode creation template detail endpoint template"
+        )
+        require(
+            current.acquisition?.mediaKinds == ["book", "video"],
+            "Apple runtime descriptor should decode acquisition media kinds"
+        )
+        require(
+            current.acquisition?.capabilities == ["search", "metadata", "acquire", "poll", "extract_subtitles", "import_local"],
+            "Apple runtime descriptor should decode acquisition capabilities"
+        )
+        require(
+            current.acquisition?.rights == ["public_domain", "open_license", "user_provided", "unknown", "restricted"],
+            "Apple runtime descriptor should decode acquisition rights"
+        )
+        require(
+            current.acquisition?.providerStatuses == ["available", "not_configured", "planned"],
+            "Apple runtime descriptor should decode acquisition provider statuses"
         )
         require(
             current.offlineExports?.createPath == "/api/exports",

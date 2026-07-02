@@ -130,6 +130,26 @@ export const WEB_CREATE_RUNTIME_CONTRACT = {
   templatePathTemplate: '/api/creation/templates/{template_id}',
 } as const;
 
+export const WEB_ACQUISITION_RUNTIME_CONTRACT = {
+  mediaKinds: ['book', 'video'],
+  capabilities: [
+    'search',
+    'metadata',
+    'acquire',
+    'poll',
+    'extract_subtitles',
+    'import_local'
+  ],
+  rights: [
+    'public_domain',
+    'open_license',
+    'user_provided',
+    'unknown',
+    'restricted'
+  ],
+  providerStatuses: ['available', 'not_configured', 'planned'],
+} as const;
+
 export const WEB_LINGUIST_RUNTIME_CONTRACT = {
   assistantLookupPath: '/api/assistant/lookup',
   lookupCachePathTemplate: '/api/pipelines/jobs/{job_id}/lookup-cache',

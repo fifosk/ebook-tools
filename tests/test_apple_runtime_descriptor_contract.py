@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 from modules.webapi.runtime_descriptor import (
+    ACQUISITION_DESCRIPTOR,
     APPLE_PIPELINE_DESCRIPTOR,
     AUTH_DESCRIPTOR,
     CLIENT_CONFIG_DESCRIPTOR,
@@ -102,6 +103,7 @@ RUNTIME_DESCRIPTOR_SWIFT_CHECK_SECTIONS = {
     "clientConfig": ("current.clientConfig", CLIENT_CONFIG_DESCRIPTOR),
     "applePipeline": ("current.applePipeline?", APPLE_PIPELINE_DESCRIPTOR),
     "creation": ("current.creation?", CREATION_DESCRIPTOR),
+    "acquisition": ("current.acquisition?", ACQUISITION_DESCRIPTOR),
     "offlineExports": ("current.offlineExports?", OFFLINE_EXPORTS_DESCRIPTOR),
     "pipelineJobs": ("current.pipelineJobs?", PIPELINE_JOBS_DESCRIPTOR),
     "pipelineMedia": ("current.pipelineMedia?", PIPELINE_MEDIA_DESCRIPTOR),
@@ -127,6 +129,7 @@ RUNTIME_DESCRIPTOR_SWIFT_MODEL_SECTIONS = {
         CREATION_DESCRIPTOR,
         set(CREATION_DESCRIPTOR) - {"bookOptionsPath", "bookJobsPath"},
     ),
+    "acquisition": ("AcquisitionContract", ACQUISITION_DESCRIPTOR, set()),
     "offlineExports": ("OfflineExportContract", OFFLINE_EXPORTS_DESCRIPTOR, set()),
     "pipelineJobs": (
         "PipelineJobsContract",
@@ -306,6 +309,25 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
     assert descriptor["clientConfig"]["legacyTokenMigration"] == "userdefaults-authToken"
     assert descriptor["applePipeline"]["manifestId"] == "ebook-tools"
     assert descriptor["creation"] == CREATION_DESCRIPTOR
+    assert descriptor["acquisition"] == {
+        "mediaKinds": ["book", "video"],
+        "capabilities": [
+            "search",
+            "metadata",
+            "acquire",
+            "poll",
+            "extract_subtitles",
+            "import_local",
+        ],
+        "rights": [
+            "public_domain",
+            "open_license",
+            "user_provided",
+            "unknown",
+            "restricted",
+        ],
+        "providerStatuses": ["available", "not_configured", "planned"],
+    }
     assert descriptor["offlineExports"] == {
         "createPath": "/api/exports",
         "downloadPathTemplate": "/api/exports/{export_id}/download",
@@ -381,8 +403,14 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "templatePathTemplate",
     ]:
         assert f"let {key}: String?" in source
+    assert "struct AcquisitionContract: Decodable, Equatable" in source
+    assert "let mediaKinds: [String]" in source
+    assert "let capabilities: [String]" in source
+    assert "let rights: [String]" in source
+    assert "let providerStatuses: [String]" in source
     assert "let applePipeline: ApplePipelineContract?" in source
     assert "let creation: CreationContract?" in source
+    assert "let acquisition: AcquisitionContract?" in source
     assert "struct OfflineExportContract: Decodable, Equatable" in source
     assert "let createPath: String" in source
     assert "let downloadPathTemplate: String" in source
@@ -569,6 +597,11 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "pipelineFilesMinLimit: 1" in web_runtime_source
     assert "pipelineFilesDefaultLimit: 200" in web_runtime_source
     assert "pipelineFilesMaxLimit: 500" in web_runtime_source
+    assert "export const WEB_ACQUISITION_RUNTIME_CONTRACT" in web_runtime_source
+    for key, values in ACQUISITION_DESCRIPTOR.items():
+        assert f"{key}: [" in web_runtime_source
+        for value in values:
+            assert f"'{value}'" in web_runtime_source
     assert (
         "export const MIN_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesMinLimit;"
         in web_jobs_source

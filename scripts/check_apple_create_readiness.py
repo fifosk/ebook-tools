@@ -18,6 +18,8 @@ from datetime import datetime
 
 DEFAULT_API_BASE_URL = "https://api.langtools.fifosk.synology.me"
 _ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_ROOT_DIR))
 _RUNTIME_DESCRIPTOR_PATH = _ROOT_DIR / "modules" / "webapi" / "runtime_descriptor.py"
 _RUNTIME_DESCRIPTOR_SPEC = importlib.util.spec_from_file_location(
     "ebook_tools_runtime_descriptor",
