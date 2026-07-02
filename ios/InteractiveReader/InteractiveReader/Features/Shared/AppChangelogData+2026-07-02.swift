@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "readiness-acquisition-runtime-values",
+                    title: "Readiness uses runtime source values",
+                    detail: "Apple Create readiness preflight now derives acquisition media-kind, capability, rights, and status allow-lists from the public runtime descriptor instead of carrying a separate copied set."
+                ),
+                AppChangelogEntry(
                     id: "apple-acquisition-runtime-value-validation",
                     title: "Apple validates source values from runtime",
                     detail: "Apple Create acquisition validation now derives its media-kind, capability, rights, and status allow-lists from the runtime descriptor acquisition contract model instead of duplicating those values in the Create API models."

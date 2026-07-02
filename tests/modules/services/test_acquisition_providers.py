@@ -742,30 +742,22 @@ def test_acquisition_contract_values_stay_aligned_across_web_apple_and_readiness
         suffix="]",
     ) == discovery_values.ACQUISITION_PROVIDER_STATUSES
 
-    assert _quoted_values_from_assignment(
-        readiness_source,
-        "\nACQUISITION_DISCOVERY_MEDIA_KINDS = {",
-        quote='"',
-        suffix="}",
-    ) == discovery_values.ACQUISITION_MEDIA_KINDS
-    assert _quoted_values_from_assignment(
-        readiness_source,
-        "\nACQUISITION_DISCOVERY_CAPABILITIES = {",
-        quote='"',
-        suffix="}",
-    ) == discovery_values.ACQUISITION_CAPABILITIES
-    assert _quoted_values_from_assignment(
-        readiness_source,
-        "\nACQUISITION_DISCOVERY_RIGHTS = {",
-        quote='"',
-        suffix="}",
-    ) == discovery_values.ACQUISITION_RIGHTS
-    assert _quoted_values_from_assignment(
-        readiness_source,
-        "\nACQUISITION_PROVIDER_STATUSES = {",
-        quote='"',
-        suffix="}",
-    ) == discovery_values.ACQUISITION_PROVIDER_STATUSES
+    assert (
+        'ACQUISITION_DISCOVERY_MEDIA_KINDS = _runtime_acquisition_value_set("mediaKinds")'
+        in readiness_source
+    )
+    assert (
+        'ACQUISITION_DISCOVERY_CAPABILITIES = _runtime_acquisition_value_set("capabilities")'
+        in readiness_source
+    )
+    assert (
+        'ACQUISITION_DISCOVERY_RIGHTS = _runtime_acquisition_value_set("rights")'
+        in readiness_source
+    )
+    assert (
+        'ACQUISITION_PROVIDER_STATUSES = _runtime_acquisition_value_set("providerStatuses")'
+        in readiness_source
+    )
 
 
 def test_provider_registry_rejects_contract_drift(

@@ -209,23 +209,22 @@ REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS = {
     "download_station": set(),
     "zlibrary_attended": set(),
 }
-ACQUISITION_DISCOVERY_MEDIA_KINDS = {"book", "video"}
-ACQUISITION_DISCOVERY_CAPABILITIES = {
-    "search",
-    "metadata",
-    "acquire",
-    "poll",
-    "extract_subtitles",
-    "import_local",
-}
-ACQUISITION_DISCOVERY_RIGHTS = {
-    "public_domain",
-    "open_license",
-    "user_provided",
-    "unknown",
-    "restricted",
-}
-ACQUISITION_PROVIDER_STATUSES = {"available", "not_configured", "planned"}
+
+
+def _runtime_acquisition_value_set(key: str) -> set[str]:
+    descriptor = getattr(_runtime_descriptor, "ACQUISITION_DESCRIPTOR", {})
+    if not isinstance(descriptor, dict):
+        return set()
+    values = descriptor.get(key)
+    if not isinstance(values, (list, tuple)):
+        return set()
+    return {value for value in values if isinstance(value, str) and value}
+
+
+ACQUISITION_DISCOVERY_MEDIA_KINDS = _runtime_acquisition_value_set("mediaKinds")
+ACQUISITION_DISCOVERY_CAPABILITIES = _runtime_acquisition_value_set("capabilities")
+ACQUISITION_DISCOVERY_RIGHTS = _runtime_acquisition_value_set("rights")
+ACQUISITION_PROVIDER_STATUSES = _runtime_acquisition_value_set("providerStatuses")
 
 
 def load_env_file(path: Path) -> dict[str, str]:
