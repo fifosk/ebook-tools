@@ -582,6 +582,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.pauseForReaderTransport()" in job_confirm_pause_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in job_confirm_pause_body
     assert "Job confirming reader pause source=" in job_confirm_pause_body
+    assert "Job confirmed reader pause source=" in job_confirm_pause_body
+    assert "requested=false playing=false" in job_confirm_pause_body
     job_interactive_toggle_body = _function_body(job_now_playing, "func toggleInteractiveReaderPlaybackTransport()")
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job_interactive_toggle_body
     assert "viewModel.audioCoordinator.isPlaying" in job_interactive_toggle_body
@@ -933,6 +935,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.pauseForReaderTransport()" in library_confirm_pause_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_confirm_pause_body
     assert "Library confirming reader pause source=" in library_confirm_pause_body
+    assert "Library confirmed reader pause source=" in library_confirm_pause_body
+    assert "requested=false playing=false" in library_confirm_pause_body
     library_interactive_toggle_body = _function_body(library_now_playing, "func toggleInteractiveReaderPlaybackTransport()")
     assert "viewModel.audioCoordinator.isPlaybackRequested" in library_interactive_toggle_body
     assert "viewModel.audioCoordinator.isPlaying" in library_interactive_toggle_body

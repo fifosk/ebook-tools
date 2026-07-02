@@ -3,7 +3,7 @@ extension AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-tv-combined-bed-sentence-pause-confirm",
                     title: "TV pause sticks to both audio layers",
-                    detail: "Apple TV reader-owned pause now confirms the sentence coordinator has stopped after broker, Music-surface, or rejected-play pause paths, so one remote press is less likely to leave narration playing after the Apple Music bed pauses."
+                    detail: "Apple TV reader-owned pause now confirms the sentence coordinator has stopped after broker, Music-surface, or rejected-play pause paths, logging settled pause evidence so one remote press is less likely to leave narration playing after the Apple Music bed pauses."
                 ),
                 AppChangelogEntry(
                     id: "apple-dedicated-pair-progress-duration",

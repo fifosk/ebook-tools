@@ -187,7 +187,10 @@ broker, Music-surface, and rejected-play pause acceptance; if narration still
 reports `requested` or `playing`, the reader issues another transport pause and
 republishes paused Now Playing metadata. That targets the physical split-pause
 case where the first remote press stopped the Apple Music bed while sentence
-audio continued until a second press.
+audio continued until a second press. Healthy DEBUG playback logs should include
+`confirmed reader pause source=... requested=false playing=false` before the
+next transport command, and the pulled-log verifier rejects a pause episode that
+never settles.
 The simulator journey also taps the debug reader `play` command while that
 pause guard is active and asserts the reader transport command count stays
 unchanged, proving stray Music-surface play callbacks do not resume narration.

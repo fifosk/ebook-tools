@@ -443,7 +443,16 @@ extension JobPlaybackView {
                 guard lastReaderTransportAction == "pause" else { return }
                 guard viewModel.audioCoordinator.isPlaybackRequested ||
                     viewModel.audioCoordinator.isPlaying
-                else { continue }
+                else {
+                    playbackTransportDebugLog(
+                        "[PlaybackTransport] Job confirmed reader pause source=\(source) requested=false playing=false musicPlaying=\(musicOwnership.isPlaying)"
+                    )
+                    playbackLogger.info(
+                        "Job reader transport confirmed pause source=\(source, privacy: .public) requested=false playing=false musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+                    )
+                    publishReaderNowPlayingSnapshot(force: true)
+                    return
+                }
                 playbackTransportDebugLog(
                     "[PlaybackTransport] Job confirming reader pause source=\(source) requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
                 )

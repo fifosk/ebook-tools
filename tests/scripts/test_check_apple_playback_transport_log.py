@@ -17,6 +17,7 @@ PAUSE_LOG = """
 1782670000.050 [PlaybackTransport] Library forced pause source=brokerPause requested=true playing=true musicPlaying=true systemMusicPlaying=true
 1782670000.060 [PlaybackTransport] Library pause command accepted requested=true playing=true musicPlaying=true
 1782670000.080 [PlaybackTransport] Library accepted Apple Music pause as reader transport source=musicSurface requested=false playing=false musicPlaying=false readerPause=true
+1782670000.120 [PlaybackTransport] Library confirmed reader pause source=pauseCommand requested=false playing=false musicPlaying=false
 """
 
 
@@ -55,6 +56,7 @@ MUSIC_ADOPTION_PAUSE_LOG = """
 1782670000.000 [PlaybackTransport] Apple Music reader transport pause adopted source=observed non-playing reason=observedNonPlaying
 1782670000.020 [PlaybackTransport] Library mirroring adopted Apple Music pause requested=true playing=true musicPlaying=false
 1782670000.040 [PlaybackTransport] Library accepted Apple Music pause as reader transport source=musicAdoption requested=true playing=true musicPlaying=false readerPause=true
+1782670000.080 [PlaybackTransport] Library confirmed reader pause source=musicAdoption requested=false playing=false musicPlaying=false
 """
 
 
@@ -73,6 +75,14 @@ WEAK_FIRST_PAUSE_LOG = """
 1782670001.000 [PlaybackTransport] Library broker tvOS Play/Pause command
 1782670001.050 [PlaybackTransport] Library forced pause source=brokerPause requested=true playing=true musicPlaying=false systemMusicPlaying=false
 1782670001.060 [PlaybackTransport] Library pause command accepted requested=true playing=true musicPlaying=false
+"""
+
+
+UNSETTLED_FIRST_PAUSE_LOG = """
+1782670000.000 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670000.050 [PlaybackTransport] Library forced pause source=brokerPause requested=true playing=true musicPlaying=true systemMusicPlaying=false
+1782670000.060 [PlaybackTransport] Library pause command accepted requested=true playing=true musicPlaying=true
+1782670001.000 [PlaybackTransport] Library broker tvOS Play/Pause command
 """
 
 
@@ -181,6 +191,15 @@ def test_pause_release_rejects_first_episode_with_only_reader_pause_flag(tmp_pat
     missing = module.validate_log(log, mode="pause-release")
 
     assert missing == ["first pause episode did not reach narration before the next transport command"]
+
+
+def test_pause_release_rejects_unsettled_first_pause_episode(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(UNSETTLED_FIRST_PAUSE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert missing == ["first pause episode did not confirm narration stopped before the next transport command"]
 
 
 def test_pause_resume_requires_explicit_play_evidence(tmp_path: Path) -> None:

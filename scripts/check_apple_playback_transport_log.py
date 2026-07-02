@@ -136,6 +136,16 @@ NARRATION_PAUSE_EVIDENCE_PATTERN = re.compile(
 )
 
 
+NARRATION_PAUSE_SETTLED_PATTERN = re.compile(
+    r"\[PlaybackTransport\] (?:"
+    r"(?:Job|Library) confirmed reader pause source=.*requested=false playing=false|"
+    r"(?:Job|Library) accepted Apple Music pause as reader transport source=.*requested=false playing=false|"
+    r"(?:Job|Library) mirroring adopted Apple Music pause requested=false playing=false"
+    r")",
+    flags=re.MULTILINE,
+)
+
+
 TRANSPORT_EVENT_LINE_PATTERN = re.compile(
     r"^(?P<time>\d+(?:\.\d+)?) \[PlaybackTransport\] (?P<surface>Job|Library) (?P<event>.+)$"
 )
@@ -215,9 +225,11 @@ def _first_pause_episode_violations(text: str) -> list[str]:
             break
 
     first_episode = "\n".join(lines[first_index:end_index])
-    if NARRATION_PAUSE_EVIDENCE_PATTERN.search(first_episode):
-        return []
-    return ["first pause episode did not reach narration before the next transport command"]
+    if not NARRATION_PAUSE_EVIDENCE_PATTERN.search(first_episode):
+        return ["first pause episode did not reach narration before the next transport command"]
+    if not NARRATION_PAUSE_SETTLED_PATTERN.search(first_episode):
+        return ["first pause episode did not confirm narration stopped before the next transport command"]
+    return []
 
 
 def _dead_resume_violations(text: str) -> list[str]:
