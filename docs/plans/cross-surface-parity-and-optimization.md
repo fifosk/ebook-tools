@@ -711,7 +711,11 @@ Current Apple UI partially exposes:
   roots through one helper that keeps NAS video roots available for explicit
   manual discovery compatibility while excluding them from explicit
   manual-download default fallback policy, preserving Web/Apple default-source
-  semantics. Backend local/manual/NAS source candidate helpers now live in
+  semantics. Provider source-root resolution now lives in
+  `modules/services/acquisition/provider_roots.py`, keeping books root, NAS
+  video root, manual-download config/env splitting, source labels, and
+  tolerant safe-stat readability checks reusable outside the provider registry
+  payload builder. Backend local/manual/NAS source candidate helpers now live in
   `modules/services/acquisition/source_candidates.py` with focused coverage,
   keeping source-relative paths, display-title derivation, zero-byte EPUB
   filtering, and bounded newest-first manual source ordering shared for

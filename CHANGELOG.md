@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Backend acquisition provider root resolution now lives in a focused `provider_roots` helper module, keeping books, NAS video, manual-download, environment, and safe-stat readability logic reusable for Web and Apple Create without bloating the provider registry payload builder.
 - Apple reader original-only/translation-only batch handoffs now let the stored selected timing lane override a stale enabled sequence controller, preventing end-of-batch resets where narration continues on the selected track but rendering falls back to combined.
 - Web Video Dubbing page feedback, template status, template errors, and intake callout rendering now live in a focused `VideoDubbingFeedbackPanel` with rendered coverage and changed-test routing, trimming the page coordinator without changing the cross-surface Create workflow.
 - Apple reader original-only/translation-only rendering now treats the selected timing lane as durable single-track evidence before transient audio-manager or picker state, so no-URL EOF recovery and batch refreshes cannot reset rendering back to combined while narration stays on the selected lane.

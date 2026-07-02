@@ -20,6 +20,7 @@ import modules.services.acquisition.models as acquisition_models
 import modules.services.acquisition.openlibrary_discovery as openlibrary_discovery
 import modules.services.acquisition.provider_defaults as provider_defaults
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
+import modules.services.acquisition.provider_roots as provider_roots
 import modules.services.acquisition.source_candidates as source_candidates
 import modules.services.acquisition.discovery_values as discovery_values
 import modules.services.acquisition.youtube_discovery as youtube_discovery
@@ -708,11 +709,11 @@ def test_provider_root_readability_uses_tolerant_safe_stat(
             return regular_file.stat()
         raise AssertionError("provider readiness should rely on safe_stat only")
 
-    monkeypatch.setattr(acquisition_provider_registry, "safe_stat", _fake_safe_stat)
+    monkeypatch.setattr(provider_roots, "safe_stat", _fake_safe_stat)
 
-    assert acquisition_provider_registry._is_readable_dir(Path("/nas/synthetic-dir")) is True
-    assert acquisition_provider_registry._is_readable_dir(Path("/nas/synthetic-file")) is False
-    assert acquisition_provider_registry._is_readable_dir(Path("/nas/missing")) is False
+    assert provider_roots.is_readable_dir(Path("/nas/synthetic-dir")) is True
+    assert provider_roots.is_readable_dir(Path("/nas/synthetic-file")) is False
+    assert provider_roots.is_readable_dir(Path("/nas/missing")) is False
     assert calls == ["synthetic-dir", "synthetic-file", "missing"]
 
 

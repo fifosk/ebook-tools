@@ -3,20 +3,25 @@
 from __future__ import annotations
 
 import os
-import stat as stat_module
 from dataclasses import dataclass, field, replace
-from pathlib import Path
 from typing import Any, Mapping
 
 from modules import config_manager as cfg
-from modules.services.source_discovery import safe_stat
-from modules.services.youtube_dubbing import DEFAULT_YOUTUBE_VIDEO_ROOT
 
 from .provider_defaults import (
     default_discovery_provider_ids_from_readiness as _default_discovery_provider_ids_from_readiness,
     is_download_station_configured,
     is_indexer_search_configured,
     is_youtube_search_configured,
+)
+from .provider_roots import (
+    DEFAULT_YOUTUBE_VIDEO_ROOT,
+    is_readable_dir as _is_readable_dir,
+    manual_download_source_label as _manual_download_source_label,
+    readable_explicit_manual_download_roots as _readable_explicit_manual_download_roots,
+    resolve_books_root,
+    resolve_manual_download_roots,
+    resolve_video_root,
 )
 
 
@@ -409,118 +414,3 @@ def _default_eligible_media_kinds(
         for media_kind in ("book", "video")
         if provider_id in default_provider_ids.get(media_kind, ())
     )
-
-
-def resolve_books_root(
-    *,
-    config: Mapping[str, Any],
-    context: cfg.RuntimeContext | None,
-) -> Path:
-    """Resolve the backend-visible EPUB source root."""
-
-    if context is not None:
-        return context.books_dir.expanduser()
-    raw_value = config.get("ebooks_dir")
-    if isinstance(raw_value, str) and raw_value.strip():
-        return _resolve_display_path(raw_value.strip())
-    return _resolve_display_path(cfg.DEFAULT_BOOKS_RELATIVE)
-
-
-def resolve_video_root(config: Mapping[str, Any]) -> Path:
-    """Resolve the backend-visible NAS video source root."""
-
-    for key in ("youtube_video_root", "youtube_library_root", "video_download_root"):
-        value = config.get(key)
-        if isinstance(value, str) and value.strip():
-            return _resolve_display_path(value.strip())
-    return DEFAULT_YOUTUBE_VIDEO_ROOT
-
-
-def resolve_manual_download_roots(config: Mapping[str, Any]) -> tuple[Path, ...]:
-    """Resolve user-authorized manual download folders visible to the backend."""
-
-    return _resolve_manual_download_roots(
-        config,
-        include_video_roots=True,
-        readable_only=False,
-    )
-
-
-def _readable_explicit_manual_download_roots(config: Mapping[str, Any]) -> tuple[Path, ...]:
-    """Return readable manual roots explicitly configured as download inboxes."""
-
-    return _resolve_manual_download_roots(
-        config,
-        include_video_roots=False,
-        readable_only=True,
-    )
-
-
-def _resolve_manual_download_roots(
-    config: Mapping[str, Any],
-    *,
-    include_video_roots: bool,
-    readable_only: bool,
-) -> tuple[Path, ...]:
-    roots: list[Path] = []
-    seen: set[str] = set()
-    for value in _manual_download_root_values(
-        config,
-        include_video_roots=include_video_roots,
-    ):
-        for part in _split_path_values(value):
-            root = _resolve_display_path(part)
-            key = root.as_posix()
-            if key in seen:
-                continue
-            if readable_only and not _is_readable_dir(root):
-                continue
-            seen.add(key)
-            roots.append(root)
-    return tuple(roots)
-
-
-def _manual_download_root_values(
-    config: Mapping[str, Any],
-    *,
-    include_video_roots: bool,
-) -> tuple[object, ...]:
-    raw_values: list[object] = []
-    config_keys = _EXPLICIT_MANUAL_DOWNLOAD_ROOT_KEYS
-    if include_video_roots:
-        config_keys += _VIDEO_DOWNLOAD_ROOT_KEYS
-    for key in config_keys:
-        value = config.get(key)
-        if value not in (None, ""):
-            raw_values.append(value)
-    for key in _MANUAL_DOWNLOAD_ROOT_ENV_KEYS:
-        value = os.environ.get(key, "").strip()
-        if value:
-            raw_values.append(value)
-    return tuple(raw_values)
-
-
-def _manual_download_source_label(roots: tuple[Path, ...]) -> str:
-    return "Manual download folder" if len(roots) == 1 else "Manual download folders"
-
-
-def _resolve_display_path(path_value: object) -> Path:
-    path = Path(str(path_value)).expanduser()
-    if path.is_absolute():
-        return path
-    return (cfg.SCRIPT_DIR / path).resolve()
-
-
-def _is_readable_dir(path: Path) -> bool:
-    path_stat = safe_stat(path)
-    return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
-
-
-def _split_path_values(value: object) -> tuple[str, ...]:
-    if isinstance(value, (list, tuple, set)):
-        parts = [str(item).strip() for item in value]
-    else:
-        text = str(value)
-        normalized = text.replace("\n", os.pathsep).replace(",", os.pathsep)
-        parts = [part.strip() for part in normalized.split(os.pathsep)]
-    return tuple(part for part in parts if part)

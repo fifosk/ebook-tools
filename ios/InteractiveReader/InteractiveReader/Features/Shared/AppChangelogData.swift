@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-provider-roots-helper",
+                    title: "Source roots are cleaner",
+                    detail: "Backend acquisition provider root resolution now lives in a focused helper module, keeping books, NAS video, manual-download, environment, and safe-stat readability logic reusable for Web and Apple Create without bloating the provider registry payload builder."
+                ),
+                AppChangelogEntry(
                     id: "apple-selected-timing-stale-sequence-override",
                     title: "Single-track batches resist resets",
                     detail: "Apple reader original-only and translation-only batch handoffs now let the stored selected timing lane override a stale enabled sequence controller, preventing end-of-batch resets where narration stays selected but rendering falls back to combined."
