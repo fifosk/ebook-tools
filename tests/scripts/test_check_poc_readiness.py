@@ -23,6 +23,7 @@ def build_runtime_descriptor() -> dict[str, object]:
         "clientConfig": dict(module.CLIENT_CONFIG_DESCRIPTOR),
         "applePipeline": dict(module.APPLE_PIPELINE_DESCRIPTOR),
         "creation": dict(module.CREATION_DESCRIPTOR),
+        "acquisition": dict(module.ACQUISITION_DESCRIPTOR),
         "libraryActions": dict(module.LIBRARY_ACTIONS_DESCRIPTOR),
         "pipelineJobs": dict(module.PIPELINE_JOBS_DESCRIPTOR),
         "pipelineMedia": dict(module.PIPELINE_MEDIA_DESCRIPTOR),
@@ -86,6 +87,7 @@ def test_deploy_readiness_contract_includes_subtitle_source_cleanup_path() -> No
 
 def test_deploy_readiness_validates_library_offline_and_playback_sections() -> None:
     payload = build_runtime_descriptor()
+    payload["acquisition"]["providerStatuses"] = ["available"]
     del payload["libraryActions"]["isbnLookupPath"]
     del payload["pipelineJobs"]["deletePathTemplate"]
     del payload["pipelineMedia"]["libraryMediaFilePathTemplate"]
@@ -95,6 +97,7 @@ def test_deploy_readiness_validates_library_offline_and_playback_sections() -> N
     del payload["notifications"]["preferencesPath"]
 
     assert module.validate_runtime_descriptor(payload) == [
+        "runtime.acquisition.providerStatuses=['available'] expected ['available', 'not_configured', 'planned']",
         "runtime.libraryActions.isbnLookupPath=None expected '/api/library/isbn/lookup'",
         "runtime.pipelineJobs.deletePathTemplate=None expected '/api/pipelines/jobs/{job_id}/delete'",
         "runtime.pipelineMedia.libraryMediaFilePathTemplate=None expected '/api/library/media/{job_id}/file/{file_path}'",
@@ -204,7 +207,7 @@ def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> Non
             "offline_export_paths": 4,
             "playback_state_paths": 6,
             "notification_paths": 5,
-            "runtime_sections": 8,
+            "runtime_sections": 12,
         }
 
     monkeypatch.setattr(module, "check_readiness", fake_check_readiness)
@@ -233,7 +236,7 @@ def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> Non
     }
     output = capsys.readouterr().out
     assert "ebook-tools Apple deploy readiness passed" in output
-    assert "advertised 8 Apple runtime sections" in output
+    assert "advertised 12 Apple runtime sections" in output
     assert "including 6 acquisition Create routes" in output
 
 

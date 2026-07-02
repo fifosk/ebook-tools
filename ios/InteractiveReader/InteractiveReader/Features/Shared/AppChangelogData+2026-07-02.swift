@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "readiness-runtime-acquisition-section",
+                    title: "Readiness requires source values",
+                    detail: "Apple Create and physical deploy preflights now require the runtime acquisition value descriptor, so stale backend source-picker contracts fail before simulator or device testing."
+                ),
+                AppChangelogEntry(
                     id: "readiness-acquisition-runtime-values",
                     title: "Readiness uses runtime source values",
                     detail: "Apple Create readiness preflight now derives acquisition media-kind, capability, rights, and status allow-lists from the public runtime descriptor instead of carrying a separate copied set."

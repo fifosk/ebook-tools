@@ -101,6 +101,7 @@ CREATION_TEMPLATE_MODE_PROBES = (
 EXPECTED_RUNTIME_SECTIONS = {
     "auth": _runtime_descriptor.AUTH_DESCRIPTOR,
     "creation": EXPECTED_CREATE_PATHS,
+    "acquisition": _runtime_descriptor.ACQUISITION_DESCRIPTOR,
     "libraryActions": _runtime_descriptor.LIBRARY_ACTIONS_DESCRIPTOR,
     "pipelineJobs": _runtime_descriptor.PIPELINE_JOBS_DESCRIPTOR,
     "pipelineMedia": _runtime_descriptor.PIPELINE_MEDIA_DESCRIPTOR,

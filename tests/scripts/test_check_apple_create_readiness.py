@@ -43,6 +43,7 @@ def build_runtime_payload() -> dict[str, object]:
     return {
         "auth": dict(module.EXPECTED_RUNTIME_SECTIONS["auth"]),
         "creation": dict(module.EXPECTED_CREATE_PATHS),
+        "acquisition": dict(module.EXPECTED_RUNTIME_SECTIONS["acquisition"]),
         "libraryActions": dict(module.EXPECTED_RUNTIME_SECTIONS["libraryActions"]),
         "pipelineJobs": dict(module.EXPECTED_RUNTIME_SECTIONS["pipelineJobs"]),
         "pipelineMedia": dict(module.EXPECTED_RUNTIME_SECTIONS["pipelineMedia"]),
@@ -2290,6 +2291,7 @@ def test_runtime_create_contract_validation() -> None:
     assert module.validate_runtime_create_contract({}) == [
         "runtime descriptor is missing auth metadata",
         "runtime descriptor is missing creation metadata",
+        "runtime descriptor is missing acquisition metadata",
         "runtime descriptor is missing libraryActions metadata",
         "runtime descriptor is missing pipelineJobs metadata",
         "runtime descriptor is missing pipelineMedia metadata",
@@ -2357,12 +2359,14 @@ def test_runtime_create_contract_validation() -> None:
     payload["pipelineJobs"]["restartPathTemplate"] = "/old/restart/{job_id}"
     payload["pipelineMedia"]["jobTimingPathTemplate"] = ""
     payload["linguist"]["audioSynthesisPath"] = "/old/audio"
+    payload["acquisition"]["providerStatuses"] = ["available"]
     payload["offlineExports"]["sourceKinds"] = ["job"]
     payload["playbackState"].pop("resumeListPath")
     payload["notifications"]["preferencesPath"] = "/old/preferences"
     assert module.validate_runtime_create_contract(payload) == [
         "auth.oauthPath=/old/oauth expected /api/auth/oauth",
         "auth.passwordPath=<missing> expected /api/auth/password",
+        "acquisition.providerStatuses=['available'] expected ['available', 'not_configured', 'planned']",
         "libraryActions.isbnLookupPath=<missing> expected /api/library/isbn/lookup",
         "pipelineJobs.restartPathTemplate=/old/restart/{job_id} expected /api/pipelines/jobs/{job_id}/restart",
         "pipelineMedia.jobTimingPathTemplate=<missing> expected /api/jobs/{job_id}/timing",
@@ -2389,6 +2393,7 @@ def test_fetch_readiness_checks_runtime_before_inventory(monkeypatch) -> None:
             "Backend runtime Apple contract is not ready: "
             "runtime descriptor is missing auth metadata; "
             "runtime descriptor is missing creation metadata; "
+            "runtime descriptor is missing acquisition metadata; "
             "runtime descriptor is missing libraryActions metadata; "
             "runtime descriptor is missing pipelineJobs metadata; "
             "runtime descriptor is missing pipelineMedia metadata; "
