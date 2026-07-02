@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-jobs-runtime-expected",
+                    title: "Pipeline pins job runtime",
+                    detail: "The reusable Apple pipeline manifest checker now derives pipeline job runtime expectations from the backend descriptor, covering status, events, pause, resume, cancel, delete, restart, access, metadata, and cover routes."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-media-runtime-expected",
                     title: "Pipeline pins media runtime",
                     detail: "The reusable Apple pipeline manifest checker now derives pipeline media runtime expectations from the backend descriptor, covering job media, timing, library media, metadata, and sentence-image paths before playback smoke."

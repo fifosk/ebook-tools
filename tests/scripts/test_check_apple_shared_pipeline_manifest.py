@@ -480,6 +480,26 @@ def test_validate_manifest_requires_backend_pipeline_media_runtime_expectations(
     ) in errors
 
 
+def test_validate_manifest_requires_backend_pipeline_job_runtime_expectations(
+    tmp_path: Path,
+) -> None:
+    runtime_expected = dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+    del runtime_expected["pipelineJobs.restartPathTemplate"]
+    runtime_expected["pipelineJobs.cacheBusterQuery"] = "cache"
+    path = _write_manifest(tmp_path, backend_runtime_expected=runtime_expected)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "backend.runtimeExpected.pipelineJobs.restartPathTemplate=None "
+        "expected '/api/pipelines/jobs/{job_id}/restart'"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.pipelineJobs.cacheBusterQuery='cache' "
+        "expected 'ts'"
+    ) in errors
+
+
 def test_validate_manifest_rejects_missing_aggregate_journey_profile(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -104,6 +104,10 @@ REQUIRED_APPLE_CONTRACT_TARGETS = (
 )
 REQUIRED_BACKEND_RUNTIME_EXPECTED = {
     **{
+        f"pipelineJobs.{key}": value
+        for key, value in _runtime_descriptor.PIPELINE_JOBS_DESCRIPTOR.items()
+    },
+    **{
         f"pipelineMedia.{key}": value
         for key, value in _runtime_descriptor.PIPELINE_MEDIA_DESCRIPTOR.items()
     },
