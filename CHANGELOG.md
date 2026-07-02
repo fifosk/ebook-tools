@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.02.012
 
 - Apple reader language pills now behave as guarded multi-select toggles: tapping an inactive Original or Translation pill adds that lane, tapping an active pill removes only that lane when the other remains active, and the last active lane stays selected.
+- Web playback now renders PlayerPanel boundary, shell, prelude, content, and document slots through a focused frame component with direct coverage in the playback gate.
 - Advanced visible Apple app versioning to `v2026.07.02.012`.
 
 ### 2026.07.02.011

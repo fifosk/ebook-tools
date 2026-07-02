@@ -305,7 +305,7 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/library-list/LibraryFlatTable.tsx`, with language labels
   shared through `LibraryLanguageLabel.tsx` and rendered coverage in the
   library-focused Web gate.
-- `web/src/components/PlayerPanel.tsx` - 823 lines. Status: selected text
+- `web/src/components/PlayerPanel.tsx` - 797 lines. Status: selected text
   item, selected chunk, and active text chunk resolution now live in
   `web/src/components/player-panel/utils.ts` with focused Vitest coverage.
   Browser storage reads/writes used by PlayerPanel, interactive text, reading
@@ -332,7 +332,12 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/player-panel/PlayerPanelSentenceJumpDatalist.tsx` with
   focused rendered coverage. Compact search panel visibility now lives in
   `web/src/components/player-panel/PlayerPanelSearchSlot.tsx` with focused
-  rendered coverage for panel and fullscreen placement. Chapter active-id and
+  rendered coverage for panel and fullscreen placement.
+  Boundary/shell/prelude/content/document slot assembly now lives in
+  `web/src/components/player-panel/PlayerPanelFrame.tsx` with focused rendered
+  coverage, leaving the main player coordinator responsible for derived
+  playback state and hook wiring.
+  Chapter active-id and
   jump-target resolution now live in
   `web/src/components/player-panel/chapterNavigation.ts` with focused utility
   coverage, and the React bridge for active chapter state
@@ -1710,6 +1715,8 @@ Refactor before restyling:
   no longer sit in the main panel effect list. Interactive document
   preview/fallback content and placeholder visibility now resolve through a
   tested pure helper so the panel coordinator no longer owns those display-state branches inline.
+  Boundary/shell/prelude/content/document slot assembly now lives in a focused
+  tested frame component, keeping the coordinator closer to hook/data wiring.
   Panel chrome decisions for initial loading, media presence,
   playback/fullscreen disabled states, wake-lock intent, back-to-library
   visibility, and advanced-control gating now also live in a tested pure helper.

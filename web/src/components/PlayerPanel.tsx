@@ -9,17 +9,14 @@ import {
   MY_LINGUIST_FONT_SCALE_STEP,
 } from './player-panel/constants';
 import type { LibraryItem } from '../api/dtos';
-import { PlayerPanelBoundaryState } from './player-panel/PlayerPanelBoundaryState';
-import { PlayerPanelContent } from './player-panel/PlayerPanelContent';
+import { PlayerPanelFrame } from './player-panel/PlayerPanelFrame';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
 import { buildPlayerPanelSearchSlots } from './player-panel/PlayerPanelSearchSlot';
-import { PlayerPanelPrelude } from './player-panel/PlayerPanelPrelude';
 import {
   fallbackTextFromSentences,
 } from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
-import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
 import { useCoverArt } from './player-panel/useCoverArt';
 import { useChunkMetadata } from './player-panel/useChunkMetadata';
 import { useInlineAudioOptions } from './player-panel/useInlineAudioOptions';
@@ -764,60 +761,37 @@ export default function PlayerPanel({
     },
   });
 
-  if (error || isInitialLoading || !hasJobId) {
-    return (
-      <PlayerPanelBoundaryState
-        sectionLabel={sectionLabel}
-        error={error}
-        isInitialLoading={isInitialLoading}
-        loadingMessage={loadingMessage}
-        hasJobId={hasJobId}
-        noJobPrelude={
-          <PlayerPanelPrelude
-            sentenceJumpListId={sentenceJumpListId}
-            sentenceSuggestions={sentenceLookup.suggestions}
-            shortcutHelpOverlay={shortcutHelpOverlay}
-            showShortcutHelp
-          />
-        }
-      />
-    );
-  }
-
   return (
-    <PlayerPanelShell
-      ariaLabel={sectionLabel}
-      prelude={
-        <PlayerPanelPrelude
-          sentenceJumpListId={sentenceJumpListId}
-          sentenceSuggestions={sentenceLookup.suggestions}
-          shortcutHelpOverlay={shortcutHelpOverlay}
-          showShortcutHelp={!isInteractiveFullscreen}
-        />
-      }
-      toolbar={panelNavigation}
+    <PlayerPanelFrame
+      sectionLabel={sectionLabel}
+      error={error}
+      isInitialLoading={isInitialLoading}
+      loadingMessage={loadingMessage}
+      hasJobId={hasJobId}
+      sentenceJumpListId={sentenceJumpListId}
+      sentenceSuggestions={sentenceLookup.suggestions}
+      shortcutHelpOverlay={shortcutHelpOverlay}
+      isInteractiveFullscreen={isInteractiveFullscreen}
+      panelNavigation={panelNavigation}
+      hasAnyMedia={hasAnyMedia}
+      isLoading={isLoading}
+      emptyMediaMessage={emptyMediaMessage}
+      hasTextItems={hasTextItems}
+      hasInteractiveChunks={hasInteractiveChunks}
+      mediaComplete={mediaComplete}
     >
-      <PlayerPanelContent
-        hasAnyMedia={hasAnyMedia}
-        isLoading={isLoading}
-        emptyMediaMessage={emptyMediaMessage}
-        hasTextItems={hasTextItems}
-        hasInteractiveChunks={hasInteractiveChunks}
-        mediaComplete={mediaComplete}
-      >
-        <PlayerPanelInteractiveDocument
-          shouldShowEmptySelectionPlaceholder={shouldShowEmptySelectionPlaceholder}
-          shouldShowLoadingPlaceholder={shouldShowLoadingPlaceholder}
-          shouldShowStandaloneError={shouldShowStandaloneError}
-          shouldShowInteractiveViewer={shouldShowInteractiveViewer}
-          canRenderInteractiveViewer={canRenderInteractiveViewer}
-          textError={textError}
-          textLoading={textLoading}
-          selectedItem={selectedItem}
-          viewerProps={interactiveViewerProps}
-          textScrollRef={textScrollRef}
-        />
-      </PlayerPanelContent>
-    </PlayerPanelShell>
+      <PlayerPanelInteractiveDocument
+        shouldShowEmptySelectionPlaceholder={shouldShowEmptySelectionPlaceholder}
+        shouldShowLoadingPlaceholder={shouldShowLoadingPlaceholder}
+        shouldShowStandaloneError={shouldShowStandaloneError}
+        shouldShowInteractiveViewer={shouldShowInteractiveViewer}
+        canRenderInteractiveViewer={canRenderInteractiveViewer}
+        textError={textError}
+        textLoading={textLoading}
+        selectedItem={selectedItem}
+        viewerProps={interactiveViewerProps}
+        textScrollRef={textScrollRef}
+      />
+    </PlayerPanelFrame>
   );
 }
