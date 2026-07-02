@@ -9,7 +9,7 @@ extension AppleBookCreatePresentation {
         if !topLevel.isEmpty {
             return topLevel
         }
-        let metadata = job.metadata ?? [:]
+        let metadata = job.metadata
         for key in ["completed_files", "completed_paths", "files"] {
             let values = normalizedDownloadStationMetadataStrings(metadata[key])
             if !values.isEmpty {
@@ -76,7 +76,7 @@ extension AppleBookCreatePresentation {
             return []
         }
         var hints = normalizedDownloadStationMetadataStrings(job.completedFiles)
-        let metadata = job.metadata ?? [:]
+        let metadata = job.metadata
         for key in ["completed_file", "completed_path", "local_path", "filename"] {
             hints.append(contentsOf: normalizedDownloadStationMetadataStrings(metadata[key]))
         }

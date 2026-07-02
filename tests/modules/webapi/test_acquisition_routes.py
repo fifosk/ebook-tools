@@ -312,6 +312,43 @@ def test_acquisition_openapi_marks_cross_surface_fields_required() -> None:
         "providers_queried",
     } <= discovery_required
 
+    artifact_required = set(schemas["AcquisitionArtifactResponse"]["required"])
+    assert {
+        "provider",
+        "media_kind",
+        "status",
+        "artifact_id",
+        "artifact_path",
+        "local_path",
+        "filename",
+        "size_bytes",
+        "modified_at",
+        "next_actions",
+        "metadata",
+    } <= artifact_required
+
+    prepared_required = set(schemas["AcquisitionPreparedArtifactResponse"]["required"])
+    assert {
+        "provider",
+        "media_kind",
+        "source_kind",
+        "local_path",
+        "subtitles",
+        "next_actions",
+        "metadata",
+    } <= prepared_required
+
+    job_required = set(schemas["AcquisitionJobStatusResponse"]["required"])
+    assert {
+        "provider",
+        "task_id",
+        "status",
+        "updated_at",
+        "completed_files",
+        "next_actions",
+        "metadata",
+    } <= job_required
+
 
 def test_acquisition_provider_route_failure_uses_generic_detail_and_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,

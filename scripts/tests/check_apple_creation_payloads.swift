@@ -68,7 +68,8 @@ struct AppleCreationPayloadCheck {
           "started_at": null,
           "updated_at": "2026-06-25T12:05:00Z",
           "completed_files": ["/downloads/Demo.mkv"],
-          "next_actions": ["discover_manual_downloads", "import_local"]
+          "next_actions": ["discover_manual_downloads", "import_local"],
+          "metadata": {}
         }
         """.data(using: .utf8)!
         let acquisitionJobStatus = try decoder.decode(AcquisitionJobStatusResponse.self, from: acquisitionJobStatusJSON)
@@ -266,7 +267,7 @@ struct AppleCreationPayloadCheck {
             updatedAt: "2026-06-26T12:05:00Z",
             completedFiles: ["/Volumes/Data/Download/DStation/NAS Clip.mkv"],
             nextActions: ["discover_manual_downloads", "import_local"],
-            metadata: nil
+            metadata: [:]
         )
         require(
             AppleBookCreatePresentation.downloadStationCompletedCandidate(
@@ -521,7 +522,7 @@ struct AppleCreationPayloadCheck {
             internetArchiveArtifact.provider == "internet_archive"
                 && internetArchiveArtifact.localPath == "Demo Public Book.epub"
                 && internetArchiveArtifact.nextActions.contains("create_book_job")
-                && internetArchiveArtifact.metadata?["identifier"] == .string("demo_public_book"),
+                && internetArchiveArtifact.metadata["identifier"] == .string("demo_public_book"),
             "Apple reviewed acquisition should decode Internet Archive artifact metadata"
         )
         let acquiredBookMetadataApplication = try requireValue(

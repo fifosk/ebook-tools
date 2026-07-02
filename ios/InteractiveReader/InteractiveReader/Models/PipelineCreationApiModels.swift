@@ -369,7 +369,7 @@ struct AcquisitionArtifactResponse: Decodable, Equatable {
     let sizeBytes: Int
     let modifiedAt: String?
     let nextActions: [String]
-    let metadata: [String: JSONValue]?
+    let metadata: [String: JSONValue]
 }
 
 struct AcquisitionPreparedArtifactResponse: Decodable, Equatable {
@@ -382,7 +382,7 @@ struct AcquisitionPreparedArtifactResponse: Decodable, Equatable {
     let subtitlePath: String?
     let subtitles: [AcquisitionSubtitleHint]
     let nextActions: [String]
-    let metadata: [String: JSONValue]?
+    let metadata: [String: JSONValue]
 }
 
 struct AcquisitionJobStatusResponse: Decodable, Equatable {
@@ -397,7 +397,7 @@ struct AcquisitionJobStatusResponse: Decodable, Equatable {
     let updatedAt: String
     let completedFiles: [String]
     let nextActions: [String]
-    let metadata: [String: JSONValue]?
+    let metadata: [String: JSONValue]
 }
 
 struct PipelineFileDeleteRequest: Encodable, Equatable {

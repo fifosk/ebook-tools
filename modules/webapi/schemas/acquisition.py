@@ -124,14 +124,14 @@ class AcquisitionArtifactResponse(BaseModel):
     provider: str
     media_kind: AcquisitionMediaKind
     status: str
-    artifact_id: str = ""
+    artifact_id: str
     artifact_path: str
     local_path: str
     filename: str
     size_bytes: int
     modified_at: datetime
-    next_actions: List[str] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    next_actions: List[str]
+    metadata: Dict[str, Any]
 
 
 class AcquisitionPreparedArtifactResponse(BaseModel):
@@ -144,9 +144,9 @@ class AcquisitionPreparedArtifactResponse(BaseModel):
     input_file: str | None = None
     video_path: str | None = None
     subtitle_path: str | None = None
-    subtitles: List[AcquisitionSubtitleHintPayload] = Field(default_factory=list)
-    next_actions: List[str] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    subtitles: List[AcquisitionSubtitleHintPayload]
+    next_actions: List[str]
+    metadata: Dict[str, Any]
 
 
 class AcquisitionJobStatusResponse(BaseModel):
@@ -161,6 +161,6 @@ class AcquisitionJobStatusResponse(BaseModel):
     raw_status: str | None = None
     started_at: datetime | None = None
     updated_at: datetime
-    completed_files: List[str] = Field(default_factory=list)
-    next_actions: List[str] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    completed_files: List[str]
+    next_actions: List[str]
+    metadata: Dict[str, Any]
