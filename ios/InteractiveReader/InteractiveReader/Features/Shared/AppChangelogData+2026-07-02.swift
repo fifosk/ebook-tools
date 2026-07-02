@@ -1,6 +1,21 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-dedicated-lane-sequence-startup",
+                    title: "Sequence starts without combined audio",
+                    detail: "Apple reader sequence playback now enters the same sentence-plan path when a chunk exposes separate Original and Translation audio lanes but no combined option, preventing first-sentence startup from playing only Original and stopping."
+                ),
+                AppChangelogEntry(
+                    id: "apple-reader-progress-launch-log-gate",
+                    title: "Device logs catch stuck progress",
+                    detail: "The Apple Music bed launch-log verifier now has a reader-progress mode and Make shortcut that require reader Now Playing sentence position to advance, catching logs where transport says playing while position stays pinned at zero."
+                ),
+                AppChangelogEntry(
+                    id: "apple-timing-v2-live-highlighting",
+                    title: "Live highlighting keeps timing v2",
+                    detail: "Apple live transcript rendering now preserves timing v2 chunk metadata through active sentence display and index resolution, keeping backend-scaled Translation word highlights from being rescaled during playback."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-startup-recovery",
                     title: "TV startup playback holds",
                     detail: "Apple TV reader playback now recovers a transient Apple Music bed non-playing signal during active narration before adopting it as a reader pause, preventing first-sentence playback from stopping before the Translation lane starts."

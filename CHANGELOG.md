@@ -6,6 +6,9 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.012
 
+- Apple reader sequence playback now enters the same sentence-plan path when a chunk exposes separate Original and Translation audio lanes but no combined option, preventing first-sentence startup from playing only Original and stopping.
+- The Apple Music bed launch-log verifier now has a `reader-progress` mode and `make apple-device-verify-music-bed-reader-progress-log` shortcut that require reader Now Playing sentence position to advance, catching logs where transport says playing while position stays pinned at zero.
+- Apple live transcript rendering now preserves timing v2 chunk metadata through active sentence display and index resolution, keeping backend-scaled Translation word highlights from being rescaled during playback.
 - Apple YouTube Dub Create controls now keep video discovery, Download Station handoff, and embedded-subtitle extraction in focused SwiftUI files while preserving NAS/video source selection across iPad, iPhone, Apple TV, and Mac iPad-style builds.
 - Apple Create source support controls for chapter ranges, subtitle sources, file imports, and busy source-action rows now live in a focused SwiftUI file while preserving source-picker behavior across iPad, iPhone, Apple TV, and Mac iPad-style builds.
 - Apple reader single-track audio selection now keeps all renderable text tracks visible and lets inactive Original/Translation pills be re-enabled from transcript-backed lanes, so Original-only or Translation-only playback changes the narrated lane without hiding the companion transcript lane.

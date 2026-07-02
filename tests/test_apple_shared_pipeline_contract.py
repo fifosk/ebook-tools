@@ -635,6 +635,20 @@ def test_living_room_candidate_gate_is_visible_in_apple_changelog() -> None:
     assert "real tvOS Music-bed simulator journey" in changelog
 
 
+def test_latest_apple_playback_hardening_is_visible_in_changelogs() -> None:
+    swift_changelog = _swift_changelog_sources()
+    markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
+
+    for source in (swift_changelog, markdown_changelog):
+        assert "separate Original and Translation audio lanes" in source
+        assert "reader-progress" in source
+        assert "timing v2" in source
+        assert "position stays pinned at zero" in source
+    assert 'id: "apple-dedicated-lane-sequence-startup"' in swift_changelog
+    assert 'id: "apple-reader-progress-launch-log-gate"' in swift_changelog
+    assert 'id: "apple-timing-v2-live-highlighting"' in swift_changelog
+
+
 def test_apple_web_create_handoff_source_is_visible_in_changelogs() -> None:
     swift_changelog = _swift_changelog_sources()
     markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
