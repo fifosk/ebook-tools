@@ -67,7 +67,11 @@ describe('bookNarrationDiscoveryProviders', () => {
       { id: 'gutenberg', label: 'Gutenberg', unavailableMessage: null },
       { id: 'internet_archive', label: 'Internet Archive', unavailableMessage: null },
       { id: 'openlibrary', label: 'Open Library', unavailableMessage: null },
-      { id: 'zlibrary_attended', label: 'Z-Library import', unavailableMessage: null }
+      {
+        id: 'zlibrary_attended',
+        label: 'Z-Library import',
+        unavailableMessage: 'Direct Z-Library automation is intentionally disabled. Use attended browser downloads, then import the EPUB through Manual downloads or Choose EPUB.'
+      }
     ]);
   });
 
@@ -98,6 +102,34 @@ describe('bookNarrationDiscoveryProviders', () => {
       capabilities: ['metadata'],
       discovery_media_kinds: ['book']
     }))).toBe(true);
+  });
+
+  it('keeps attended-only Z-Library imports out of Web discovery and default fanout', () => {
+    const providers = [
+      provider({ id: 'local_epub', capabilities: ['import_local'], default_eligible_media_kinds: ['book'] }),
+      provider({
+        id: 'zlibrary_attended',
+        label: 'Z-Library attended import',
+        capabilities: ['import_local'],
+        status: 'planned',
+        configured: false,
+        available: false,
+        rights: ['unknown', 'restricted'],
+        discovery_media_kinds: [],
+        default_eligible_media_kinds: [],
+        policy_notes: ['Direct Z-Library automation is intentionally disabled.']
+      })
+    ];
+
+    expect(buildBookNarrationDiscoveryProviderOptions(providers)).toEqual([
+      { id: 'local_epub', label: 'Local EPUBs', unavailableMessage: null }
+    ]);
+    expect(isBookDiscoveryProvider(providers[1])).toBe(false);
+    expect(resolveDefaultBookDiscoveryProvider({
+      defaultProviderIds: { book: ['zlibrary_attended', 'local_epub'] },
+      providers,
+      fallback: 'local_epub'
+    })).toBe('local_epub');
   });
 
   it('uses backend default sources when multiple book defaults are available', () => {

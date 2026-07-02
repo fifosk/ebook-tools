@@ -15,13 +15,24 @@ export type BookNarrationDiscoveryProviderOption = {
 
 export const DEFAULT_BOOK_DISCOVERY_PROVIDER: BookNarrationDiscoveryProvider = 'backend_defaults';
 
-const EBOOK_DISCOVERY_PROVIDERS: Array<Pick<BookNarrationDiscoveryProviderOption, 'id' | 'label'>> = [
+type FallbackBookDiscoveryProvider = Pick<BookNarrationDiscoveryProviderOption, 'id' | 'label'> & {
+  fallbackUnavailableMessage?: string;
+};
+
+const ZLIBRARY_ATTENDED_IMPORT_MESSAGE =
+  'Direct Z-Library automation is intentionally disabled. Use attended browser downloads, then import the EPUB through Manual downloads or Choose EPUB.';
+
+const EBOOK_DISCOVERY_PROVIDERS: FallbackBookDiscoveryProvider[] = [
   { id: 'local_epub', label: 'Local EPUBs' },
   { id: 'manual_downloads', label: 'Manual downloads' },
   { id: 'gutenberg', label: 'Gutenberg' },
   { id: 'internet_archive', label: 'Internet Archive' },
   { id: 'openlibrary', label: 'Open Library' },
-  { id: 'zlibrary_attended', label: 'Z-Library import' }
+  {
+    id: 'zlibrary_attended',
+    label: 'Z-Library import',
+    fallbackUnavailableMessage: ZLIBRARY_ATTENDED_IMPORT_MESSAGE
+  }
 ];
 
 const EBOOK_DISCOVERY_PROVIDER_ORDER = EBOOK_DISCOVERY_PROVIDERS.map((entry) => entry.id);
@@ -36,7 +47,8 @@ export function buildBookNarrationDiscoveryProviderOptions(
 ): BookNarrationDiscoveryProviderOption[] {
   if (providers.length === 0) {
     return EBOOK_DISCOVERY_PROVIDERS.map((entry) => ({
-      ...entry,
+      id: entry.id,
+      label: entry.label,
       unavailableMessage: bookDiscoveryProviderUnavailableMessage(entry.id, providers)
     }));
   }
@@ -71,8 +83,11 @@ export function bookDiscoveryProviderUnavailableMessage(
   }
   const entry = providers.find((provider) => provider.id === providerId);
   if (!entry) {
+    const fallback = EBOOK_DISCOVERY_PROVIDERS.find((option) => option.id === providerId);
+    if (fallback?.fallbackUnavailableMessage) {
+      return fallback.fallbackUnavailableMessage;
+    }
     if (providers.length > 0) {
-      const fallback = EBOOK_DISCOVERY_PROVIDERS.find((option) => option.id === providerId);
       const label = fallback?.label ?? providerId;
       return `${label} is unavailable on this backend. Choose another discovery source.`;
     }

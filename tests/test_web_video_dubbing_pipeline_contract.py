@@ -176,6 +176,8 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "providers.length > 0" in discovery_providers
     assert "Array.isArray(provider.discovery_media_kinds)" in discovery_providers
     assert "is unavailable on this backend. Choose another discovery source." in discovery_providers
+    assert "ZLIBRARY_ATTENDED_IMPORT_MESSAGE" in discovery_providers
+    assert "Direct Z-Library automation is intentionally disabled" in discovery_providers
 
 
 def test_creation_templates_focused_web_target_covers_shared_payload_builders() -> None:
