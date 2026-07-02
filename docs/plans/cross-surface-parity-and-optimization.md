@@ -697,7 +697,10 @@ Current Apple UI partially exposes:
   `modules/services/acquisition/gutenberg_discovery.py` with focused coverage,
   and the same helper now owns Gutendex API calls plus public-domain candidate
   construction, keeping Gutenberg behavior reusable for Web/Apple book
-  discovery without reopening the shared provider fanout. Backend local/manual/NAS source candidate helpers now live in
+  discovery without reopening the shared provider fanout. Backend acquisition
+  discovery now dispatches provider calls through a registry-aligned routing
+  table with direct coverage, keeping Web/Apple-visible provider metadata in
+  lockstep with backend handlers. Backend local/manual/NAS source candidate helpers now live in
   `modules/services/acquisition/source_candidates.py` with focused coverage,
   keeping source-relative paths, display-title derivation, zero-byte EPUB
   filtering, and bounded newest-first manual source ordering shared for

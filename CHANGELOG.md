@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Backend acquisition discovery now dispatches providers through a registry-aligned routing table with direct coverage, so Web and Apple Create provider metadata cannot drift from the backend discovery handlers.
 - Backend Internet Archive acquisition discovery now lives with the focused Archive helper module, keeping Archive search, source-id bridge lookups, EPUB candidate construction, and token-safe handoff metadata out of the shared provider fanout while preserving Web and Apple Create contracts.
 - Apple reader original-only/translation-only playback now stamps the current SwiftUI audio mode into the view model before sentence-batch default setup runs, so the selected track cannot reset and drift rendering after a batch ends.
 - Backend Open Library acquisition discovery now lives with the focused Open Library helper module, keeping metadata-only candidate construction and media-metadata lookup payload shaping out of the shared provider fanout while preserving Web and Apple Create contracts.

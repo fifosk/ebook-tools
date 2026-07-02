@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-discovery-routing-table",
+                    title: "Discovery routing is guarded",
+                    detail: "Backend acquisition discovery now dispatches providers through a registry-aligned routing table with direct coverage, so Web and Apple Create provider metadata cannot drift from backend discovery handlers."
+                ),
+                AppChangelogEntry(
                     id: "backend-internet-archive-provider-helper",
                     title: "Archive discovery is leaner",
                     detail: "Backend Internet Archive acquisition discovery now lives with the focused Archive helper module, keeping Archive search, source-id bridge lookups, EPUB candidate construction, and token-safe handoff metadata out of the shared provider fanout while preserving Web and Apple Create contracts."

@@ -825,6 +825,12 @@ def test_default_discovery_keeps_local_limits_but_probes_remote_providers(
     ]
 
 
+def test_discovery_router_has_handler_for_every_registered_provider() -> None:
+    assert set(acquisition_discovery._PROVIDER_DISCOVERY_HANDLERS) == set(
+        acquisition_provider_registry.DISCOVERY_PROVIDER_MEDIA_KINDS
+    )
+
+
 def test_discover_zero_limit_skips_provider_scan(tmp_path: Path, monkeypatch) -> None:
     def _fail_scan(*args, **kwargs):
         raise AssertionError("zero-limit discovery should not scan provider roots")

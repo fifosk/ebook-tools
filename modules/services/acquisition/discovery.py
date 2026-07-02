@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 import requests
@@ -51,6 +52,17 @@ from .youtube_discovery import (
 )
 
 
+@dataclass(frozen=True)
+class _ProviderDiscoveryContext:
+    config: Mapping[str, Any]
+    media_kind: str
+    raw_query: str
+    query: str
+    language: str | None
+    source_ids: Sequence[str]
+    session: requests.Session | None
+
+
 def discover_acquisition_candidates(
     *,
     media_kind: str,
@@ -75,6 +87,15 @@ def discover_acquisition_candidates(
     normalized_source_ids = (
         _normalize_source_ids(source_ids) if "internet_archive" in providers else ()
     )
+    discovery_context = _ProviderDiscoveryContext(
+        config=config,
+        media_kind=normalized_kind,
+        raw_query=raw_query,
+        query=normalized_query,
+        language=language,
+        source_ids=normalized_source_ids,
+        session=session,
+    )
 
     candidates: list[AcquisitionCandidate] = []
     queried: list[str] = []
@@ -98,77 +119,13 @@ def discover_acquisition_candidates(
                 effective_limit=effective_limit,
                 is_default_provider_fanout=is_default_provider_fanout,
             )
-            if provider_id == "local_epub":
-                queried.append(provider_id)
-                candidates.extend(_discover_local_epubs(config, normalized_query, remaining))
-            elif provider_id == "manual_downloads":
-                queried.append(provider_id)
-                candidates.extend(
-                    _discover_manual_downloads(
-                        config,
-                        normalized_kind,
-                        normalized_query,
-                        remaining,
-                    )
-                )
-            elif provider_id == "gutenberg":
-                queried.append(provider_id)
-                candidates.extend(
-                    _discover_gutenberg(
-                        normalized_query,
-                        remaining,
-                        language=language,
-                        session=session,
-                    )
-                )
-            elif provider_id == "internet_archive":
-                queried.append(provider_id)
-                candidates.extend(
-                    _discover_internet_archive(
-                        normalized_query,
-                        remaining,
-                        language=language,
-                        source_ids=normalized_source_ids,
-                        session=session,
-                    )
-                )
-            elif provider_id == "openlibrary":
-                queried.append(provider_id)
-                candidates.extend(
-                    _discover_openlibrary(
-                        normalized_query,
-                        remaining,
-                        language=language,
-                        session=session,
-                    )
-                )
-            elif provider_id == "nas_video":
-                queried.append(provider_id)
-                candidates.extend(_discover_nas_videos(config, normalized_query, remaining))
-            elif provider_id == "newznab_torznab":
-                queried.append(provider_id)
-                candidates.extend(
-                    _discover_newznab_torznab(
-                        config,
-                        normalized_query,
-                        remaining,
-                        session=session,
-                    )
-                )
-            elif provider_id == "youtube_url":
-                queried.append(provider_id)
-                candidates.extend(_discover_youtube_url(raw_query, remaining))
-            elif provider_id == "youtube_search":
-                queried.append(provider_id)
-                candidates.extend(
-                    _discover_youtube_search(
-                        config,
-                        normalized_query,
-                        remaining,
-                        language=language,
-                        session=session,
-                    )
-                )
+            provider_candidates = _discover_provider_candidates(
+                provider_id,
+                discovery_context,
+                remaining,
+            )
+            queried.append(provider_id)
+            candidates.extend(provider_candidates)
         except AcquisitionProviderDiscoveryError as exc:
             if not is_default_provider_fanout:
                 raise
@@ -208,3 +165,122 @@ def _providers_for(
             )
         return (provider,)
     return default_discovery_provider_ids(media_kind, config)
+
+
+def _discover_provider_candidates(
+    provider_id: str,
+    context: _ProviderDiscoveryContext,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    handler = _PROVIDER_DISCOVERY_HANDLERS.get(provider_id)
+    if handler is None:
+        return []
+    return handler(context, limit)
+
+
+def _discover_local_epub_candidates(
+    context: _ProviderDiscoveryContext,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    return _discover_local_epubs(context.config, context.query, limit)
+
+
+def _discover_manual_download_candidates(
+    context: _ProviderDiscoveryContext,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    return _discover_manual_downloads(
+        context.config,
+        context.media_kind,
+        context.query,
+        limit,
+    )
+
+
+def _discover_gutenberg_candidates(
+    context: _ProviderDiscoveryContext,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    return _discover_gutenberg(
+        context.query,
+        limit,
+        language=context.language,
+        session=context.session,
+    )
+
+
+def _discover_internet_archive_candidates(
+    context: _ProviderDiscoveryContext,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    return _discover_internet_archive(
+        context.query,
+        limit,
+        language=context.language,
+        source_ids=context.source_ids,
+        session=context.session,
+    )
+
+
+def _discover_openlibrary_candidates(
+    context: _ProviderDiscoveryContext,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    return _discover_openlibrary(
+        context.query,
+        limit,
+        language=context.language,
+        session=context.session,
+    )
+
+
+def _discover_nas_video_candidates(
+    context: _ProviderDiscoveryContext,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    return _discover_nas_videos(context.config, context.query, limit)
+
+
+def _discover_newznab_torznab_candidates(
+    context: _ProviderDiscoveryContext,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    return _discover_newznab_torznab(
+        context.config,
+        context.query,
+        limit,
+        session=context.session,
+    )
+
+
+def _discover_youtube_url_candidates(
+    context: _ProviderDiscoveryContext,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    return _discover_youtube_url(context.raw_query, limit)
+
+
+def _discover_youtube_search_candidates(
+    context: _ProviderDiscoveryContext,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    return _discover_youtube_search(
+        context.config,
+        context.query,
+        limit,
+        language=context.language,
+        session=context.session,
+    )
+
+
+_PROVIDER_DISCOVERY_HANDLERS = {
+    "local_epub": _discover_local_epub_candidates,
+    "manual_downloads": _discover_manual_download_candidates,
+    "gutenberg": _discover_gutenberg_candidates,
+    "internet_archive": _discover_internet_archive_candidates,
+    "openlibrary": _discover_openlibrary_candidates,
+    "nas_video": _discover_nas_video_candidates,
+    "newznab_torznab": _discover_newznab_torznab_candidates,
+    "youtube_url": _discover_youtube_url_candidates,
+    "youtube_search": _discover_youtube_search_candidates,
+}
