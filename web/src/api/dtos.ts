@@ -1250,11 +1250,11 @@ export interface ReadingBedEntry {
   url: string;
   kind: ReadingBedKind;
   content_type?: string | null;
-  is_default?: boolean;
+  is_default: boolean;
 }
 
 export interface ReadingBedListResponse {
-  default_id?: string | null;
+  default_id: string | null;
   beds: ReadingBedEntry[];
 }
 
@@ -1265,7 +1265,7 @@ export interface ReadingBedUpdateRequestPayload {
 
 export interface ReadingBedDeleteResponse {
   deleted: boolean;
-  default_id?: string | null;
+  default_id: string | null;
 }
 
 export type PlaybackBookmarkKind = 'time' | 'sentence';

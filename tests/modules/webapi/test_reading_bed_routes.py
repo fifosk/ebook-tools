@@ -80,6 +80,18 @@ def reading_bed_client(
     app.dependency_overrides.clear()
 
 
+def test_reading_bed_openapi_marks_catalog_fields_required() -> None:
+    schema = create_app().openapi()["components"]["schemas"]
+
+    list_required = set(schema["ReadingBedListResponse"]["required"])
+    entry_required = set(schema["ReadingBedEntry"]["required"])
+    delete_required = set(schema["ReadingBedDeleteResponse"]["required"])
+
+    assert {"default_id", "beds"} <= list_required
+    assert {"id", "label", "url", "kind", "is_default"} <= entry_required
+    assert {"deleted", "default_id"} <= delete_required
+
+
 def test_reading_bed_routes_manage_uploaded_bed_lifecycle(
     reading_bed_client: tuple[TestClient, str, Path],
     monkeypatch: pytest.MonkeyPatch,

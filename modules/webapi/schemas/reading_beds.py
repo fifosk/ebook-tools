@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ReadingBedEntry(BaseModel):
@@ -13,12 +13,12 @@ class ReadingBedEntry(BaseModel):
     url: str
     kind: Literal["bundled", "uploaded"]
     content_type: str | None = None
-    is_default: bool = False
+    is_default: bool
 
 
 class ReadingBedListResponse(BaseModel):
-    default_id: str | None = None
-    beds: list[ReadingBedEntry] = Field(default_factory=list)
+    default_id: str | None
+    beds: list[ReadingBedEntry]
 
 
 class ReadingBedUpdateRequest(BaseModel):
@@ -28,5 +28,4 @@ class ReadingBedUpdateRequest(BaseModel):
 
 class ReadingBedDeleteResponse(BaseModel):
     deleted: bool
-    default_id: str | None = None
-
+    default_id: str | None

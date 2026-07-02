@@ -95,7 +95,9 @@ export async function resetUserPassword(
 // Reading beds (admin endpoints)
 export async function fetchReadingBeds(signal?: AbortSignal): Promise<ReadingBedListResponse> {
   const response = await apiFetch(WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.readingBedsPath, { signal });
-  return handleResponse<ReadingBedListResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertReadingBedListResponse(payload);
+  return payload;
 }
 
 export async function uploadReadingBed(file: File, label?: string): Promise<ReadingBedEntry> {
@@ -108,7 +110,9 @@ export async function uploadReadingBed(file: File, label?: string): Promise<Read
     method: 'POST',
     body: form
   });
-  return handleResponse<ReadingBedEntry>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertReadingBedEntry(payload, 'reading bed upload');
+  return payload;
 }
 
 export async function updateReadingBed(bedId: string, payload: ReadingBedUpdateRequestPayload): Promise<ReadingBedEntry> {
@@ -126,7 +130,9 @@ export async function updateReadingBed(bedId: string, payload: ReadingBedUpdateR
       body: JSON.stringify(payload)
     }
   );
-  return handleResponse<ReadingBedEntry>(response);
+  const responsePayload = await handleResponse<unknown>(response);
+  assertReadingBedEntry(responsePayload, 'reading bed update');
+  return responsePayload;
 }
 
 export async function deleteReadingBed(bedId: string): Promise<ReadingBedDeleteResponse> {
@@ -140,5 +146,87 @@ export async function deleteReadingBed(bedId: string): Promise<ReadingBedDeleteR
       method: 'DELETE'
     }
   );
-  return handleResponse<ReadingBedDeleteResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertReadingBedDeleteResponse(payload);
+  return payload;
+}
+
+function assertReadingBedListResponse(payload: unknown): asserts payload is ReadingBedListResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid reading bed list response.');
+  }
+  assertNullableStringField(payload, 'default_id', 'reading bed list');
+  if (!Array.isArray(payload.beds)) {
+    throw new Error('Invalid reading bed list response: missing beds.');
+  }
+  payload.beds.forEach((bed) => {
+    assertReadingBedEntry(bed, 'reading bed list');
+  });
+}
+
+function assertReadingBedEntry(
+  payload: unknown,
+  responseKind: string
+): asserts payload is ReadingBedEntry {
+  if (!isRecord(payload)) {
+    throw new Error(`Invalid ${responseKind} response: missing bed entry.`);
+  }
+  assertStringField(payload, 'id', responseKind);
+  assertStringField(payload, 'label', responseKind);
+  assertStringField(payload, 'url', responseKind);
+  if (payload.kind !== 'bundled' && payload.kind !== 'uploaded') {
+    throw new Error(`Invalid ${responseKind} response: missing kind.`);
+  }
+  assertBooleanField(payload, 'is_default', responseKind);
+  if (
+    payload.content_type !== undefined &&
+    payload.content_type !== null &&
+    typeof payload.content_type !== 'string'
+  ) {
+    throw new Error(`Invalid ${responseKind} response: invalid content_type.`);
+  }
+}
+
+function assertReadingBedDeleteResponse(
+  payload: unknown
+): asserts payload is ReadingBedDeleteResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid reading bed delete response.');
+  }
+  assertBooleanField(payload, 'deleted', 'reading bed delete');
+  assertNullableStringField(payload, 'default_id', 'reading bed delete');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertStringField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertNullableStringField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (record[key] !== null && typeof record[key] !== 'string') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertBooleanField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'boolean') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
 }

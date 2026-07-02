@@ -51,6 +51,7 @@ export function useReadingBedControls({
       label,
       url,
       kind: 'bundled',
+      is_default: true,
     } satisfies ReadingBedEntry;
   }, [bedOverride]);
   const readingBed = useReadingBed();
@@ -76,6 +77,7 @@ export function useReadingBedControls({
           label: 'Lost in the Pages',
           url: isExportMode ? 'assets/reading-beds/lost-in-the-pages.mp3' : '/assets/reading-beds/lost-in-the-pages.mp3',
           kind: 'bundled',
+          is_default: true,
         },
       ] as ReadingBedEntry[],
     [isExportMode],
