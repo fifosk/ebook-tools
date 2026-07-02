@@ -35,6 +35,7 @@ def _write_manifest(
     backend_test_checks: dict[str, object] | None = None,
     web_checks: dict[str, object] | None = None,
     contract_checks: dict[str, object] | None = None,
+    backend_runtime_expected: dict[str, object] | None = None,
 ) -> Path:
     app_dir = pipeline_root / "apps"
     app_dir.mkdir(parents=True)
@@ -235,6 +236,11 @@ def _write_manifest(
                 )
             ]
         },
+        "backend": {
+            "runtimeExpected": backend_runtime_expected
+            if backend_runtime_expected is not None
+            else dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+        },
         "profiles": profiles if profiles is not None else default_profiles,
         "deviceProfiles": device_profiles
         if device_profiles is not None
@@ -368,6 +374,25 @@ def test_validate_manifest_rejects_unknown_app_owned_journey_make_targets(tmp_pa
     assert (
         "appOwnedJourneys.macos-ipad-style-dry-run target is not defined in "
         "Makefile: missing-macos-ipad-style-dry-run"
+    ) in errors
+
+
+def test_validate_manifest_requires_backend_acquisition_runtime_expectations(
+    tmp_path: Path,
+) -> None:
+    runtime_expected = dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+    del runtime_expected["acquisition.mediaKinds"]
+    runtime_expected["acquisition.providerStatuses"] = ["available"]
+    path = _write_manifest(tmp_path, backend_runtime_expected=runtime_expected)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "backend.runtimeExpected.acquisition.mediaKinds=None expected ['book', 'video']"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.acquisition.providerStatuses=['available'] "
+        "expected ['available', 'not_configured', 'planned']"
     ) in errors
 
 

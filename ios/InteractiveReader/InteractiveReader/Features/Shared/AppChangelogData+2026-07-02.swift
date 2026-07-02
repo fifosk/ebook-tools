@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-acquisition-runtime-expected",
+                    title: "Pipeline pins source values",
+                    detail: "The reusable Apple pipeline manifest now advertises expected acquisition media kinds, capabilities, rights, and provider statuses so backend runtime checks catch source-picker drift before app runs."
+                ),
+                AppChangelogEntry(
                     id: "readiness-runtime-acquisition-section",
                     title: "Readiness requires source values",
                     detail: "Apple Create and physical deploy preflights now require the runtime acquisition value descriptor, so stale backend source-picker contracts fail before simulator or device testing."

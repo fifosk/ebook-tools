@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -14,6 +15,15 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MAKEFILE = REPO_ROOT / "Makefile"
+_RUNTIME_DESCRIPTOR_PATH = REPO_ROOT / "modules" / "webapi" / "runtime_descriptor.py"
+_RUNTIME_DESCRIPTOR_SPEC = importlib.util.spec_from_file_location(
+    "ebook_tools_runtime_descriptor",
+    _RUNTIME_DESCRIPTOR_PATH,
+)
+if _RUNTIME_DESCRIPTOR_SPEC is None or _RUNTIME_DESCRIPTOR_SPEC.loader is None:
+    raise RuntimeError(f"Unable to load runtime descriptor from {_RUNTIME_DESCRIPTOR_PATH}")
+_runtime_descriptor = importlib.util.module_from_spec(_RUNTIME_DESCRIPTOR_SPEC)
+_RUNTIME_DESCRIPTOR_SPEC.loader.exec_module(_runtime_descriptor)
 DEFAULT_PIPELINE_ROOT = Path("/Users/fifo/Projects/home/apple-device-app-pipeline")
 DEFAULT_APP_ID = "ebook-tools"
 REQUIRED_TOKEN_KEYS = ("E2E_AUTH_TOKEN", "EBOOKTOOLS_SESSION_TOKEN")
@@ -92,6 +102,10 @@ REQUIRED_APPLE_CONTRACT_TARGETS = (
     "test-apple-playback-state-swift",
     "test-apple-contracts",
 )
+REQUIRED_BACKEND_RUNTIME_EXPECTED = {
+    f"acquisition.{key}": list(value) if isinstance(value, tuple) else value
+    for key, value in _runtime_descriptor.ACQUISITION_DESCRIPTOR.items()
+}
 
 
 def resolve_pipeline_root(raw: str | None = None) -> Path:
@@ -151,7 +165,26 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
     )
     errors.extend(_validate_simulator_profiles(payload))
     errors.extend(_validate_device_profiles(payload))
+    errors.extend(_validate_backend_runtime_expected(payload))
     errors.extend(_validate_known_gates(payload))
+    return errors
+
+
+def _validate_backend_runtime_expected(payload: dict[str, Any]) -> list[str]:
+    backend = payload.get("backend")
+    if not isinstance(backend, dict):
+        return ["backend must be an object"]
+    runtime_expected = backend.get("runtimeExpected")
+    if not isinstance(runtime_expected, dict):
+        return ["backend.runtimeExpected must be an object"]
+
+    errors: list[str] = []
+    for key, expected_value in REQUIRED_BACKEND_RUNTIME_EXPECTED.items():
+        actual_value = runtime_expected.get(key)
+        if actual_value != expected_value:
+            errors.append(
+                f"backend.runtimeExpected.{key}={actual_value!r} expected {expected_value!r}"
+            )
     return errors
 
 
