@@ -62,6 +62,7 @@ def _has_acquisition_metric_count(
 
 
 def test_acquisition_source_id_filters_trim_blanks_and_duplicates() -> None:
+    assert _normalize_source_id_filters is discovery_normalization.normalize_source_id_filters
     assert _normalize_source_id_filters(
         [" demo_public_book ", "", "DEMO_PUBLIC_BOOK", "restricted_book", "   "]
     ) == ["demo_public_book", "restricted_book"]

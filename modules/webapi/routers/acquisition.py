@@ -27,6 +27,7 @@ from modules.services.acquisition import (
 )
 from modules.services.acquisition.discovery_normalization import (
     normalize_provider as _normalize_optional_provider_id,
+    normalize_source_id_filters as _normalize_source_id_filters,
 )
 from modules.services.acquisition.url_safety import (
     looks_sensitive_key,
@@ -107,21 +108,6 @@ def _ensure_discovery_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
         )
-
-
-def _normalize_source_id_filters(source_ids: list[str] | None) -> list[str]:
-    normalized: list[str] = []
-    seen: set[str] = set()
-    for raw_source_id in source_ids or []:
-        source_id = str(raw_source_id).strip()
-        if not source_id:
-            continue
-        key = source_id.casefold()
-        if key in seen:
-            continue
-        seen.add(key)
-        normalized.append(source_id)
-    return normalized
 
 
 def _normalize_route_id(value: str) -> str:

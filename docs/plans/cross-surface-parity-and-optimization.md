@@ -757,7 +757,9 @@ Current Apple UI partially exposes:
   identical at the route boundary and in service fanout for Web/Apple Create.
   Discovery fanout also normalizes language once before calling providers, so
   YouTube search and public book catalogs receive the same compact language
-  code from Web and Apple Create.
+  code from Web and Apple Create. Acquisition `source_id` query trimming and
+  de-duplication now uses the same shared request-normalization helper in the
+  Web API route, leaving strict Internet Archive validation provider-scoped.
   Backend acquisition value coercion and
   identifier sanitization now live in
   `modules/services/acquisition/discovery_values.py` with focused coverage,

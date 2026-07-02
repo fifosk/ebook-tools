@@ -337,6 +337,9 @@ def test_acquisition_discovery_normalization_helpers_normalize_request_values() 
     assert discovery_normalization.normalize_provider(" backend_defaults ") is None
     assert discovery_normalization.normalize_provider(" LOCAL_EPUB ") == "local_epub"
     assert discovery_normalization.normalize_provider("   ") is None
+    assert discovery_normalization.normalize_source_id_filters(
+        [" demo_public_book ", "", "DEMO_PUBLIC_BOOK", "restricted_book", "   "]
+    ) == ["demo_public_book", "restricted_book"]
     assert discovery_normalization.normalize_query("  Dan   Brown  ") == "dan brown"
     assert discovery_normalization.normalize_limit("not-a-number") == 20
     assert discovery_normalization.normalize_limit(-7) == 0

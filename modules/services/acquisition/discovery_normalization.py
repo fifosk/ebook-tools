@@ -26,6 +26,21 @@ def normalize_provider(provider: str | None) -> str | None:
     return value or None
 
 
+def normalize_source_id_filters(source_ids: list[str] | None) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw_source_id in source_ids or []:
+        source_id = str(raw_source_id).strip()
+        if not source_id:
+            continue
+        key = source_id.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(source_id)
+    return normalized
+
+
 def normalize_query(query: str) -> str:
     return re.sub(r"\s+", " ", (query or "").strip().casefold())
 
