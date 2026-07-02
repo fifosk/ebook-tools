@@ -348,8 +348,10 @@ def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> No
     assert "ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift" in check_script
     assert "controller.boundaryReached()" in swift_check
     assert "controller.cancelPendingAutomaticAdvanceForPause()" in swift_check
+    assert "controller.cancelPendingAutomaticAdvanceForReaderTransportPause()" in swift_check
     assert "Cancelled dwell should not advance after its timer fires" in swift_check
     assert "Pause cancellation should clear an in-flight transition" in swift_check
+    assert "Reader transport pause should clear an in-flight transition" in swift_check
     assert "runSingleTrackPlanInitialLaneCheck()" in swift_check
     assert "Translation-only plan should point at the first translation segment" in swift_check
 
@@ -876,12 +878,25 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     assert "phase = .playing" in cancel_body
     assert "onTimeStabilized?()" in cancel_body
     assert "onCleanupAudioEffects?()" in cancel_body
+    reader_pause_cancel_body = _function_body(
+        controller,
+        "func cancelPendingAutomaticAdvanceForReaderTransportPause()",
+    )
+    assert "dwellWorkItem?.cancel()" in reader_pause_cancel_body
+    assert "dwellWorkItem = nil" in reader_pause_cancel_body
+    assert "case .dwelling, .transitioning, .validating, .playing:" in reader_pause_cancel_body
+    assert "phase = .idle" in reader_pause_cancel_body
+    assert "onTimeStabilized?()" in reader_pause_cancel_body
+    assert "onCleanupAudioEffects?()" in reader_pause_cancel_body
 
     pause_body = _function_body(sequence, "func pauseForReaderTransport()")
     assert pause_body.index("cancelPendingAudioReadySubscription()") < pause_body.index(
-        "sequenceController.cancelPendingAutomaticAdvanceForPause()"
+        "sequenceController.cancelPendingAutomaticAdvanceForReaderTransportPause()"
     )
-    assert pause_body.index("sequenceController.cancelPendingAutomaticAdvanceForPause()") < pause_body.index(
+    assert pause_body.index("sequenceController.cancelPendingAutomaticAdvanceForReaderTransportPause()") < pause_body.index(
+        "audioCoordinator.setVolume(0)"
+    )
+    assert pause_body.index("audioCoordinator.setVolume(0)") < pause_body.index(
         "audioCoordinator.pause()"
     )
 
@@ -1083,6 +1098,26 @@ def test_audio_coordinator_preserves_reader_intent_through_url_ended_handoff() -
     assert "handler(endedURL)" in handler_branch
     assert "self.isPlaybackRequested = false" in end_body
     assert "self.onPlaybackEnded?()" in end_body
+
+
+def test_audio_coordinator_rejects_stale_playing_kvo_after_pause() -> None:
+    coordinator = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "AudioPlayerCoordinator.swift"
+    ).read_text(encoding="utf-8")
+
+    observer_body = _function_body(coordinator, "private func observeTimeControlStatus(for player: AVPlayer)")
+    playing_branch = observer_body[
+        observer_body.index("case .playing:") : observer_body.index("case .paused:")
+    ]
+    assert "guard self.isPlaybackRequested else" in playing_branch
+    assert "player.pause()" in playing_branch
+    assert "self.isPlaying = false" in playing_branch
+    assert playing_branch.index("guard self.isPlaybackRequested else") < playing_branch.index("self.isPlaying = true")
 
 
 def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
@@ -1988,6 +2023,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "func handleSequenceTrackSwitch(track: SequenceTrack, seekTime: Double, shouldPlay: Bool)" in sequence
     assert "requiresPlaybackRequest: Bool = false" in sequence
     assert "if shouldPlay && (!requiresPlaybackRequest || self.audioCoordinator.isPlaybackRequested)" in sequence
+    assert "Sequence transition skipped stale auto-play after reader playback request cleared" in sequence
     assert "requiresPlaybackRequest: shouldPlay" in sequence
     assert "shouldPlay: self.audioCoordinator.isPlaybackRequested" in view_model
     assert "let shouldResume = self.audioCoordinator.isPlaybackRequested" in view_model

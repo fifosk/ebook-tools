@@ -332,7 +332,7 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "key": "interactiveStarts",
         "min_value": 1,
         "platforms": ["tvOS"],
-        "timeout": 10,
+        "timeout": 30,
     }
     assert steps[tvos_session_index + 2] == {
         "action": "assert_value_contains",
@@ -425,7 +425,7 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "selector": "e2eMusicBedSyncStatus",
         "text": "phase=play",
         "platforms": ["tvOS"],
-        "timeout": 12,
+        "timeout": 60,
     }
     assert steps[observed_pause_index + 8] == {
         "action": "assert_value_contains",

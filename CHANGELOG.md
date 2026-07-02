@@ -2,6 +2,13 @@
 
 Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
+## 2026-07-03
+
+### 2026.07.03.001
+
+- Apple reader transport pauses now mute and stop sentence playback before latching the Apple Music bed, reject stale AVPlayer play callbacks after pause, and resume mirrored Music play through the reader transport helper so volume comes back with narration.
+- Advanced visible Apple app versioning to `v2026.07.03.001`.
+
 ## 2026-07-02
 
 ### 2026.07.02.015

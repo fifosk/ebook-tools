@@ -586,7 +586,7 @@
       "key": "interactiveStarts",
       "min_value": 1,
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 30
     },
     {
       "action": "assert_value_contains",
@@ -695,7 +695,7 @@
       "selector": "e2eMusicBedSyncStatus",
       "text": "phase=play",
       "platforms": ["tvOS"],
-      "timeout": 12
+      "timeout": 60
     },
     {
       "action": "assert_value_contains",

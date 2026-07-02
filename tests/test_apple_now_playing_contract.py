@@ -1607,7 +1607,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.playForReaderTransport()" not in job_muted_recovery_body
     job_music_surface_body = _function_body(job, "private func handleMusicKitPlaybackSurfaceChange()")
     assert "if shouldMirrorAppleMusicPlayToNarration" in job_music_surface_body
-    assert "viewModel.audioCoordinator.play()" in job_music_surface_body
+    assert "viewModel.playForReaderTransport()" in job_music_surface_body
+    assert "viewModel.audioCoordinator.play()" not in job_music_surface_body
     assert job_music_surface_body.index("if shouldMirrorAppleMusicPlayToNarration") < job_music_surface_body.index(
         "if shouldMirrorAppleMusicPauseToNarration"
     )
@@ -1869,7 +1870,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.playForReaderTransport()" not in library_muted_recovery_body
     library_music_surface_body = _function_body(library, "private func handleMusicKitPlaybackSurfaceChange()")
     assert "if shouldMirrorAppleMusicPlayToNarration" in library_music_surface_body
-    assert "viewModel.audioCoordinator.play()" in library_music_surface_body
+    assert "viewModel.playForReaderTransport()" in library_music_surface_body
+    assert "viewModel.audioCoordinator.play()" not in library_music_surface_body
     assert library_music_surface_body.index("if shouldMirrorAppleMusicPlayToNarration") < library_music_surface_body.index(
         "if shouldMirrorAppleMusicPauseToNarration"
     )
@@ -2061,27 +2063,29 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "static var readerTransportCommandCount = 0" in chrome
     assert "MusicBedSyncE2EState.readerTransportCommandCount = readerTransportCommandCount" in chrome
     assert "private func runAutoSequenceIfNeeded() async" in chrome
-    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 8.0)" in _function_body(
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in _function_body(
         chrome,
         "private func scheduleTVOSSetupResumeIfNeeded(phase: String)",
     )
     setup_resume_body = _function_body(chrome, "private func scheduleTVOSSetupResumeIfNeeded(phase: String)")
     assert "guard readerTransportCommandCount == 0 else { return }" in setup_resume_body
     assert "guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }" in setup_resume_body
-    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 8.0)" in chrome
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in setup_resume_body
     assert "#if os(tvOS)" in chrome
-    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 20.0)" in chrome
-    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 48.0)" in chrome
-    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 100.0)" in chrome
+    assert "let initialPauseDelay: TimeInterval = 18.0" in chrome
+    assert "let initialPauseDelay: TimeInterval = 8.0" in chrome
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 36.0)" in chrome
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 70.0)" in chrome
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 120.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in chrome
     auto_sequence_body = _function_body(chrome, "private func runAutoSequenceIfNeeded() async")
     assert auto_sequence_body.count("guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }") >= 5
     late_tvos_resume_body = auto_sequence_body.split(
-        "DispatchQueue.main.asyncAfter(deadline: .now() + 100.0)",
+        "DispatchQueue.main.asyncAfter(deadline: .now() + 120.0)",
         1,
     )[1].split("#endif", 1)[0]
     assert 'guard musicOwnership.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }' in late_tvos_resume_body
-    late_resume_body = chrome.split("DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)", 1)[1].split(
+    late_resume_body = auto_sequence_body.split("DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)", 1)[1].split(
         "}\n    }",
         1,
     )[0]
@@ -2178,6 +2182,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "music_bed_observed_music_pause_observed" in journey
     assert "music_bed_observed_music_pause_recovered" in journey
     assert '"text": "phase=play"' in journey
+    assert '"timeout": 60' in journey
     assert '"text": "readerPause=false"' in journey
     assert "music_bed_remote_play_pressed" in journey
     assert "music_bed_remote_play_observed" in journey

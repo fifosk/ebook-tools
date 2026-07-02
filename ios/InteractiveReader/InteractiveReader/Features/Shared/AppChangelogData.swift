@@ -1,6 +1,12 @@
 enum AppChangelogData {
     static let days: [AppChangelogDay] = [
         AppChangelogDay(
+            id: "2026-07-03",
+            dateLabel: "July 3, 2026",
+            version: "2026.07.03.001",
+            entries: july3Entries
+        ),
+        AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
             version: "2026.07.02.015",

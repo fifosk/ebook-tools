@@ -141,6 +141,23 @@ private func runTransitionCancellationCheck() {
 }
 
 @MainActor
+private func runReaderTransportPauseCancellationCheck() {
+    let controller = configuredController()
+    var cleanupCount = 0
+    controller.onCleanupAudioEffects = { cleanupCount += 1 }
+
+    controller.beginTransition()
+    requireTrue(controller.isTransitioning, "beginTransition should enter transition state before reader pause")
+    controller.cancelPendingAutomaticAdvanceForReaderTransportPause()
+
+    requireTrue(!controller.isTransitioning, "Reader transport pause should clear an in-flight transition")
+    requireTrue(!controller.isDwelling, "Reader transport pause should clear dwell state")
+    requireEqual(controller.currentSegmentIndex, 0, "Reader transport pause should preserve segment")
+    requireEqual(controller.currentTrack, .original, "Reader transport pause should preserve track")
+    requireEqual(cleanupCount, 1, "Reader transport pause should clean up audio effects")
+}
+
+@MainActor
 private func runSingleTrackPlanInitialLaneCheck() {
     let controller = SequencePlaybackController()
     controller.buildPlan(
@@ -179,6 +196,7 @@ struct SequencePauseCancelCheck {
     static func main() async {
         await runDwellCancellationCheck()
         runTransitionCancellationCheck()
+        runReaderTransportPauseCancellationCheck()
         runSingleTrackPlanInitialLaneCheck()
     }
 }

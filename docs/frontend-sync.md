@@ -566,6 +566,11 @@ Follow the suggested remediations to restore parity:
   the reader pause before mirroring Music play to narration; physical fallback
   logs should not show consecutive `brokerPause` decisions without an
   intervening accepted reader play.
+  Reader-owned pauses must cancel any pending sequence transition/audio-ready
+  handoff, mute and pause the sentence player immediately, and reject stale
+  AVPlayer `playing` callbacks while playback is no longer requested. Mirrored
+  Music play should resume narration through the reader transport helper rather
+  than the raw audio coordinator so the narration/bed mix volume is restored.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

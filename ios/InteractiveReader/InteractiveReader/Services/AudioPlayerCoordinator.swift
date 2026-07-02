@@ -718,6 +718,12 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 let current = player.timeControlStatus
                 switch current {
                 case .playing:
+                    guard self.isPlaybackRequested else {
+                        self.logger.debug("KVO playing ignored because playback is not requested role=\(String(describing: self.role), privacy: .public) time=\(String(format: "%.3f", self.currentTime), privacy: .public)")
+                        player.pause()
+                        self.isPlaying = false
+                        return
+                    }
                     if !self.isPlaying {
                         self.logger.debug("KVO playing role=\(String(describing: self.role), privacy: .public) time=\(String(format: "%.3f", self.currentTime), privacy: .public)")
                     }

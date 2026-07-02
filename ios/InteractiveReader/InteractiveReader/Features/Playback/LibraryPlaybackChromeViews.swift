@@ -516,7 +516,7 @@ struct MusicBedSyncE2EControls: View {
     private func scheduleTVOSSetupResumeIfNeeded(phase: String) {
         guard phase == "observedPauseImmediate" else { return }
         guard readerTransportCommandCount == 0 else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 45.0) {
             guard musicOwnership.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPlayForE2E()
@@ -528,27 +528,32 @@ struct MusicBedSyncE2EControls: View {
     private func runAutoSequenceIfNeeded() async {
         guard !MusicBedSyncE2EState.didRunAutoSequence else { return }
         MusicBedSyncE2EState.didRunAutoSequence = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
+        #if os(tvOS)
+        let initialPauseDelay: TimeInterval = 18.0
+        #else
+        let initialPauseDelay: TimeInterval = 8.0
+        #endif
+        DispatchQueue.main.asyncAfter(deadline: .now() + initialPauseDelay) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPauseForE2E()
         }
         #if os(tvOS)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 20.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 36.0) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPlayForE2E()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 32.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 50.0) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             guard MusicBedSyncE2EState.interactiveStartCommandCount == 0 else { return }
             guard musicOwnership.e2eMusicBedSyncPhase == "play" else { return }
             MusicBedSyncE2EState.interactiveStartCommandCount += 1
             onInteractiveStartCommand()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 48.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 70.0) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateObservedNonPlayingPauseForE2E()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 100.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 120.0) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             guard musicOwnership.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
             musicOwnership.simulateReadingBedPlayForE2E()

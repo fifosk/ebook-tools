@@ -665,6 +665,17 @@ def test_latest_music_bed_and_acquisition_optimization_are_visible_in_changelogs
         assert "direct binary search" in source
 
 
+def test_july3_music_bed_pause_sync_is_visible_in_changelogs() -> None:
+    swift_changelog = _swift_changelog_sources()
+    markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
+
+    assert 'id: "2026-07-03"' in swift_changelog
+    assert 'id: "apple-music-bed-single-pause-sync"' in swift_changelog
+    for source in (swift_changelog, markdown_changelog):
+        assert "stale AVPlayer play callbacks" in source
+        assert "volume comes back with narration" in source
+
+
 def test_apple_web_create_handoff_source_is_visible_in_changelogs() -> None:
     swift_changelog = _swift_changelog_sources()
     markdown_changelog = CHANGELOG.read_text(encoding="utf-8")

@@ -684,6 +684,26 @@ final class SequencePlaybackController: ObservableObject {
         debugLog("Cancelled pending automatic advance for explicit pause")
     }
 
+    /// Cancel sequence work for a reader-owned transport pause.
+    /// Unlike transition recovery, this leaves the sequence idle so late ready/seek
+    /// completions cannot mark playback active after the user paused the reader.
+    func cancelPendingAutomaticAdvanceForReaderTransportPause() {
+        dwellWorkItem?.cancel()
+        dwellWorkItem = nil
+        let hadExpectedPosition = expectedPosition != nil
+        switch phase {
+        case .dwelling, .transitioning, .validating, .playing:
+            phase = .idle
+        case .idle:
+            break
+        }
+        if hadExpectedPosition {
+            onTimeStabilized?()
+        }
+        onCleanupAudioEffects?()
+        debugLog("Cancelled sequence playback for reader transport pause")
+    }
+
     /// Mark transition as completed (call after audio is loaded and ready)
     /// - Parameter expectedTime: The expected playback position after the seek
     func endTransition(expectedTime: Double? = nil) {

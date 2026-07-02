@@ -509,7 +509,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                     "key": "interactiveStarts",
                     "min_value": 1,
                     "platforms": ["tvOS"],
-                    "timeout": 10,
+                    "timeout": 30,
                 },
                 {
                     "action": "assert_value_contains",

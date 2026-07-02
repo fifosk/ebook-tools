@@ -40,7 +40,8 @@ extension InteractivePlayerViewModel {
     /// restart narration after the user asked both narration and the bed to pause.
     func pauseForReaderTransport() {
         cancelPendingAudioReadySubscription()
-        sequenceController.cancelPendingAutomaticAdvanceForPause()
+        sequenceController.cancelPendingAutomaticAdvanceForReaderTransportPause()
+        audioCoordinator.setVolume(0)
         audioCoordinator.pause()
     }
 
@@ -493,7 +494,9 @@ extension InteractivePlayerViewModel {
             #if DEBUG
             self.audioCoordinator.recordStickySequenceResumeForE2E()
             #endif
-            self.audioCoordinator.play()
+            interactiveSequenceLogger.info(
+                "Sequence transition skipped stale auto-play after reader playback request cleared"
+            )
         }
     }
 
