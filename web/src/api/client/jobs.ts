@@ -203,7 +203,63 @@ export async function fetchPipelineFiles(
   const response = await apiFetch(
     `${WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesPath}?${params.toString()}`
   );
-  return handleResponse<PipelineFileBrowserResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertPipelineFileBrowserResponse(payload);
+  return payload;
+}
+
+function assertPipelineFileBrowserResponse(
+  payload: unknown
+): asserts payload is PipelineFileBrowserResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid pipeline file browser response.');
+  }
+  assertPipelineFileEntries(payload.ebooks, 'ebooks');
+  assertPipelineFileEntries(payload.outputs, 'outputs');
+  assertPipelineFileStringField(payload, 'books_root', 'file browser');
+  assertPipelineFileStringField(payload, 'output_root', 'file browser');
+}
+
+function assertPipelineFileEntries(value: unknown, key: string): void {
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid pipeline file browser response: missing ${key}.`);
+  }
+  for (const entry of value) {
+    assertPipelineFileEntry(entry);
+  }
+}
+
+function assertPipelineFileEntry(payload: unknown): asserts payload is PipelineFileEntry {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid pipeline file entry response.');
+  }
+  assertPipelineFileStringField(payload, 'name', 'file entry');
+  assertPipelineFileStringField(payload, 'path', 'file entry');
+  assertPipelineFileStringField(payload, 'type', 'file entry');
+  assertPipelineFileOptionalNumber(payload.size_bytes, 'size_bytes');
+  assertPipelineFileOptionalString(payload.modified_at, 'modified_at');
+}
+
+function assertPipelineFileStringField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid pipeline ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertPipelineFileOptionalString(value: unknown, key: string): void {
+  if (value !== undefined && value !== null && typeof value !== 'string') {
+    throw new Error(`Invalid pipeline file entry response: invalid ${key}.`);
+  }
+}
+
+function assertPipelineFileOptionalNumber(value: unknown, key: string): void {
+  if (value !== undefined && value !== null && typeof value !== 'number') {
+    throw new Error(`Invalid pipeline file entry response: invalid ${key}.`);
+  }
 }
 
 export async function fetchAcquisitionProviders(): Promise<AcquisitionProviderListResponse> {
@@ -662,7 +718,9 @@ export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {
     body: formData
   });
 
-  return handleResponse<PipelineFileEntry>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertPipelineFileEntry(payload);
+  return payload;
 }
 
 export async function uploadCoverFile(file: File): Promise<PipelineFileEntry> {
@@ -674,7 +732,9 @@ export async function uploadCoverFile(file: File): Promise<PipelineFileEntry> {
     body: formData
   });
 
-  return handleResponse<PipelineFileEntry>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertPipelineFileEntry(payload);
+  return payload;
 }
 
 export async function deletePipelineEbook(path: string): Promise<void> {

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class PipelineFileEntry(BaseModel):
@@ -21,7 +21,7 @@ class PipelineFileEntry(BaseModel):
 class PipelineFileBrowserResponse(BaseModel):
     """Response payload listing available ebook and output files."""
 
-    ebooks: List[PipelineFileEntry] = Field(default_factory=list)
-    outputs: List[PipelineFileEntry] = Field(default_factory=list)
-    books_root: str = ""
-    output_root: str = ""
+    ebooks: List[PipelineFileEntry]
+    outputs: List[PipelineFileEntry]
+    books_root: str
+    output_root: str

@@ -194,6 +194,12 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "assertHandoffSubtitleHints(payload.subtitles, 'prepared artifact')" in api_client
     assert "assertHandoffStringArray(payload.completed_files, 'completed_files', 'job')" in api_client
     assert "assertHandoffMetadata(payload.metadata, 'job')" in api_client
+    assert "assertPipelineFileBrowserResponse(payload)" in api_client
+    assert "assertPipelineFileEntries(payload.ebooks, 'ebooks')" in api_client
+    assert "assertPipelineFileEntries(payload.outputs, 'outputs')" in api_client
+    assert "assertPipelineFileEntry(payload)" in api_client
+    assert "throw new Error(`Invalid pipeline file browser response: missing ${key}.`)" in api_client
+    assert "assertPipelineFileStringField(payload, 'type', 'file entry')" in api_client
     assert "resolveDefaultBookDiscoveryProvider(" in discovery_hook
     assert "defaultProviderIds?.book" in discovery_providers
     assert "hasUserSelectedDiscoveryProvider.current" in discovery_hook

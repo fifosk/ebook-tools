@@ -27,6 +27,7 @@ import {
   refreshPipelineMetadata,
   restartJob,
   submitPipeline,
+  uploadCoverFile,
   uploadEpubFile,
   deletePipelineEbook
 } from '../jobs';
@@ -142,6 +143,27 @@ function acquisitionJobStatusResponse(overrides: Record<string, unknown> = {}): 
     completed_files: [],
     next_actions: [],
     metadata: {},
+    ...overrides
+  };
+}
+
+function pipelineFileEntry(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    name: 'demo.epub',
+    path: '/books/demo.epub',
+    type: 'file',
+    size_bytes: 42,
+    modified_at: '2026-07-02T12:00:00Z',
+    ...overrides
+  };
+}
+
+function pipelineFileBrowserResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ebooks: [],
+    outputs: [],
+    books_root: '/books',
+    output_root: '/outputs',
     ...overrides
   };
 }
@@ -367,7 +389,7 @@ describe('jobs API client', () => {
 
   it('uses shared pipeline source and default routes with encoded content-index queries', async () => {
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValueOnce(jsonResponse({ ebooks: [], outputs: [], books_root: '', output_root: '' }))
+      .mockResolvedValueOnce(jsonResponse(pipelineFileBrowserResponse()))
       .mockResolvedValueOnce(jsonResponse({ config: {} }))
       .mockResolvedValueOnce(jsonResponse({
         acceptingJobs: true,
@@ -378,7 +400,7 @@ describe('jobs API client', () => {
       }))
       .mockResolvedValueOnce(jsonResponse({ book: {}, chapters: [] }))
       .mockResolvedValueOnce(jsonResponse({ nodes: [], available: [], unavailable: [] }))
-      .mockResolvedValueOnce(jsonResponse({ path: '/books/upload.epub', filename: 'upload.epub', type: 'file' }))
+      .mockResolvedValueOnce(jsonResponse(pipelineFileEntry({ name: 'upload.epub', path: '/books/upload.epub' })))
       .mockResolvedValueOnce(jsonResponse({ ok: true }))
       .mockResolvedValueOnce(jsonResponse({ models: ['model-a'] }))
       .mockResolvedValueOnce(jsonResponse({ cleared: 1 }))
@@ -428,7 +450,7 @@ describe('jobs API client', () => {
   it('bounds custom pipeline file limits before requesting the picker', async () => {
     const fetchMock = vi
       .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockImplementation(() => Promise.resolve(jsonResponse({ ebooks: [], outputs: [] })));
+      .mockImplementation(() => Promise.resolve(jsonResponse(pipelineFileBrowserResponse())));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await fetchPipelineFiles(9999);
@@ -438,6 +460,34 @@ describe('jobs API client', () => {
     const lowLimitUrl = new URL(String(fetchMock.mock.calls[1][0]));
     expect(highLimitUrl.searchParams.get('limit')).toBe(String(MAX_PIPELINE_FILES_LIMIT));
     expect(lowLimitUrl.searchParams.get('limit')).toBe(String(MIN_PIPELINE_FILES_LIMIT));
+  });
+
+  it('rejects malformed pipeline file picker payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse(pipelineFileBrowserResponse({ ebooks: undefined })))
+      .mockResolvedValueOnce(jsonResponse(pipelineFileBrowserResponse({ books_root: 42 })))
+      .mockResolvedValueOnce(jsonResponse(pipelineFileBrowserResponse({
+        ebooks: [pipelineFileEntry({ name: undefined })]
+      })))
+      .mockResolvedValueOnce(jsonResponse(pipelineFileEntry({ type: undefined })))
+      .mockResolvedValueOnce(jsonResponse(pipelineFileEntry({ size_bytes: '42' })));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchPipelineFiles()).rejects.toThrow(
+      'Invalid pipeline file browser response: missing ebooks.'
+    );
+    await expect(fetchPipelineFiles()).rejects.toThrow(
+      'Invalid pipeline file browser response: missing books_root.'
+    );
+    await expect(fetchPipelineFiles()).rejects.toThrow(
+      'Invalid pipeline file entry response: missing name.'
+    );
+    await expect(uploadEpubFile(new File(['epub'], 'upload.epub'))).rejects.toThrow(
+      'Invalid pipeline file entry response: missing type.'
+    );
+    await expect(uploadCoverFile(new File(['cover'], 'cover.jpg'))).rejects.toThrow(
+      'Invalid pipeline file entry response: invalid size_bytes.'
+    );
   });
 
   it('uses shared pipeline job, timing, and lookup-cache routes', async () => {

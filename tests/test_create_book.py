@@ -432,6 +432,22 @@ def test_pipeline_file_picker_records_safe_timing(
     )
 
 
+def test_pipeline_file_openapi_marks_cross_surface_response_fields_required() -> None:
+    app = create_app()
+    schemas = app.openapi()["components"]["schemas"]
+
+    entry_required = set(schemas["PipelineFileEntry"]["required"])
+    assert {"name", "path", "type"} <= entry_required
+
+    browser_required = set(schemas["PipelineFileBrowserResponse"]["required"])
+    assert {
+        "ebooks",
+        "outputs",
+        "books_root",
+        "output_root",
+    } <= browser_required
+
+
 def test_pipeline_file_picker_accepts_bounded_picker_limit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
