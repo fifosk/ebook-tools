@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.012
 
+- Apple in-app changelog entries for July 2 now live in a dated shard, keeping the root changelog day index smaller as Web, backend, and Apple dogfood checkpoints accumulate.
 - Apple reader header language/audio pills now route taps through the shared guarded audio-mode toggle, preserving Original-only or Translation-only states while allowing the inactive companion pill to restore both-track playback without disabling the wrong lane.
 - Backend Library route telemetry now lives in a focused router support module while preserving the same token-safe duration metrics and logs used by Web and Apple Library actions.
 - Web Video Dubbing tab state, status notices, template handoff extras, and initial NAS refresh now live in a focused page-state hook with coverage, keeping the page coordinator closer to Apple YouTube Dub parity checks.

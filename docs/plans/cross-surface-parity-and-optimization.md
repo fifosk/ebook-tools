@@ -553,6 +553,9 @@ Key Apple files:
 - API transport: `ios/InteractiveReader/InteractiveReader/Services/APIClient.swift`
 - Job/library API methods: `ios/InteractiveReader/InteractiveReader/Services/APIClient+LibraryJobs.swift`
 - Media API methods: `ios/InteractiveReader/InteractiveReader/Services/APIClient+PipelineMedia.swift`
+- In-app changelog: current-day entries now follow the dated shard pattern
+  (`AppChangelogData+2026-07-02.swift`), leaving `AppChangelogData.swift` as
+  the day index plus older unsplit history.
 
 Current Apple API client supports:
 
