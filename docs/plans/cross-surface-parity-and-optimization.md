@@ -130,7 +130,11 @@ Large Web UI hotspots to split before redesign work:
   lookup state, stale-response suppression, source-change resets, cache clear
   handlers, and editable metadata draft preservation now live in
   `web/src/pages/video-dubbing/useVideoDubbingMetadata.ts` with focused hook
-  coverage. Backend target-language loading, shared language preference
+  coverage. TVMaze metadata preview artwork, summary rows, editable job/show/episode
+  fields, and raw payload rendering now live in
+  `web/src/pages/video-dubbing/VideoTvMetadataPreview.tsx` with rendered
+  coverage, trimming the metadata panel while preserving the same reviewed
+  metadata draft shape that Apple Create consumes. Backend target-language loading, shared language preference
   updates, sorted option construction, subtitle-language fallback, and target
   language-code resolution now live in
   `web/src/pages/video-dubbing/useVideoDubbingLanguageState.ts` with focused

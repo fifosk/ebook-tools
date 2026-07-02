@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-video-tv-metadata-preview",
+                    title: "Video metadata is cleaner",
+                    detail: "Web Video Dubbing TVMaze metadata preview, artwork, editable job/show/episode fields, and raw payload rendering now live in a focused component with rendered coverage, keeping the Web flow easier to compare with Apple Create metadata review."
+                ),
+                AppChangelogEntry(
                     id: "apple-sequence-eof-no-single-track-inference",
                     title: "Batch endings keep all tracks",
                     detail: "Apple reader combined and sequence batch endings no longer infer Original-only or Translation-only mode from the final segment URL after the sequence plan has ended, preventing the next batch from resetting to the last spoken track."

@@ -378,6 +378,7 @@ test-web-video-dubbing-focused:
 		src/pages/__tests__/useVideoDubbingLibraryState.test.tsx \
 		src/pages/__tests__/useVideoDubbingSourceSelection.test.tsx \
 		src/pages/__tests__/VideoDubbingFeedbackPanel.test.tsx \
+		src/pages/__tests__/VideoTvMetadataPreview.test.tsx \
 		src/pages/__tests__/VideoDubbingPage.test.tsx \
 		src/pages/__tests__/YoutubeVideoPage.test.tsx
 

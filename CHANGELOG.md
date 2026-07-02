@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Web Video Dubbing TVMaze metadata preview, artwork, editable job/show/episode fields, and raw payload rendering now live in a focused `VideoTvMetadataPreview` component with rendered coverage and changed-test routing, trimming the metadata panel while preserving Apple Create parity behavior.
 - Apple reader combined/sequence batch endings no longer infer Original-only or Translation-only mode from the final segment URL after the sequence plan has ended, preventing all-track playback from resetting the next batch to the last spoken track and drifting rendering out of sync.
 - Backend acquisition provider discoverability now lives in a focused `provider_catalog` module shared by discovery routing and the provider registry, reducing the chance that Web and Apple Create expose a provider the backend handler map cannot actually route.
 - Backend acquisition file discovery, artifact preparation, and Download Station handoff now import source-root resolution from `provider_roots` directly, keeping provider payload assembly out of reusable Web/Apple Create source handling paths.
