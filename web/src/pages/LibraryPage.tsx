@@ -47,19 +47,16 @@ import {
   type LibraryItemType
 } from './library/libraryPageMetadata';
 import LibraryToolbar from '../components/LibraryToolbar';
-import LibraryDetailTabs, { type LibraryDetailTab } from './library/LibraryDetailTabs';
+import type { LibraryDetailTab } from './library/LibraryDetailTabs';
+import LibraryDetailsPanel from './library/LibraryDetailsPanel';
 import LibraryEntriesPanel from './library/LibraryEntriesPanel';
-import LibraryMetadataTab from './library/LibraryMetadataTab';
-import LibraryOverviewTab from './library/LibraryOverviewTab';
 import LibraryPaginationControls from './library/LibraryPaginationControls';
-import LibraryPermissionsTab from './library/LibraryPermissionsTab';
 import styles from './LibraryPage.module.css';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
 import { downloadWithSaveAs } from '../utils/downloads';
 import { canAccessPolicy, normalizeRole } from '../utils/accessControl';
 import type { LibraryOpenInput, LibraryOpenRequest } from '../types/player';
 import { extractJobType, getJobTypeGlyph, isTvSeriesMetadata } from '../utils/jobGlyphs';
-import JobTypeGlyphBadge from '../components/JobTypeGlyphBadge';
 import { useAuth } from '../components/AuthProvider';
 
 const PAGE_SIZE = 25;
@@ -698,76 +695,44 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
           rangeLabel={rangeLabel}
           onPageChange={setPage}
         />
-        <aside className={styles.detailsCard} aria-live="polite">
-          {selectedItem ? (
-            <>
-              <h2 className={styles.detailsTitle}>
-                <JobTypeGlyphBadge glyph={selectedJobGlyph} className={styles.detailsJobGlyph} />
-                {selectedTitle}
-              </h2>
-              <LibraryDetailTabs activeTab={detailTab} onChange={setDetailTab} />
-
-              {/* Overview Tab */}
-              {detailTab === 'overview' ? (
-                <LibraryOverviewTab
-                  item={selectedItem}
-                  itemType={selectedItemType}
-                  title={selectedTitle}
-                  author={selectedAuthor}
-                  genre={selectedGenre}
-                  displayedCoverUrl={displayedCoverUrl}
-                  tvPoster={tvPoster}
-                  tvStill={tvStill}
-                  youtubeThumbnail={youtubeThumbnail}
-                  permissions={selectedPermissions}
-                  mutating={Boolean(mutating[selectedItem.jobId])}
-                  isSaving={isSaving}
-                  isEditing={isEditing}
-                  isEnriching={isEnriching}
-                  enrichmentError={enrichmentError}
-                  enrichmentResult={enrichmentResult}
-                  editValues={editValues}
-                  editError={editError}
-                  selectedFile={selectedFile}
-                  isbnPreview={isbnPreview}
-                  isbnFetchError={isbnFetchError}
-                  isFetchingIsbn={isFetchingIsbn}
-                  onPlay={handlePlay}
-                  onStartEditing={startEditingItem}
-                  onEnrichMetadata={handleEnrichMetadata}
-                  onEditSubmit={handleEditSubmit}
-                  onEditCancel={handleEditCancel}
-                  onEditValueChange={handleEditValueChange}
-                  onFetchIsbnMetadata={handleFetchIsbnMetadata}
-                  onSourceFileChange={handleSourceFileChange}
-                />
-              ) : null}
-
-              {/* Metadata Tab */}
-              {detailTab === 'metadata' ? (
-                <LibraryMetadataTab
-                  item={selectedItem}
-                  itemType={selectedItemType}
-                  jobGlyph={selectedJobGlyph}
-                  jobType={selectedJobType}
-                  youtubeMetadata={youtubeMetadata}
-                />
-              ) : null}
-
-              {/* Permissions Tab */}
-              {detailTab === 'permissions' ? (
-                <LibraryPermissionsTab
-                  policy={selectedItem.access ?? null}
-                  ownerId={selectedItem.ownerId ?? null}
-                  canEdit={Boolean(selectedPermissions?.canEdit)}
-                  onSave={handleUpdateAccess}
-                />
-              ) : null}
-            </>
-          ) : (
-            <p>Select an entry to inspect its metadata snapshot.</p>
-          )}
-        </aside>
+        <LibraryDetailsPanel
+          item={selectedItem}
+          itemType={selectedItemType}
+          title={selectedTitle}
+          author={selectedAuthor}
+          genre={selectedGenre}
+          jobGlyph={selectedJobGlyph}
+          jobType={selectedJobType}
+          detailTab={detailTab}
+          onDetailTabChange={setDetailTab}
+          displayedCoverUrl={displayedCoverUrl}
+          tvPoster={tvPoster}
+          tvStill={tvStill}
+          youtubeThumbnail={youtubeThumbnail}
+          youtubeMetadata={youtubeMetadata}
+          permissions={selectedPermissions}
+          mutating={Boolean(selectedItem ? mutating[selectedItem.jobId] : false)}
+          isSaving={isSaving}
+          isEditing={isEditing}
+          isEnriching={isEnriching}
+          enrichmentError={enrichmentError}
+          enrichmentResult={enrichmentResult}
+          editValues={editValues}
+          editError={editError}
+          selectedFile={selectedFile}
+          isbnPreview={isbnPreview}
+          isbnFetchError={isbnFetchError}
+          isFetchingIsbn={isFetchingIsbn}
+          onPlay={handlePlay}
+          onStartEditing={startEditingItem}
+          onEnrichMetadata={handleEnrichMetadata}
+          onEditSubmit={handleEditSubmit}
+          onEditCancel={handleEditCancel}
+          onEditValueChange={handleEditValueChange}
+          onFetchIsbnMetadata={handleFetchIsbnMetadata}
+          onSourceFileChange={handleSourceFileChange}
+          onSavePermissions={handleUpdateAccess}
+        />
       </div>
     </div>
   );

@@ -42,7 +42,7 @@ Large Web UI hotspots to split before redesign work:
   path derivation, and live-media display-name derivation now live
   in `web/src/hooks/liveMediaState.ts`; modern and legacy timing normalization
   now lives in `web/src/hooks/liveMediaTiming.ts` with focused Vitest coverage.
-- `web/src/pages/LibraryPage.tsx` - 776 lines. Status: TV/YouTube/library
+- `web/src/pages/LibraryPage.tsx` - 741 lines. Status: TV/YouTube/library
   title, author, genre, thumbnail, upload-date, ISBN preview merge/cover, and
   tab bucketing and pagination helpers now live in
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
@@ -58,8 +58,9 @@ Large Web UI hotspots to split before redesign work:
   preview, and source replacement form, now lives in
   `web/src/pages/library/LibraryOverviewTab.tsx`. Detail tab switching and
   sharing/permission editing now live in `LibraryDetailTabs.tsx` and
-  `LibraryPermissionsTab.tsx`. Library media-kind tab counts, active-tab
-  switching, and embedded list wiring now live in
+  `LibraryPermissionsTab.tsx`, with the selected-entry details shell now in
+  `LibraryDetailsPanel.tsx` so the page no longer owns tab composition inline.
+  Library media-kind tab counts, active-tab switching, and embedded list wiring now live in
   `web/src/pages/library/LibraryEntriesPanel.tsx` with focused rendered
   coverage. Library pagination controls now live in
   `web/src/pages/library/LibraryPaginationControls.tsx` with rendered

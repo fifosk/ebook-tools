@@ -12,6 +12,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Backend YouTube NAS video deletion now scans adjacent subtitle sidecars through the shared tolerant directory iterator, so transient NAS directory failures do not break Web or Apple cleanup flows.
 - Web Library tab counts, active media-kind switching, and embedded LibraryList wiring now live in a focused entries panel with direct coverage in the Library Web gate.
 - Web Library pagination now lives in a focused controls component with rendered boundary coverage, keeping the Library page shell slimmer for the cross-surface redesign work.
+- Web Library selected-entry details now render through a focused details panel with overview, metadata, permissions, and empty-state coverage, further trimming the page shell before redesign.
 - Advanced visible Apple app versioning to `v2026.07.02.012`.
 
 ### 2026.07.02.011
