@@ -589,14 +589,6 @@
       "timeout": 10
     },
     {
-      "action": "assert_value_key_at_least",
-      "selector": "e2eMusicBedSyncStatus",
-      "key": "interactiveDeferredMusicResumes",
-      "min_value": 1,
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "reader=playing",

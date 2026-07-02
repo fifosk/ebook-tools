@@ -201,6 +201,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "musicOwnership.isPausedByReaderTransport" not in job_stale_pause_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" in job_stale_pause_body
     assert "readerTransportMusicResumeTask != nil" in job_stale_pause_body
+    assert "return !viewModel.isNarrationAudibleForReaderTransport" in job_stale_pause_body
+    assert "return hasPendingReaderMusicResume" not in job_stale_pause_body
     job_mirror_pause_body = _function_body(job_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in job_mirror_pause_body
     assert "confirmReaderTransportPauseAfterCommand(source: source)" in job_mirror_pause_body
@@ -732,6 +734,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "musicOwnership.isPausedByReaderTransport" not in library_stale_pause_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" in library_stale_pause_body
     assert "readerTransportMusicResumeTask != nil" in library_stale_pause_body
+    assert "return !viewModel.isNarrationAudibleForReaderTransport" in library_stale_pause_body
+    assert "return hasPendingReaderMusicResume" not in library_stale_pause_body
     library_mirror_pause_body = _function_body(library_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in library_mirror_pause_body
     assert "confirmReaderTransportPauseAfterCommand(source: source)" in library_mirror_pause_body
@@ -1570,9 +1574,20 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.jumpToSentence(pendingSentence, autoPlay: true)" in job
     assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in job
     assert "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)" in job
-    assert "viewModel.audioCoordinator.volume <= 0.001" in job
-    assert "!viewModel.isSequenceTransitioning" in job
-    assert "viewModel.playForReaderTransport()" in job
+    job_muted_recovery_body = _function_body(job, "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)")
+    assert "pendingInteractiveAutoplaySentence == nil" in job_muted_recovery_body
+    assert "viewModel.audioCoordinator.volume <= 0.001" in job_muted_recovery_body
+    assert "!viewModel.audioCoordinator.isPlaying" in job_muted_recovery_body
+    assert "recovering stalled Apple Music-bed narration" in job_muted_recovery_body
+    assert "configureAppleMusicBedAudioSession()" in job_muted_recovery_body
+    assert "if viewModel.recoverStuckReaderTransportPlayback()" in job_muted_recovery_body
+    assert 'lastReaderTransportAction = "play"' in job_muted_recovery_body
+    assert 'lastReaderTransportSource = "\\(reason)Recovery"' in job_muted_recovery_body
+    assert "localReaderTransportPauseHoldUntil = 0" in job_muted_recovery_body
+    assert "publishReaderNowPlayingSnapshot(force: true)" in job_muted_recovery_body
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_muted_recovery_body
+    assert "!viewModel.isSequenceTransitioning" not in job_muted_recovery_body
+    assert "viewModel.playForReaderTransport()" not in job_muted_recovery_body
     job_music_surface_body = _function_body(job, "private func handleMusicKitPlaybackSurfaceChange()")
     assert "if shouldMirrorAppleMusicPlayToNarration" in job_music_surface_body
     assert "viewModel.audioCoordinator.play()" in job_music_surface_body
@@ -1816,9 +1831,20 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.jumpToSentence(pendingSentence, autoPlay: true)" in library
     assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in library
     assert "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)" in library
-    assert "viewModel.audioCoordinator.volume <= 0.001" in library
-    assert "!viewModel.isSequenceTransitioning" in library
-    assert "viewModel.playForReaderTransport()" in library
+    library_muted_recovery_body = _function_body(library, "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)")
+    assert "pendingInteractiveAutoplaySentence == nil" in library_muted_recovery_body
+    assert "viewModel.audioCoordinator.volume <= 0.001" in library_muted_recovery_body
+    assert "!viewModel.audioCoordinator.isPlaying" in library_muted_recovery_body
+    assert "recovering stalled Apple Music-bed narration" in library_muted_recovery_body
+    assert "configureAppleMusicBedAudioSession()" in library_muted_recovery_body
+    assert "if viewModel.recoverStuckReaderTransportPlayback()" in library_muted_recovery_body
+    assert 'lastReaderTransportAction = "play"' in library_muted_recovery_body
+    assert 'lastReaderTransportSource = "\\(reason)Recovery"' in library_muted_recovery_body
+    assert "localReaderTransportPauseHoldUntil = 0" in library_muted_recovery_body
+    assert "publishReaderNowPlayingSnapshot(force: true)" in library_muted_recovery_body
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_muted_recovery_body
+    assert "!viewModel.isSequenceTransitioning" not in library_muted_recovery_body
+    assert "viewModel.playForReaderTransport()" not in library_muted_recovery_body
     library_music_surface_body = _function_body(library, "private func handleMusicKitPlaybackSurfaceChange()")
     assert "if shouldMirrorAppleMusicPlayToNarration" in library_music_surface_body
     assert "viewModel.audioCoordinator.play()" in library_music_surface_body
@@ -2005,7 +2031,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityIdentifier("e2eMusicBedSyncStatus")' in chrome
     assert "accessibilityLabel(statusText)" in chrome
     assert "accessibilityValue(statusText)" in chrome
-    assert "let isNarrationAudibleForReaderTransport: Bool" in chrome
+    assert "let isNarrationAudibleForReaderTransport: Bool" not in chrome
     assert "let isReaderSequenceTransitioning: Bool" in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' not in chrome
     assert "private enum MusicBedSyncE2EState" in chrome
@@ -2055,8 +2081,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityIdentifier("e2eKeyboardLookupCommandButton")' in chrome
     assert "MusicBedSyncE2EControls(" in job
     assert "MusicBedSyncE2EControls(" in library
-    assert "isNarrationAudibleForReaderTransport: viewModel.isNarrationAudibleForReaderTransport" in job
-    assert "isNarrationAudibleForReaderTransport: viewModel.isNarrationAudibleForReaderTransport" in library
+    assert "isNarrationAudibleForReaderTransport:" not in job
+    assert "isNarrationAudibleForReaderTransport:" not in library
     assert "isReaderSequenceTransitioning: viewModel.isSequenceTransitioning" in job
     assert "isReaderSequenceTransitioning: viewModel.isSequenceTransitioning" in library
     assert "musicOwnership.ensureReadingBedPlayStateForE2E()" in chrome
@@ -2073,10 +2099,20 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.audioCoordinator.reassertAudioSession(force: true)" in library_now_playing
     assert "viewModel.audioCoordinator.configureAudioSessionForMixing(\n            true," in job_now_playing
     assert "viewModel.audioCoordinator.configureAudioSessionForMixing(\n            true," in library_now_playing
+    status_body = _function_body(chrome, "private var statusText: String")
+    assert "let isReaderPlaying = audioCoordinator.isPlaying" in status_body
+    assert "let isReaderPlaybackRequested = audioCoordinator.isPlaybackRequested" in status_body
+    assert "let isReaderVolumeOn = audioCoordinator.volume > 0.001" in status_body
+    assert "let isReaderAudible = isReaderPlaybackRequested &&" in status_body
+    assert "isReaderPlaying &&" in status_body
+    assert "isReaderVolumeOn &&" in status_body
+    assert "!isReaderSequenceTransitioning" in status_body
     assert '"guard=\\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")"' in chrome
-    assert '"audible=\\(isNarrationAudibleForReaderTransport ? "true" : "false")"' in chrome
+    assert '"reader=\\(isReaderPlaying ? "playing" : "paused")"' in status_body
+    assert '"requested=\\(isReaderPlaybackRequested ? "true" : "false")"' in status_body
+    assert '"audible=\\(isReaderAudible ? "true" : "false")"' in status_body
     assert '"transitioning=\\(isReaderSequenceTransitioning ? "true" : "false")"' in chrome
-    assert '"volume=\\(audioCoordinator.volume > 0.001 ? "on" : "muted")"' in chrome
+    assert '"volume=\\(isReaderVolumeOn ? "on" : "muted")"' in status_body
     assert '"owner=\\(musicOwnership.ownershipState)"' in chrome
     assert '"surface=\\(musicOwnership.isReaderPlaybackSurfaceActive ? "reader" : "music")"' in chrome
     assert '"fullscreen=\\(musicOwnership.isFullscreenMusicArtworkSuppressed ? "blocked" : "available")"' in chrome

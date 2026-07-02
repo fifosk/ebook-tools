@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-muted-start-recovery",
+                    title: "TV startup restarts stuck narration",
+                    detail: "Apple TV Music-bed startup recovery now breaks stale muted or paused reader states when narration is requested and the player is ready, keeping Music-bed tests and device starts from hanging with only the bed audible."
+                ),
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-audible-pause-adoption",
+                    title: "TV pause joins audible tracks",
+                    detail: "Apple TV Music-bed pause handling now stops treating every post-resume Music pause as stale once narration is audible, so one real remote pause can stop both bed music and the sentence track."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-pause-reinforced",
                     title: "TV pause reinforces both layers",
                     detail: "Apple reader playback now reinforces the Apple Music bed pause whenever a Music pause is mirrored into reader transport, so one TV pause press pushes both bed music and sentence narration through the same settled-pause path."

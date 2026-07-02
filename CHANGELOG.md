@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-02
 
+### 2026.07.02.015
+
+- Apple TV Music-bed startup recovery now breaks stale muted or paused reader states when narration is requested and the player is ready, preventing simulator/device runs from getting stuck with Music playing while sentence narration is silent.
+- Apple TV Music-bed pause handling now stops treating every post-resume Music pause as stale once narration is audible, so the first real remote pause can stop both bed music and the sentence track.
+- Advanced visible Apple app versioning to `v2026.07.02.015`.
+
 ### 2026.07.02.014
 
 - Apple TV reader playback now reinforces the Apple Music bed pause whenever a Music pause is mirrored into reader transport, so one pause press pushes both bed music and sentence narration through the same settled-pause path.

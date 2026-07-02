@@ -893,6 +893,19 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     assert play_body.index("audioCoordinator.restoreVolume()") < play_body.index("audioCoordinator.play()")
     assert "audioCoordinator.play()" in play_body
     assert "!audioCoordinator.isPlaybackRequested" in play_body
+    stuck_recovery_body = _function_body(sequence, "func recoverStuckReaderTransportPlayback()")
+    assert "audioCoordinator.isPlaybackRequested" in stuck_recovery_body
+    assert "audioCoordinator.nowPlayingPlayer != nil" in stuck_recovery_body
+    assert "audioCoordinator.volume <= 0.001" in stuck_recovery_body
+    assert "!audioCoordinator.isPlaying" in stuck_recovery_body
+    assert "cancelPendingAudioReadySubscription()" in stuck_recovery_body
+    assert "sequenceController.cancelPendingAutomaticAdvanceForPause()" in stuck_recovery_body
+    assert stuck_recovery_body.index("audioCoordinator.clearAudioMix()") < stuck_recovery_body.index(
+        "audioCoordinator.restoreVolume()"
+    )
+    assert stuck_recovery_body.index("audioCoordinator.restoreVolume()") < stuck_recovery_body.index(
+        "audioCoordinator.play()"
+    )
     audible_body = _function_body(sequence, "var isNarrationAudibleForReaderTransport: Bool")
     assert "audioCoordinator.isPlaybackRequested" in audible_body
     assert "audioCoordinator.isPlaying" in audible_body

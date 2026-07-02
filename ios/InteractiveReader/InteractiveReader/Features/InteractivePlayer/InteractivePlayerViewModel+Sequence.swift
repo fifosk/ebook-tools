@@ -62,6 +62,23 @@ extension InteractivePlayerViewModel {
         }
     }
 
+    @discardableResult
+    func recoverStuckReaderTransportPlayback() -> Bool {
+        guard audioCoordinator.isPlaybackRequested else { return false }
+        guard audioCoordinator.nowPlayingPlayer != nil else { return false }
+        guard audioCoordinator.volume <= 0.001 ||
+                !audioCoordinator.isPlaying
+        else { return false }
+        if isSequenceTransitioning {
+            cancelPendingAudioReadySubscription()
+            sequenceController.cancelPendingAutomaticAdvanceForPause()
+        }
+        audioCoordinator.clearAudioMix()
+        audioCoordinator.restoreVolume()
+        audioCoordinator.play()
+        return true
+    }
+
     var isNarrationAudibleForReaderTransport: Bool {
         audioCoordinator.isPlaybackRequested &&
             audioCoordinator.isPlaying &&

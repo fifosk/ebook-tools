@@ -380,7 +380,6 @@ struct MusicBedSyncE2EControls: View {
     let lastReaderTransportSource: String
     let hasReaderContext: Bool
     let isVideoPreferred: Bool
-    let isNarrationAudibleForReaderTransport: Bool
     let isReaderSequenceTransitioning: Bool
     let interactiveDeferredMusicResumeCount: Int
     let onReaderPlayCommand: () -> Void
@@ -567,12 +566,19 @@ struct MusicBedSyncE2EControls: View {
     private var statusText: String {
         musicOwnership.ensureReadingBedPlayStateForE2E()
         MusicBedSyncE2EState.readerTransportCommandCount = readerTransportCommandCount
+        let isReaderPlaying = audioCoordinator.isPlaying
+        let isReaderPlaybackRequested = audioCoordinator.isPlaybackRequested
+        let isReaderVolumeOn = audioCoordinator.volume > 0.001
+        let isReaderAudible = isReaderPlaybackRequested &&
+            isReaderPlaying &&
+            isReaderVolumeOn &&
+            !isReaderSequenceTransitioning
         var fields = [
-            "reader=\(audioCoordinator.isPlaying ? "playing" : "paused")",
-            "requested=\(audioCoordinator.isPlaybackRequested ? "true" : "false")",
-            "audible=\(isNarrationAudibleForReaderTransport ? "true" : "false")",
+            "reader=\(isReaderPlaying ? "playing" : "paused")",
+            "requested=\(isReaderPlaybackRequested ? "true" : "false")",
+            "audible=\(isReaderAudible ? "true" : "false")",
             "transitioning=\(isReaderSequenceTransitioning ? "true" : "false")",
-            "volume=\(audioCoordinator.volume > 0.001 ? "on" : "muted")",
+            "volume=\(isReaderVolumeOn ? "on" : "muted")",
             "music=\(musicOwnership.isPlaying ? "playing" : "paused")",
             "player=\(audioCoordinator.nowPlayingPlayer == nil ? "missing" : "ready")",
             "context=\(hasReaderContext ? "ready" : "missing")",

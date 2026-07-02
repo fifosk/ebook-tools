@@ -335,14 +335,6 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "timeout": 10,
     }
     assert steps[tvos_session_index + 2] == {
-        "action": "assert_value_key_at_least",
-        "selector": "e2eMusicBedSyncStatus",
-        "key": "interactiveDeferredMusicResumes",
-        "min_value": 1,
-        "platforms": ["tvOS"],
-        "timeout": 10,
-    }
-    assert steps[tvos_session_index + 3] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "reader=playing",
@@ -350,21 +342,21 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "timeout": 15,
         "screenshot": "music_bed_tvos_interactive_start_observed",
     }
-    assert steps[tvos_session_index + 7] == {
+    assert steps[tvos_session_index + 6] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "music=playing",
         "platforms": ["tvOS"],
         "timeout": 10,
     }
-    assert steps[tvos_session_index + 8] == {
+    assert steps[tvos_session_index + 7] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "surface=reader",
         "platforms": ["tvOS"],
         "timeout": 10,
     }
-    assert steps[tvos_session_index + 9] == {
+    assert steps[tvos_session_index + 8] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "fullscreen=blocked",

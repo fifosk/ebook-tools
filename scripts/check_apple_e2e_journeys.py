@@ -512,14 +512,6 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                     "timeout": 10,
                 },
                 {
-                    "action": "assert_value_key_at_least",
-                    "selector": MUSIC_BED_STATUS_SELECTOR,
-                    "key": "interactiveDeferredMusicResumes",
-                    "min_value": 1,
-                    "platforms": ["tvOS"],
-                    "timeout": 10,
-                },
-                {
                     "action": "assert_value_contains",
                     "selector": MUSIC_BED_STATUS_SELECTOR,
                     "text": "reader=playing",

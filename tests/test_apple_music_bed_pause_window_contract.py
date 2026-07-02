@@ -72,6 +72,8 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         assert "musicOwnership.isPausedByReaderTransport" not in stale_gate_body, label
         assert "musicOwnership.isReaderTransportPauseGuardActive" in stale_gate_body, label
         assert "readerTransportMusicResumeTask != nil" in stale_gate_body, label
+        assert "return !viewModel.isNarrationAudibleForReaderTransport" in stale_gate_body, label
+        assert "return hasPendingReaderMusicResume" not in stale_gate_body, label
 
 
 def test_tvos_music_paused_resume_does_not_override_active_reader_pause() -> None:

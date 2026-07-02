@@ -287,18 +287,27 @@ struct LibraryPlaybackView: View {
         guard !isVideoPreferred else { return }
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard viewModel.audioCoordinator.isPlaybackRequested,
-              viewModel.audioCoordinator.isPlaying,
-              viewModel.audioCoordinator.volume <= 0.001,
-              !viewModel.isSequenceTransitioning
+              pendingInteractiveAutoplaySentence == nil,
+              (
+                viewModel.audioCoordinator.volume <= 0.001 ||
+                !viewModel.audioCoordinator.isPlaying
+              )
         else { return }
         playbackTransportDebugLog(
-            "[PlaybackTransport] Library restoring muted Apple Music-bed narration reason=\(reason)"
+            "[PlaybackTransport] Library recovering stalled Apple Music-bed narration reason=\(reason) transitioning=\(viewModel.isSequenceTransitioning) playing=\(viewModel.audioCoordinator.isPlaying)"
         )
         playbackLogger.info(
-            "Library playback restoring muted Apple Music-bed narration reason=\(reason, privacy: .public)"
+            "Library playback recovering stalled Apple Music-bed narration reason=\(reason, privacy: .public) transitioning=\(viewModel.isSequenceTransitioning, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public)"
         )
         configureAppleMusicBedAudioSession()
-        viewModel.playForReaderTransport()
+        if viewModel.recoverStuckReaderTransportPlayback() {
+            lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
+            lastReaderTransportAction = "play"
+            lastReaderTransportSource = "\(reason)Recovery"
+            localReaderTransportPauseHoldUntil = 0
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+        }
     }
 
     private func handleMusicKitPlaybackSurfaceChange() {
@@ -502,7 +511,7 @@ struct LibraryPlaybackView: View {
         ) {
             return true
         }
-        return hasPendingReaderMusicResume
+        return !viewModel.isNarrationAudibleForReaderTransport
     }
 
     private var shouldMirrorAppleMusicPlayToNarration: Bool {
@@ -767,7 +776,6 @@ struct LibraryPlaybackView: View {
                 lastReaderTransportSource: lastReaderTransportSource,
                 hasReaderContext: viewModel.jobContext != nil,
                 isVideoPreferred: isVideoPreferred,
-                isNarrationAudibleForReaderTransport: viewModel.isNarrationAudibleForReaderTransport,
                 isReaderSequenceTransitioning: viewModel.isSequenceTransitioning,
                 interactiveDeferredMusicResumeCount: e2eTVInteractiveMusicDeferredResumeCount,
                 onReaderPlayCommand: { playReaderNowPlayingTransport() },
