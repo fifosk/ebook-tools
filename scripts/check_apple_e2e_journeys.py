@@ -767,8 +767,44 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "readerTransportCommands=1",
                 "lastAction=pause",
                 "reader=paused",
-                "music=paused",
-                "readerPause=true",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_step_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "assert_value_contains",
+                "selector": MUSIC_BED_STATUS_SELECTOR,
+                "text": "reader=paused",
+                "platforms": ["iPad"],
+                "timeout": 3,
+            },
+            expected_steps=[
+                {
+                    "action": "assert_value_key_at_least",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "key": "readerPauseConfirmations",
+                    "min_value": 1,
+                    "platforms": ["iPad"],
+                    "timeout": 10,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "music=paused",
+                    "platforms": ["iPad"],
+                    "timeout": 3,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "readerPause=true",
+                    "platforms": ["iPad"],
+                    "timeout": 3,
+                    "screenshot": "music_bed_ipad_space_pause_observed",
+                },
             ],
         )
     )

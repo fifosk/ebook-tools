@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "ipad-music-bed-settled-space-pause-e2e",
+                    title: "iPad Space pause is guarded",
+                    detail: "The iPad Music-bed simulator journey now waits for the reader pause confirmation loop after Space pauses playback, matching the Apple TV settled-pause guard for bed and sentence audio."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-settled-pause-e2e",
                     title: "TV pause proof is stronger",
                     detail: "The Apple TV Music-bed simulator journey now waits for the reader pause confirmation loop after each remote pause, proving narration has settled stopped instead of only seeing an instant paused flag."
