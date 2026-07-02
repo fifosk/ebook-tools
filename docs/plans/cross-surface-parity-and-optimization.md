@@ -750,7 +750,9 @@ Current Apple UI partially exposes:
   empty zero-limit requests before resolving default providers or source roots,
   while still validating explicit provider/media-kind compatibility, so Web and
   Apple Create readiness probes can use bounded/no-result discovery without
-  unnecessary NAS or provider fanout work. Backend acquisition value coercion and
+  unnecessary NAS or provider fanout work; shared discovery policy notes now
+  live as a module constant so normal and zero-limit responses cannot drift.
+  Backend acquisition value coercion and
   identifier sanitization now live in
   `modules/services/acquisition/discovery_values.py` with focused coverage,
   keeping string/sequence/int parsing and token-safe ids shared across public

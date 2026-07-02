@@ -1058,6 +1058,7 @@ def test_discover_zero_limit_skips_default_provider_resolution(
     )
 
     assert result.candidates == ()
+    assert result.policy_notes == acquisition_discovery.DEFAULT_DISCOVERY_POLICY_NOTES
     assert result.providers_queried == ()
 
     with pytest.raises(ValueError, match="local_epub"):

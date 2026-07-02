@@ -21,7 +21,6 @@ from .discovery_normalization import (
     normalize_query as _normalize_query,
 )
 from .file_sources import (
-    append_bounded_newest_candidate as _append_bounded_newest_candidate,
     discover_local_epubs as _discover_local_epubs,
     discover_manual_downloads as _discover_manual_downloads,
     discover_nas_videos as _discover_nas_videos,
@@ -47,6 +46,11 @@ from .models import (
 from .youtube_discovery import (
     discover_youtube_search as _discover_youtube_search,
     discover_youtube_url as _discover_youtube_url,
+)
+
+DEFAULT_DISCOVERY_POLICY_NOTES = (
+    "Discovery results are candidates only; downloader handoff requires a reviewed acquisition step.",
+    "Do not use acquisition providers for works you are not authorized to download or process.",
 )
 
 
@@ -80,16 +84,12 @@ def discover_acquisition_candidates(
     normalized_query = _normalize_query(query)
     normalized_provider = _normalize_provider(provider)
     effective_limit = _normalize_limit(limit)
-    policy_notes = [
-        "Discovery results are candidates only; downloader handoff requires a reviewed acquisition step.",
-        "Do not use acquisition providers for works you are not authorized to download or process.",
-    ]
     if effective_limit <= 0:
         if normalized_provider is not None:
             _providers_for(normalized_kind, normalized_provider, config)
         return AcquisitionDiscoveryResult(
             candidates=(),
-            policy_notes=tuple(policy_notes),
+            policy_notes=DEFAULT_DISCOVERY_POLICY_NOTES,
             providers_queried=(),
         )
 
@@ -110,6 +110,7 @@ def discover_acquisition_candidates(
 
     candidates: list[AcquisitionCandidate] = []
     queried: list[str] = []
+    policy_notes = list(DEFAULT_DISCOVERY_POLICY_NOTES)
     for provider_id in providers:
         try:
             if not is_default_provider_fanout and len(candidates) >= effective_limit:
