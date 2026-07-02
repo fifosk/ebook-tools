@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-combined-pause-adopts-before-recovery",
+                    title: "TV pause joins bed and sentence",
+                    detail: "Apple TV now adopts an active Apple Music bed pause as a reader pause before the Music recovery branch, so one remote press is routed toward pausing both the bed and sentence track."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-combined-bed-sentence-pause-confirm",
                     title: "TV pause sticks to both audio layers",
                     detail: "Apple TV reader-owned pause now confirms the sentence coordinator has stopped after broker, Music-surface, or rejected-play pause paths, logging settled pause evidence so one remote press is less likely to leave narration playing after the Apple Music bed pauses."
@@ -258,7 +263,7 @@ extension AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-startup-recovery",
                     title: "TV startup playback holds",
-                    detail: "Apple TV reader playback now recovers a transient Apple Music bed non-playing signal during active narration before adopting it as a reader pause, preventing first-sentence playback from stopping before the Translation lane starts."
+                    detail: "Apple TV reader playback keeps startup Music-bed recovery separate from active reader-pause adoption, preventing first-sentence playback from stopping before the Translation lane starts."
                 ),
                 AppChangelogEntry(
                     id: "apple-header-language-pills-restore-from-metadata",

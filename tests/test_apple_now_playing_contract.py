@@ -1225,7 +1225,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "readerActive=" in non_playing_body
     assert "guard=\\(" in non_playing_body
     assert "deferObservedNonPlayingDuringActiveReadingBed(reason: \"observedNonPlaying\")" in non_playing_body
+    assert "shouldConfirmActiveNarrationNonPlayingAsReaderPause" in non_playing_body
+    assert 'confirmActiveNarrationNonPlayingAsReaderPause(reason: "observedNonPlaying")' in non_playing_body
     assert "shouldAdoptObservedNonPlayingImmediately" in non_playing_body
+    assert non_playing_body.index("shouldConfirmActiveNarrationNonPlayingAsReaderPause") < non_playing_body.index(
+        "deferObservedNonPlayingDuringActiveReadingBed"
+    )
     assert non_playing_body.index("deferObservedNonPlayingDuringActiveReadingBed") < non_playing_body.index(
         "guard shouldTreatObservedNonPlayingAsReaderPause else"
     )
@@ -2123,6 +2128,10 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "isReaderTransportPauseGuardActive" in observed_play_body
     observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "shouldAdoptObservedNonPlayingImmediately" in observed_non_playing_body
+    assert "shouldConfirmActiveNarrationNonPlayingAsReaderPause" in observed_non_playing_body
+    assert observed_non_playing_body.index("shouldConfirmActiveNarrationNonPlayingAsReaderPause") < observed_non_playing_body.index(
+        "deferObservedNonPlayingDuringActiveReadingBed"
+    )
     assert observed_non_playing_body.index("deferObservedNonPlayingDuringActiveReadingBed") < observed_non_playing_body.index(
         "guard shouldTreatObservedNonPlayingAsReaderPause else"
     )

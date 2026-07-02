@@ -111,7 +111,7 @@ def test_tvos_reader_pause_reasserts_against_stray_music_play() -> None:
         assert "e2eReaderTransportCommandCount == 0" in reassert_body, label
 
 
-def test_tvos_active_music_pause_recovers_before_reader_pause_adoption() -> None:
+def test_tvos_active_music_pause_adopts_before_recovery() -> None:
     music = _source(SERVICES / "MusicKitCoordinator.swift")
     observed_body = _function_body(music, "private func handleObservedNonPlayingStatus")
     confirm_gate_body = _function_body(
@@ -129,9 +129,19 @@ def test_tvos_active_music_pause_recovers_before_reader_pause_adoption() -> None
 
     assert "if shouldConfirmActiveNarrationNonPlayingAsReaderPause" in observed_body
     assert "confirmActiveNarrationNonPlayingAsReaderPause(reason: \"observedNonPlaying\")" in observed_body
-    assert observed_body.index("if shouldDeferObservedNonPlayingDuringActiveReadingBed") < observed_body.index(
-        "if shouldConfirmActiveNarrationNonPlayingAsReaderPause"
+    assert observed_body.index("if shouldConfirmActiveNarrationNonPlayingAsReaderPause") < observed_body.index(
+        "if shouldDeferObservedNonPlayingDuringActiveReadingBed"
     )
+    assert observed_body.index("if shouldDeferObservedNonPlayingDuringActiveReadingBed") < observed_body.index(
+        "guard shouldTreatObservedNonPlayingAsReaderPause else"
+    )
+    assert observed_body.index("guard shouldTreatObservedNonPlayingAsReaderPause else") < observed_body.index(
+        "if shouldAdoptObservedNonPlayingImmediately"
+    )
+    assert observed_body.index("if shouldAdoptObservedNonPlayingImmediately") < observed_body.index(
+        "observedNonPlayingTask = Task"
+    )
+    assert "if shouldDeferObservedNonPlayingDuringActiveReadingBed" in observed_body
     assert "#if os(tvOS)" in confirm_gate_body
     assert "ownershipState == .appleMusicBed" in confirm_gate_body
     assert "isReaderNarrationActiveForMusicBed" in confirm_gate_body

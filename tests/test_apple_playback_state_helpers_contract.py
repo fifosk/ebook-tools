@@ -1653,6 +1653,10 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "guard shouldTreatObservedNonPlayingAsReaderPause else" in observed_pause_body
     assert "shouldAdoptObservedNonPlayingImmediately" in observed_pause_body
     assert "observedNonPlayingImmediate" not in observed_pause_body
+    assert "shouldConfirmActiveNarrationNonPlayingAsReaderPause" in observed_pause_body
+    assert observed_pause_body.index("shouldConfirmActiveNarrationNonPlayingAsReaderPause") < observed_pause_body.index(
+        "deferObservedNonPlayingDuringActiveReadingBed"
+    )
     assert observed_pause_body.index("deferObservedNonPlayingDuringActiveReadingBed") < observed_pause_body.index(
         "guard shouldTreatObservedNonPlayingAsReaderPause else"
     )
