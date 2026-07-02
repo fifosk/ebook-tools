@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-single-track-audio-keeps-both-text-lanes",
+                    title: "Single audio keeps both texts",
+                    detail: "Apple reader single-track audio selection now keeps all renderable text tracks visible and lets inactive Original/Translation pills be re-enabled from transcript-backed lanes, so Original-only or Translation-only playback changes the narrated lane without hiding the companion transcript lane."
+                ),
+                AppChangelogEntry(
                     id: "web-video-dubbing-presentation-helper",
                     title: "Video source display is focused",
                     detail: "Web Video Dubbing presentation helpers for source badges, subtitle labels, stream labels, byte/date/count formatting, output paths, and job labels now live in a focused module while preserving existing imports, keeping source display behavior easier to compare with Apple YouTube Dub."

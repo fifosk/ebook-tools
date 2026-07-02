@@ -20,7 +20,10 @@ next batch to sequence rendering. Lifecycle repair should bind the view model
 to the active audio mode before restoring chunk defaults, and sequence-mode
 resolution should prefer the current batch's combined option over stale
 single-track ids. This also keeps batched sentence images and transcript
-rendering aligned when playback crosses a sentence-batch boundary. If the
+rendering aligned when playback crosses a sentence-batch boundary. Single-track
+audio selection should not hide the companion text lane; Apple keeps all
+renderable transcript tracks visible while using the selected audio lane as the
+timing and image-context authority. If the
 manager briefly resets to sequence/combined while a single URL is loaded, that
 loaded URL remains the authoritative Original-only or Translation-only lane until
 the next batch is selected; wrong-lane EOF callbacks should be ignored before

@@ -223,7 +223,8 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
     assert "Once live\n  playback reaches the anchored sentence, the anchor must be consumed/cleared" in frontend_sync
     assert "first following translated sentence is rendered from live audio time" in frontend_sync
-    assert "chunk/batch setup must preserve that single-track mode" in frontend_sync
+    assert "chunk/batch setup must preserve that single-track audio mode" in frontend_sync
+    assert "keeping all renderable transcript tracks visible" in frontend_sync
     assert "based on playable audio options too, not only currently hydrated visible text\n  tracks" in frontend_sync
     assert "Passive hydrated-batch text/audio sync must not expand a remembered single-track lane" in frontend_sync
     assert "Natural end-of-batch single-track advances should\n  establish a fresh next-batch anchor" in frontend_sync
@@ -466,6 +467,15 @@ def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
     assert "chunkSupportsAudioTrack(.translation, in: chunk)" in available_tracks_body
 
     assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in audio_management
+    available_audio_roles_body = _function_body(
+        audio_management,
+        "func availableAudioRoles(for chunk: InteractiveChunk) -> Set<LanguageFlagRole>",
+    )
+    assert "chunkSupportsAudioTrack(.original, in: chunk)" in available_audio_roles_body
+    assert "!$0.originalTokens.isEmpty" in available_audio_roles_body
+    assert "chunkSupportsAudioTrack(.translation, in: chunk)" in available_audio_roles_body
+    assert "!$0.translationTokens.isEmpty" in available_audio_roles_body
+
     header_toggle_body = _function_body(
         audio_management,
         "func toggleHeaderAudioRole(\n        _ role: LanguageFlagRole,\n        for chunk: InteractiveChunk,\n        availableRoles: Set<LanguageFlagRole>\n    )",
@@ -1025,9 +1035,8 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "let wantsTranslation = canUseTranslation && visibleTracks.contains(.translation)" in sync_body
     assert "!allowExpandingSingleTrackAudio" in sync_body
     assert "viewModel.requestedSingleTrackMode()" in sync_body
-    assert "visibleTracks = [desiredTextTrack]" in sync_body
-    assert "hasCustomTrackSelection = true" in sync_body
     assert "viewModel.applySingleTrackSelection(durableSingleTrack, for: chunk)" in sync_body
+    assert "keepAllRenderableTextTracksVisible(for: chunk)" in sync_body
     assert "audioModeManager.setTracks(" in sync_body
     assert "original: wantsOriginal" in sync_body
     assert "translation: wantsTranslation" in sync_body
@@ -1092,8 +1101,7 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     )
     assert "guard let track = viewModel.requestedSingleTrackMode() else { return false }" in preserve_body
     assert "available.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk)" in preserve_body
-    assert "visibleTracks = [desiredTextTrack]" in preserve_body
-    assert "hasCustomTrackSelection = true" in preserve_body
+    assert "keepAllRenderableTextTracksVisible(for: chunk)" in preserve_body
     assert "viewModel.applySingleTrackSelection(track, for: chunk)" in preserve_body
     assert "viewModel.selectedAudioTrackID = targetID" not in preserve_body
 
@@ -1114,10 +1122,17 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "guard let resumeTrack = viewModel.pendingResumeSingleTrack else { return false }" in resume_track_body
     assert "viewModel.pendingResumeSingleTrack = nil" in resume_track_body
     assert "available.contains(desiredTextTrack) || chunkSupportsAudioTrack(resumeTrack, in: chunk)" in resume_track_body
-    assert "visibleTracks = [desiredTextTrack]" in resume_track_body
-    assert "hasCustomTrackSelection = true" in resume_track_body
+    assert "keepAllRenderableTextTracksVisible(for: chunk)" in resume_track_body
     assert "viewModel.applySingleTrackSelection(resumeTrack, for: chunk)" in resume_track_body
     assert "viewModel.selectedAudioTrackID = targetID" not in resume_track_body
+
+    render_all_body = _function_body(
+        tracks,
+        "func keepAllRenderableTextTracksVisible(for chunk: InteractiveChunk)",
+    )
+    assert "let available = Set(availableTracks(for: chunk))" in render_all_body
+    assert "visibleTracks = available" in render_all_body
+    assert "hasCustomTrackSelection = false" in render_all_body
 
     selection = _source("InteractivePlayerViewModel+Selection.swift")
     audio_support_body = _function_body(

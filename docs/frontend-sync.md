@@ -86,16 +86,20 @@ Follow the suggested remediations to restore parity:
   selected-chunk or track-availability refresh; otherwise the end-of-batch
   default pass can reset rendering back to combined while narration continues
   on the selected stream. Passive hydrated-batch text/audio sync must not expand a remembered single-track lane
-  back to combined just because both rendered text tracks are available; only
-  explicit text-track toggles should broaden single-track playback back to
-  combined/sequence. Once the user has explicitly selected both Original and
-  Translation visible text tracks, lifecycle setup should prefer that custom
-  multi-track selection before restoring stale durable single-track state, so
-  activating Translation cannot be undone by the next metadata or
-  track-availability refresh. Header audio-role availability should treat any
+  back to combined just because both rendered text tracks are available. Audio
+  lane selection and text rendering are separate concerns: Original-only or
+  Translation-only audio should keep every renderable text lane visible, while
+  explicit text-track toggles are the only UI that should hide transcript lanes.
+  Once the user has explicitly selected both Original and Translation visible
+  text tracks, lifecycle setup should prefer that custom multi-track selection
+  before restoring stale durable single-track state, so activating Translation
+  cannot be undone by the next metadata or track-availability refresh. Header audio-role availability should treat any
   playable combined option as exposing both Original and Translation, even when
   a chunk also has only one dedicated single-track option, so Translation does
-  not disappear from mixed legacy/new batch manifests. Header language pills are
+  not disappear from mixed legacy/new batch manifests. Header language pills
+  should also treat hydrated Original/Translation transcript tokens as
+  toggleable role evidence, so an inactive companion pill can be re-enabled
+  even after a single-lane audio restore. Header language pills are
   shared audio-mode toggles: with both roles active, tapping either role leaves
   the other role as the single active lane; from Original-only or
   Translation-only, tapping the inactive companion role restores both available
@@ -223,9 +227,9 @@ Follow the suggested remediations to restore parity:
   pending resume track before defaulting visible tracks back to All; sequence
   resumes should not persist the current segment track as if it were a
   single-track preference. Once Original-only or Translation-only mode is
-  active, chunk/batch setup must preserve that single-track mode, the matching
-  visible transcript track, and the selected audio option before applying
-  default All-track selection or preparing audio. This preservation must be
+  active, chunk/batch setup must preserve that single-track audio mode and the
+  selected audio option while keeping all renderable transcript tracks visible
+  before applying default track selection or preparing audio. This preservation must be
   based on playable audio options too, not only currently hydrated visible text
   tracks, because a next batch can temporarily expose only the Original fallback
   before sentence tokens load. The SwiftUI lifecycle bridge must also recover a

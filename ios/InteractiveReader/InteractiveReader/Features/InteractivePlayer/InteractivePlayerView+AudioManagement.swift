@@ -188,10 +188,12 @@ extension InteractivePlayerView {
 
     func availableAudioRoles(for chunk: InteractiveChunk) -> Set<LanguageFlagRole> {
         var roles: Set<LanguageFlagRole> = []
-        if chunkSupportsAudioTrack(.original, in: chunk) {
+        if chunkSupportsAudioTrack(.original, in: chunk)
+            || chunk.sentences.contains(where: { !$0.originalTokens.isEmpty }) {
             roles.insert(.original)
         }
-        if chunkSupportsAudioTrack(.translation, in: chunk) {
+        if chunkSupportsAudioTrack(.translation, in: chunk)
+            || chunk.sentences.contains(where: { !$0.translationTokens.isEmpty }) {
             roles.insert(.translation)
         }
         return roles

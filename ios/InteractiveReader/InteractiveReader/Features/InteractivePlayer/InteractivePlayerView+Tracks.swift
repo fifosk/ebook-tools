@@ -219,10 +219,8 @@ extension InteractivePlayerView {
         if !allowExpandingSingleTrackAudio,
            wantsOriginal && wantsTranslation,
            let durableSingleTrack = viewModel.requestedSingleTrackMode() {
-            let desiredTextTrack: TextPlayerVariantKind = durableSingleTrack == .original ? .original : .translation
-            visibleTracks = [desiredTextTrack]
-            hasCustomTrackSelection = true
             viewModel.applySingleTrackSelection(durableSingleTrack, for: chunk)
+            keepAllRenderableTextTracksVisible(for: chunk)
             reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
             return
         }
@@ -341,8 +339,7 @@ extension InteractivePlayerView {
             return false
         }
 
-        visibleTracks = [desiredTextTrack]
-        hasCustomTrackSelection = true
+        keepAllRenderableTextTracksVisible(for: chunk)
         audioModeManager.setTracks(
             original: requestedTrack == .original,
             translation: requestedTrack == .translation
@@ -391,8 +388,7 @@ extension InteractivePlayerView {
         let available = Set(availableTracks(for: chunk))
         guard available.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk) else { return false }
 
-        visibleTracks = [desiredTextTrack]
-        hasCustomTrackSelection = true
+        keepAllRenderableTextTracksVisible(for: chunk)
         viewModel.applySingleTrackSelection(track, for: chunk)
         return true
     }
@@ -409,11 +405,7 @@ extension InteractivePlayerView {
             guard available.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk) else {
                 return false
             }
-            guard visibleTracks != [desiredTextTrack] || !hasCustomTrackSelection else {
-                return false
-            }
-            visibleTracks = [desiredTextTrack]
-            hasCustomTrackSelection = true
+            keepAllRenderableTextTracksVisible(for: chunk)
             if let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
                 viewModel.selectedAudioTrackID = targetID
             }
@@ -443,10 +435,17 @@ extension InteractivePlayerView {
         let available = Set(availableTracks(for: chunk))
         guard available.contains(desiredTextTrack) || chunkSupportsAudioTrack(resumeTrack, in: chunk) else { return false }
 
-        visibleTracks = [desiredTextTrack]
-        hasCustomTrackSelection = true
+        keepAllRenderableTextTracksVisible(for: chunk)
         viewModel.applySingleTrackSelection(resumeTrack, for: chunk)
         return true
+    }
+
+    func keepAllRenderableTextTracksVisible(for chunk: InteractiveChunk) {
+        let available = Set(availableTracks(for: chunk))
+        guard !available.isEmpty else { return }
+        guard visibleTracks != available || hasCustomTrackSelection else { return }
+        visibleTracks = available
+        hasCustomTrackSelection = false
     }
 
     func chunkSupportsAudioTrack(_ track: SequenceTrack, in chunk: InteractiveChunk) -> Bool {
