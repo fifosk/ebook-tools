@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
-            version: "2026.07.02.006",
+            version: "2026.07.02.007",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-header-language-pills-toggle-roles",
+                    title: "Language pills toggle cleanly",
+                    detail: "Apple reader header language pills now use true toggle semantics: when Original and Translation are both active, tapping Original disables only Original and keeps Translation active, with the symmetric behavior for Translation."
+                ),
                 AppChangelogEntry(
                     id: "apple-visible-translation-beats-stale-original",
                     title: "Translation pill stays active",

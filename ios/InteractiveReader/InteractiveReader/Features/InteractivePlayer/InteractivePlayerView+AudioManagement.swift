@@ -241,14 +241,26 @@ extension InteractivePlayerView {
         let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
 
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
-        let shouldSelectRoleOnly = activeRoles != [role]
+        var desiredRoles = activeRoles.intersection(availableRoles)
+        if desiredRoles.isEmpty {
+            desiredRoles = availableRoles
+        }
+        if desiredRoles.contains(role) {
+            if desiredRoles.count > 1 {
+                desiredRoles.remove(role)
+            } else {
+                desiredRoles = availableRoles
+            }
+        } else {
+            desiredRoles = availableRoles.intersection([role])
+        }
         audioModeManager.setTracks(
-            original: shouldSelectRoleOnly ? role == .original : availableRoles.contains(.original),
-            translation: shouldSelectRoleOnly ? role == .translation : availableRoles.contains(.translation),
+            original: desiredRoles.contains(.original),
+            translation: desiredRoles.contains(.translation),
             preservingPosition: currentSentenceIndex
         )
-        if shouldSelectRoleOnly {
-            let selectedTrack: SequenceTrack = role == .original ? .original : .translation
+        if desiredRoles.count == 1, let selectedRole = desiredRoles.first {
+            let selectedTrack: SequenceTrack = selectedRole == .original ? .original : .translation
             viewModel.applySingleTrackSelection(selectedTrack, for: chunk)
         } else {
             viewModel.rememberAudioModePreference(audioModeManager.currentMode)

@@ -4,17 +4,18 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-02
 
-### 2026.07.02.006
+### 2026.07.02.007
 
+- Apple reader header language pills now use true toggle semantics: when Original and Translation are both active, tapping Original disables only Original and keeps Translation active, with the symmetric behavior for Translation.
 - Apple reader lifecycle refreshes now let a visible Translation-only user selection beat stale Original resume memory, so Apple TV no longer deactivates the Translation pill after chunk availability or lazy metadata refreshes.
 - Library media responses now preserve chunk `audioTracks` and `timingTracks` for Apple playback, so Apple TV/iPad/iPhone Library launches keep the Translation pill selectable instead of greying it out when sentence text is loaded lazily.
 - Apple reader text-track availability now stays audio-backed while lazy chunk metadata loads, so Apple TV can keep the Translation pill and text track selectable for completed jobs whose `/media` response initially has audio lanes but no inline sentences.
 - Shared job-list pagination now sorts visible jobs newest-first before slicing and keeps the route from reshuffling service-provided pages, so Web and Apple Jobs views keep stable ordering across page boundaries.
 - Apple timing decode now accepts target, translated, and dubbed timing-track aliases and tolerates translation-only timing responses without a mix track, keeping Translation selectable for live, archived, and offline media.
 - Backend media manifests now canonicalize chunk timing-track aliases through the same Original, Translation, and Mix role mapping as audio tracks, so Web and Apple diagnostics agree on translation availability.
-- Apple reader header language pills now select the tapped lane directly, so tapping Translation from Original-only mode activates Translation-only playback instead of expanding back to both tracks; tapping the already-selected lane restores all available tracks.
+- Apple reader header language pills keep the active lane stable across single-track switching and restore all available tracks when tapping the only active lane.
 - Apple Job and Library resume recording now stores the same selected-track player clock used by resume, preventing Now Playing refreshes from overwriting the last spoken word offset with a rendered sentence-start highlight time.
-- Advanced visible Apple app versioning to `v2026.07.02.006`.
+- Advanced visible Apple app versioning to `v2026.07.02.007`.
 
 ### 2026.07.02.003
 

@@ -595,11 +595,15 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "case .singleTrack(.translation):" in active_roles_body
     assert "return [.translation]" in active_roles_body
     assert "let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)" in header_toggle_body
-    assert "let shouldSelectRoleOnly = activeRoles != [role]" in header_toggle_body
+    assert "var desiredRoles = activeRoles.intersection(availableRoles)" in header_toggle_body
+    assert "if desiredRoles.contains(role)" in header_toggle_body
+    assert "desiredRoles.remove(role)" in header_toggle_body
+    assert "desiredRoles = availableRoles" in header_toggle_body
     assert "audioModeManager.setTracks(" in header_toggle_body
-    assert "original: shouldSelectRoleOnly ? role == .original : availableRoles.contains(.original)" in header_toggle_body
-    assert "translation: shouldSelectRoleOnly ? role == .translation : availableRoles.contains(.translation)" in header_toggle_body
-    assert "let selectedTrack: SequenceTrack = role == .original ? .original : .translation" in header_toggle_body
+    assert "original: desiredRoles.contains(.original)" in header_toggle_body
+    assert "translation: desiredRoles.contains(.translation)" in header_toggle_body
+    assert "if desiredRoles.count == 1, let selectedRole = desiredRoles.first" in header_toggle_body
+    assert "let selectedTrack: SequenceTrack = selectedRole == .original ? .original : .translation" in header_toggle_body
     assert "viewModel.applySingleTrackSelection(selectedTrack, for: chunk)" in header_toggle_body
     assert "viewModel.rememberAudioModePreference(audioModeManager.currentMode)" in header_toggle_body
     assert "viewModel.synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)" in header_toggle_body
