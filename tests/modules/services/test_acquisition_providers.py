@@ -386,6 +386,99 @@ def test_acquisition_file_source_candidate_helpers_build_stable_metadata(
     assert manual_video.metadata["source_kind"] == "manual_download"
 
 
+def test_acquisition_bounded_candidate_helpers_binary_search_existing_matches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "manual"
+    root.mkdir()
+    for index in range(64):
+        path = root / f"book-{index:02d}.epub"
+        path.write_text("ebook", encoding="utf-8")
+        timestamp = datetime(2026, 7, 1, tzinfo=timezone.utc).timestamp() - index
+        os.utime(path, (timestamp, timestamp))
+    inserted_path = root / "inserted.epub"
+    inserted_path.write_text("inserted", encoding="utf-8")
+    inserted_timestamp = datetime(2026, 7, 2, tzinfo=timezone.utc).timestamp()
+    os.utime(inserted_path, (inserted_timestamp, inserted_timestamp))
+
+    entries = {
+        entry.path.name: entry
+        for entry in file_sources.iter_visible_source_files(root, suffixes={".epub"})
+    }
+    manual_matches = [
+        (
+            entries[f"book-{index:02d}.epub"],
+            root,
+            entries[f"book-{index:02d}.epub"].path.as_posix(),
+        )
+        for index in range(64)
+    ]
+    original_manual_key = source_candidates._manual_source_match_sort_key
+    manual_key_calls = 0
+
+    def counted_manual_key(item):
+        nonlocal manual_key_calls
+        manual_key_calls += 1
+        return original_manual_key(item)
+
+    monkeypatch.setattr(source_candidates, "_manual_source_match_sort_key", counted_manual_key)
+
+    source_candidates.append_bounded_newest_manual_entry(
+        manual_matches,
+        entries["inserted.epub"],
+        root,
+        inserted_path.as_posix(),
+        limit=64,
+    )
+
+    assert manual_matches[0][2] == inserted_path.as_posix()
+    assert len(manual_matches) == 64
+    assert manual_key_calls < 16
+
+    candidate_matches = [
+        acquisition_models.AcquisitionCandidate(
+            candidate_id=f"manual_downloads:video:{index}",
+            provider="manual_downloads",
+            media_kind="video",
+            title=f"Video {index:02d}",
+            rights="user_provided",
+            capabilities=("metadata",),
+            candidate_token=_candidate_token({"provider": "manual_downloads", "path": str(index)}),
+            modified_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        )
+        for index in range(64)
+    ]
+    original_candidate_key = source_candidates._newest_candidate_sort_key
+    candidate_key_calls = 0
+
+    def counted_candidate_key(candidate):
+        nonlocal candidate_key_calls
+        candidate_key_calls += 1
+        return original_candidate_key(candidate)
+
+    monkeypatch.setattr(source_candidates, "_newest_candidate_sort_key", counted_candidate_key)
+
+    source_candidates.append_bounded_newest_candidate(
+        candidate_matches,
+        acquisition_models.AcquisitionCandidate(
+            candidate_id="manual_downloads:video:inserted",
+            provider="manual_downloads",
+            media_kind="video",
+            title="Inserted",
+            rights="user_provided",
+            capabilities=("metadata",),
+            candidate_token=_candidate_token({"provider": "manual_downloads", "path": "inserted"}),
+            modified_at=datetime(2026, 7, 2, tzinfo=timezone.utc),
+        ),
+        limit=64,
+    )
+
+    assert candidate_matches[0].title == "Inserted"
+    assert len(candidate_matches) == 64
+    assert candidate_key_calls < 16
+
+
 def test_acquisition_discovery_value_helpers_normalize_scalar_values() -> None:
     assert discovery_values.string_value("  demo  ") == "demo"
     assert discovery_values.string_value("   ") is None

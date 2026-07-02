@@ -109,7 +109,10 @@ struct JobPlaybackView: View {
             .onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$readerTransportPauseAdoptionRevision) { _ in
-                handleMusicKitReaderTransportPauseAdoption()
+                handleMusicKitReaderTransportPauseAdoption(
+                    reason: musicOwnership.readerTransportPauseAdoptionReason,
+                    source: musicOwnership.readerTransportPauseAdoptionSource
+                )
             }
             .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
                 handleMusicKitReadingBedWatchdogTick()
@@ -296,6 +299,13 @@ struct JobPlaybackView: View {
     private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String) {
         guard !isVideoPreferred else { return }
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        guard !musicOwnership.isPausedByReaderTransport,
+              !musicOwnership.isReaderTransportPauseGuardActive,
+              !musicOwnership.isManuallyPaused
+        else { return }
+        guard lastReaderTransportAction != "pause" else { return }
+        guard !viewModel.isSequenceModeActive else { return }
+        guard !viewModel.isSequenceTransitioning else { return }
         guard viewModel.audioCoordinator.isPlaybackRequested,
               pendingInteractiveAutoplaySentence == nil,
               (
@@ -354,16 +364,17 @@ struct JobPlaybackView: View {
         scheduleAppleMusicBedNowPlayingReassertion()
     }
 
-    private func handleMusicKitReaderTransportPauseAdoption() {
+    private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil) {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard musicOwnership.isPausedByReaderTransport else { return }
         #if os(tvOS)
-        if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay {
+        if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay,
+           !shouldHonorAppleMusicPauseAdoptionImmediately(reason: reason, source: source) {
             playbackTransportDebugLog(
-                "[PlaybackTransport] Job ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource)"
+                "[PlaybackTransport] Job ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource) musicSource=\(source ?? "unknown")"
             )
             playbackLogger.info(
-                "Job playback ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource, privacy: .public)"
+                "Job playback ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource, privacy: .public) musicSource=\(source ?? "unknown", privacy: .public)"
             )
             resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)
             return
@@ -376,6 +387,16 @@ struct JobPlaybackView: View {
             "Job playback mirroring adopted Apple Music pause to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
         mirrorAppleMusicPauseToReaderTransport(source: "musicAdoption")
+    }
+
+    private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?) -> Bool {
+        #if os(tvOS)
+        guard reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying" else { return false }
+        return source == "active observed non-playing" ||
+            source == "persistent observed non-playing"
+        #else
+        return false
+        #endif
     }
 
     private func handleMusicKitReadingBedWatchdogTick() {
@@ -436,8 +457,8 @@ struct JobPlaybackView: View {
 
     #if os(tvOS)
     private func registerReaderTransportPauseAdoptionHandler() {
-        musicOwnership.setReaderTransportPauseAdoptionHandler(owner: viewModel) { _, _ in
-            handleMusicKitReaderTransportPauseAdoption()
+        musicOwnership.setReaderTransportPauseAdoptionHandler(owner: viewModel) { reason, source in
+            handleMusicKitReaderTransportPauseAdoption(reason: reason, source: source)
         }
     }
     #endif

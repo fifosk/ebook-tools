@@ -53,17 +53,21 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         ("LibraryPlaybackView.swift", "Library"),
     ):
         source = _source(PLAYBACK / filename)
-        adoption_body = _function_body(source, "private func handleMusicKitReaderTransportPauseAdoption()")
+        adoption_body = _function_body(source, "private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil)")
         mirror_decision_body = _function_body(source, "private var shouldMirrorAppleMusicPauseToNarration")
         stale_gate_body = _function_body(source, "private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
 
         assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in adoption_body, label
+        assert "!shouldHonorAppleMusicPauseAdoptionImmediately(reason: reason, source: source)" in adoption_body, label
         assert 'if lastReaderTransportAction == "play"' not in adoption_body, label
         assert adoption_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < adoption_body.index(
             'mirrorAppleMusicPauseToReaderTransport(source: "musicAdoption")'
         )
         assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in mirror_decision_body, label
         assert 'if lastReaderTransportAction == "play"' not in mirror_decision_body, label
+        honor_adoption_body = _function_body(source, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
+        assert 'source == "active observed non-playing"' in honor_adoption_body, label
+        assert 'source == "persistent observed non-playing"' in honor_adoption_body, label
         assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in stale_gate_body, label
         assert "previousAction: lastReaderTransportAction" in stale_gate_body, label
         assert "lastCommandTime: lastReaderTransportCommandTime" in stale_gate_body, label

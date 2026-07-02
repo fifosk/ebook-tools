@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import re
-from bisect import bisect_right
 from datetime import datetime
 from pathlib import Path
-from typing import Protocol, TypeVar
+from typing import Callable, Protocol, TypeVar
 
 from modules.services.source_discovery import (
     DiscoveredSourceFile,
@@ -16,6 +15,7 @@ from modules.services.source_discovery import (
 
 ManualSourceMatch = tuple[DiscoveredSourceFile, Path, str]
 CandidateT = TypeVar("CandidateT", bound="NewestCandidate")
+ItemT = TypeVar("ItemT")
 
 
 class NewestCandidate(Protocol):
@@ -54,9 +54,10 @@ def append_bounded_newest_manual_entry(
     match_key = _manual_source_match_sort_key(match)
     if len(matches) >= limit and match_key >= _manual_source_match_sort_key(matches[-1]):
         return
-    insert_at = bisect_right(
-        [_manual_source_match_sort_key(item) for item in matches],
+    insert_at = _bisect_right(
+        matches,
         match_key,
+        key=_manual_source_match_sort_key,
     )
     matches.insert(insert_at, match)
     if len(matches) > limit:
@@ -75,13 +76,33 @@ def append_bounded_newest_candidate(
     candidate_key = _newest_candidate_sort_key(candidate)
     if len(matches) >= limit and candidate_key >= _newest_candidate_sort_key(matches[-1]):
         return
-    insert_at = bisect_right(
-        [_newest_candidate_sort_key(item) for item in matches],
+    insert_at = _bisect_right(
+        matches,
         candidate_key,
+        key=_newest_candidate_sort_key,
     )
     matches.insert(insert_at, candidate)
     if len(matches) > limit:
         del matches[limit:]
+
+
+def _bisect_right(
+    matches: list[ItemT],
+    entry_key: tuple[float, str],
+    *,
+    key: Callable[[ItemT], tuple[float, str]],
+) -> int:
+    """Return the insertion index without materializing keys for every match."""
+
+    lower = 0
+    upper = len(matches)
+    while lower < upper:
+        middle = (lower + upper) // 2
+        if entry_key < key(matches[middle]):
+            upper = middle
+        else:
+            lower = middle + 1
+    return lower
 
 
 def _manual_source_match_sort_key(

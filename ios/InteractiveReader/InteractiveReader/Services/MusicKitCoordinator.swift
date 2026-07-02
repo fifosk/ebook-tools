@@ -130,6 +130,8 @@ final class MusicKitCoordinator: ObservableObject {
         Date() < readerTransportPauseDuplicateHoldUntil
     }
     var readerTransportResumeBarrierValue: Int { readerTransportResumeBarrier }
+    var readerTransportPauseAdoptionReason: String? { lastReaderTransportPauseAdoptionReason }
+    var readerTransportPauseAdoptionSource: String? { lastReaderTransportPauseAdoptionSource }
     var isReaderTransportPauseGuardActive: Bool {
         isReaderTransportPauseHoldActive || isReaderTransportPauseSuppressionActive
     }

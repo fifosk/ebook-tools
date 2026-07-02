@@ -176,9 +176,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "lastReaderTransportAction: lastReaderTransportAction" in job_playback
     assert "onReaderPlayCommand: { playReaderNowPlayingTransport() }" in job_playback
     assert "onReaderPauseCommand: { pauseReaderNowPlayingTransport() }" in job_playback
-    job_adoption_body = _function_body(job_playback, "private func handleMusicKitReaderTransportPauseAdoption()")
+    job_adoption_body = _function_body(job_playback, "private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil)")
     assert "#if os(tvOS)" in job_adoption_body
     assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in job_adoption_body
+    assert "!shouldHonorAppleMusicPauseAdoptionImmediately(reason: reason, source: source)" in job_adoption_body
     assert "ignored stale adopted Apple Music pause after reader play" in job_adoption_body
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)" in job_adoption_body
     assert "musicOwnership.resumeReadingBedForReaderTransport()" not in job_adoption_body
@@ -203,6 +204,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "readerTransportMusicResumeTask != nil" in job_stale_pause_body
     assert "return !viewModel.isNarrationAudibleForReaderTransport" in job_stale_pause_body
     assert "return hasPendingReaderMusicResume" not in job_stale_pause_body
+    job_honor_adoption_body = _function_body(job_playback, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
+    assert 'reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying"' in job_honor_adoption_body
+    assert 'source == "active observed non-playing"' in job_honor_adoption_body
+    assert 'source == "persistent observed non-playing"' in job_honor_adoption_body
     job_mirror_pause_body = _function_body(job_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in job_mirror_pause_body
     assert "confirmReaderTransportPauseAfterCommand(source: source)" in job_mirror_pause_body
@@ -709,9 +714,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "lastReaderTransportAction: lastReaderTransportAction" in library_playback
     assert "onReaderPlayCommand: { playReaderNowPlayingTransport() }" in library_playback
     assert "onReaderPauseCommand: { pauseReaderNowPlayingTransport() }" in library_playback
-    library_adoption_body = _function_body(library_playback, "private func handleMusicKitReaderTransportPauseAdoption()")
+    library_adoption_body = _function_body(library_playback, "private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil)")
     assert "#if os(tvOS)" in library_adoption_body
     assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in library_adoption_body
+    assert "!shouldHonorAppleMusicPauseAdoptionImmediately(reason: reason, source: source)" in library_adoption_body
     assert "ignored stale adopted Apple Music pause after reader play" in library_adoption_body
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)" in library_adoption_body
     assert "musicOwnership.resumeReadingBedForReaderTransport()" not in library_adoption_body
@@ -734,6 +740,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "musicOwnership.isPausedByReaderTransport" not in library_stale_pause_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" in library_stale_pause_body
     assert "readerTransportMusicResumeTask != nil" in library_stale_pause_body
+    library_honor_adoption_body = _function_body(library_playback, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
+    assert 'reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying"' in library_honor_adoption_body
+    assert 'source == "active observed non-playing"' in library_honor_adoption_body
+    assert 'source == "persistent observed non-playing"' in library_honor_adoption_body
     assert "return !viewModel.isNarrationAudibleForReaderTransport" in library_stale_pause_body
     assert "return hasPendingReaderMusicResume" not in library_stale_pause_body
     library_mirror_pause_body = _function_body(library_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
@@ -1087,6 +1097,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "private var readerTransportPauseAdoptionHandler: ((String, String) -> Void)?" in music
     assert "private var lastReaderTransportPauseAdoptionReason: String?" in music
     assert "private var lastReaderTransportPauseAdoptionSource: String?" in music
+    assert "var readerTransportPauseAdoptionReason: String? { lastReaderTransportPauseAdoptionReason }" in music
+    assert "var readerTransportPauseAdoptionSource: String? { lastReaderTransportPauseAdoptionSource }" in music
     assert "func setReaderTransportPauseAdoptionHandler(" in music
     assert "func clearReaderTransportPauseAdoptionHandler(owner: AnyObject)" in music
     set_adoption_handler_body = _function_body(music, "func setReaderTransportPauseAdoptionHandler(")
@@ -1575,6 +1587,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in job
     assert "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)" in job
     job_muted_recovery_body = _function_body(job, "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)")
+    assert "!musicOwnership.isPausedByReaderTransport" in job_muted_recovery_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in job_muted_recovery_body
+    assert "!musicOwnership.isManuallyPaused" in job_muted_recovery_body
+    assert 'guard lastReaderTransportAction != "pause" else { return }' in job_muted_recovery_body
+    assert "guard !viewModel.isSequenceModeActive else { return }" in job_muted_recovery_body
+    assert "guard !viewModel.isSequenceTransitioning else { return }" in job_muted_recovery_body
     assert "pendingInteractiveAutoplaySentence == nil" in job_muted_recovery_body
     assert "viewModel.audioCoordinator.volume <= 0.001" in job_muted_recovery_body
     assert "!viewModel.audioCoordinator.isPlaying" in job_muted_recovery_body
@@ -1586,7 +1604,6 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "localReaderTransportPauseHoldUntil = 0" in job_muted_recovery_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in job_muted_recovery_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_muted_recovery_body
-    assert "!viewModel.isSequenceTransitioning" not in job_muted_recovery_body
     assert "viewModel.playForReaderTransport()" not in job_muted_recovery_body
     job_music_surface_body = _function_body(job, "private func handleMusicKitPlaybackSurfaceChange()")
     assert "if shouldMirrorAppleMusicPlayToNarration" in job_music_surface_body
@@ -1832,6 +1849,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in library
     assert "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)" in library
     library_muted_recovery_body = _function_body(library, "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)")
+    assert "!musicOwnership.isPausedByReaderTransport" in library_muted_recovery_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in library_muted_recovery_body
+    assert "!musicOwnership.isManuallyPaused" in library_muted_recovery_body
+    assert 'guard lastReaderTransportAction != "pause" else { return }' in library_muted_recovery_body
+    assert "guard !viewModel.isSequenceModeActive else { return }" in library_muted_recovery_body
+    assert "guard !viewModel.isSequenceTransitioning else { return }" in library_muted_recovery_body
     assert "pendingInteractiveAutoplaySentence == nil" in library_muted_recovery_body
     assert "viewModel.audioCoordinator.volume <= 0.001" in library_muted_recovery_body
     assert "!viewModel.audioCoordinator.isPlaying" in library_muted_recovery_body
@@ -1843,7 +1866,6 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "localReaderTransportPauseHoldUntil = 0" in library_muted_recovery_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_muted_recovery_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_muted_recovery_body
-    assert "!viewModel.isSequenceTransitioning" not in library_muted_recovery_body
     assert "viewModel.playForReaderTransport()" not in library_muted_recovery_body
     library_music_surface_body = _function_body(library, "private func handleMusicKitPlaybackSurfaceChange()")
     assert "if shouldMirrorAppleMusicPlayToNarration" in library_music_surface_body
@@ -2210,19 +2232,21 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "observedNonPlayingImmediate" not in observed_non_playing_body
     assert "observed non-playing immediate" not in observed_non_playing_body
     assert ".onReceive(musicOwnership.$readerTransportPauseAdoptionRevision)" in job_view
-    assert "handleMusicKitReaderTransportPauseAdoption()" in job_view
+    assert "handleMusicKitReaderTransportPauseAdoption(\n                    reason: musicOwnership.readerTransportPauseAdoptionReason," in job_view
     assert ".onReceive(musicOwnership.$readerTransportPauseAdoptionRevision)" in library_view
-    assert "handleMusicKitReaderTransportPauseAdoption()" in library_view
+    assert "handleMusicKitReaderTransportPauseAdoption(\n                reason: musicOwnership.readerTransportPauseAdoptionReason," in library_view
     for playback_view in (job_view, library_view):
         assert ".onAppear(perform: registerReaderTransportPauseAdoptionHandler)" in playback_view
         assert "musicOwnership.setReaderTransportPauseAdoptionHandler(owner: viewModel)" in playback_view
         assert "musicOwnership.clearReaderTransportPauseAdoptionHandler(owner: viewModel)" in playback_view
-    job_adoption_body = _function_body(job_view, "private func handleMusicKitReaderTransportPauseAdoption()")
-    library_adoption_body = _function_body(library_view, "private func handleMusicKitReaderTransportPauseAdoption()")
+        assert "handleMusicKitReaderTransportPauseAdoption(reason: reason, source: source)" in playback_view
+    job_adoption_body = _function_body(job_view, "private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil)")
+    library_adoption_body = _function_body(library_view, "private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil)")
     for adoption_body in (job_adoption_body, library_adoption_body):
         assert "musicOwnership.ownershipState == .appleMusicBed" in adoption_body
         assert "musicOwnership.isPausedByReaderTransport" in adoption_body
         assert "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else" not in adoption_body
+        assert "!shouldHonorAppleMusicPauseAdoptionImmediately(reason: reason, source: source)" in adoption_body
         assert 'mirrorAppleMusicPauseToReaderTransport(source: "musicAdoption")' in adoption_body
 
     reconcile_body = _function_body(music, "func reconcileReadingBedSystemPlayback()")

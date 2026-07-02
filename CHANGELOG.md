@@ -8,8 +8,9 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Apple TV Music-bed startup recovery now breaks stale muted or paused reader states when narration is requested and the player is ready, preventing simulator/device runs from getting stuck with Music playing while sentence narration is silent.
 - Apple TV Music-bed pause handling now stops treating every post-resume Music pause as stale once narration is audible, so the first real remote pause can stop both bed music and the sentence track.
+- Apple reader pause adoption now lets active MusicKit pause signals outrank the stale-after-play guard, blocks muted-audio recovery after a reader-owned pause until an explicit play arrives, and leaves sequence-mode sentence-transition pauses to the sequence controller, reducing cases where recovery restarts narration while the Apple Music bed is being paused or mixed.
 - The physical Apple playback transport log verifier now rejects stale Music-pause suppression before reader playback has recovered, catching pause/resume captures where the stale-pause breadcrumb would otherwise hide a two-press regression.
-- Backend source pickers now keep bounded newest-file matches with a direct binary search instead of materializing every retained sort key on each insert, reducing overhead while scanning large NAS/manual-download roots.
+- Backend source pickers now keep bounded newest file and acquisition-candidate matches with a direct binary search instead of materializing every retained sort key on each insert, reducing overhead while scanning large NAS/manual-download roots.
 - Advanced visible Apple app versioning to `v2026.07.02.015`.
 
 ### 2026.07.02.014
