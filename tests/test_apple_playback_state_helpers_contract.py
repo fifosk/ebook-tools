@@ -440,6 +440,12 @@ def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
     assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in tracks
     assert "audioModeManager.toggle(kind: kind, preservingPosition: currentSentenceIndex)" in tracks
     assert "reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)" in tracks
+    available_tracks_body = _function_body(
+        tracks,
+        "func availableTracks(for chunk: InteractiveChunk) -> [TextPlayerVariantKind]",
+    )
+    assert "chunkSupportsAudioTrack(.original, in: chunk)" in available_tracks_body
+    assert "chunkSupportsAudioTrack(.translation, in: chunk)" in available_tracks_body
 
     assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in audio_management
     header_toggle_body = _function_body(

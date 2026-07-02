@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.004",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-audio-backed-text-track-availability",
+                    title: "Translation stays selectable while loading",
+                    detail: "Apple reader text-track availability now also follows playable Original and Translation audio lanes while lazy chunk metadata loads, so Apple TV does not grey out Translation for completed jobs whose media response starts without inline sentences."
+                ),
+                AppChangelogEntry(
                     id: "shared-jobs-pagination-stable-order",
                     title: "Jobs stay ordered across pages",
                     detail: "Shared backend job listing now sorts visible jobs newest-first before slicing and leaves service-provided pages in that order, keeping Web and Apple Jobs views stable across paginated refreshes."

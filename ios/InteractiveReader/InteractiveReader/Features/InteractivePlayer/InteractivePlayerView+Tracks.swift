@@ -222,6 +222,12 @@ extension InteractivePlayerView {
         if chunk.sentences.contains(where: { !$0.translationTokens.isEmpty }) {
             available.append(.translation)
         }
+        if !available.contains(.original), chunkSupportsAudioTrack(.original, in: chunk) {
+            available.append(.original)
+        }
+        if !available.contains(.translation), chunkSupportsAudioTrack(.translation, in: chunk) {
+            available.append(.translation)
+        }
         if available.isEmpty {
             return [.original]
         }
