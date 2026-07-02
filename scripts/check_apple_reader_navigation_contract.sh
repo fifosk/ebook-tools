@@ -481,10 +481,24 @@ initial_audio_mode_body = function_body(
     tracks_source,
     "func prepareAudioModeForInitialPlayback(for chunk: InteractiveChunk)",
 )
+if "let prefersCustomMultiTrackSelection = shouldPreferCustomMultiTrackSelection(for: chunk)" not in initial_audio_mode_body:
+    fail("chunk changes must recognize explicit multi-track selections before restoring stale single-track state")
 if "restoreSingleTrackModeFromVisibleSelectionIfNeeded(for: chunk)" not in initial_audio_mode_body:
     fail("chunk changes must restore single-track mode from visible track selection before defaulting to All")
 if "restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for: chunk)" not in initial_audio_mode_body:
     fail("chunk changes must restore single-track mode from view-model state before defaulting to All")
+if "allowExpandingSingleTrackAudio: prefersCustomMultiTrackSelection" not in initial_audio_mode_body:
+    fail("explicit multi-track lifecycle setup must be allowed to expand audio back to sequence")
+custom_multi_track_body = function_body(
+    tracks_source,
+    "func shouldPreferCustomMultiTrackSelection(for chunk: InteractiveChunk) -> Bool",
+)
+if "guard hasCustomTrackSelection else { return false }" not in custom_multi_track_body:
+    fail("custom multi-track restore guard must require an explicit user track selection")
+if "available.contains(.original), available.contains(.translation)" not in custom_multi_track_body:
+    fail("custom multi-track restore guard must require both audio-backed text tracks")
+if "visibleTracks.contains(.original) && visibleTracks.contains(.translation)" not in custom_multi_track_body:
+    fail("custom multi-track restore guard must require both Original and Translation to be visible")
 restore_view_model_track_body = function_body(
     tracks_source,
     "func restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for chunk: InteractiveChunk) -> Bool",

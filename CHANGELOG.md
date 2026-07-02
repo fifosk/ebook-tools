@@ -4,8 +4,9 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-02
 
-### 2026.07.02.001
+### 2026.07.02.002
 
+- Apple reader lifecycle refreshes now honor explicit Original + Translation visible-track selections before restoring stale single-track state, so turning Translation back on on iPad remains active across metadata and sentence-batch updates.
 - Apple reader sentence-batch lifecycle restores now read the loaded/preferred/durable Original-only or Translation-only lane before defaulting visible/audio tracks, so end-of-batch chunk refreshes cannot reset selection to All and drift rendering from narration.
 - Web Library flat-table rendering now lives in a focused `LibraryFlatTable` component with shared language-label rendering and focused coverage for layout headers, resume/status/action composition, and row permission gating.
 - Apple reader Original-only and Translation-only context rebuilds now reprepare the selected lane even when the recent batch-start anchor is not hydrated yet, preventing end-of-batch resets to stale combined audio and out-of-sync rendering.
@@ -53,7 +54,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Backend Project Gutenberg acquisition discovery now shares focused tested helpers for Gutendex search parameters, EPUB/HTML URL selection, and contributor normalization used by Web and Apple Create book discovery.
 - Backend local/manual/NAS acquisition discovery now shares focused tested helpers for source-relative paths, display titles, zero-byte EPUB filtering, and bounded newest-first manual source ordering used by Web and Apple Create pickers.
 - Backend acquisition discovery now shares focused tested value-normalization helpers for safe identifiers, string/sequence coercion, and integer parsing across public-catalog and video providers.
-- Advanced visible Apple app versioning to `v2026.07.02.001`.
+- Advanced visible Apple app versioning to `v2026.07.02.002`.
 
 ## 2026-07-01
 

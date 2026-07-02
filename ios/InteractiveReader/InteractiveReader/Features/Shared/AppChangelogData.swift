@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
-            version: "2026.07.02.001",
+            version: "2026.07.02.002",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-custom-multi-track-toggle-restore",
+                    title: "Track toggles stay selected",
+                    detail: "Apple reader lifecycle refreshes now honor an explicit Original + Translation visible-track selection before restoring a stale single-track lane, so turning Translation back on remains active after metadata or sentence-batch updates."
+                ),
                 AppChangelogEntry(
                     id: "web-subtitle-status-notices-panel",
                     title: "Subtitle Tool feedback is cleaner",

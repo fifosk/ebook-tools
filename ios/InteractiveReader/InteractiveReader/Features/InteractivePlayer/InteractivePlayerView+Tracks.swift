@@ -253,23 +253,33 @@ extension InteractivePlayerView {
             audioModeManager.currentMode,
             clearSingleTrackOnSequence: false
         )
+        let prefersCustomMultiTrackSelection = shouldPreferCustomMultiTrackSelection(for: chunk)
         let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)
-        let restoredViewModelSingleTrack = appliedResumeTrack
-            ? false
-            : restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for: chunk)
+        let restoredViewModelSingleTrack: Bool
+        if appliedResumeTrack || prefersCustomMultiTrackSelection {
+            restoredViewModelSingleTrack = false
+        } else {
+            restoredViewModelSingleTrack = restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for: chunk)
+        }
         if !appliedResumeTrack && !restoredViewModelSingleTrack {
             viewModel.sequenceController.audioMode = audioModeManager.currentMode
         }
-        let restoredVisibleSingleTrack = (appliedResumeTrack || restoredViewModelSingleTrack)
-            ? true
-            : restoreSingleTrackModeFromVisibleSelectionIfNeeded(for: chunk)
+        let restoredVisibleSingleTrack: Bool
+        if appliedResumeTrack || restoredViewModelSingleTrack || prefersCustomMultiTrackSelection {
+            restoredVisibleSingleTrack = false
+        } else {
+            restoredVisibleSingleTrack = restoreSingleTrackModeFromVisibleSelectionIfNeeded(for: chunk)
+        }
         let preservedSingleTrack = appliedResumeTrack
             || restoredViewModelSingleTrack
             || restoredVisibleSingleTrack
-            || preserveSingleTrackModeIfNeeded(for: chunk)
+            || (!prefersCustomMultiTrackSelection && preserveSingleTrackModeIfNeeded(for: chunk))
         if !preservedSingleTrack {
             applyDefaultTrackSelection(for: chunk)
-            synchronizeAudioModeWithVisibleTextTracks(for: chunk)
+            synchronizeAudioModeWithVisibleTextTracks(
+                for: chunk,
+                allowExpandingSingleTrackAudio: prefersCustomMultiTrackSelection
+            )
         }
         viewModel.sequenceController.audioMode = audioModeManager.currentMode
         viewModel.synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)
@@ -277,6 +287,13 @@ extension InteractivePlayerView {
            let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
             viewModel.selectedAudioTrackID = targetID
         }
+    }
+
+    func shouldPreferCustomMultiTrackSelection(for chunk: InteractiveChunk) -> Bool {
+        guard hasCustomTrackSelection else { return false }
+        let available = Set(availableTracks(for: chunk))
+        guard available.contains(.original), available.contains(.translation) else { return false }
+        return visibleTracks.contains(.original) && visibleTracks.contains(.translation)
     }
 
     @discardableResult

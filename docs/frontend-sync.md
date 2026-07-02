@@ -88,7 +88,11 @@ Follow the suggested remediations to restore parity:
   on the selected stream. Passive hydrated-batch text/audio sync must not expand a remembered single-track lane
   back to combined just because both rendered text tracks are available; only
   explicit text-track toggles should broaden single-track playback back to
-  combined/sequence.
+  combined/sequence. Once the user has explicitly selected both Original and
+  Translation visible text tracks, lifecycle setup should prefer that custom
+  multi-track selection before restoring stale durable single-track state, so
+  activating Translation cannot be undone by the next metadata or
+  track-availability refresh.
   If the manager and selected picker id both briefly reset to sequence/combined
   at a batch boundary, the single audio lane that was actually loaded is still
   authoritative for Original-only or Translation-only playback while the sequence

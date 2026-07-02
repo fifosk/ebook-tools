@@ -999,8 +999,12 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "viewModel.audioModeManager = audioModeManager" in initial_playback_body
     assert "viewModel.sequenceController.audioMode = audioModeManager.currentMode" in initial_playback_body
     assert "let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)" in initial_playback_body
+    assert "let prefersCustomMultiTrackSelection = shouldPreferCustomMultiTrackSelection(for: chunk)" in initial_playback_body
     assert "preserveSingleTrackModeIfNeeded(for: chunk)" in initial_playback_body
     assert "restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for: chunk)" in initial_playback_body
+    assert "if appliedResumeTrack || prefersCustomMultiTrackSelection" in initial_playback_body
+    assert "restoredViewModelSingleTrack = false" in initial_playback_body
+    assert "allowExpandingSingleTrackAudio: prefersCustomMultiTrackSelection" in initial_playback_body
     assert "if !preservedSingleTrack" in initial_playback_body
     assert "viewModel.synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)" in initial_playback_body
     assert initial_playback_body.index("viewModel.audioModeManager = audioModeManager") < initial_playback_body.index(
@@ -1015,6 +1019,14 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert initial_playback_body.index(
         "viewModel.synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)"
     ) < initial_playback_body.index("if viewModel.selectedAudioTrackID == nil")
+
+    custom_multi_body = _function_body(
+        tracks,
+        "func shouldPreferCustomMultiTrackSelection(for chunk: InteractiveChunk) -> Bool",
+    )
+    assert "guard hasCustomTrackSelection else { return false }" in custom_multi_body
+    assert "available.contains(.original), available.contains(.translation)" in custom_multi_body
+    assert "visibleTracks.contains(.original) && visibleTracks.contains(.translation)" in custom_multi_body
 
     preserve_body = _function_body(
         tracks,

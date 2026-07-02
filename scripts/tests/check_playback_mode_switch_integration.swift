@@ -554,6 +554,16 @@ private func restoreSingleTrackModeFromViewModelPreferenceIfNeeded(
     return true
 }
 
+private func shouldPreferCustomMultiTrackSelection(
+    availableTracks: Set<TextPlayerVariantKind>,
+    visibleTracks: Set<TextPlayerVariantKind>,
+    hasCustomTrackSelection: Bool
+) -> Bool {
+    guard hasCustomTrackSelection else { return false }
+    guard availableTracks.contains(.original), availableTracks.contains(.translation) else { return false }
+    return visibleTracks.contains(.original) && visibleTracks.contains(.translation)
+}
+
 @MainActor
 private func alignVisibleTracksWithCurrentAudioMode(
     for chunk: InteractiveChunk,
@@ -2606,6 +2616,68 @@ private func runChecks() {
         explicitHydratedSequenceMode,
         .sequence,
         "Explicit text-track expansion should restore sequence audio mode"
+    )
+    let customLifecycleManager = AudioModeManager()
+    customLifecycleManager.setTracks(original: false, translation: true)
+    var customLifecycleVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation]
+    var customLifecycleHasCustomTrackSelection = true
+    var customLifecycleSelectedTrackID: String? = "translation-next"
+    var customLifecyclePreferredKind: InteractiveChunk.AudioOption.Kind? = .translation
+    var customLifecyclePreferredSingleTrack: SequenceTrack? = .translation
+    var customLifecycleSequenceMode: AudioMode = .singleTrack(.translation)
+    let customLifecycleShouldExpand = shouldPreferCustomMultiTrackSelection(
+        availableTracks: [.original, .translation, .transliteration],
+        visibleTracks: customLifecycleVisibleTracks,
+        hasCustomTrackSelection: customLifecycleHasCustomTrackSelection
+    )
+    requireEqual(
+        customLifecycleShouldExpand,
+        true,
+        "Lifecycle setup should recognize an explicit Original + Translation text-track selection as a combined playback request"
+    )
+    requireEqual(
+        customLifecycleShouldExpand
+            ? false
+            : restoreSingleTrackModeFromViewModelPreferenceIfNeeded(
+                for: nextBatch,
+                availableTracks: [.original, .translation, .transliteration],
+                manager: customLifecycleManager,
+                visibleTracks: &customLifecycleVisibleTracks,
+                hasCustomTrackSelection: &customLifecycleHasCustomTrackSelection,
+                selectedAudioTrackID: &customLifecycleSelectedTrackID,
+                preferredSingleTrackMode: customLifecyclePreferredSingleTrack,
+                durableSingleTrackPlaybackMode: .translation,
+                sequenceAudioMode: &customLifecycleSequenceMode,
+                preferredAudioKind: &customLifecyclePreferredKind
+            ),
+        false,
+        "Lifecycle setup must not let a stale durable single-track lane override an explicit text-track expansion"
+    )
+    requireEqual(
+        synchronizeAudioModeWithVisibleTextTracks(
+            for: nextBatch,
+            availableTracks: [.original, .translation, .transliteration],
+            manager: customLifecycleManager,
+            visibleTracks: &customLifecycleVisibleTracks,
+            hasCustomTrackSelection: &customLifecycleHasCustomTrackSelection,
+            selectedAudioTrackID: &customLifecycleSelectedTrackID,
+            preferredAudioKind: &customLifecyclePreferredKind,
+            preferredSingleTrackMode: &customLifecyclePreferredSingleTrack,
+            sequenceAudioMode: &customLifecycleSequenceMode,
+            allowExpandingSingleTrackAudio: customLifecycleShouldExpand
+        ),
+        true,
+        "Lifecycle setup should preserve explicit multi-track selection by expanding audio back to sequence"
+    )
+    requireEqual(
+        customLifecycleSequenceMode,
+        .sequence,
+        "Custom multi-track lifecycle setup should leave the sequence controller in combined playback mode"
+    )
+    requireEqual(
+        customLifecycleVisibleTracks,
+        [.original, .translation],
+        "Custom multi-track lifecycle setup should not collapse visible tracks back to Translation-only"
     )
     requireEqual(
         effectiveSelectedAudioKind(
