@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import type { JobState } from '../components/JobList';
 import type { CreationTemplateEntry, JobParameterSnapshot } from '../api/dtos';
 import SubtitleToolTabContent from './subtitle-tool/SubtitleToolTabContent';
+import SubtitleToolStatusNotices from './subtitle-tool/SubtitleToolStatusNotices';
 import SubtitleToolTabs from './subtitle-tool/SubtitleToolTabs';
-import { CreateIntakeStatusCallout } from '../components/create-intake/CreateIntakeStatusCallout';
 import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
 import {
   DEFAULT_START_TIME,
@@ -309,21 +309,16 @@ export default function SubtitleToolPage({
         onSaveTemplate={() => void handleSaveTemplate()}
       />
 
-      {submitError ? <div className="alert" role="alert">{submitError}</div> : null}
-      {creationTemplateError ?? templateError ? (
-        <div className="alert" role="alert">{creationTemplateError ?? templateError}</div>
-      ) : null}
-      <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
-      {isLoadingCreationTemplate || templateStatus ? (
-        <div className="notice notice--info" role="status">
-          {isLoadingCreationTemplate ? 'Loading saved template...' : templateStatus}
-        </div>
-      ) : null}
-      {submittedSummary ? (
-        <div className="notice notice--info" role="status">
-          {submittedSummary}
-        </div>
-      ) : null}
+      <SubtitleToolStatusNotices
+        submitError={submitError}
+        creationTemplateError={creationTemplateError}
+        templateError={templateError}
+        intakeStatus={intakeStatus}
+        isLoadingIntakeStatus={isLoadingIntakeStatus}
+        isLoadingCreationTemplate={isLoadingCreationTemplate}
+        templateStatus={templateStatus}
+        submittedSummary={submittedSummary}
+      />
 
       <SubtitleToolTabContent
         activeTab={activeTab}

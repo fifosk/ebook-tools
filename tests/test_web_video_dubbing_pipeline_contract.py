@@ -609,6 +609,15 @@ def test_docs_publish_video_dubbing_focused_web_target() -> None:
 
 def test_subtitle_tool_focused_web_target_covers_split_hooks() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
+    page = (ROOT / "web" / "src" / "pages" / "SubtitleToolPage.tsx").read_text(encoding="utf-8")
+    status_notices = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "subtitle-tool"
+        / "SubtitleToolStatusNotices.tsx"
+    ).read_text(encoding="utf-8")
 
     assert "test-web-subtitle-tool-focused" in makefile
     block = _target_block(makefile, "test-web-subtitle-tool-focused")
@@ -619,6 +628,7 @@ def test_subtitle_tool_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/subtitleMetadataUtils.test.ts" in block
     assert "src/pages/__tests__/subtitleSourceUtils.test.ts" in block
     assert "src/pages/__tests__/SubtitleToolTabContent.test.tsx" in block
+    assert "src/pages/__tests__/SubtitleToolStatusNotices.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleTvMetadata.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleSources.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleJobResults.test.tsx" in block
@@ -636,6 +646,12 @@ def test_subtitle_tool_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/useSubtitleTabState.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleSubmitStatus.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleSubmit.test.tsx" in block
+    assert "SubtitleToolStatusNotices" in page
+    assert "CreateIntakeStatusCallout" not in page
+    assert "CreateIntakeStatusCallout" in status_notices
+    assert "creationTemplateError ?? templateError" in status_notices
+    assert "Loading saved template..." in status_notices
+    assert "submittedSummary" in status_notices
 
 
 def test_docs_publish_subtitle_tool_focused_web_target() -> None:

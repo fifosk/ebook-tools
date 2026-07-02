@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-subtitle-status-notices-panel",
+                    title: "Subtitle Tool feedback is cleaner",
+                    detail: "Web Subtitle Tool submit errors, template handoff and save messages, intake status, loading-template notices, and submitted-job summaries now render through a focused component with rendered coverage and focused-suite routing."
+                ),
+                AppChangelogEntry(
                     id: "web-video-downloaded-list-panel",
                     title: "Downloaded video sources are cleaner",
                     detail: "Web Video Dubbing downloaded-video rows, detached discovered-source display, subtitle picker, embedded stream chooser, and delete/extract actions now live in a focused component with rendered coverage and changed-test routing."

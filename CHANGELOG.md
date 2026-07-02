@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Web Subtitle Tool submit errors, template handoff/save messages, intake status, loading-template notices, and submitted-job summaries now render through a focused `SubtitleToolStatusNotices` component with rendered coverage and focused-suite routing.
 - Web Video Dubbing downloaded-video rows, detached discovered-source display, subtitle picker, embedded stream chooser, and delete/extract actions now live in a focused `VideoDownloadedListPanel` component with rendered coverage and changed-test routing.
 - Apple reader live-media and chunk-metadata context rebuilds now reprepare Original-only or Translation-only audio at the recent sentence anchor, so a sentence-batch refresh cannot keep stale timing/audio URLs while rendering moves to the next batch.
 - Apple reader Original-only and Translation-only playback now keeps the user-selected lane as durable view-model state across sentence-batch EOF handoffs and metadata refreshes, so track selection survives batch boundaries and rendering stays synced to the playing audio.

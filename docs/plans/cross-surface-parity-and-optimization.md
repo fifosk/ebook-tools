@@ -217,7 +217,11 @@ Large Web UI hotspots to split before redesign work:
   hook coverage. Subtitle template-save validation, sanitized payload
   submission, and save status/error state now live in
   `web/src/pages/subtitle-tool/useSubtitleTemplateActions.ts` with focused
-  hook coverage. Shared language preferences, backend
+  hook coverage. Submit errors, template handoff/save messages, intake status,
+  loading-template notices, and submitted-job summaries now render through
+  `web/src/pages/subtitle-tool/SubtitleToolStatusNotices.tsx` with focused
+  coverage, keeping the page shell closer to the Video Dubbing feedback split.
+  Shared language preferences, backend
   target-language options, sorted dropdown options, and input/target handlers
   now live in `web/src/pages/subtitle-tool/useSubtitleLanguageState.ts` with
   focused hook coverage.
