@@ -241,15 +241,10 @@ extension InteractivePlayerView {
 
         // Capture current sentence position BEFORE changing mode
         let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
-        let liveActiveRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
-        let desiredRoles = desiredHeaderAudioRoles(
-            toggling: role,
-            activeRoles: liveActiveRoles,
-            availableRoles: availableRoles
-        )
-        audioModeManager.setTracks(
-            original: desiredRoles.contains(.original),
-            translation: desiredRoles.contains(.translation),
+        let requestedTrack: SequenceTrack = role == .original ? .original : .translation
+        audioModeManager.toggle(
+            requestedTrack,
+            availableTracks: availableSequenceTracks(from: availableRoles),
             preservingPosition: currentSentenceIndex
         )
 
@@ -265,26 +260,6 @@ extension InteractivePlayerView {
 
         // Reconfigure playback with position preservation
         reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
-    }
-
-    func desiredHeaderAudioRoles(
-        toggling role: LanguageFlagRole,
-        activeRoles: Set<LanguageFlagRole>,
-        availableRoles: Set<LanguageFlagRole>
-    ) -> Set<LanguageFlagRole> {
-        var desiredRoles = activeRoles.intersection(availableRoles)
-        if desiredRoles.isEmpty {
-            desiredRoles = availableRoles
-        }
-        guard desiredRoles.count > 1 || !desiredRoles.contains(role) else {
-            return desiredRoles
-        }
-        if desiredRoles.contains(role) {
-            desiredRoles.remove(role)
-        } else {
-            desiredRoles.insert(role)
-        }
-        return desiredRoles.intersection(availableRoles)
     }
 
     func selectAudioTrack(

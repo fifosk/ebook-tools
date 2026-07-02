@@ -152,7 +152,7 @@ def test_library_media_file_records_token_safe_resolver_timing(
         user_id=user_id,
         user_role="admin",
     )
-    monkeypatch.setattr("modules.webapi.routers.library.LOGGER", logger)
+    monkeypatch.setattr("modules.webapi.routers.library_telemetry.LOGGER", logger)
 
     try:
         with TestClient(app) as client:
@@ -231,7 +231,7 @@ def test_library_media_file_resolver_errors_use_generic_detail_and_token_safe_te
         user_id=user_id,
         user_role="admin",
     )
-    monkeypatch.setattr("modules.webapi.routers.library.LOGGER", logger)
+    monkeypatch.setattr("modules.webapi.routers.library_telemetry.LOGGER", logger)
 
     try:
         with TestClient(app) as client:
@@ -277,7 +277,7 @@ def test_library_media_file_forbidden_records_token_safe_telemetry(
         user_id=user_id,
         user_role="viewer",
     )
-    monkeypatch.setattr("modules.webapi.routers.library.LOGGER", logger)
+    monkeypatch.setattr("modules.webapi.routers.library_telemetry.LOGGER", logger)
 
     try:
         with TestClient(app) as client:

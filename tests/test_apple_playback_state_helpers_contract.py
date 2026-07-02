@@ -463,29 +463,19 @@ def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
         "func toggleHeaderAudioRole(\n        _ role: LanguageFlagRole,\n        for chunk: InteractiveChunk,\n        availableRoles: Set<LanguageFlagRole>\n    )",
     )
     assert "guard availableRoles.contains(role) else { return }" in header_toggle_body
-    assert "let liveActiveRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)" in header_toggle_body
-    assert "let desiredRoles = desiredHeaderAudioRoles(" in header_toggle_body
-    assert "activeRoles: liveActiveRoles" in header_toggle_body
-    assert "audioModeManager.setTracks(" in header_toggle_body
-    assert "original: desiredRoles.contains(.original)" in header_toggle_body
-    assert "translation: desiredRoles.contains(.translation)" in header_toggle_body
+    assert "let requestedTrack: SequenceTrack = role == .original ? .original : .translation" in header_toggle_body
+    assert "audioModeManager.toggle(" in header_toggle_body
+    assert "requestedTrack," in header_toggle_body
+    assert "availableTracks: availableSequenceTracks(from: availableRoles)" in header_toggle_body
+    assert "preservingPosition: currentSentenceIndex" in header_toggle_body
     assert "switch audioModeManager.currentMode" in header_toggle_body
     assert "case .singleTrack(let selectedTrack):" in header_toggle_body
     assert "case .sequence:" in header_toggle_body
     assert "viewModel.applySingleTrackSelection(selectedTrack, for: chunk)" in header_toggle_body
     assert "viewModel.rememberAudioModePreference(audioModeManager.currentMode)" in header_toggle_body
     assert "viewModel.synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)" in header_toggle_body
+    assert "desiredHeaderAudioRoles" not in audio_management
     assert "private extension Set where Element == LanguageFlagRole" not in audio_management
-
-    desired_roles_body = _function_body(
-        audio_management,
-        "func desiredHeaderAudioRoles(\n        toggling role: LanguageFlagRole,",
-    )
-    assert "activeRoles.intersection(availableRoles)" in desired_roles_body
-    assert "desiredRoles = availableRoles" in desired_roles_body
-    assert "desiredRoles.count > 1 || !desiredRoles.contains(role)" in desired_roles_body
-    assert "desiredRoles.remove(role)" in desired_roles_body
-    assert "desiredRoles.insert(role)" in desired_roles_body
 
 
 def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> None:

@@ -1222,6 +1222,10 @@ Optimization candidates:
   media removals, reindexing, and media-file resolution now route their
   token-safe aggregate logs through the shared route telemetry helper too,
   reducing drift between Web/Apple Library actions and other backend surfaces.
+  The Library router's telemetry wrappers now live in
+  `modules/webapi/routers/library_telemetry.py`, trimming the route module while
+  keeping the same token-safe Library metrics covered by the Library route
+  tests.
   Acquisition provider/discovery/acquire routes are now also pinned in the
   global observability contract, so the shared Web/Apple Create discovery layer
   cannot lose its route-duration histogram while still keeping provider tokens,

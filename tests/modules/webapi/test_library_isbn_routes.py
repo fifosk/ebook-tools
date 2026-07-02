@@ -9,7 +9,7 @@ from prometheus_client.parser import text_string_to_metric_families
 from modules.library import LibraryError
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_library_sync
-from modules.webapi.routers import library as library_router
+from modules.webapi.routers import library_telemetry
 
 pytestmark = pytest.mark.webapi
 
@@ -57,6 +57,10 @@ class _RecordingLogger:
         return "\n".join(self.messages)
 
 
+def _patch_library_logger(monkeypatch: pytest.MonkeyPatch, logger: _RecordingLogger) -> None:
+    monkeypatch.setattr(library_telemetry, "LOGGER", logger)
+
+
 def _has_library_metric_count(
     metrics_text: str,
     *,
@@ -102,7 +106,7 @@ def test_library_isbn_lookup_library_error_uses_generic_detail_and_token_safe_te
         "OpenLibrary failed for ISBN 9780307474278 at "
         "/Volumes/Data/private/isbn-cache.json api_key=secret-key"
     )
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
 
     with _build_client(_StubLibrarySync(error=secret_error)) as client:
         response = client.get("/api/library/isbn/lookup", params={"isbn": "9780307474278"})
@@ -131,7 +135,7 @@ def test_library_isbn_lookup_unexpected_error_uses_generic_detail_and_token_safe
         "metadata provider crashed for ISBN 9780307474278 at "
         "/Volumes/Data/private/provider.log token=secret-token"
     )
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
 
     with _build_client(_StubLibrarySync(error=secret_error)) as client:
         response = client.get("/api/library/isbn/lookup", params={"isbn": "9780307474278"})

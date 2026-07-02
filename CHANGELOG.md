@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.012
 
+- Apple reader header language/audio pills now route taps through the shared guarded audio-mode toggle, preserving Original-only or Translation-only states while allowing the inactive companion pill to restore both-track playback without disabling the wrong lane.
+- Backend Library route telemetry now lives in a focused router support module while preserving the same token-safe duration metrics and logs used by Web and Apple Library actions.
 - Web Video Dubbing tab state, status notices, template handoff extras, and initial NAS refresh now live in a focused page-state hook with coverage, keeping the page coordinator closer to Apple YouTube Dub parity checks.
 - Apple reader header language pill taps now recompute the live active audio roles before changing lanes, preserving Original-only, Translation-only, and Original + Translation modes even after resume or chunk hydration updates.
 - Apple reader language pills now behave as guarded multi-select toggles: tapping an inactive Original or Translation pill adds that lane, tapping an active pill removes only that lane when the other remains active, and the last active lane stays selected.

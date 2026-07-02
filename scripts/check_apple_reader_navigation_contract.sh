@@ -472,10 +472,12 @@ header_toggle_audio_role_body = function_body(
     audio_management_source,
     "func toggleHeaderAudioRole(\n        _ role: LanguageFlagRole,\n        for chunk: InteractiveChunk,\n        availableRoles: Set<LanguageFlagRole>\n    )",
 )
-if "let liveActiveRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)" not in header_toggle_audio_role_body:
-    fail("header language pill taps must recompute active roles at tap time instead of trusting a stale render snapshot")
-if "activeRoles: liveActiveRoles" not in header_toggle_audio_role_body:
-    fail("header language pill desired-role calculation must use tap-time active roles")
+if "let requestedTrack: SequenceTrack = role == .original ? .original : .translation" not in header_toggle_audio_role_body:
+    fail("header language pill taps must resolve the tapped role into a concrete sequence track")
+if "availableTracks: availableSequenceTracks(from: availableRoles)" not in header_toggle_audio_role_body:
+    fail("header language pill taps must use the shared available-track toggle semantics")
+if "desiredHeaderAudioRoles" in audio_management_source:
+    fail("header language pill taps must not keep a second manual role-toggle implementation")
 select_chunk_body = function_body(
     selection_source,
     "func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil)",

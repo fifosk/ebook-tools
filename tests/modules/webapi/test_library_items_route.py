@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -18,6 +19,7 @@ from modules.webapi.dependencies import (
     get_request_user,
 )
 from modules.webapi.routers import library as library_router
+from modules.webapi.routers import library_telemetry
 
 pytestmark = pytest.mark.webapi
 
@@ -31,6 +33,13 @@ class _RecordingLogger:
 
     def info(self, message: str, *args: object, **kwargs: object) -> None:
         self.messages.append(message % args if args else message)
+
+
+def _patch_library_logger(
+    monkeypatch: pytest.MonkeyPatch,
+    logger: _RecordingLogger,
+) -> None:
+    monkeypatch.setattr(library_telemetry, "LOGGER", logger)
 
 
 class _StubLibrarySync:
@@ -550,6 +559,17 @@ def _has_library_metric_count(
     )
 
 
+def test_library_router_telemetry_helpers_live_in_support_module() -> None:
+    router_source = Path(library_router.__file__).read_text(encoding="utf-8")
+    telemetry_source = Path(library_telemetry.__file__).read_text(encoding="utf-8")
+
+    assert "from .library_telemetry import (" in router_source
+    assert "logging_manager.get_logger()" not in router_source
+    assert 'metric_name="LIBRARY_ROUTE_DURATION"' in telemetry_source
+    assert "Library source upload" in telemetry_source
+    assert "Library metadata update" in telemetry_source
+
+
 def test_move_job_to_library_records_token_safe_success_telemetry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -557,7 +577,7 @@ def test_move_job_to_library_records_token_safe_success_telemetry(
     pipeline_service = _StubLibraryMovePipelineService()
     sync = _StubLibraryMoveSync()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_pipeline_service] = lambda: pipeline_service
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
@@ -637,7 +657,7 @@ def test_move_job_to_library_pipeline_errors_use_generic_detail_and_token_safe_t
     app = create_app()
     sync = _StubLibraryMoveSync()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_pipeline_service] = (
         lambda: _StubLibraryMovePipelineService(error=error)
     )
@@ -737,7 +757,7 @@ def test_move_job_to_library_sync_errors_use_generic_detail_and_token_safe_telem
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_pipeline_service] = (
         lambda: _StubLibraryMovePipelineService()
     )
@@ -786,7 +806,7 @@ def test_remove_library_media_records_token_safe_success_telemetry(
     app = create_app()
     sync = _StubLibraryRemoveMediaSync(updated_item=updated_item, removed=5)
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -863,7 +883,7 @@ def test_remove_library_media_errors_use_generic_detail_and_token_safe_telemetry
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: _StubLibraryRemoveMediaSync(
         error=error
     )
@@ -898,7 +918,7 @@ def test_remove_library_media_serialization_errors_use_generic_detail_and_token_
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: _StubLibraryRemoveMediaSync(
         updated_item="updated",
         serialize_error=RuntimeError(
@@ -935,7 +955,7 @@ def test_remove_library_media_forbidden_records_token_safe_telemetry(
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     sync = _StubLibraryRemoveMediaSync(item=_StubLibraryAccessItem())
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
@@ -970,7 +990,7 @@ def test_apply_isbn_metadata_records_token_safe_success_telemetry(
     app = create_app()
     sync = _StubLibraryIsbnApplySync()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -1009,7 +1029,7 @@ def test_remove_library_entry_records_token_safe_success_telemetry(
     app = create_app()
     sync = _StubLibraryRemoveEntrySync()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -1099,7 +1119,7 @@ def test_remove_library_entry_errors_use_generic_detail_and_token_safe_telemetry
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
@@ -1193,7 +1213,7 @@ def test_apply_isbn_metadata_errors_use_generic_detail_and_token_safe_telemetry(
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
@@ -1235,7 +1255,7 @@ def test_update_library_metadata_records_token_safe_success_telemetry(
     app = create_app()
     sync = _StubLibraryMetadataUpdateSync()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -1353,7 +1373,7 @@ def test_update_library_metadata_errors_use_generic_detail_and_token_safe_teleme
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
@@ -1399,7 +1419,7 @@ def test_list_library_items_records_safe_timing(monkeypatch: pytest.MonkeyPatch)
     logger = _RecordingLogger()
     secret_query = "SecretSearchNeedle"
 
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="test-user",
@@ -1504,7 +1524,7 @@ def test_list_library_items_errors_use_generic_detail_and_token_safe_telemetry(
     logger = _RecordingLogger()
     secret_query = "SecretSearchNeedle"
 
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -1552,7 +1572,7 @@ def test_get_library_access_records_token_safe_success_telemetry(
     app = create_app()
     logger = _RecordingLogger()
     sync = _StubLibraryAccessSync(item=_StubLibraryPublicAccessItem())
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -1621,7 +1641,7 @@ def test_get_library_access_errors_use_generic_detail_and_token_safe_telemetry(
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     user_role = "viewer" if expected_result == "forbidden" else "editor"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
@@ -1656,7 +1676,7 @@ def test_update_library_access_records_token_safe_success_telemetry(
     app = create_app()
     logger = _RecordingLogger()
     sync = _StubLibraryAccessSync(item=_StubLibraryPublicAccessItem())
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -1775,7 +1795,7 @@ def test_update_library_access_errors_use_generic_detail_and_token_safe_telemetr
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     user_role = "viewer" if expected_result == "forbidden" else "editor"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
@@ -1825,7 +1845,7 @@ def test_reindex_library_records_token_safe_success_telemetry(
     app = create_app()
     logger = _RecordingLogger()
     service = _StubLibraryReindexService(indexed=11)
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_service] = lambda: service
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -1859,7 +1879,7 @@ def test_reindex_library_forbidden_records_token_safe_telemetry(
     app = create_app()
     logger = _RecordingLogger()
     service = _StubLibraryReindexService()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_service] = lambda: service
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -1917,7 +1937,7 @@ def test_reindex_library_errors_use_generic_detail_and_token_safe_telemetry(
     app = create_app()
     logger = _RecordingLogger()
     service = _StubLibraryReindexService(error=error)
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_service] = lambda: service
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -1952,7 +1972,7 @@ def test_reindex_library_response_validation_uses_generic_detail_and_token_safe_
     app = create_app()
     logger = _RecordingLogger()
     service = _StubLibraryReindexService(indexed=object())
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_service] = lambda: service
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -1988,7 +2008,7 @@ def test_upload_library_source_records_token_safe_success_telemetry(
     app = create_app()
     sync = _StubLibrarySourceUploadSync()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -2091,7 +2111,7 @@ def test_upload_library_source_errors_use_generic_detail_and_token_safe_telemetr
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
@@ -2139,7 +2159,7 @@ def test_refresh_library_metadata_defaults_to_source_refresh_only(
     app = create_app()
     sync = _StubLibraryMetadataSync()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -2176,7 +2196,7 @@ def test_refresh_library_metadata_can_chain_external_enrichment(
     app = create_app()
     sync = _StubLibraryMetadataSync()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -2291,7 +2311,7 @@ def test_refresh_library_metadata_errors_use_generic_detail_and_token_safe_telem
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
@@ -2335,7 +2355,7 @@ def test_enrich_library_metadata_records_token_safe_success_telemetry(
     app = create_app()
     sync = _StubLibraryMetadataSync()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
@@ -2431,7 +2451,7 @@ def test_enrich_library_metadata_errors_use_generic_detail_and_token_safe_teleme
 ) -> None:
     app = create_app()
     logger = _RecordingLogger()
-    monkeypatch.setattr(library_router, "LOGGER", logger)
+    _patch_library_logger(monkeypatch, logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(

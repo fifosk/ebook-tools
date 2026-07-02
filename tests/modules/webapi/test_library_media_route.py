@@ -225,7 +225,7 @@ def test_get_library_media_records_token_safe_timing(monkeypatch: pytest.MonkeyP
         user_id=user_id,
         user_role="editor",
     )
-    monkeypatch.setattr("modules.webapi.routers.library.LOGGER", logger)
+    monkeypatch.setattr("modules.webapi.routers.library_telemetry.LOGGER", logger)
 
     try:
         with TestClient(app) as client:
@@ -306,7 +306,7 @@ def test_get_library_media_errors_use_generic_detail_and_token_safe_telemetry(
         user_id=user_id,
         user_role="editor",
     )
-    monkeypatch.setattr("modules.webapi.routers.library.LOGGER", logger)
+    monkeypatch.setattr("modules.webapi.routers.library_telemetry.LOGGER", logger)
 
     try:
         with TestClient(app) as client:
@@ -359,7 +359,7 @@ def test_get_library_media_serialization_errors_use_generic_detail_and_token_saf
         user_id=user_id,
         user_role="editor",
     )
-    monkeypatch.setattr("modules.webapi.routers.library.LOGGER", logger)
+    monkeypatch.setattr("modules.webapi.routers.library_telemetry.LOGGER", logger)
 
     try:
         with TestClient(app) as client:
@@ -399,7 +399,7 @@ def test_get_library_media_response_validation_errors_use_generic_detail_and_tok
         user_id=user_id,
         user_role="editor",
     )
-    monkeypatch.setattr("modules.webapi.routers.library.LOGGER", logger)
+    monkeypatch.setattr("modules.webapi.routers.library_telemetry.LOGGER", logger)
 
     try:
         with TestClient(app) as client:
