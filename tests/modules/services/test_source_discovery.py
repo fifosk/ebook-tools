@@ -158,6 +158,43 @@ def test_append_bounded_newest_source_file_discards_worse_entries_when_full(tmp_
     assert [entry.path.name for entry in matches] == ["newest.epub"]
 
 
+def test_append_bounded_newest_source_file_binary_searches_existing_matches(
+    tmp_path: Path,
+) -> None:
+    for index in range(64):
+        path = tmp_path / f"book-{index:02d}.epub"
+        path.write_bytes(b"ebook")
+        timestamp = 1_700_000_000 - index
+        os.utime(path, (timestamp, timestamp))
+    inserted = tmp_path / "inserted.epub"
+    inserted.write_bytes(b"inserted")
+    os.utime(inserted, (1_700_000_100, 1_700_000_100))
+
+    entries = {
+        entry.path.name: entry
+        for entry in iter_visible_source_files(tmp_path, suffixes={".epub"})
+    }
+    matches = [entries[f"book-{index:02d}.epub"] for index in range(64)]
+    secondary_calls = 0
+
+    def secondary_key(entry):
+        nonlocal secondary_calls
+        secondary_calls += 1
+        return entry.path.name
+
+    append_bounded_newest_source_file(
+        matches,
+        entries["inserted.epub"],
+        64,
+        secondary_key=secondary_key,
+    )
+
+    assert matches[0].path.name == "inserted.epub"
+    assert len(matches) == 64
+    assert "book-63.epub" not in {entry.path.name for entry in matches}
+    assert secondary_calls < 16
+
+
 def test_walk_visible_source_files_uses_safe_root_stat_instead_of_exists(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import stat as stat_module
-from bisect import bisect_right
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, List, Optional
@@ -67,19 +66,37 @@ def append_bounded_newest_source_file(
         if entry_key >= last_key:
             return
 
-    insert_at = bisect_right(
-        [
-            newest_source_file_sort_key(
-                item,
-                secondary_key=secondary_key,
-            )
-            for item in matches
-        ],
+    insert_at = _bisect_right_source_files(
+        matches,
         entry_key,
+        secondary_key=secondary_key,
     )
     matches.insert(insert_at, entry)
     if len(matches) > limit:
         del matches[limit:]
+
+
+def _bisect_right_source_files(
+    matches: List[DiscoveredSourceFile],
+    entry_key: tuple[float, str],
+    *,
+    secondary_key: Callable[[DiscoveredSourceFile], str] | None = None,
+) -> int:
+    """Return the insertion index without materializing keys for every match."""
+
+    lower = 0
+    upper = len(matches)
+    while lower < upper:
+        middle = (lower + upper) // 2
+        middle_key = newest_source_file_sort_key(
+            matches[middle],
+            secondary_key=secondary_key,
+        )
+        if entry_key < middle_key:
+            upper = middle
+        else:
+            lower = middle + 1
+    return lower
 
 
 def walk_visible_source_files(
