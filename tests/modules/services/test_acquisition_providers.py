@@ -742,6 +742,13 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     assert discovery_media_kinds_for("download_station") == ()
     assert discovery_media_kinds_for("zlibrary_attended") == ()
     assert discovery_media_kinds_for("unknown_provider") == ()
+    assert provider_catalog.discovery_provider_label("newznab_torznab") == "Newznab/Torznab indexers"
+    assert provider_catalog.discovery_provider_label(" LOCAL_EPUB ") == "Local EPUB library"
+    assert provider_catalog.discovery_provider_label("unknown_provider") == "unknown_provider"
+    assert {
+        provider.id: provider_catalog.discovery_provider_label(provider.id)
+        for provider in registry.providers
+    } == {provider.id: provider.label for provider in registry.providers}
     assert registry.default_provider_ids == {
         "book": default_discovery_provider_ids("book", {}),
         "video": default_discovery_provider_ids("video", {}),
@@ -3331,7 +3338,7 @@ def test_default_video_discovery_keeps_local_candidates_when_remote_provider_fai
     assert [candidate.provider for candidate in result.candidates] == ["nas_video"]
     assert result.candidates[0].local_path == video_path.as_posix()
     assert any(
-        "newznab_torznab unavailable during Default sources" in note
+        "Newznab/Torznab indexers unavailable during Default sources" in note
         and "authorized" in note.casefold()
         for note in result.policy_notes
     )

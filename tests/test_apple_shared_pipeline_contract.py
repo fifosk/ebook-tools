@@ -719,6 +719,18 @@ def test_apple_narrate_epub_stale_discovery_provider_matches_web_guidance() -> N
         assert "leaving Search enabled" in changelog
 
 
+def test_backend_default_sources_friendly_provider_notes_are_visible_in_changelogs() -> None:
+    swift_changelog = _swift_changelog_sources()
+    markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
+
+    assert 'id: "backend-default-sources-friendly-provider-notes"' in swift_changelog
+    for source in (swift_changelog, markdown_changelog):
+        assert "partial Default sources provider failures" in source
+        assert "friendly provider labels" in source
+        assert "Newznab/Torznab indexers" in source
+        assert "token-safe" in source
+
+
 def test_apple_web_create_handoff_source_is_visible_in_changelogs() -> None:
     swift_changelog = _swift_changelog_sources()
     markdown_changelog = CHANGELOG.read_text(encoding="utf-8")

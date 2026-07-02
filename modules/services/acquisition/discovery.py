@@ -8,7 +8,7 @@ from typing import Any
 
 import requests
 
-from .provider_catalog import discovery_media_kinds_for
+from .provider_catalog import discovery_media_kinds_for, discovery_provider_label
 from .provider_registry import default_discovery_provider_ids
 from .discovery_planning import (
     order_default_discovery_candidates,
@@ -153,7 +153,8 @@ def discover_acquisition_candidates(
 
 
 def _default_provider_failure_note(error: AcquisitionProviderDiscoveryError) -> str:
-    return f"{error.provider} unavailable during Default sources: {error.public_message}"
+    provider_label = discovery_provider_label(error.provider) or error.provider
+    return f"{provider_label} unavailable during Default sources: {error.public_message}"
 
 
 def _providers_for(
