@@ -104,6 +104,10 @@ REQUIRED_APPLE_CONTRACT_TARGETS = (
 )
 REQUIRED_BACKEND_RUNTIME_EXPECTED = {
     **{
+        f"libraryActions.{key}": value
+        for key, value in _runtime_descriptor.LIBRARY_ACTIONS_DESCRIPTOR.items()
+    },
+    **{
         f"playbackState.{key}": value
         for key, value in _runtime_descriptor.PLAYBACK_STATE_DESCRIPTOR.items()
     },

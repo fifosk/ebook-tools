@@ -440,6 +440,26 @@ def test_validate_manifest_requires_backend_playback_state_runtime_expectations(
     ) in errors
 
 
+def test_validate_manifest_requires_backend_library_action_runtime_expectations(
+    tmp_path: Path,
+) -> None:
+    runtime_expected = dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+    del runtime_expected["libraryActions.removeMediaPathTemplate"]
+    runtime_expected["libraryActions.reindexPath"] = "/old/reindex"
+    path = _write_manifest(tmp_path, backend_runtime_expected=runtime_expected)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "backend.runtimeExpected.libraryActions.removeMediaPathTemplate=None "
+        "expected '/api/library/remove-media/{job_id}'"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.libraryActions.reindexPath='/old/reindex' "
+        "expected '/api/library/reindex'"
+    ) in errors
+
+
 def test_validate_manifest_rejects_missing_aggregate_journey_profile(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

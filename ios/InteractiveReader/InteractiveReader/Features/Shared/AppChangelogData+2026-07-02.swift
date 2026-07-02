@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-library-actions-runtime-expected",
+                    title: "Pipeline pins Library actions",
+                    detail: "The reusable Apple pipeline manifest checker now derives Library action runtime expectations from the backend descriptor, covering access, move, remove, refresh, enrich, upload, ISBN, and reindex paths."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-playback-state-runtime-expected",
                     title: "Pipeline pins playback state",
                     detail: "The reusable Apple pipeline manifest checker now derives playback-state runtime expectations from the backend descriptor, including reading-bed and resume routes used across Web and Apple surfaces."
