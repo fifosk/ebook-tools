@@ -1023,6 +1023,13 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert select_chunk_body.index("self.synchronizeSelectedAudioTrackForChunkHandoff(for: updatedChunk)") < select_chunk_body.index(
         "self.prepareAudio(for: updatedChunk"
     )
+    resolve_chunk_body = _function_body(
+        selection,
+        "func resolveChunk(containing sentenceNumber: Int, in context: JobContext) -> InteractiveChunk?",
+    )
+    assert "guard let start = chunk.startSentence else { return false }" in resolve_chunk_body
+    assert "guard let end = chunk.endSentence else" in resolve_chunk_body
+    assert "return sentenceNumber == start" in resolve_chunk_body
 
     requested_body = _function_body(selection, "func requestedSingleTrackMode() -> SequenceTrack?")
     assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let preferredSingleTrackMode")

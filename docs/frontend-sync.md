@@ -242,8 +242,11 @@ Follow the suggested remediations to restore parity:
   anchor as soon as the jump is requested and keep that anchor alive through
   metadata/audio settling, so the first post-jump skip cannot use stale
   end-of-chunk AVPlayer time and jump a whole 10-sentence batch. The current
-  Apple reader keeps that anchor for 12 seconds. The transcript must also use
-  the recent single-track anchor as a temporary render/selection lock until live
+  Apple reader keeps explicit jump anchors for 12 seconds and keeps natural
+  cross-batch single-track anchors for 60 seconds so slower NAS/device metadata
+  hydration cannot drop the selected lane at the batch boundary. The transcript
+  must also use the recent single-track anchor as a temporary render/selection
+  lock until live
   audio reaches the target sentence; otherwise a stale AVPlayer chunk-edge
   sample can redraw the wrong row before the next skip command. Once live
   playback reaches the anchored sentence, the anchor must be consumed/cleared so

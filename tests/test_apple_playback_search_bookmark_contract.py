@@ -362,6 +362,14 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "@State var pendingInteractiveAutoplaySentence: Int?" in library_playback
     assert "pendingInteractiveAutoplaySentence = sentence" in job_resume
     assert "pendingInteractiveAutoplaySentence = sentence" in library_resume
+    assert "let resolvedSentence = resolvedInteractiveStartSentence(sentence)" in job_resume
+    assert "let resolvedSentence = resolvedInteractiveStartSentence(sentence)" in library_resume
+    assert "func resolvedInteractiveStartSentence(_ sentence: Int?) -> Int?" in job_resume
+    assert "func resolvedInteractiveStartSentence(_ sentence: Int?) -> Int?" in library_resume
+    assert "viewModel.resolveChunk(containing: sentence, in: context) != nil" in job_resume
+    assert "viewModel.resolveChunk(containing: sentence, in: context) != nil" in library_resume
+    assert "return firstInteractiveSentenceNumber()" in job_resume
+    assert "return firstInteractiveSentenceNumber()" in library_resume
     assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in job_resume
     assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in library_resume
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_resume
@@ -374,6 +382,11 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     )
     assert "func isInteractiveAutoplaySettled(for sentence: Int) -> Bool" in job_resume
     assert "func isInteractiveAutoplaySettled(for sentence: Int) -> Bool" in library_resume
+    playback_models = _source(PLAYBACK / "JobPlaybackModels.swift")
+    assert "enum InteractiveAutoplayRetrySchedule" in playback_models
+    assert "15_000_000_000" in playback_models
+    assert "InteractiveAutoplayRetrySchedule.nanosecondDelays" in job_resume
+    assert "InteractiveAutoplayRetrySchedule.nanosecondDelays" in library_resume
     assert "resolveResumeSentenceIndex(at: viewModel.highlightingTime)" in job_resume
     assert "resolveResumeSentenceIndex(at: viewModel.highlightingTime)" in library_resume
     assert "isInteractiveAutoplaySettled(for: pendingSentence)" in job_playback
@@ -626,7 +639,7 @@ def test_interactive_sentence_skip_preserves_slider_anchor_through_fallbacks() -
     render_lock = _source(INTERACTIVE / "InteractiveSentenceJumpRenderLock.swift")
     assert "static let defaultTimeout: TimeInterval = 12.0" in render_lock
     assert "InteractiveSentenceJumpRenderLock.isExpired(" in transcript
-    assert "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0" in selection
+    assert "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 60.0" in selection
     jump_body = selection.split(
         "func jumpToSentence(_ sentenceNumber: Int, autoPlay: Bool = false)",
         1,

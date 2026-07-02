@@ -8,7 +8,7 @@ private let interactiveSelectionLogger = Logger(
     category: "InteractiveSelection"
 )
 
-private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0
+private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 60.0
 
 extension InteractivePlayerViewModel {
     func prepareResumeSingleTrack(_ track: SequenceTrack?) {
@@ -992,7 +992,10 @@ extension InteractivePlayerViewModel {
             return match
         }
         return context.chunks.first(where: { chunk in
-            guard let start = chunk.startSentence, let end = chunk.endSentence else { return false }
+            guard let start = chunk.startSentence else { return false }
+            guard let end = chunk.endSentence else {
+                return sentenceNumber == start
+            }
             return sentenceNumber >= start && sentenceNumber <= end
         })
     }

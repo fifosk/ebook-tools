@@ -193,6 +193,20 @@ make test-e2e-tvos-music-bed-sync-dry-run
 make test-e2e-tvos-music-bed-sync
 ```
 
+The iPhone, iPad, and tvOS XCUITest Make targets run `xcodebuild test`
+through `scripts/run_xcodebuild_e2e.py` under the shared simulator lock. The
+wrapper keeps the familiar last-30-lines output, cleans the profile result
+bundle and DerivedData paths between attempts, and retries once only when Xcode
+fails before app assertions with the known
+`com.apple.mobile.notification_proxy` secure-connection service error. Ordinary
+app failures, skipped journeys, and assertion failures still fail immediately.
+Reader Job and Library autoplay first validate any tracked resume/start sentence
+against the loaded job, let start-only placeholder chunks resolve their first
+sentence for metadata hydration, then retry through the shared
+`InteractiveAutoplayRetrySchedule`, which stays pending long enough for slow
+tvOS chunk metadata hydration before the Music-bed gate expects
+`reader=playing`.
+
 Latest Apple playback simulator evidence from June 30, 2026 for commit
 `ef64d866`: `make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K
 (3rd generation) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in about

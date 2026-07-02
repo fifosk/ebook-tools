@@ -358,8 +358,8 @@ if "let targetIndex = anchorIndex + step" not in explicit_anchor_body:
     fail("explicit single-track skip anchors must move one local row at a time")
 if "anchorSentenceNumber + step" in explicit_anchor_body:
     fail("explicit single-track skip anchors must not assume visible sentence numbers are contiguous")
-if "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0" not in selection_source:
-    fail("single-track model anchor lifetime must match the explicit jump display window")
+if "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 60.0" not in selection_source:
+    fail("single-track model anchor lifetime must survive slow cross-batch metadata hydration")
 if "func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int?" not in selection_source:
     fail("single-track model anchor must expose the visible sentence number for slider and skip callers")
 recent_anchor_number_body = function_body(

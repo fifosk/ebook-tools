@@ -102,7 +102,7 @@ test-changed:
 	$(PYTHON) scripts/run_changed_tests.py
 
 test-makefile-contract:
-	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py tests/scripts/test_check_web_e2e_journeys.py tests/scripts/test_write_git_checkpoint_bundle.py
+	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py tests/scripts/test_check_web_e2e_journeys.py tests/scripts/test_run_xcodebuild_e2e.py tests/scripts/test_write_git_checkpoint_bundle.py
 
 # ── Domain markers ───────────────────────────────────────────────────────
 test-audio:
@@ -778,6 +778,7 @@ E2E_FAIL_ON_SKIPPED ?=
 IOS_E2E_ONLY_TESTING ?= InteractiveReaderUITests/JourneyTests/testJourney
 TVOS_E2E_ONLY_TESTING ?= InteractiveReaderTVUITests/JourneyTests/testJourney
 E2E_SIMCTL_LOCK ?= $(shell $(PYTHON) -c 'import tempfile; print(tempfile.gettempdir() + "/apple-device-app-pipeline-simctl.lock")')
+E2E_XCODEBUILD_ATTEMPTS ?= 2
 
 # Write config + journey to profile-scoped /tmp paths.
 define WRITE_E2E_CONFIG
@@ -832,14 +833,18 @@ test-e2e-iphone:
 		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
 		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
 		E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)" \
-		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
+		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/run_xcodebuild_e2e.py \
+		--attempts "$(E2E_XCODEBUILD_ATTEMPTS)" \
+		--cleanup-path "$(IPHONE_E2E_RESULT)" \
+		--cleanup-path "$(IPHONE_DERIVED_DATA)" \
+		--label "iPhone E2E xcodebuild" -- \
+		$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
 		-destination $(IPHONE_DESTINATION) \
 		-derivedDataPath $(IPHONE_DERIVED_DATA) \
 		-resultBundlePath $(IPHONE_E2E_RESULT) \
-		-only-testing:$(IOS_E2E_ONLY_TESTING) \
-		2>&1 | tail -30 || status=$$?; \
+		-only-testing:$(IOS_E2E_ONLY_TESTING) || status=$$?; \
 	report_status=0; \
 	$(PYTHON) scripts/ios_e2e_report.py \
 		--xcresult $(IPHONE_E2E_RESULT) \
@@ -899,14 +904,18 @@ test-e2e-ipad:
 		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
 		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
 		E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)" \
-		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
+		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/run_xcodebuild_e2e.py \
+		--attempts "$(E2E_XCODEBUILD_ATTEMPTS)" \
+		--cleanup-path "$(IPAD_E2E_RESULT)" \
+		--cleanup-path "$(IPAD_DERIVED_DATA)" \
+		--label "iPad E2E xcodebuild" -- \
+		$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
 		-destination $(IPAD_DESTINATION) \
 		-derivedDataPath $(IPAD_DERIVED_DATA) \
 		-resultBundlePath $(IPAD_E2E_RESULT) \
-		-only-testing:$(IOS_E2E_ONLY_TESTING) \
-		2>&1 | tail -30 || status=$$?; \
+		-only-testing:$(IOS_E2E_ONLY_TESTING) || status=$$?; \
 	report_status=0; \
 	$(PYTHON) scripts/ios_e2e_report.py \
 		--xcresult $(IPAD_E2E_RESULT) \
@@ -973,14 +982,18 @@ test-e2e-tvos:
 		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
 		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
 		E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)" \
-		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
+		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/run_xcodebuild_e2e.py \
+		--attempts "$(E2E_XCODEBUILD_ATTEMPTS)" \
+		--cleanup-path "$(TVOS_E2E_RESULT)" \
+		--cleanup-path "$(TVOS_DERIVED_DATA)" \
+		--label "tvOS E2E xcodebuild" -- \
+		$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderTVUITests \
 		-destination $(TVOS_DESTINATION) \
 		-derivedDataPath $(TVOS_DERIVED_DATA) \
 		-resultBundlePath $(TVOS_E2E_RESULT) \
-		-only-testing:$(TVOS_E2E_ONLY_TESTING) \
-		2>&1 | tail -30 || status=$$?; \
+		-only-testing:$(TVOS_E2E_ONLY_TESTING) || status=$$?; \
 	report_status=0; \
 	$(PYTHON) scripts/ios_e2e_report.py \
 		--xcresult $(TVOS_E2E_RESULT) \

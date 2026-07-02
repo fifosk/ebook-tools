@@ -27,8 +27,9 @@ extension LibraryPlaybackView {
         playbackTime: Double? = nil,
         preferredTrack: SequenceTrack? = nil
     ) {
+        let resolvedSentence = resolvedInteractiveStartSentence(sentence)
         viewModel.prepareResumeSingleTrack(preferredTrack)
-        if let sentence, sentence > 0 {
+        if let sentence = resolvedSentence, sentence > 0 {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
             if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
@@ -86,7 +87,7 @@ extension LibraryPlaybackView {
         guard let requestID else { return }
         keyboardShortcutDebugLog("[KeyboardShortcut] Library autoplay requested sentence=\(sentence)")
         Task { @MainActor in
-            for delay in [350_000_000, 900_000_000, 1_600_000_000] as [UInt64] {
+            for delay in InteractiveAutoplayRetrySchedule.nanosecondDelays {
                 try? await Task.sleep(nanoseconds: delay)
                 guard pendingInteractiveAutoplayID == requestID else { return }
                 guard viewModel.jobContext != nil else { continue }
@@ -143,6 +144,15 @@ extension LibraryPlaybackView {
             }
         }
         return nil
+    }
+
+    func resolvedInteractiveStartSentence(_ sentence: Int?) -> Int? {
+        guard let context = viewModel.jobContext else { return sentence }
+        if let sentence, sentence > 0,
+           viewModel.resolveChunk(containing: sentence, in: context) != nil {
+            return sentence
+        }
+        return firstInteractiveSentenceNumber()
     }
 
     func startVideoPlayback(at time: Double?, presentPlayer: Bool) {

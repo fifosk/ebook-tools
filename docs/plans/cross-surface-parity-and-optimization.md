@@ -2348,7 +2348,17 @@ Every cross-surface change should pass the relevant subset:
   shared simulator-smoke dry-runs, explicit app-owned journey listing, and
   app-owned-journey dry-runs including
   `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator
-  smokes. June 30 dogfood evidence: after the stricter TV first-pause verifier
+  smokes. Apple E2E Xcode runs now go through
+  `scripts/run_xcodebuild_e2e.py`, which preserves the last-30-lines output and
+  retries once only for the known `mobile.notification_proxy` secure-connection
+  simulator service failure after cleaning stale result/DerivedData paths, so a
+  pre-app Xcode service hiccup does not masquerade as a tvOS Music-bed
+  regression. Job and Library interactive autoplay now validates tracked
+  resume/start sentences against the loaded job, lets start-only placeholder
+  chunks resolve their first sentence for metadata hydration, and shares a
+  longer bounded retry schedule, so stale Library sentence trackers or slow
+  tvOS chunk metadata hydration can still load reader audio before
+  Music-bed E2E assertions expect `reader=playing`. June 30 dogfood evidence: after the stricter TV first-pause verifier
   and documentation pins, `make verify-apple-shared-pipeline` passed through
   the reusable pipeline runner at `1010eb5fe` as part of
   `make verify-apple-living-room-candidate`. The run checked live backend

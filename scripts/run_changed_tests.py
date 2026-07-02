@@ -562,7 +562,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("modules/config", "config/", "tests/modules/config", "tests/modules/config_manager/"), ("test-config",)),
     (("modules/metadata", "tests/modules/metadata", "tests/test_library_metadata"), ("test-metadata",)),
     (("modules/search/",), ("test-backend-library-search-source-isbn",)),
-    ((".gitignore", "Makefile", "docs/developer-guide.md", "docs/plans/cross-surface-parity-and-optimization.md", "docs/testing.md", "PLAN.md", "AGENTS.md", "scripts/run_changed_tests.py", "scripts/write_git_checkpoint_bundle.py", "tests/test_makefile_pytest_contract.py", "tests/test_apple_shared_pipeline_contract.py", "tests/test_web_video_dubbing_pipeline_contract.py", "tests/scripts/test_run_changed_tests.py", "tests/scripts/test_write_git_checkpoint_bundle.py"), ("test-makefile-contract",)),
+    ((".gitignore", "Makefile", "docs/developer-guide.md", "docs/plans/cross-surface-parity-and-optimization.md", "docs/testing.md", "PLAN.md", "AGENTS.md", "scripts/run_changed_tests.py", "scripts/run_xcodebuild_e2e.py", "scripts/write_git_checkpoint_bundle.py", "tests/test_makefile_pytest_contract.py", "tests/test_apple_shared_pipeline_contract.py", "tests/test_web_video_dubbing_pipeline_contract.py", "tests/scripts/test_run_changed_tests.py", "tests/scripts/test_run_xcodebuild_e2e.py", "tests/scripts/test_write_git_checkpoint_bundle.py"), ("test-makefile-contract",)),
 )
 
 

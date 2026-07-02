@@ -25,6 +25,7 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert "E2E_START_BROWSE_SECTION ?=" in makefile
     assert "E2E_ALLOW_RESTORED_SESSION ?=" in makefile
     assert "E2E_FAIL_ON_SKIPPED ?=" in makefile
+    assert "E2E_XCODEBUILD_ATTEMPTS ?= 2" in makefile
     assert '$(PYTHON) scripts/write_apple_e2e_config.py \\' in makefile
     assert '--env-file "$(E2E_ENV_FILE)"' in makefile
     assert '--profile "$(E2E_PROFILE)"' in makefile
@@ -76,7 +77,12 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert 'E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)"' in makefile
     assert 'E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)"' in makefile
     assert 'E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)"' in makefile
+    assert '$(PYTHON) scripts/run_xcodebuild_e2e.py \\' in makefile
+    assert '--attempts "$(E2E_XCODEBUILD_ATTEMPTS)"' in makefile
+    assert '--cleanup-path "$(TVOS_E2E_RESULT)"' in makefile
+    assert '--label "tvOS E2E xcodebuild" -- \\' in makefile
     assert '$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \\' in makefile
+    assert "2>&1 | tail -30" not in makefile
     assert "$(if $(strip $(E2E_FAIL_ON_SKIPPED)),--fail-on-skipped)" in makefile
     assert "report_status=0" in makefile
     assert "if [ $$status -eq 0 ] && [ $$report_status -ne 0 ]; then status=$$report_status; fi" in makefile
@@ -98,6 +104,11 @@ def test_testing_docs_describe_e2e_env_file_override() -> None:
     assert "The journey re-checks\n`sessionStable=true` and `sessionLabel=mixing` after that probe" in docs
     assert "`E2E_ALLOW_RESTORED_SESSION=1` and `E2E_FAIL_ON_SKIPPED=1`" in docs
     assert "skipped XCUITest\ncases fail the Make target" in docs
+    assert "scripts/run_xcodebuild_e2e.py" in docs
+    assert "retries once only when Xcode\nfails before app assertions" in docs
+    assert "com.apple.mobile.notification_proxy" in docs
+    assert "InteractiveAutoplayRetrySchedule" in docs
+    assert "slow\ntvOS chunk metadata hydration" in docs
     assert "profile whose inferred platform is not\nincluded in the selected journey's top-level `platforms` list" in docs
     assert "same scope compatibility check\nagainst the Makefile's Apple E2E profile-to-journey wiring" in docs
     assert "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json" in docs

@@ -6,6 +6,21 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-anchor-slow-hydration",
+                    title: "Single-track batches wait longer",
+                    detail: "Apple reader original-only and translation-only end-of-batch anchors now survive slower NAS and device metadata hydration for up to 60 seconds, so the selected audio lane does not reset before the next batch becomes renderable."
+                ),
+                AppChangelogEntry(
+                    id: "apple-interactive-autoplay-longer-retry",
+                    title: "Autoplay starts are sturdier",
+                    detail: "Apple reader Job and Library autoplay now validate tracked resume/start sentences against the loaded job, allow start-only placeholder chunks to resolve their first sentence for metadata hydration, and share a longer bounded retry schedule, reducing stale-start autoplay stalls while tvOS Music-bed E2E remains under active hardening."
+                ),
+                AppChangelogEntry(
+                    id: "apple-e2e-xcode-service-retry",
+                    title: "TV simulator tests recover once",
+                    detail: "Apple E2E Xcode runs now go through a narrow retry wrapper that cleans stale result and DerivedData paths and retries once only for the known mobile.notification_proxy secure-connection simulator service failure, keeping tvOS Music-bed automation from stopping before app assertions."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-loaded-lane-priority-eof",
                     title: "Single-track batch ends hold",
                     detail: "Apple reader original-only and translation-only playback now lets the single audio lane that was actually loaded beat stale preferred state at sentence-batch EOF, so end-of-batch handoffs cannot reset rendering away from the selected track."
