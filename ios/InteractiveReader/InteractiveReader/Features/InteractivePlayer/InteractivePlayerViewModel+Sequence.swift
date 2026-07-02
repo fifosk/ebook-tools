@@ -440,7 +440,13 @@ extension InteractivePlayerViewModel {
     ) {
         guard transitionToken == currentTransitionToken else { return }
         guard sequenceController.isTransitioning else { return }
-        sequenceController.endTransition(expectedTime: expectedTime)
+        let stableExpectedTime: Double?
+        if let expectedTime, expectedTime >= 0, expectedTime <= 0.1 {
+            stableExpectedTime = nil
+        } else {
+            stableExpectedTime = expectedTime
+        }
+        sequenceController.endTransition(expectedTime: stableExpectedTime)
         readyCancellable?.cancel()
         readyCancellable = nil
         audioCoordinator.restoreVolume()

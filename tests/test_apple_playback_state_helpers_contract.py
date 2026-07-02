@@ -855,7 +855,10 @@ def test_initial_sequence_seek_has_startup_fallback_without_weakening_resume_see
     assert "guard self.sequenceController.isTransitioning else { return }" in fallback_body
     assert "initial seek completion fallback" in fallback_body
     assert "guard sequenceController.isTransitioning else { return }" in finish_body
-    assert "sequenceController.endTransition(expectedTime: expectedTime)" in finish_body
+    assert "let stableExpectedTime: Double?" in finish_body
+    assert "expectedTime >= 0, expectedTime <= 0.1" in finish_body
+    assert "stableExpectedTime = nil" in finish_body
+    assert "sequenceController.endTransition(expectedTime: stableExpectedTime)" in finish_body
 
 
 def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
