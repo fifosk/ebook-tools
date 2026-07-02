@@ -92,7 +92,14 @@ Follow the suggested remediations to restore parity:
   Translation visible text tracks, lifecycle setup should prefer that custom
   multi-track selection before restoring stale durable single-track state, so
   activating Translation cannot be undone by the next metadata or
-  track-availability refresh.
+  track-availability refresh. Header audio-role availability should treat any
+  playable combined option as exposing both Original and Translation, even when
+  a chunk also has only one dedicated single-track option, so Translation does
+  not disappear from mixed legacy/new batch manifests.
+  Single-track resume should prefer the AVPlayer's current local clock before
+  falling back to rendered highlight time, preserving the last spoken word when
+  lookup bubbles or render refreshes temporarily move the displayed highlight
+  back to the sentence start.
   If the manager and selected picker id both briefly reset to sequence/combined
   at a batch boundary, the single audio lane that was actually loaded is still
   authoritative for Original-only or Translation-only playback while the sequence

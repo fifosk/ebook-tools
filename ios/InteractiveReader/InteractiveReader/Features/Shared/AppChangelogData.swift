@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
-            version: "2026.07.02.002",
+            version: "2026.07.02.003",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-combined-translation-role-resume-clock",
+                    title: "Translation and resume are steadier",
+                    detail: "Apple reader header roles now expose Translation whenever combined audio carries that stream, and single-track resume uses the exact player clock before falling back to rendered highlight time so playback can continue from the last spoken position."
+                ),
                 AppChangelogEntry(
                     id: "apple-custom-multi-track-toggle-restore",
                     title: "Track toggles stay selected",

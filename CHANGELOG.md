@@ -4,8 +4,9 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-02
 
-### 2026.07.02.002
+### 2026.07.02.003
 
+- Apple reader header roles now expose Translation whenever combined audio contains that stream, even if the chunk also has a dedicated Original option, and single-track resume now uses the exact player clock before falling back to rendered highlight time so playback can continue from the last spoken position.
 - Apple reader lifecycle refreshes now honor explicit Original + Translation visible-track selections before restoring stale single-track state, so turning Translation back on on iPad remains active across metadata and sentence-batch updates.
 - Apple reader sentence-batch lifecycle restores now read the loaded/preferred/durable Original-only or Translation-only lane before defaulting visible/audio tracks, so end-of-batch chunk refreshes cannot reset selection to All and drift rendering from narration.
 - Web Library flat-table rendering now lives in a focused `LibraryFlatTable` component with shared language-label rendering and focused coverage for layout headers, resume/status/action composition, and row permission gating.
@@ -54,7 +55,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Backend Project Gutenberg acquisition discovery now shares focused tested helpers for Gutendex search parameters, EPUB/HTML URL selection, and contributor normalization used by Web and Apple Create book discovery.
 - Backend local/manual/NAS acquisition discovery now shares focused tested helpers for source-relative paths, display titles, zero-byte EPUB filtering, and bounded newest-first manual source ordering used by Web and Apple Create pickers.
 - Backend acquisition discovery now shares focused tested value-normalization helpers for safe identifiers, string/sequence coercion, and integer parsing across public-catalog and video providers.
-- Advanced visible Apple app versioning to `v2026.07.02.002`.
+- Advanced visible Apple app versioning to `v2026.07.02.003`.
 
 ## 2026-07-01
 

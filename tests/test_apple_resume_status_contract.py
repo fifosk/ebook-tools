@@ -225,6 +225,15 @@ def test_interactive_resume_records_sentence_playback_time() -> None:
     assert "playbackTrack: currentInteractiveResumePlaybackTrack()" in job_resume_source
     assert "if viewModel.isSequenceModeActive {\n            return nil\n        }" in job_resume_source
     assert "if viewModel.isSequenceModeActive {\n            return nil\n        }" in library_resume_source
+    for source in (job_resume_source, library_resume_source):
+        resume_time_body = source.split("func currentInteractiveResumePlaybackTime() -> Double?", 1)[1].split(
+            "\n    func currentInteractiveResumePlaybackTrack()",
+            1,
+        )[0]
+        assert "let playerTime = viewModel.audioCoordinator.currentTime" in resume_time_body
+        assert "if !viewModel.isSequenceModeActive, playerTime.isFinite, playerTime >= 0" in resume_time_body
+        assert "return playerTime" in resume_time_body
+        assert resume_time_body.index("return playerTime") < resume_time_body.index("return highlightTime")
 
 
 def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() -> None:

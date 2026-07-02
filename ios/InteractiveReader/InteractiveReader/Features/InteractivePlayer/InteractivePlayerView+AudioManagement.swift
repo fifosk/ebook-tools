@@ -193,8 +193,8 @@ extension InteractivePlayerView {
         if kinds.contains(.translation) {
             roles.insert(.translation)
         }
-        if roles.isEmpty, kinds.contains(.combined) {
-            roles = [.original, .translation]
+        if chunk.audioOptions.contains(where: { $0.kind == .combined && !$0.streamURLs.isEmpty }) {
+            roles.formUnion([.original, .translation])
         }
         return roles
     }

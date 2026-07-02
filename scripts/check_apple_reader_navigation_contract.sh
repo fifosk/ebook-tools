@@ -448,6 +448,16 @@ if single_track_guard_index > playback_time_body.find("usesCombinedQueue(for: ch
 audio_management_source = read(
     root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+AudioManagement.swift"
 )
+available_audio_roles_body = function_body(
+    audio_management_source,
+    "func availableAudioRoles(for chunk: InteractiveChunk) -> Set<LanguageFlagRole>",
+)
+if "roles.formUnion([.original, .translation])" not in available_audio_roles_body:
+    fail("combined audio options must expose both Original and Translation header roles")
+if ".combined && !$0.streamURLs.isEmpty" not in available_audio_roles_body:
+    fail("combined-backed role availability must require a playable stream list")
+if "if roles.isEmpty, kinds.contains(.combined)" in available_audio_roles_body:
+    fail("combined-backed Translation must not disappear when a dedicated Original option also exists")
 active_audio_roles_body = function_body(
     audio_management_source,
     "func activeAudioRoles(\n        for chunk: InteractiveChunk,\n        availableRoles: Set<LanguageFlagRole>\n    ) -> Set<LanguageFlagRole>",

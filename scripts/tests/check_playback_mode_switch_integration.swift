@@ -1409,6 +1409,21 @@ private func activeAudioRolesForIntegration(
     }
 }
 
+private func availableAudioRolesForIntegration(_ chunk: InteractiveChunk) -> Set<LanguageFlagRole> {
+    let kinds = Set(chunk.audioOptions.map(\.kind))
+    var roles = Set<LanguageFlagRole>()
+    if kinds.contains(.original) {
+        roles.insert(.original)
+    }
+    if kinds.contains(.translation) {
+        roles.insert(.translation)
+    }
+    if chunk.audioOptions.contains(where: { $0.kind == .combined && !$0.streamURLs.isEmpty }) {
+        roles.formUnion([.original, .translation])
+    }
+    return roles
+}
+
 @MainActor
 private func runChecks() {
     let originalURL = URL(string: "https://example.invalid/original.m4a")!
@@ -1427,6 +1442,20 @@ private func runChecks() {
             audioOption("original", kind: .original, urls: [originalURL]),
             audioOption("translation", kind: .translation, urls: [translationURL])
         ]
+    )
+    let combinedBackedRoleChunk = InteractiveChunk(
+        id: "chapter-roles",
+        startSentence: nil,
+        sentences: [.init(id: 0, displayIndex: 1)],
+        audioOptions: [
+            audioOption("combined-roles", kind: .combined, urls: [originalURL, translationURL]),
+            audioOption("original-roles", kind: .original, urls: [originalURL])
+        ]
+    )
+    requireEqual(
+        availableAudioRolesForIntegration(combinedBackedRoleChunk),
+        [.original, .translation],
+        "Header audio role availability should expose Translation when a combined option carries the translation stream"
     )
 
     let sequenceController = SequencePlaybackController(isEnabled: true, currentSentenceIndex: 14)

@@ -567,6 +567,10 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
         "func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind?",
         1,
     )[1].split("\n    func availableAudioRoles", 1)[0]
+    available_roles_body = audio_management.split(
+        "func availableAudioRoles(for chunk: InteractiveChunk) -> Set<LanguageFlagRole>",
+        1,
+    )[1].split("\n    func activeAudioRoles", 1)[0]
     active_roles_body = audio_management.split(
         "func activeAudioRoles(\n        for chunk: InteractiveChunk,",
         1,
@@ -579,6 +583,9 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "return .translation" in selected_kind_body
     assert "case .sequence:" in selected_kind_body
     assert "return .combined" in selected_kind_body
+    assert "roles.formUnion([.original, .translation])" in available_roles_body
+    assert ".combined && !$0.streamURLs.isEmpty" in available_roles_body
+    assert "if roles.isEmpty, kinds.contains(.combined)" not in available_roles_body
     assert "switch audioModeManager.currentMode" in active_roles_body
     assert "case .singleTrack(.translation):" in active_roles_body
     assert "return [.translation]" in active_roles_body
