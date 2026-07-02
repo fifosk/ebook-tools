@@ -335,6 +335,8 @@ def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> No
     assert "Translation-only rendering should stay on the sought sentence when jobs provide start gates without end gates" in swift_check
     assert "stretchedTranslationSentences" in swift_check
     assert "Translation-only word highlighting should use the timeline runtime" in swift_check
+    assert "preScaledV2Sentences" in swift_check
+    assert "Timing v2 live highlighting should preserve backend-scaled translation reveal times during playback" in swift_check
     active_display = _source("TextPlayerTimeline+ActiveDisplay.swift")
     active_sentence_body = _function_body(
         active_display,

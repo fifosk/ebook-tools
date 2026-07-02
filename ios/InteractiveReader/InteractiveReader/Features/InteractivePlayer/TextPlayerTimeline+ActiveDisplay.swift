@@ -198,7 +198,7 @@ extension TextPlayerTimeline {
         let usesAbsoluteTimeline = usesAbsoluteTiming(
             sentences: sentences,
             activeTimingTrack: activeTimingTrack
-        )
+        ) || timingVersion == "2"
         if let timelineSentences = buildTimelineSentences(
             sentences: sentences,
             activeTimingTrack: activeTimingTrack,
@@ -442,7 +442,7 @@ extension TextPlayerTimeline {
         let usesAbsoluteTimeline = usesAbsoluteTiming(
             sentences: sentences,
             activeTimingTrack: activeTimingTrack
-        )
+        ) || timingVersion == "2"
         if let timelineSentences = buildTimelineSentences(
             sentences: sentences,
             activeTimingTrack: activeTimingTrack,

@@ -378,6 +378,60 @@ private func runChecks() {
         "Translation-only word highlighting should use the timeline runtime while keeping absolute gate time after slider jumps even when AVPlayer duration disagrees"
     )
 
+    let preScaledV2Sentences = [
+        sentence(
+            id: 60,
+            displayIndex: 600,
+            originalTokens: ["first", "source"],
+            transliterationTokens: [],
+            translationTokens: ["eerste", "zin"],
+            timingTokens: [
+                token("eerste", start: 0.00, end: 0.80),
+                token("zin", start: 2.50, end: 5.00)
+            ],
+            totalDuration: 5.00
+        ),
+        sentence(
+            id: 61,
+            displayIndex: 601,
+            originalTokens: ["second", "source"],
+            transliterationTokens: [],
+            translationTokens: ["tweede", "lange", "zin"],
+            timingTokens: [
+                token("tweede", start: 5.00, end: 5.80),
+                token("lange", start: 7.50, end: 8.20),
+                token("zin", start: 9.00, end: 10.00)
+            ],
+            totalDuration: 5.00
+        )
+    ]
+    requireEqual(
+        TextPlayerTimeline.resolveActiveIndex(
+            sentences: preScaledV2Sentences,
+            activeTimingTrack: .translation,
+            chunkTime: 6.00,
+            audioDuration: 20.00,
+            useCombinedPhases: false,
+            timingVersion: "2"
+        ),
+        1,
+        "Timing v2 live active index should not stretch already scaled sentence timing to AVPlayer duration"
+    )
+    requireEqual(
+        snapshot(
+            TextPlayerTimeline.buildActiveSentenceDisplay(
+                sentences: preScaledV2Sentences,
+                activeTimingTrack: .translation,
+                chunkTime: 6.00,
+                audioDuration: 20.00,
+                useCombinedPhases: false,
+                timingVersion: "2"
+            )!
+        ),
+        "sentence-1#1#601#active#original:0/2@-{}|translation:1/3@0{5.00,7.50,9.00}",
+        "Timing v2 live highlighting should preserve backend-scaled translation reveal times during playback"
+    )
+
     let selectedFallback = TextPlayerTimeline.selectActiveSentence(
         from: TextPlayerTimeline.buildStaticDisplay(sentences: sentences, activeIndex: nil)
     )

@@ -206,7 +206,7 @@ enum TextPlayerTimeline {
             var translationRevealIsAbsolute = false
             // Use actual translation timing tokens when on the translation track
             // and the sentence has word-level timing data (similar to originalTimingTokens handling)
-            if useAbsoluteTranslationTiming {
+            if useAbsoluteTranslationTiming || (!isOriginalTrack && skipScaling && !sentence.timingTokens.isEmpty) {
                 translationRevealTimes = sentence.timingTokens.map { $0.startTime }
                 translationRevealIsAbsolute = true
                 // Ensure we have the right number of reveal times
