@@ -370,6 +370,26 @@ describe('jobs API client', () => {
         providers: [
           acquisitionProvider({ policy_notes: [42] })
         ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
+        providers: [
+          acquisitionProvider({ status: 'temporarily_available' })
+        ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
+        providers: [
+          acquisitionProvider({ media_kinds: ['book', 'audio'] })
+        ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
+        providers: [
+          acquisitionProvider({ capabilities: ['import_local', 'scrape_browser'] })
+        ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
+        providers: [
+          acquisitionProvider({ rights: ['subscription'] })
+        ]
       })));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -391,6 +411,18 @@ describe('jobs API client', () => {
     await expect(fetchAcquisitionProviders()).rejects.toThrow(
       'Invalid acquisition provider response: missing policy_notes.'
     );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: invalid status.'
+    );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: invalid media_kinds.'
+    );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: invalid capabilities.'
+    );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: invalid rights.'
+    );
   });
 
   it('rejects malformed acquisition discovery payloads', async () => {
@@ -411,6 +443,21 @@ describe('jobs API client', () => {
         candidates: [
           acquisitionCandidate({ subtitles: [{ path: '/subs.srt' }] })
         ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionDiscoveryResponse({
+        candidates: [
+          acquisitionCandidate({ media_kind: 'audio' })
+        ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionDiscoveryResponse({
+        candidates: [
+          acquisitionCandidate({ rights: 'subscription' })
+        ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionDiscoveryResponse({
+        candidates: [
+          acquisitionCandidate({ capabilities: ['import_local', 'scrape_browser'] })
+        ]
       })));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -428,6 +475,15 @@ describe('jobs API client', () => {
     );
     await expect(discoverAcquisitionCandidates({ mediaKind: 'book' })).rejects.toThrow(
       'Invalid acquisition discovery response: missing filename.'
+    );
+    await expect(discoverAcquisitionCandidates({ mediaKind: 'book' })).rejects.toThrow(
+      'Invalid acquisition discovery response: invalid media_kind.'
+    );
+    await expect(discoverAcquisitionCandidates({ mediaKind: 'book' })).rejects.toThrow(
+      'Invalid acquisition discovery response: invalid rights.'
+    );
+    await expect(discoverAcquisitionCandidates({ mediaKind: 'book' })).rejects.toThrow(
+      'Invalid acquisition discovery response: invalid capabilities.'
     );
   });
 

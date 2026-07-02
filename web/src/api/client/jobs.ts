@@ -45,6 +45,24 @@ import {
   WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT
 } from './runtimeContract';
 
+const ACQUISITION_MEDIA_KINDS = new Set(['book', 'video']);
+const ACQUISITION_CAPABILITIES = new Set([
+  'search',
+  'metadata',
+  'acquire',
+  'poll',
+  'extract_subtitles',
+  'import_local'
+]);
+const ACQUISITION_RIGHTS = new Set([
+  'public_domain',
+  'open_license',
+  'user_provided',
+  'unknown',
+  'restricted'
+]);
+const ACQUISITION_PROVIDER_STATUSES = new Set(['available', 'not_configured', 'planned']);
+
 export const DEFAULT_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesDefaultLimit;
 export const MIN_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesMinLimit;
 export const MAX_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesMaxLimit;
@@ -414,6 +432,10 @@ function assertAcquisitionProviderListResponse(
     assertStringArray(provider.media_kinds, 'media_kinds');
     assertStringArray(provider.capabilities, 'capabilities');
     assertStringArray(provider.rights, 'rights');
+    assertAllowedString(provider.status, ACQUISITION_PROVIDER_STATUSES, 'status');
+    assertAllowedStringArray(provider.media_kinds, ACQUISITION_MEDIA_KINDS, 'media_kinds');
+    assertAllowedStringArray(provider.capabilities, ACQUISITION_CAPABILITIES, 'capabilities');
+    assertAllowedStringArray(provider.rights, ACQUISITION_RIGHTS, 'rights');
     if (!Array.isArray(provider.discovery_media_kinds)) {
       throw new Error('Invalid acquisition provider response: missing discovery_media_kinds.');
     }
@@ -422,6 +444,16 @@ function assertAcquisitionProviderListResponse(
     }
     assertStringArray(provider.discovery_media_kinds, 'discovery_media_kinds');
     assertStringArray(provider.default_eligible_media_kinds, 'default_eligible_media_kinds');
+    assertAllowedStringArray(
+      provider.discovery_media_kinds,
+      ACQUISITION_MEDIA_KINDS,
+      'discovery_media_kinds'
+    );
+    assertAllowedStringArray(
+      provider.default_eligible_media_kinds,
+      ACQUISITION_MEDIA_KINDS,
+      'default_eligible_media_kinds'
+    );
     if (
       provider.source_path !== undefined &&
       provider.source_path !== null &&
@@ -476,6 +508,31 @@ function assertStringArrayMap(value: Record<string, unknown>, key: string): void
     )
   ) {
     throw new Error(`Invalid acquisition provider response: invalid ${key}.`);
+  }
+}
+
+function assertAllowedString(
+  value: unknown,
+  allowed: Set<string>,
+  key: string,
+  responseKind = 'provider'
+): void {
+  if (typeof value !== 'string' || !allowed.has(value)) {
+    throw new Error(`Invalid acquisition ${responseKind} response: invalid ${key}.`);
+  }
+}
+
+function assertAllowedStringArray(
+  value: unknown,
+  allowed: Set<string>,
+  key: string,
+  responseKind = 'provider'
+): void {
+  if (
+    !Array.isArray(value) ||
+    value.some((entry) => typeof entry !== 'string' || !allowed.has(entry))
+  ) {
+    throw new Error(`Invalid acquisition ${responseKind} response: invalid ${key}.`);
   }
 }
 
@@ -542,6 +599,14 @@ function assertAcquisitionDiscoveryResponse(
     assertDiscoveryStringField(candidate, 'rights');
     assertDiscoveryStringField(candidate, 'candidate_token');
     assertDiscoveryStringArray(candidate.capabilities, 'capabilities');
+    assertAllowedString(candidate.media_kind, ACQUISITION_MEDIA_KINDS, 'media_kind', 'discovery');
+    assertAllowedString(candidate.rights, ACQUISITION_RIGHTS, 'rights', 'discovery');
+    assertAllowedStringArray(
+      candidate.capabilities,
+      ACQUISITION_CAPABILITIES,
+      'capabilities',
+      'discovery'
+    );
     assertDiscoveryStringArray(candidate.contributors, 'contributors');
     assertDiscoverySubtitleHints(candidate.subtitles);
     if (!isRecord(candidate.metadata)) {

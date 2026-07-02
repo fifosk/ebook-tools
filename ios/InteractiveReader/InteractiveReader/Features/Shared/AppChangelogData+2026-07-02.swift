@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "web-acquisition-enum-contracts",
+                    title: "Discovery values stay valid",
+                    detail: "Web Create and Video Dubbing now reject acquisition provider and candidate payloads with unknown media kinds, rights, capabilities, or provider status values before source pickers render them."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-visible-lane-repair",
                     title: "Single audio keeps both transcripts",
                     detail: "Apple reader lifecycle refreshes now repair restored Original-only or Translation-only audio without carrying forward stale text-track hiding, so the narrated lane can stay single-track while both Original and Translation remain visible and re-enableable."
