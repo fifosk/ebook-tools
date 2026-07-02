@@ -231,7 +231,10 @@ Follow the suggested remediations to restore parity:
   when present, but it must also enter the same sentence-plan path for chunks
   that expose separate Original and Translation audio lanes without a combined
   option; otherwise startup can play the first selected Original file and stop
-  instead of alternating sentence tracks. Resume restores must apply the saved
+  instead of alternating sentence tracks. Role-set selection from the Apple
+  header or menus must resolve Original + Translation to sequence mode before
+  selecting a fallback dedicated audio option, because an Original option id is
+  not itself Original-only intent when both roles are active. Resume restores must apply the saved
   single-track mode before
   `jumpToTime` / `jumpToSentence`, and `InteractivePlayerView` must consume the
   pending resume track before defaulting visible tracks back to All; sequence

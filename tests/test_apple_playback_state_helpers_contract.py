@@ -230,6 +230,7 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Header role pills should disable Original and keep Translation active" in swift_check
     assert "Header role pills should restore both roles when tapping the inactive Original role" in swift_check
     assert "Header role pills should disable Translation and keep Original active" in swift_check
+    assert "Original + Translation role intent should resolve to sequence mode even without a combined audio option" in swift_check
     assert "sequenceTrackURLsForIntegration(" in swift_check
     assert "Combined-only sequence setup should derive the Original controller lane from the first stream URL" in swift_check
     assert "Combined-only sequence setup should derive the Translation controller lane from the second stream URL" in swift_check

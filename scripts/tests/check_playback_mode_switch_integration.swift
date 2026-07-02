@@ -1683,6 +1683,30 @@ private func runChecks() {
     manager.onModeChange = { mode, sentenceIndex in
         modeEvents.append((mode, sentenceIndex))
     }
+    requireEqual(
+        AudioModeManager.modeForPreferredTracks(
+            [.original, .translation],
+            availableTracks: [.original, .translation]
+        ),
+        .sequence,
+        "Original + Translation role intent should resolve to sequence mode even without a combined audio option"
+    )
+    requireEqual(
+        AudioModeManager.modeForPreferredTracks(
+            [.translation],
+            availableTracks: [.original, .translation]
+        ),
+        .singleTrack(.translation),
+        "Translation role intent should resolve to translation-only mode"
+    )
+    requireEqual(
+        AudioModeManager.modeForPreferredTracks(
+            [],
+            availableTracks: [.original, .translation]
+        ),
+        .sequence,
+        "Empty role intent should fall back to all available tracks"
+    )
 
     let sequenceProvider = SentencePositionProvider.from(
         sequenceController: sequenceController,

@@ -114,6 +114,27 @@ final class AudioModeManager: ObservableObject {
         return (original, translation)
     }
 
+    static func modeForPreferredTracks(
+        _ preferredTracks: Set<SequenceTrack>,
+        availableTracks: Set<SequenceTrack>
+    ) -> AudioMode? {
+        guard !availableTracks.isEmpty else { return nil }
+        let desiredTracks = preferredTracks.intersection(availableTracks)
+        let resolvedTracks = desiredTracks.isEmpty ? availableTracks : desiredTracks
+        let wantsOriginal = resolvedTracks.contains(.original)
+        let wantsTranslation = resolvedTracks.contains(.translation)
+        if wantsOriginal && wantsTranslation {
+            return .sequence
+        }
+        if wantsOriginal {
+            return .singleTrack(.original)
+        }
+        if wantsTranslation {
+            return .singleTrack(.translation)
+        }
+        return nil
+    }
+
     private func applyTrackState(
         original: Bool,
         translation: Bool,

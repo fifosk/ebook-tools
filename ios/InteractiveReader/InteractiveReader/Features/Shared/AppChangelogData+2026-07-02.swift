@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-dedicated-pair-role-sequence",
+                    title: "Dedicated pairs stay sequenced",
+                    detail: "Apple reader header/menu role selection now resolves Original + Translation intent to sequence playback before choosing a fallback dedicated audio file, so jobs without a combined option do not start Original-only and stop after the first sentence."
+                ),
+                AppChangelogEntry(
                     id: "apple-combined-only-sequence-controller",
                     title: "Combined-only playback sequences correctly",
                     detail: "Apple reader sequence setup now splits two-stream combined audio into Original and Translation controller lanes when dedicated track options are missing, keeping first-sentence playback, highlighting, and follow-up handoff under the same sequence path."

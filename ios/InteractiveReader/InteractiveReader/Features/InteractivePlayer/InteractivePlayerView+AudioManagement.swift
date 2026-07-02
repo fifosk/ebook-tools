@@ -289,6 +289,16 @@ extension InteractivePlayerView {
         preferredRoles: Set<LanguageFlagRole>,
         availableRoles: Set<LanguageFlagRole>
     ) {
+        let availableAudioTracks = Set(availableSequenceTracks(from: availableRoles))
+        let preferredAudioTracks = Set(availableSequenceTracks(from: preferredRoles))
+        if let mode = AudioModeManager.modeForPreferredTracks(
+            preferredAudioTracks,
+            availableTracks: availableAudioTracks
+        ) {
+            selectAudioMode(mode, for: chunk)
+            return
+        }
+
         let options = chunk.audioOptions
         guard !options.isEmpty else { return }
         let combinedOption = options.first(where: { $0.kind == .combined })
