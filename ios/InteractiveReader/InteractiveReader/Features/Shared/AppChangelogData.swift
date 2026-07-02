@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.012",
             entries: [
                 AppChangelogEntry(
+                    id: "web-video-dubbing-page-state-hook",
+                    title: "Video Dubbing shell is focused",
+                    detail: "Web Video Dubbing tab state, status notices, template handoff extras, and initial NAS refresh now live in a focused page-state hook with coverage, keeping the page coordinator closer to Apple YouTube Dub parity checks."
+                ),
+                AppChangelogEntry(
                     id: "apple-header-pill-live-role-toggle",
                     title: "Track pills keep live state",
                     detail: "Apple reader header language pill taps now recompute live active audio roles before changing lanes, preserving Original-only, Translation-only, and Original + Translation modes after resume or chunk hydration updates."

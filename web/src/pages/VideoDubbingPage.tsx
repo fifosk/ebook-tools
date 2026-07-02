@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback } from 'react';
 import type {
   CreationTemplateEntry,
   JobParameterSnapshot
@@ -13,7 +13,6 @@ import VideoDubbingFeedbackPanel from './video-dubbing/VideoDubbingFeedbackPanel
 import VideoDubbingTabs from './video-dubbing/VideoDubbingTabs';
 import VideoDubbingTuningPanel from './video-dubbing/VideoDubbingTuningPanel';
 import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
-import type { VideoDubbingTab } from './video-dubbing/videoDubbingTypes';
 import { useVideoDubbingSelectionState } from './video-dubbing/useVideoDubbingSelectionState';
 import { useVideoDubbingMetadata } from './video-dubbing/useVideoDubbingMetadata';
 import { useVideoDubbingLanguageState } from './video-dubbing/useVideoDubbingLanguageState';
@@ -30,7 +29,10 @@ import { useVideoDubbingJobActions } from './video-dubbing/useVideoDubbingJobAct
 import { useVideoDubbingCreationTemplate } from './video-dubbing/useVideoDubbingCreationTemplate';
 import { useVideoDubbingSourceSelection } from './video-dubbing/useVideoDubbingSourceSelection';
 import { useVideoDubbingResolvedSelection } from './video-dubbing/useVideoDubbingResolvedSelection';
-import { buildHandoffPayloadExtras } from '../utils/creationTemplatePayloadExtras';
+import {
+  useVideoDubbingInitialRefresh,
+  useVideoDubbingPageState
+} from './video-dubbing/useVideoDubbingPageState';
 import styles from './VideoDubbingPage.module.css';
 
 type Props = {
@@ -76,11 +78,13 @@ export default function VideoDubbingPage({
     setSelectedVideoDiscoveryTemplateState,
     clearSelectedVideoDiscoveryTemplate
   } = useVideoDubbingSelectionState();
-  const [activeTab, setActiveTab] = useState<VideoDubbingTab>('videos');
-  const templatePayloadExtras = useMemo(
-    () => buildHandoffPayloadExtras(creationTemplateHandoffSource),
-    [creationTemplateHandoffSource]
-  );
+  const {
+    activeTab,
+    setActiveTab,
+    statusMessage,
+    setStatusMessage,
+    templatePayloadExtras
+  } = useVideoDubbingPageState({ creationTemplateHandoffSource });
 
   const {
     startOffset,
@@ -125,7 +129,6 @@ export default function VideoDubbingPage({
     modelError
   } = useVideoDubbingModelState();
 
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const {
     acquisitionProviderError,
     videoDiscoveryProvider,
@@ -274,9 +277,7 @@ export default function VideoDubbingPage({
     ensureTargetLanguage
   });
 
-  useEffect(() => {
-    void handleRefresh();
-  }, []);
+  useVideoDubbingInitialRefresh(handleRefresh);
 
   const handleDiscoveryProviderChange = useCallback((provider: string) => {
     setDownloadStationCandidate(null);

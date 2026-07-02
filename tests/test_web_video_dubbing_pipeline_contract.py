@@ -681,13 +681,18 @@ def test_apple_web_create_handoff_source_reaches_template_payloads() -> None:
     narrate_book_page = (ROOT / "web" / "src" / "pages" / "NewImmersiveBookPage.tsx").read_text(encoding="utf-8")
     subtitle_page = (ROOT / "web" / "src" / "pages" / "SubtitleToolPage.tsx").read_text(encoding="utf-8")
     video_page = (ROOT / "web" / "src" / "pages" / "VideoDubbingPage.tsx").read_text(encoding="utf-8")
+    video_page_state = (
+        ROOT / "web" / "src" / "pages" / "video-dubbing" / "useVideoDubbingPageState.ts"
+    ).read_text(encoding="utf-8")
     extras = (ROOT / "web" / "src" / "utils" / "creationTemplatePayloadExtras.ts").read_text(encoding="utf-8")
 
     assert "parseDeepLinkedHandoffSource(window.location)" in app_source
     assert "creationTemplateHandoffSource={deepLinkedHandoffSource}" in app_source
     assert main_content.count("creationTemplateHandoffSource={creationTemplateHandoffSource}") >= 4
-    for source in (generated_book_page, narrate_book_page, subtitle_page, video_page):
+    for source in (generated_book_page, narrate_book_page, subtitle_page):
         assert "buildHandoffPayloadExtras(creationTemplateHandoffSource)" in source
+    assert "useVideoDubbingPageState({ creationTemplateHandoffSource })" in video_page
+    assert "buildHandoffPayloadExtras(creationTemplateHandoffSource)" in video_page_state
     assert "HANDOFF_SOURCE_PAYLOAD_FIELD = 'handoff_source'" in extras
     assert "RESERVED_TEMPLATE_PAYLOAD_KEYS" in extras
 

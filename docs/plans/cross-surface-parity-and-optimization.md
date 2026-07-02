@@ -84,7 +84,7 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/library/useLibraryFocusQuery.ts` with focused hook coverage
   for debounced search, consumed focus requests, immediate focus queries, and
   matched-item cleanup.
-- `web/src/pages/VideoDubbingPage.tsx` - 574 lines. Status: inline
+- `web/src/pages/VideoDubbingPage.tsx` - 587 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option
   building, NAS refresh video/subtitle selection, YouTube Dub request payload
@@ -148,6 +148,11 @@ Large Web UI hotspots to split before redesign work:
   in `web/src/pages/video-dubbing/VideoDownloadedListPanel.tsx` with rendered
   coverage and changed-test routing, leaving `VideoSourcePanel` as the source
   composition shell.
+  Page-shell tab state, status notices, creation-template handoff extras, and
+  the mount-only NAS refresh now live in
+  `web/src/pages/video-dubbing/useVideoDubbingPageState.ts` with focused hook
+  coverage, keeping the coordinator state easier to compare with Apple YouTube
+  Dub.
   YouTube Dub generate/save-template action state, intake
   capacity guard, shared payload construction, backend submission, template
   persistence, and discovery-state template preservation now live in
