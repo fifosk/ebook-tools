@@ -613,6 +613,16 @@ def test_pipeline_content_index_uses_selected_epub(
     )
 
 
+def test_pipeline_content_index_openapi_marks_chapter_inventory_required() -> None:
+    schemas = create_app().openapi()["components"]["schemas"]
+
+    response_required = set(schemas["BookContentIndexResponse"]["required"])
+    index_required = set(schemas["BookContentIndexPayload"]["required"])
+
+    assert {"input_file", "content_index"} <= response_required
+    assert {"total_sentences", "chapters"} <= index_required
+
+
 def test_pipeline_content_index_uses_safe_stat_for_selected_epub(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

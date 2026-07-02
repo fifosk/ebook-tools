@@ -72,11 +72,20 @@ class PipelineIntakeStatusResponse(BaseModel):
     delayCount: int = Field(description="Cumulative backpressure delays")
 
 
+class BookContentIndexPayload(BaseModel):
+    """Backend-owned chapter inventory for a selected EPUB."""
+
+    model_config = ConfigDict(extra="allow")
+
+    total_sentences: int
+    chapters: List[Dict[str, Any]]
+
+
 class BookContentIndexResponse(BaseModel):
     """Response payload describing inferred chapter ranges for an EPUB."""
 
     input_file: str
-    content_index: Optional[Dict[str, Any]] = None
+    content_index: BookContentIndexPayload
 
 
 class ImageNodeAvailabilityRequest(BaseModel):

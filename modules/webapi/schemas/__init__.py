@@ -88,6 +88,7 @@ from .pipeline_media import (
 from .pipeline_timing import JobTimingAudioBinding, JobTimingResponse, JobTimingTrackPayload
 from .pipeline_requests import (
     BookContentIndexResponse,
+    BookContentIndexPayload,
     ImageNodeAvailabilityEntry,
     ImageNodeAvailabilityRequest,
     ImageNodeAvailabilityResponse,
@@ -165,6 +166,7 @@ __all__ = [
     "AssistantLookupResponse",
     "AssistantRequestContext",
     "BookContentIndexResponse",
+    "BookContentIndexPayload",
     "BookCreationDefaults",
     "BookCreationGeneratedSourceDefaults",
     "BookCreationOptionsResponse",

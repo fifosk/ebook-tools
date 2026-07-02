@@ -35,14 +35,18 @@ export const normaliseContentIndexChapters = (payload: unknown): ContentIndexCha
     const raw = entry as Record<string, unknown>;
     const start =
       toFiniteNumber(raw.start_sentence ?? raw.startSentence ?? raw.start) ?? null;
-    if (!start || start <= 0) {
+    if (start === null || start < 0) {
       return;
     }
+    const normalizedStart = Math.max(start, 1);
     const sentenceCount =
       toFiniteNumber(raw.sentence_count ?? raw.sentenceCount) ?? null;
     let end = toFiniteNumber(raw.end_sentence ?? raw.endSentence ?? raw.end);
     if (end === null && sentenceCount !== null) {
-      end = start + Math.max(sentenceCount - 1, 0);
+      end = normalizedStart + Math.max(sentenceCount - 1, 0);
+    }
+    if (end !== null && end < normalizedStart) {
+      end = normalizedStart;
     }
     const id =
       (typeof raw.id === 'string' && raw.id.trim()) || `chapter-${index + 1}`;
@@ -53,7 +57,7 @@ export const normaliseContentIndexChapters = (payload: unknown): ContentIndexCha
     chapters.push({
       id,
       title,
-      startSentence: start,
+      startSentence: normalizedStart,
       endSentence: end ?? null,
     });
   });

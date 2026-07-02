@@ -823,7 +823,40 @@ export async function fetchBookContentIndex(inputFile: string): Promise<BookCont
   const response = await apiFetch(
     `${WEB_CREATE_RUNTIME_CONTRACT.pipelineContentIndexPath}?${params.toString()}`
   );
-  return handleResponse<BookContentIndexResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertBookContentIndexResponse(payload);
+  return payload;
+}
+
+function assertBookContentIndexResponse(payload: unknown): asserts payload is BookContentIndexResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid book content-index response.');
+  }
+  assertContentIndexStringField(payload, 'input_file', 'book content-index');
+  if (!isRecord(payload.content_index)) {
+    throw new Error('Invalid book content-index response: missing content_index.');
+  }
+  if (typeof payload.content_index.total_sentences !== 'number') {
+    throw new Error('Invalid book content-index response: missing total_sentences.');
+  }
+  if (!Array.isArray(payload.content_index.chapters)) {
+    throw new Error('Invalid book content-index response: missing chapters.');
+  }
+  payload.content_index.chapters.forEach((chapter) => {
+    if (!isRecord(chapter)) {
+      throw new Error('Invalid book content-index response: invalid chapter.');
+    }
+  });
+}
+
+function assertContentIndexStringField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
 }
 
 export async function checkImageNodeAvailability(

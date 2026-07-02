@@ -209,9 +209,14 @@ export interface LookupCacheSummaryResponse {
   build_time_seconds: number;
 }
 
+export interface BookContentIndexPayload extends Record<string, unknown> {
+  total_sentences: number;
+  chapters: Record<string, unknown>[];
+}
+
 export interface BookContentIndexResponse {
   input_file: string;
-  content_index: Record<string, unknown> | null;
+  content_index: BookContentIndexPayload;
 }
 
 export interface ImageNodeAvailabilityRequestPayload {

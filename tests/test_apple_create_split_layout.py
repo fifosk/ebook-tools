@@ -1733,6 +1733,9 @@ def test_apple_create_response_models_match_api_client_decoder_strategy() -> Non
         api_models_source,
         "BookCreationSentenceSplitterCapabilities",
     )
+    book_content_index_body = _swift_struct_body(api_models_source, "BookContentIndexResponse")
+    assert "let contentIndex: JSONValue" in book_content_index_body
+    assert "let contentIndex: JSONValue?" not in book_content_index_body
     assert "let sentenceSplitterCapabilities: BookCreationSentenceSplitterCapabilities?" in _swift_struct_body(
         api_models_source,
         "BookCreationOptionsResponse",
@@ -2308,7 +2311,7 @@ def test_create_presentation_helpers_are_split_from_support_and_target_wired() -
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
 
     assert "extension AppleBookCreatePresentation" in presentation_source
-    assert "static func contentIndexChapters(" in presentation_source
+    assert "static func contentIndexChapters(from value: JSONValue)" in presentation_source
     assert "guard let start, start >= 0 else { continue }" in presentation_source
     assert "let normalizedStart = max(start, 1)" in presentation_source
     assert "static func chapterRangeSelection(" in presentation_source

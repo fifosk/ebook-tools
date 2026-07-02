@@ -1,7 +1,7 @@
 import Foundation
 
 extension AppleBookCreatePresentation {
-    static func contentIndexChapters(from value: JSONValue?) -> [AppleCreateChapterOption] {
+    static func contentIndexChapters(from value: JSONValue) -> [AppleCreateChapterOption] {
         guard case let .object(root) = value,
               case let .array(chapterValues)? = root["chapters"] else {
             return []

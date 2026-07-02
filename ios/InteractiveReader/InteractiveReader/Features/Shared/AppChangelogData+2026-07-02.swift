@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "create-content-index-contract-strict",
+                    title: "Chapter loading trusts shaped indexes",
+                    detail: "Backend, Web, and Apple Create now require content-index responses to include the selected EPUB, total sentence count, and chapter inventory, while Web matches Apple by preserving zero-start chapter ranges as sentence 1 instead of dropping them."
+                ),
+                AppChangelogEntry(
                     id: "playback-timing-contract-strict",
                     title: "Timing payloads stay shaped",
                     detail: "Backend, Web, and Apple playback timing now require job id, track maps, audio bindings, highlighting policy, and estimated-timing flags before building sync state, while Apple also preserves the Original timing track alongside Translation and Mix."

@@ -150,6 +150,23 @@ function jobTimingResponse(overrides: Record<string, unknown> = {}): Record<stri
   };
 }
 
+function bookContentIndexResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    input_file: '/books/Dan Brown.epub',
+    content_index: {
+      total_sentences: 42,
+      chapters: [
+        {
+          title: 'Prologue',
+          start_sentence: 1,
+          end_sentence: 4
+        }
+      ]
+    },
+    ...overrides
+  };
+}
+
 function acquisitionJobStatusResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     provider: 'download_station',
@@ -451,7 +468,7 @@ describe('jobs API client', () => {
       .mockResolvedValueOnce(jsonResponse(pipelineFileBrowserResponse()))
       .mockResolvedValueOnce(jsonResponse({ config: {} }))
       .mockResolvedValueOnce(jsonResponse(pipelineIntakeStatusResponse()))
-      .mockResolvedValueOnce(jsonResponse({ book: {}, chapters: [] }))
+      .mockResolvedValueOnce(jsonResponse(bookContentIndexResponse()))
       .mockResolvedValueOnce(jsonResponse(imageNodeAvailabilityResponse()))
       .mockResolvedValueOnce(jsonResponse(pipelineFileEntry({ name: 'upload.epub', path: '/books/upload.epub' })))
       .mockResolvedValueOnce(jsonResponse({ ok: true }))
@@ -675,6 +692,38 @@ describe('jobs API client', () => {
     );
     expect(new URL(String(fetchMock.mock.calls[5][0])).pathname).toBe(
       '/api/pipelines/jobs/job%2Fwith%3Fparts/lookup-cache/summary'
+    );
+  });
+
+  it('rejects malformed book content-index responses before chapter pickers use them', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ content_index: { total_sentences: 1, chapters: [] } }))
+      .mockResolvedValueOnce(jsonResponse({ input_file: '/books/book.epub' }))
+      .mockResolvedValueOnce(jsonResponse(bookContentIndexResponse({
+        content_index: { chapters: [] }
+      })))
+      .mockResolvedValueOnce(jsonResponse(bookContentIndexResponse({
+        content_index: { total_sentences: 1 }
+      })))
+      .mockResolvedValueOnce(jsonResponse(bookContentIndexResponse({
+        content_index: { total_sentences: 1, chapters: [null] }
+      })));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchBookContentIndex('/books/book.epub')).rejects.toThrow(
+      'Invalid book content-index response: missing input_file.'
+    );
+    await expect(fetchBookContentIndex('/books/book.epub')).rejects.toThrow(
+      'Invalid book content-index response: missing content_index.'
+    );
+    await expect(fetchBookContentIndex('/books/book.epub')).rejects.toThrow(
+      'Invalid book content-index response: missing total_sentences.'
+    );
+    await expect(fetchBookContentIndex('/books/book.epub')).rejects.toThrow(
+      'Invalid book content-index response: missing chapters.'
+    );
+    await expect(fetchBookContentIndex('/books/book.epub')).rejects.toThrow(
+      'Invalid book content-index response: invalid chapter.'
     );
   });
 

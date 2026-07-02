@@ -38,7 +38,7 @@ describe('useBookNarrationChapters', () => {
       content_index: {
         total_sentences: 75,
         chapters: [
-          { id: 'prologue', title: 'Prologue', start_sentence: 1, end_sentence: 12 },
+          { id: 'prologue', title: 'Prologue', start_sentence: 0, end_sentence: 12 },
           { id: 'chapter-1', title: 'Chapter 1', start_sentence: 13, end_sentence: 40 },
           { id: 'reckoning', title: 'Reckoning', start: 41, sentence_count: 20 },
         ],
@@ -66,6 +66,7 @@ describe('useBookNarrationChapters', () => {
     mockFetchBookContentIndex.mockResolvedValue({
       input_file: '/nas/books/Dan Brown Continuation.epub',
       content_index: {
+        total_sentences: 60,
         chapters: [
           { id: 'prologue', title: 'Prologue', start_sentence: 1, end_sentence: 12 },
           { id: 'chapter-1', title: 'Chapter 1', start_sentence: 13, end_sentence: 40 },

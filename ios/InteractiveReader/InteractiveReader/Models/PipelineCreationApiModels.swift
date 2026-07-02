@@ -406,7 +406,7 @@ struct PipelineFileDeleteRequest: Encodable, Equatable {
 
 struct BookContentIndexResponse: Decodable, Equatable {
     let inputFile: String
-    let contentIndex: JSONValue?
+    let contentIndex: JSONValue
 }
 
 struct SubtitleSourceEntry: Decodable, Equatable {
