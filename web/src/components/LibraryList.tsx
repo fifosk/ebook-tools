@@ -1,8 +1,5 @@
 import { useMemo } from 'react';
 import type { LibraryItem, LibraryViewMode, ResumePositionEntry } from '../api/dtos';
-import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
-import { normalizeLanguageLabel } from '../utils/languages';
-import EmojiIcon from './EmojiIcon';
 import {
   buildLibraryItemActionState,
   resolveLibraryItemPermissions,
@@ -11,17 +8,17 @@ import {
   type LibraryItemPermissions
 } from './library-list/libraryListActions';
 import { LibraryItemActions } from './library-list/LibraryItemActions';
-import { LibraryBookCell, LibraryJobTypeGlyph, LibrarySubtitleCell, LibraryVideoCell } from './library-list/LibraryItemMediaCells';
+import { LibraryFlatTable } from './library-list/LibraryFlatTable';
+import { LibraryJobTypeGlyph } from './library-list/LibraryItemMediaCells';
 import { LibraryItemStatusStack } from './library-list/LibraryItemStatusStack';
+import { LibraryLanguageLabel } from './library-list/LibraryLanguageLabel';
 import { buildLibraryResumeBadgeMap } from './library-list/libraryListResume';
 import {
   buildAuthorGroups,
   buildGenreGroups,
   buildLanguageGroups,
   formatLibraryTimestamp,
-  resolveAuthor,
   resolveLibraryFlatLayout,
-  resolveTitle
 } from './library-list/libraryListUtils';
 import styles from './LibraryList.module.css';
 
@@ -39,17 +36,6 @@ type Props = {
   variant?: 'card' | 'embedded';
   resumeEntries?: ResumePositionEntry[];
 };
-
-function renderLanguageLabel(language: string | null | undefined) {
-  const label = normalizeLanguageLabel(language) || 'Unknown';
-  const flag = resolveLanguageFlag(language ?? label) ?? DEFAULT_LANGUAGE_FLAG;
-  return (
-    <span className={styles.languageLabel}>
-      <EmojiIcon emoji={flag} className={styles.languageFlag} />
-      <span>{label}</span>
-    </span>
-  );
-}
 
 function LibraryList({
   items,
@@ -69,9 +55,6 @@ function LibraryList({
   const genreGroups = useMemo(() => buildGenreGroups(items), [items]);
   const languageGroups = useMemo(() => buildLanguageGroups(items), [items]);
   const flatLayout = useMemo(() => resolveLibraryFlatLayout(items), [items]);
-  const isBookLayout = flatLayout === 'books';
-  const isSubtitleLayout = flatLayout === 'subtitles';
-  const isVideoLayout = flatLayout === 'videos';
   const resumeBadges = useMemo(
     () => buildLibraryResumeBadgeMap(items, resumeEntries),
     [items, resumeEntries],
@@ -119,122 +102,19 @@ function LibraryList({
         className={`${styles.listContainer} ${variant === 'embedded' ? styles.listContainerEmbedded : ''}`}
         data-layout={flatLayout ?? undefined}
       >
-        <div className={styles.tableWrapper}>
-          <table
-            className={`${styles.table} ${isBookLayout ? styles.bookTable : isSubtitleLayout ? styles.subtitleTable : isVideoLayout ? styles.videoTable : ''}`}
-          >
-            <thead>
-              <tr>
-                {isBookLayout ? (
-                  <>
-                    <th>Book</th>
-                    <th>Language</th>
-                    <th>Status</th>
-                    <th>Updated</th>
-                    <th>Actions</th>
-                  </>
-                ) : isSubtitleLayout ? (
-                  <>
-                    <th>Series / Episode</th>
-                    <th>Language</th>
-                    <th>Status</th>
-                    <th>Updated</th>
-                    <th>Actions</th>
-                  </>
-                ) : isVideoLayout ? (
-                  <>
-                    <th>Video</th>
-                    <th>Language</th>
-                    <th>Status</th>
-                    <th>Updated</th>
-                    <th>Actions</th>
-                  </>
-                ) : (
-                  <>
-                    <th>Title</th>
-                    <th>Job</th>
-                    <th>Author</th>
-                    <th>Language</th>
-                    <th>Status</th>
-                    <th>Updated</th>
-                    <th>Actions</th>
-                  </>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => {
-                const permissions = resolveItemPermissions(item);
-                const actionState = resolveItemActionState(item, permissions);
-                return (
-                  <tr
-                    key={item.jobId}
-                    className={selectedJobId === item.jobId ? styles.tableRowActive : undefined}
-                    onClick={() => {
-                      if (permissions.canView) {
-                        handleSelect(item);
-                      }
-                    }}
-                  >
-                    {isBookLayout ? (
-                      <>
-                        <td className={styles.cellBook}>
-                          <LibraryBookCell
-                            item={item}
-                            onOpen={() => onOpen(item)}
-                            disabled={actionState.mediaOpenDisabled}
-                          />
-                        </td>
-                        <td>{renderLanguageLabel(item.language)}</td>
-                        <td>{renderStatus(item)}</td>
-                        <td>{formatLibraryTimestamp(item.updatedAt)}</td>
-                        <td>{renderActions(item, actionState)}</td>
-                      </>
-                    ) : isSubtitleLayout ? (
-                      <>
-                        <td className={styles.cellSubtitle}>
-                          <LibrarySubtitleCell
-                            item={item}
-                            onOpen={() => onOpen(item)}
-                            disabled={actionState.mediaOpenDisabled}
-                          />
-                        </td>
-                        <td>{renderLanguageLabel(item.language)}</td>
-                        <td>{renderStatus(item)}</td>
-                        <td>{formatLibraryTimestamp(item.updatedAt)}</td>
-                        <td>{renderActions(item, actionState)}</td>
-                      </>
-                    ) : isVideoLayout ? (
-                      <>
-                        <td className={styles.cellVideo}>
-                          <LibraryVideoCell
-                            item={item}
-                            onOpen={() => onOpen(item)}
-                            disabled={actionState.mediaOpenDisabled}
-                          />
-                        </td>
-                        <td>{renderLanguageLabel(item.language)}</td>
-                        <td>{renderStatus(item)}</td>
-                        <td>{formatLibraryTimestamp(item.updatedAt)}</td>
-                        <td>{renderActions(item, actionState)}</td>
-                      </>
-                    ) : (
-                      <>
-                        <td className={styles.cellTitle}>{resolveTitle(item)}</td>
-                        <td><LibraryJobTypeGlyph item={item} /></td>
-                        <td className={styles.cellAuthor}>{resolveAuthor(item)}</td>
-                        <td>{renderLanguageLabel(item.language)}</td>
-                        <td>{renderStatus(item)}</td>
-                        <td>{formatLibraryTimestamp(item.updatedAt)}</td>
-                        <td>{renderActions(item, actionState)}</td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <LibraryFlatTable
+          items={items}
+          flatLayout={flatLayout}
+          selectedJobId={selectedJobId}
+          mutating={mutating}
+          resumeBadges={resumeBadges}
+          onSelect={onSelect}
+          onOpen={onOpen}
+          onExport={onExport}
+          onRemove={onRemove}
+          onEditMetadata={onEditMetadata}
+          resolvePermissions={resolvePermissions}
+        />
       </div>
     );
   }
@@ -250,7 +130,7 @@ function LibraryList({
                 <summary>{book.bookTitle}</summary>
                 {book.languages.map((entry) => (
                   <div key={entry.language}>
-                    <h4 className={styles.languageHeader}>{renderLanguageLabel(entry.language)}</h4>
+                    <h4 className={styles.languageHeader}><LibraryLanguageLabel language={entry.language} /></h4>
                     <ul className={styles.itemList}>
                       {entry.items.map((item) => {
                         const permissions = resolveItemPermissions(item);
@@ -318,7 +198,7 @@ function LibraryList({
                               {renderStatus(item)}
                             </div>
                             <div className={styles.itemMeta}>
-                              Language {renderLanguageLabel(item.language)} · Job <LibraryJobTypeGlyph item={item} /> · Updated {formatLibraryTimestamp(item.updatedAt)}
+                              Language <LibraryLanguageLabel language={item.language} /> · Job <LibraryJobTypeGlyph item={item} /> · Updated {formatLibraryTimestamp(item.updatedAt)}
                             </div>
                             {renderActions(item, actionState)}
                           </li>
@@ -339,7 +219,7 @@ function LibraryList({
     <div className={`${styles.listContainer} ${variant === 'embedded' ? styles.listContainerEmbedded : ''}`}>
       {languageGroups.map((group) => (
         <details key={group.language} className={styles.group} open>
-          <summary>{renderLanguageLabel(group.language)}</summary>
+          <summary><LibraryLanguageLabel language={group.language} /></summary>
           {group.authors.map((author) => (
             <details key={author.author} className={styles.subGroup} open>
               <summary>{author.author}</summary>

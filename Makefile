@@ -290,6 +290,7 @@ test-web-library-focused:
 		src/components/__tests__/libraryListUtils.test.ts \
 		src/components/__tests__/libraryListMediaUtils.test.ts \
 		src/components/__tests__/libraryListActions.test.ts \
+		src/components/__tests__/LibraryFlatTable.test.tsx \
 		src/components/__tests__/LibraryItemActions.test.tsx \
 		src/components/__tests__/LibraryItemMediaCells.test.tsx \
 		src/components/__tests__/LibraryStatusBadge.test.tsx \

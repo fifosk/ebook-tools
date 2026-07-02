@@ -300,7 +300,11 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/library-list/LibraryItemActions.tsx` with focused
   rendered coverage. Library item status badges now live in
   `web/src/components/library-list/LibraryStatusBadge.tsx` with focused
-  rendered coverage.
+  rendered coverage. Flat table rows, layout-specific headers, media cells,
+  row permission gating, and resume/status/action composition now live in
+  `web/src/components/library-list/LibraryFlatTable.tsx`, with language labels
+  shared through `LibraryLanguageLabel.tsx` and rendered coverage in the
+  library-focused Web gate.
 - `web/src/components/PlayerPanel.tsx` - 858 lines. Status: selected text
   item, selected chunk, and active text chunk resolution now live in
   `web/src/components/player-panel/utils.ts` with focused Vitest coverage.

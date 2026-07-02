@@ -428,6 +428,11 @@ enum AppChangelogData {
                     detail: "Web Narrate Ebook saved-template save status, errors, and busy state now live in a focused tested hook while preserving the shared template payload rules."
                 ),
                 AppChangelogEntry(
+                    id: "web-library-flat-table-component",
+                    title: "Web Library table is leaner",
+                    detail: "Web Library flat-table headers, media rows, language labels, status/resume badges, and action wiring now live in focused rendered components, keeping cross-surface Library behavior easier to verify."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-anchorless-reprepare",
                     title: "Single-track batches stay locked",
                     detail: "Apple reader original-only and translation-only context rebuilds now reprepare the selected lane even before the next batch's sentence anchor hydrates, preventing stale combined audio from desyncing rendering at batch boundaries."
