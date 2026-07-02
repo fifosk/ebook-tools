@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-create-runtime-expected",
+                    title: "Pipeline pins Create runtime",
+                    detail: "The reusable Apple pipeline manifest checker now derives the full Create runtime descriptor, including picker limits, defaults, model/search routes, voice/image readiness, YouTube download/delete, and book metadata paths."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-surface-runtime-expected",
                     title: "Pipeline pins surface runtime",
                     detail: "The reusable Apple pipeline manifest checker now derives auth, client config, Apple profile, lookup/audio, and notification runtime expectations from the backend descriptor."

@@ -406,6 +406,41 @@ def test_validate_manifest_requires_backend_acquisition_runtime_expectations(
     ) in errors
 
 
+def test_validate_manifest_requires_backend_create_runtime_expectations(
+    tmp_path: Path,
+) -> None:
+    runtime_expected = dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+    del runtime_expected["creation.pipelineFilesDefaultLimit"]
+    runtime_expected["creation.pipelineCoverUploadPath"] = "/api/pipelines/cover"
+    del runtime_expected["creation.pipelineDefaultsPath"]
+    runtime_expected["creation.youtubeVideoDownloadPath"] = "/api/youtube/video"
+    del runtime_expected["creation.bookMetadataPreviewPath"]
+    path = _write_manifest(tmp_path, backend_runtime_expected=runtime_expected)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "backend.runtimeExpected.creation.pipelineFilesDefaultLimit=None "
+        "expected 200"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.creation.pipelineCoverUploadPath='/api/pipelines/cover' "
+        "expected '/api/pipelines/covers/upload'"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.creation.pipelineDefaultsPath=None "
+        "expected '/api/pipelines/defaults'"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.creation.youtubeVideoDownloadPath='/api/youtube/video' "
+        "expected '/api/subtitles/youtube/video'"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.creation.bookMetadataPreviewPath=None "
+        "expected '/api/pipelines/metadata/book/lookup'"
+    ) in errors
+
+
 def test_validate_manifest_requires_backend_offline_export_runtime_expectations(
     tmp_path: Path,
 ) -> None:

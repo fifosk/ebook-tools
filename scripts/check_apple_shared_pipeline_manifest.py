@@ -138,7 +138,6 @@ REQUIRED_BACKEND_RUNTIME_EXPECTED = {
     **{
         f"creation.{key}": value
         for key, value in _runtime_descriptor.CREATION_DESCRIPTOR.items()
-        if key.startswith("acquisition")
     },
     **{
         f"acquisition.{key}": list(value) if isinstance(value, tuple) else value
