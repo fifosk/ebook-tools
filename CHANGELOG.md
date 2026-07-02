@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.012
 
+- Apple in-app changelog entries for June 30 now live in a dated shard too, keeping the root changelog source focused on the day index as device-visible history grows.
 - `make test-changed` now treats dated Apple in-app changelog shards as release metadata, so shard-only edits still run release-version and Apple contract gates without unnecessary simulator builds.
 - Apple reader language/audio pills now keep inactive lanes visually inactive during transient loading states while still allowing Original + Translation, Original-only, and Translation-only playback modes.
 - Apple in-app changelog entries for July 1 now also live in a dated shard, continuing the cleanup that keeps the root changelog as a small day index for simulator and device builds.

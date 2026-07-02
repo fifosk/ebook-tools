@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-changelog-june30-shard",
+                    title: "June history is slimmer",
+                    detail: "Apple in-app changelog entries for June 30 now live in a dated shard too, keeping the root changelog source focused on the day index as device-visible history grows."
+                ),
+                AppChangelogEntry(
                     id: "apple-changelog-shard-test-routing",
                     title: "Changelog shard gates hold",
                     detail: "make test-changed now treats dated Apple in-app changelog shards as release metadata, so shard-only edits still run release-version and Apple contract gates without unnecessary simulator builds."

@@ -426,6 +426,8 @@
 		APPCHD26001A0002 /* AppChangelogData+2026-06-26.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD26002A0001 /* AppChangelogData+2026-06-26.swift */; };
 		APPCHD27001A0001 /* AppChangelogData+2026-06-27.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD27002A0001 /* AppChangelogData+2026-06-27.swift */; };
 		APPCHD27001A0002 /* AppChangelogData+2026-06-27.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD27002A0001 /* AppChangelogData+2026-06-27.swift */; };
+		APPCHD30001A0001 /* AppChangelogData+2026-06-30.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD30002A0001 /* AppChangelogData+2026-06-30.swift */; };
+		APPCHD30001A0002 /* AppChangelogData+2026-06-30.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD30002A0001 /* AppChangelogData+2026-06-30.swift */; };
 		APPCHD71001A0001 /* AppChangelogData+2026-07-01.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD71002A0001 /* AppChangelogData+2026-07-01.swift */; };
 		APPCHD71001A0002 /* AppChangelogData+2026-07-01.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD71002A0001 /* AppChangelogData+2026-07-01.swift */; };
 		APPCHD72001A0001 /* AppChangelogData+2026-07-02.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD72002A0001 /* AppChangelogData+2026-07-02.swift */; };
@@ -840,6 +842,7 @@
 		APPCHD22002A0001 /* AppChangelogData+2026-06-22.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-06-22.swift"; sourceTree = "<group>"; };
 		APPCHD26002A0001 /* AppChangelogData+2026-06-26.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-06-26.swift"; sourceTree = "<group>"; };
 		APPCHD27002A0001 /* AppChangelogData+2026-06-27.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-06-27.swift"; sourceTree = "<group>"; };
+		APPCHD30002A0001 /* AppChangelogData+2026-06-30.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-06-30.swift"; sourceTree = "<group>"; };
 		APPCHD71002A0001 /* AppChangelogData+2026-07-01.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-07-01.swift"; sourceTree = "<group>"; };
 		APPCHD72002A0001 /* AppChangelogData+2026-07-02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-07-02.swift"; sourceTree = "<group>"; };
 		APPCHSUM002A0001 /* AppChangelogSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChangelogSummaryView.swift; sourceTree = "<group>"; };
@@ -1397,6 +1400,7 @@
 				APPCHD22002A0001 /* AppChangelogData+2026-06-22.swift */,
 				APPCHD26002A0001 /* AppChangelogData+2026-06-26.swift */,
 				APPCHD27002A0001 /* AppChangelogData+2026-06-27.swift */,
+				APPCHD30002A0001 /* AppChangelogData+2026-06-30.swift */,
 				APPCHD71002A0001 /* AppChangelogData+2026-07-01.swift */,
 				APPCHD72002A0001 /* AppChangelogData+2026-07-02.swift */,
 				APPCHSUM002A0001 /* AppChangelogSummaryView.swift */,
@@ -1751,6 +1755,7 @@
 				APPCHD22001A0002 /* AppChangelogData+2026-06-22.swift in Sources */,
 				APPCHD26001A0002 /* AppChangelogData+2026-06-26.swift in Sources */,
 				APPCHD27001A0002 /* AppChangelogData+2026-06-27.swift in Sources */,
+				APPCHD30001A0002 /* AppChangelogData+2026-06-30.swift in Sources */,
 				APPCHD71001A0002 /* AppChangelogData+2026-07-01.swift in Sources */,
 				APPCHD72001A0002 /* AppChangelogData+2026-07-02.swift in Sources */,
 				APPCHSUM001A0002 /* AppChangelogSummaryView.swift in Sources */,
@@ -2056,6 +2061,7 @@
 				APPCHD22001A0001 /* AppChangelogData+2026-06-22.swift in Sources */,
 				APPCHD26001A0001 /* AppChangelogData+2026-06-26.swift in Sources */,
 				APPCHD27001A0001 /* AppChangelogData+2026-06-27.swift in Sources */,
+				APPCHD30001A0001 /* AppChangelogData+2026-06-30.swift in Sources */,
 				APPCHD71001A0001 /* AppChangelogData+2026-07-01.swift in Sources */,
 				APPCHD72001A0001 /* AppChangelogData+2026-07-02.swift in Sources */,
 				APPCHSUM001A0001 /* AppChangelogSummaryView.swift in Sources */,

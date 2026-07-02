@@ -619,7 +619,7 @@ def test_living_room_candidate_gate_runs_shared_pipeline_and_tvos_music_bed_with
 
 
 def test_living_room_candidate_gate_is_visible_in_apple_changelog() -> None:
-    changelog = APP_CHANGELOG_DATA.read_text(encoding="utf-8")
+    changelog = _swift_changelog_sources()
 
     assert 'id: "2026-06-30"' in changelog
     assert 'id: "living-room-candidate-gate"' in changelog
