@@ -261,20 +261,20 @@ extension InteractivePlayerView {
         )
         let prefersCustomMultiTrackSelection = shouldPreferCustomMultiTrackSelection(for: chunk)
         let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)
-        let restoredViewModelSingleTrack: Bool
+        let restoredVisibleSingleTrack: Bool
         if appliedResumeTrack || prefersCustomMultiTrackSelection {
+            restoredVisibleSingleTrack = false
+        } else {
+            restoredVisibleSingleTrack = restoreSingleTrackModeFromVisibleSelectionIfNeeded(for: chunk)
+        }
+        let restoredViewModelSingleTrack: Bool
+        if appliedResumeTrack || restoredVisibleSingleTrack || prefersCustomMultiTrackSelection {
             restoredViewModelSingleTrack = false
         } else {
             restoredViewModelSingleTrack = restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for: chunk)
         }
         if !appliedResumeTrack && !restoredViewModelSingleTrack {
             viewModel.sequenceController.audioMode = audioModeManager.currentMode
-        }
-        let restoredVisibleSingleTrack: Bool
-        if appliedResumeTrack || restoredViewModelSingleTrack || prefersCustomMultiTrackSelection {
-            restoredVisibleSingleTrack = false
-        } else {
-            restoredVisibleSingleTrack = restoreSingleTrackModeFromVisibleSelectionIfNeeded(for: chunk)
         }
         let preservedSingleTrack = appliedResumeTrack
             || restoredViewModelSingleTrack

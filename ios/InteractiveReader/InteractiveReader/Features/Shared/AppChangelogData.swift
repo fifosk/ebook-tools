@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
-            version: "2026.07.02.005",
+            version: "2026.07.02.006",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-visible-translation-beats-stale-original",
+                    title: "Translation pill stays active",
+                    detail: "Apple reader lifecycle refreshes now let a visible Translation-only user selection beat stale Original resume memory, so Apple TV does not deactivate the Translation pill after lazy metadata or track-availability updates."
+                ),
                 AppChangelogEntry(
                     id: "library-media-translation-track-evidence",
                     title: "Library Translation stays available",

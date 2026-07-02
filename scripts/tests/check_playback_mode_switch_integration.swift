@@ -554,6 +554,51 @@ private func restoreSingleTrackModeFromViewModelPreferenceIfNeeded(
     return true
 }
 
+@MainActor
+private func restoreSingleTrackModeFromVisibleSelectionIfNeeded(
+    for chunk: InteractiveChunk,
+    availableTracks: Set<TextPlayerVariantKind>,
+    manager: AudioModeManager,
+    visibleTracks: inout Set<TextPlayerVariantKind>,
+    hasCustomTrackSelection: inout Bool,
+    selectedAudioTrackID: inout String?,
+    sequenceAudioMode: inout AudioMode,
+    preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?,
+    preferredSingleTrackMode: inout SequenceTrack?
+) -> Bool {
+    guard hasCustomTrackSelection, visibleTracks.count == 1 else { return false }
+    guard let onlyTrack = visibleTracks.first else { return false }
+    let requestedTrack: SequenceTrack?
+    switch onlyTrack {
+    case .original:
+        requestedTrack = .original
+    case .translation:
+        requestedTrack = .translation
+    case .transliteration:
+        requestedTrack = nil
+    }
+    guard let requestedTrack else { return false }
+    guard availableTracks.contains(onlyTrack) || chunkSupportsAudioTrack(requestedTrack, in: chunk) else {
+        return false
+    }
+
+    manager.setTracks(
+        original: requestedTrack == .original,
+        translation: requestedTrack == .translation
+    )
+    sequenceAudioMode = manager.currentMode
+    applySingleTrackSelection(
+        requestedTrack,
+        for: chunk,
+        manager: manager,
+        sequenceAudioMode: &sequenceAudioMode,
+        selectedAudioTrackID: &selectedAudioTrackID,
+        preferredAudioKind: &preferredAudioKind,
+        preferredSingleTrackMode: &preferredSingleTrackMode
+    )
+    return true
+}
+
 private func shouldPreferCustomMultiTrackSelection(
     availableTracks: Set<TextPlayerVariantKind>,
     visibleTracks: Set<TextPlayerVariantKind>,
@@ -2748,6 +2793,59 @@ private func runChecks() {
         customLifecycleVisibleTracks,
         [.original, .translation],
         "Custom multi-track lifecycle setup should not collapse visible tracks back to Translation-only"
+    )
+    let staleVisibleLifecycleManager = AudioModeManager()
+    staleVisibleLifecycleManager.setTracks(original: true, translation: false)
+    var staleVisibleTracks: Set<TextPlayerVariantKind> = [.translation]
+    var staleVisibleHasCustomTrackSelection = true
+    var staleVisibleSelectedTrackID: String? = "original-next"
+    var staleVisiblePreferredKind: InteractiveChunk.AudioOption.Kind? = .original
+    var staleVisiblePreferredSingleTrack: SequenceTrack? = .original
+    var staleVisibleSequenceMode: AudioMode = .singleTrack(.original)
+    let restoredVisibleTranslation = restoreSingleTrackModeFromVisibleSelectionIfNeeded(
+        for: nextBatch,
+        availableTracks: [.original, .translation, .transliteration],
+        manager: staleVisibleLifecycleManager,
+        visibleTracks: &staleVisibleTracks,
+        hasCustomTrackSelection: &staleVisibleHasCustomTrackSelection,
+        selectedAudioTrackID: &staleVisibleSelectedTrackID,
+        sequenceAudioMode: &staleVisibleSequenceMode,
+        preferredAudioKind: &staleVisiblePreferredKind,
+        preferredSingleTrackMode: &staleVisiblePreferredSingleTrack
+    )
+    requireEqual(
+        restoredVisibleTranslation,
+        true,
+        "Lifecycle track availability refresh should honor the visible Translation-only user selection before stale Original memory"
+    )
+    requireEqual(
+        restoredVisibleTranslation
+            ? false
+            : restoreSingleTrackModeFromViewModelPreferenceIfNeeded(
+                for: nextBatch,
+                availableTracks: [.original, .translation, .transliteration],
+                manager: staleVisibleLifecycleManager,
+                visibleTracks: &staleVisibleTracks,
+                hasCustomTrackSelection: &staleVisibleHasCustomTrackSelection,
+                selectedAudioTrackID: &staleVisibleSelectedTrackID,
+                preferredSingleTrackMode: .original,
+                durableSingleTrackPlaybackMode: .original,
+                loadedSingleTrackPlaybackMode: .original,
+                sequenceAudioMode: &staleVisibleSequenceMode,
+                preferredAudioKind: &staleVisiblePreferredKind
+            ),
+        false,
+        "Stale Original lifecycle memory must not run after visible Translation-only selection is restored"
+    )
+    requireEqual(
+        staleVisibleLifecycleManager.currentMode,
+        .singleTrack(.translation),
+        "Visible Translation-only lifecycle refresh should re-pin audio mode to Translation"
+    )
+    requireEqual(
+        staleVisibleSelectedTrackID,
+        "translation-next",
+        "Visible Translation-only lifecycle refresh should repair stale Original selected audio id"
     )
     requireEqual(
         effectiveSelectedAudioKind(
