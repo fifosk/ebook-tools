@@ -425,11 +425,13 @@ function assertAcquisitionProviderListResponse(
     ACQUISITION_MEDIA_KINDS,
     'default_provider_ids'
   );
+  const providerIds = new Set<string>();
   for (const provider of payload.providers) {
     if (!isRecord(provider)) {
       throw new Error('Invalid acquisition provider response: missing provider entry.');
     }
-    assertStringField(provider, 'id');
+    const providerId = assertStringField(provider, 'id');
+    providerIds.add(providerId);
     assertStringField(provider, 'label');
     assertStringField(provider, 'status');
     assertBooleanField(provider, 'configured');
@@ -476,16 +478,22 @@ function assertAcquisitionProviderListResponse(
     assertStringArray(provider.policy_notes, 'policy_notes');
     assertStringArray(provider.next_actions, 'next_actions');
   }
+  assertStringArrayMapValues(
+    payload.default_provider_ids,
+    providerIds,
+    'default_provider_ids'
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function assertStringField(record: Record<string, unknown>, key: string): void {
+function assertStringField(record: Record<string, unknown>, key: string): string {
   if (typeof record[key] !== 'string') {
     throw new Error(`Invalid acquisition provider response: missing ${key}.`);
   }
+  return record[key];
 }
 
 function assertBooleanField(record: Record<string, unknown>, key: string): void {
@@ -522,6 +530,19 @@ function assertAllowedStringMapKeys(
   key: string
 ): void {
   if (Object.keys(value).some((entry) => !allowed.has(entry))) {
+    throw new Error(`Invalid acquisition provider response: invalid ${key}.`);
+  }
+}
+
+function assertStringArrayMapValues(
+  value: Record<string, unknown>,
+  allowed: Set<string>,
+  key: string
+): void {
+  const hasInvalidValue = Object.values(value).some((entry) =>
+    Array.isArray(entry) && entry.some((item) => !allowed.has(item))
+  );
+  if (hasInvalidValue) {
     throw new Error(`Invalid acquisition provider response: invalid ${key}.`);
   }
 }
