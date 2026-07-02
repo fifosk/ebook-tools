@@ -4,11 +4,16 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-02
 
+### 2026.07.02.012
+
+- Apple reader language pills now behave as guarded multi-select toggles: tapping an inactive Original or Translation pill adds that lane, tapping an active pill removes only that lane when the other remains active, and the last active lane stays selected.
+- Advanced visible Apple app versioning to `v2026.07.02.012`.
+
 ### 2026.07.02.011
 
 - Backend source discovery now keeps bounded newest EPUB/video/source candidates with ordered insertion and early stale-tail discard, reducing per-file work during large NAS scans while preserving Web/Apple picker ordering.
 - Web playback now routes PlayerPanel sentence-jump datalist and shortcut-help prelude chrome through a focused component with rendered coverage in the playback gate.
-- Apple reader header language pills now use the shared audio-mode toggle, so Original-only or Translation-only can expand back to both tracks by tapping either available language pill instead of swapping to the other single lane.
+- Apple reader header language pills now use the shared audio-mode toggle, so Original-only or Translation-only can expand back to both tracks by tapping the inactive companion pill instead of swapping to the other single lane.
 - Apple Settings now shows a dedicated Job Intake Contract row for `/api/pipelines/intake/status`, so the device pipeline can verify queue-pressure parity before opening native Create.
 - Bounded pipeline source-picker calls now trim output entries as well as EPUB entries, keeping Web and Apple Create source refreshes lighter on large shared output roots.
 - Apple reader sequence resume retries now keep the same resolved track as the initial in-sentence seek, preventing job open from starting in Translation and then retrying the first sentence on Original before the next Translation plays.
@@ -20,7 +25,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Shared job-list pagination now sorts visible jobs newest-first before slicing and keeps the route from reshuffling service-provided pages, so Web and Apple Jobs views keep stable ordering across page boundaries.
 - Apple timing decode now accepts target, translated, and dubbed timing-track aliases and tolerates translation-only timing responses without a mix track, keeping Translation selectable for live, archived, and offline media.
 - Backend media manifests now canonicalize chunk timing-track aliases through the same Original, Translation, and Mix role mapping as audio tracks, so Web and Apple diagnostics agree on translation availability.
-- Apple reader header language pills and audio shortcuts keep the active lane stable across single-track switching and restore all available tracks when tapping the only active lane.
+- Apple reader header language pills and audio shortcuts keep the active lane stable across single-track switching and restore all available tracks by enabling the inactive companion lane.
 - Apple Job and Library resume recording now stores the same selected-track player clock used by resume, preventing Now Playing refreshes from overwriting the last spoken word offset with a rendered sentence-start highlight time.
 - Advanced visible Apple app versioning to `v2026.07.02.011`.
 

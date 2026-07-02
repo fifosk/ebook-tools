@@ -1417,6 +1417,18 @@ private func activeAudioRolesForIntegration(
     preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
     selectedKind: InteractiveChunk.AudioOption.Kind?
 ) -> Set<LanguageFlagRole> {
+    switch manager.currentMode {
+    case .sequence:
+        return availableRoles.intersection([.original, .translation])
+    case .singleTrack(.original):
+        if availableRoles.contains(.original) {
+            return [.original]
+        }
+    case .singleTrack(.translation):
+        if availableRoles.contains(.translation) {
+            return [.translation]
+        }
+    }
     if let track = requestedSingleTrackMode(
         manager: manager,
         sequenceAudioMode: sequenceAudioMode,
@@ -1428,18 +1440,6 @@ private func activeAudioRolesForIntegration(
             return availableRoles.contains(.original) ? [.original] : []
         case .translation:
             return availableRoles.contains(.translation) ? [.translation] : []
-        }
-    }
-    switch manager.currentMode {
-    case .sequence:
-        return availableRoles.intersection([.original, .translation])
-    case .singleTrack(.original):
-        if availableRoles.contains(.original) {
-            return [.original]
-        }
-    case .singleTrack(.translation):
-        if availableRoles.contains(.translation) {
-            return [.translation]
         }
     }
     switch selectedKind {
@@ -1480,11 +1480,9 @@ private func toggleHeaderAudioRoleForIntegration(
     if desiredRoles.contains(role) {
         if desiredRoles.count > 1 {
             desiredRoles.remove(role)
-        } else {
-            desiredRoles = availableRoles
         }
     } else {
-        desiredRoles = availableRoles.intersection([role])
+        desiredRoles.insert(role)
     }
     manager.setTracks(
         original: desiredRoles.contains(.original),
@@ -1641,7 +1639,10 @@ private func runChecks() {
         timeBasedIndex: { 5 }
     )
     manager.toggle(.translation, preservingPosition: transcriptProvider.index)
-    requireEqual(modeEvents.count, 2, "Second track toggle should emit a mode event")
+    requireEqual(modeEvents.count, 1, "Last active track toggle should not emit a mode event")
+    requireEqual(manager.currentMode, .singleTrack(.translation), "Last active translation toggle should stay translation-only")
+    manager.toggle(.original, preservingPosition: transcriptProvider.index)
+    requireEqual(modeEvents.count, 2, "Inactive companion track toggle should emit a mode event")
     requireEqual(modeEvents[1].0, .sequence, "Translation-only toggle should restore sequence mode")
     requireEqual(modeEvents[1].1, 6, "Transcript display position should be preserved")
     requireEqual(manager.resolvePreferredTrackID(for: chunk), "combined", "Restored sequence mode should prefer combined audio")
@@ -2053,8 +2054,8 @@ private func runChecks() {
             preferredAudioKind: .combined,
             selectedKind: .combined
         ),
-        [.translation],
-        "Header active audio roles should keep translation-only selected even if the manager briefly reports sequence at a batch boundary"
+        [.original, .translation],
+        "Header active audio roles should trust the live manager and show both roles during true sequence playback"
     )
     requireEqual(
         activeAudioRolesForIntegration(
@@ -2106,8 +2107,33 @@ private func runChecks() {
     )
     requireEqual(
         headerToggleManager.currentMode,
+        .singleTrack(.translation),
+        "Header role pills should keep the only active Translation role enabled when it is tapped"
+    )
+    requireEqual(
+        headerToggleSelectedTrackID,
+        "translation-next",
+        "Header role pill toggle should keep selected audio id on Translation when the last active role is tapped"
+    )
+    toggleHeaderAudioRoleForIntegration(
+        .original,
+        for: nextBatch,
+        availableRoles: headerToggleAvailableRoles,
+        manager: headerToggleManager,
+        selectedAudioTrackID: &headerToggleSelectedTrackID,
+        preferredAudioKind: &headerTogglePreferredKind,
+        preferredSingleTrackMode: &headerTogglePreferredSingleTrackMode,
+        sequenceAudioMode: &headerToggleSequenceMode
+    )
+    requireEqual(
+        headerToggleManager.currentMode,
         .sequence,
-        "Header role pills should restore both roles when tapping the only active Translation role"
+        "Header role pills should restore both roles when tapping the inactive Original role"
+    )
+    requireEqual(
+        headerToggleSelectedTrackID,
+        "combined-next",
+        "Header role pill toggle should switch selected audio id to Combined after both roles are active"
     )
     toggleHeaderAudioRoleForIntegration(
         .translation,

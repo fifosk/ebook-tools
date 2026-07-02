@@ -126,8 +126,8 @@ def test_audio_mode_manager_swift_check_is_wired_into_apple_contracts() -> None:
     assert str(AUDIO_MODE_SWIFT_CHECK.relative_to(ROOT)) in check_script
     assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/AudioModeManager.swift" in check_script
     assert "manager.toggle(.original, preservingPosition: 4)" in swift_check
-    assert "manager.setTracks(original: false, translation: false, preservingPosition: 7)" in swift_check
-    assert "manager.toggle(kind: .combined, preservingPosition: 10)" in swift_check
+    assert "manager.setTracks(original: false, translation: false, preservingPosition: 10)" in swift_check
+    assert "manager.toggle(kind: .combined, preservingPosition: 13)" in swift_check
     assert "resolveAudioInstruction(for: chunk, selectedTrackID: \"combined\")" in swift_check
     assert "resolveTimingTrack(" in swift_check
 
@@ -435,15 +435,12 @@ def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
     )
 
     toggle_body = _function_body(source, "func toggle(_ track: SequenceTrack, preservingPosition currentSentenceIndex: Int? = nil)")
-    assert "if nextOriginal && !nextTranslation" in toggle_body
-    assert "if nextTranslation && !nextOriginal" in toggle_body
-    assert "Tapping the only active lane restores the full two-track sequence." in toggle_body
+    assert "guard nextTranslation || !nextOriginal else { return }" in toggle_body
+    assert "guard nextOriginal || !nextTranslation else { return }" in toggle_body
     original_single_body = toggle_body.split("case .original:", 1)[1].split("case .translation:", 1)[0]
     translation_single_body = toggle_body.split("case .translation:", 1)[1].split("applyTrackState(", 1)[0]
-    assert "nextOriginal = true" in original_single_body
-    assert "nextTranslation = true" in original_single_body
-    assert "nextOriginal = true" in translation_single_body
-    assert "nextTranslation = true" in translation_single_body
+    assert "nextOriginal.toggle()" in original_single_body
+    assert "nextTranslation.toggle()" in translation_single_body
     assert "nextOriginal = false" not in original_single_body
     assert "nextTranslation = false" not in translation_single_body
     assert "preservingPosition: currentSentenceIndex" in toggle_body

@@ -3,12 +3,17 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
-            version: "2026.07.02.011",
+            version: "2026.07.02.012",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-language-pills-guarded-multiselect",
+                    title: "Language pills support both tracks",
+                    detail: "Apple reader language pills now behave as guarded multi-select toggles: inactive Original or Translation pills add that lane, active pills remove only themselves when the other lane remains active, and the last active lane stays selected."
+                ),
                 AppChangelogEntry(
                     id: "apple-header-language-pills-enable-both",
                     title: "Language pills restore both tracks",
-                    detail: "Apple reader header language pills now route through the shared audio-mode toggle, so Original-only or Translation-only can be expanded back to both tracks by tapping either available language pill while stale single-track resume memory no longer keeps the pill grey."
+                    detail: "Apple reader header language pills now route through the shared audio-mode toggle, so Original-only or Translation-only can be expanded back to both tracks by tapping the inactive companion pill while stale single-track resume memory no longer keeps the pill grey."
                 ),
                 AppChangelogEntry(
                     id: "apple-settings-intake-contract-visible",
@@ -32,8 +37,8 @@ enum AppChangelogData {
                 ),
                 AppChangelogEntry(
                     id: "apple-single-track-pills-restore-both",
-                    title: "Single-track pills restore both",
-                    detail: "Apple reader track pills and shortcuts now keep Original-only and Translation-only as valid states, then restore both tracks when tapping the only active lane instead of swapping to the other lane."
+                    title: "Single-track pills stay selected",
+                    detail: "Apple reader track pills and shortcuts now keep Original-only and Translation-only as valid states, then require the inactive companion lane to be enabled before returning to both tracks."
                 ),
                 AppChangelogEntry(
                     id: "apple-visible-translation-beats-stale-original",
