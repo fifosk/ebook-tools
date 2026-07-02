@@ -604,9 +604,12 @@ Current Apple UI partially exposes:
   while clamped output values and reusable state adapters live in
   `AppleBookCreateControlBindings.swift`, letting
   `AppleBookCreateOutputSection.swift` own only section-level routing,
-  while shared source action rows in `AppleBookCreateSourceControls.swift`
-  keep EPUB, subtitle, and NAS video refresh/extract controls consistent through
-  the shared busy action button in `AppleBookCreateMetadataViews.swift`.
+  while Narrate chapter ranges, subtitle source controls, file import chrome,
+  and shared source action rows live in
+  `AppleBookCreateSourceSupportControls.swift`, keeping
+  `AppleBookCreateSourceControls.swift` focused on Narrate EPUB
+  source-mode/provider selection and preserving the shared busy action button
+  in `AppleBookCreateMetadataViews.swift`.
   Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`,
   while `AppleBookCreateMediaMetadataSections.swift` owns the metadata section
   routing, and YouTube/subtitle metadata JSON binding adapters now live in

@@ -546,6 +546,15 @@ CREATE_SOURCE_CONTROLS = (
     / "Create"
     / "AppleBookCreateSourceControls.swift"
 )
+CREATE_SOURCE_SUPPORT_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSourceSupportControls.swift"
+)
 CREATE_YOUTUBE_SOURCE_CONTROLS = (
     ROOT
     / "ios"
@@ -3162,24 +3171,25 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     assert "selectedNarrateFileURL = nil" in import_actions_source
     assert "private func importNarrateEbookToServer(_ selection: AppleBookCreateNarrateImportSelection)" not in view_source
     assert "isUploadingPipelineEbook ? \"Importing EPUB\"" in _source(CREATE_SOURCE_CONTROLS)
-    assert ".disabled(isBusy)" in _source(CREATE_SOURCE_CONTROLS)
-    assert 'accessibilityIdentifier("\\(buttonIdentifier).progress")' in _source(CREATE_SOURCE_CONTROLS)
+    assert ".disabled(isBusy)" in _source(CREATE_SOURCE_SUPPORT_CONTROLS)
+    assert 'accessibilityIdentifier("\\(buttonIdentifier).progress")' in _source(CREATE_SOURCE_SUPPORT_CONTROLS)
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     source = _source(CREATE_SOURCE_SECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
+    support_controls_source = _source(CREATE_SOURCE_SUPPORT_CONTROLS)
     youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
     narration_source = _source(CREATE_NARRATION_SECTION)
     project = _source(XCODE_PROJECT)
 
     assert "struct AppleBookCreateSourceSection: View" in source
     assert "struct AppleBookCreateNarrateSourceControls: View" in controls_source
-    assert "struct AppleBookCreateSubtitleSourceControls: View" in controls_source
+    assert "struct AppleBookCreateSubtitleSourceControls: View" in support_controls_source
     assert "struct AppleBookCreateYoutubeSourceControls: View" in youtube_source
-    assert "struct AppleBookCreateFileImportControl: View" in controls_source
-    assert "struct AppleBookCreateSourceActionRow: View" in controls_source
-    assert "AppleBookCreateBusyActionButton(" in controls_source
+    assert "struct AppleBookCreateFileImportControl: View" in support_controls_source
+    assert "struct AppleBookCreateSourceActionRow: View" in support_controls_source
+    assert "AppleBookCreateBusyActionButton(" in support_controls_source
     assert "let showsJobTypePicker: Bool" in source
     assert "let showsNarrateRangeControls: Bool" in source
     assert "if showsJobTypePicker || creationMode != .generatedBook" in source
@@ -3198,12 +3208,13 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "noServerEbooksMessage" in controls_source
     assert "pipelineFiles?.booksRoot" in controls_source
     assert "No server EPUBs found." in controls_source
-    assert 'Picker("Server subtitle", selection: $subtitleSourcePath)' in controls_source
-    assert "AppleBookCreatePresentation.chapterRangeSelection(" in controls_source
-    assert "AppleBookCreatePresentation.subtitleJobSources(from: subtitleSources)" in controls_source
+    assert 'Picker("Server subtitle", selection: $subtitleSourcePath)' in support_controls_source
+    assert "AppleBookCreatePresentation.chapterRangeSelection(" in support_controls_source
+    assert "AppleBookCreatePresentation.subtitleJobSources(from: subtitleSources)" in support_controls_source
     assert 'Picker("NAS video", selection: $youtubeVideoPath)' in youtube_source
     assert "AppleBookCreatePresentation.playableYoutubeSubtitles(for:" in youtube_source
-    assert controls_source.count("AppleBookCreateSourceActionRow(") == 2
+    assert controls_source.count("AppleBookCreateSourceActionRow(") == 1
+    assert support_controls_source.count("AppleBookCreateSourceActionRow(") == 1
     assert youtube_source.count("AppleBookCreateSourceActionRow(") == 3
     assert 'buttonIdentifier: "createYoutubeInspectEmbeddedSubtitlesButton"' in youtube_source
     assert "struct AppleBookCreateSourceSection: View" not in narration_source
@@ -3213,6 +3224,8 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert project.count("AppleBookCreateSourceSectionFactory.swift in Sources") == 4
     assert "AppleBookCreateSourceControls.swift in Sources" in project
     assert project.count("AppleBookCreateSourceControls.swift in Sources") == 4
+    assert "AppleBookCreateSourceSupportControls.swift in Sources" in project
+    assert project.count("AppleBookCreateSourceSupportControls.swift in Sources") == 4
     assert "AppleBookCreateYoutubeSourceControls.swift in Sources" in project
     assert project.count("AppleBookCreateYoutubeSourceControls.swift in Sources") == 4
     assert "AppleBookCreateNarrationSection.swift in Sources" in project
@@ -3226,6 +3239,7 @@ def test_subtitle_source_delete_is_wired_through_apple_create() -> None:
     source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
     source = _source(CREATE_SOURCE_SECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
+    support_controls_source = _source(CREATE_SOURCE_SUPPORT_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
     view_model_sources = _source(CREATE_VIEW_MODEL_SOURCES)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
@@ -3244,11 +3258,12 @@ def test_subtitle_source_delete_is_wired_through_apple_create() -> None:
     assert "let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void" in source
     assert "isDeletingSubtitleSource: isDeletingSubtitleSource" in source
     assert "onDeleteSubtitleSource: onDeleteSubtitleSource" in source
-    assert "let isDeletingSubtitleSource: Bool" in controls_source
-    assert "let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void" in controls_source
-    assert 'accessibilityIdentifier("createSubtitleDeleteServerSourceButton")' in controls_source
-    assert 'accessibilityIdentifier("createSubtitleDeleteServerSourceProgress")' in controls_source
-    assert "private var selectedSubtitleSourceEntry: SubtitleSourceEntry?" in controls_source
+    assert "AppleBookCreateSubtitleSourceControls(" in source
+    assert "let isDeletingSubtitleSource: Bool" in support_controls_source
+    assert "let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void" in support_controls_source
+    assert 'accessibilityIdentifier("createSubtitleDeleteServerSourceButton")' in support_controls_source
+    assert 'accessibilityIdentifier("createSubtitleDeleteServerSourceProgress")' in support_controls_source
+    assert "private var selectedSubtitleSourceEntry: SubtitleSourceEntry?" in support_controls_source
     assert "subtitleSourcePendingDelete" in view_source
     assert "confirmationDialog(" in lifecycle_source
     assert 'accessibilityIdentifier("confirmDeleteSubtitleSourceButton")' in lifecycle_source
@@ -3879,6 +3894,7 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     settings_content_source = _source(CREATE_SETTINGS_CONTENT)
     basic_source = _source(CREATE_BASIC_SECTIONS)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
+    support_controls_source = _source(CREATE_SOURCE_SUPPORT_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
     view_model_sources = _source(CREATE_VIEW_MODEL_SOURCES)
     project = _source(XCODE_PROJECT)
@@ -3985,20 +4001,21 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "showsNarrateRangeControls: false" in source_factory_source
 
     assert "private var narrateChapterSettingsControls: some View" in basic_source
-    assert "struct AppleBookCreateNarrateChapterRangeControls: View" in controls_source
-    assert "Button(action: onLoadNarrateChapters)" in controls_source
-    assert 'accessibilityIdentifier("createNarrateLoadChaptersButton")' in controls_source
-    assert "private var hasNarrateSource: Bool" in controls_source
-    assert "private var isLoadChaptersDisabled: Bool" in controls_source
-    assert 'Text("Choose an EPUB source before loading chapters.")' in controls_source
-    assert 'Text("No chapter data loaded.")' in controls_source
-    assert 'accessibilityIdentifier("createNarrateChaptersMessage")' in controls_source
-    assert 'accessibilityIdentifier("createNarrateStartChapterPicker")' in controls_source
-    assert 'accessibilityIdentifier("createNarrateEndChapterPicker")' in controls_source
-    assert 'Text("Same as start").tag("")' in controls_source
-    assert ".disabled(selectedNarrateStartChapterID.isEmpty)" in controls_source
-    assert 'accessibilityIdentifier("createNarrateChapterRangeSummary")' in controls_source
-    assert "applyNarrateChapterRangeSelection" in controls_source
+    assert "AppleBookCreateNarrateChapterRangeControls(" in controls_source
+    assert "struct AppleBookCreateNarrateChapterRangeControls: View" in support_controls_source
+    assert "Button(action: onLoadNarrateChapters)" in support_controls_source
+    assert 'accessibilityIdentifier("createNarrateLoadChaptersButton")' in support_controls_source
+    assert "private var hasNarrateSource: Bool" in support_controls_source
+    assert "private var isLoadChaptersDisabled: Bool" in support_controls_source
+    assert 'Text("Choose an EPUB source before loading chapters.")' in support_controls_source
+    assert 'Text("No chapter data loaded.")' in support_controls_source
+    assert 'accessibilityIdentifier("createNarrateChaptersMessage")' in support_controls_source
+    assert 'accessibilityIdentifier("createNarrateStartChapterPicker")' in support_controls_source
+    assert 'accessibilityIdentifier("createNarrateEndChapterPicker")' in support_controls_source
+    assert 'Text("Same as start").tag("")' in support_controls_source
+    assert ".disabled(selectedNarrateStartChapterID.isEmpty)" in support_controls_source
+    assert 'accessibilityIdentifier("createNarrateChapterRangeSummary")' in support_controls_source
+    assert "applyNarrateChapterRangeSelection" in support_controls_source
     assert "private static func shouldSkipNarrateChapterLookup(for inputFile: String) -> Bool" in view_model_sources
     assert "Generated sources use manual sentence ranges; chapter loading is skipped." in view_model_sources
     assert 'normalized.hasPrefix("runtime/generated/")' in view_model_sources
@@ -4009,6 +4026,7 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     source = _source(CREATE_SOURCE_SELECTION)
     source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
+    support_controls_source = _source(CREATE_SOURCE_SUPPORT_CONTROLS)
     basic_source = _source(CREATE_BASIC_SECTIONS)
     view_source = _source(CREATE_VIEW)
 
@@ -4023,7 +4041,7 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     assert "formatPickerModifiedDate(" in source
     assert 'joined(separator: " · ")' in source
     assert "AppleBookCreatePresentation.pipelineEbookPickerLabel(entry)" in controls_source
-    assert "AppleBookCreatePresentation.pipelineEbookDetailLabel(selectedSourceEntry)" in controls_source
+    assert "AppleBookCreatePresentation.pipelineEbookDetailLabel(selectedSourceEntry)" in support_controls_source
     assert "AppleBookCreatePresentation.pipelineEbookEntries(from: pipelineFiles)" in controls_source
     assert "private var serverEbookPicker: some View" in controls_source
     assert ".disabled(isLoadingPipelineFiles)" in controls_source
@@ -4031,8 +4049,8 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     assert "private var shouldShowServerEbooksSummary: Bool" in controls_source
     assert "private var serverEbooksSummaryMessage: String" in controls_source
     assert 'accessibilityIdentifier("createNarrateServerEbooksSummary")' in controls_source
-    assert 'accessibilityIdentifier("createNarrateSelectedEbookDetail")' in controls_source
-    assert "let selectedSourceEntry: PipelineFileEntry?" in controls_source
+    assert 'accessibilityIdentifier("createNarrateSelectedEbookDetail")' in support_controls_source
+    assert "let selectedSourceEntry: PipelineFileEntry?" in support_controls_source
     assert "selectedSourceEntry: selectedNarrateServerEbook" in controls_source
     assert "AppleBookCreatePresentation.selectedPipelineEbook(" in controls_source
     assert "let selectedNarrateSourceEntry: PipelineFileEntry?" in basic_source

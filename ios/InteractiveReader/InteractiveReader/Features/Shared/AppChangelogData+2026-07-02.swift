@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-create-source-support-controls",
+                    title: "Create sources are focused",
+                    detail: "Apple Create source support controls for chapter ranges, subtitle sources, file imports, and busy source-action rows now live in a focused SwiftUI file while preserving source-picker behavior across iPad, iPhone, Apple TV, and Mac iPad-style builds."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-audio-keeps-both-text-lanes",
                     title: "Single audio keeps both texts",
                     detail: "Apple reader single-track audio selection now keeps all renderable text tracks visible and lets inactive Original/Translation pills be re-enabled from transcript-backed lanes, so Original-only or Translation-only playback changes the narrated lane without hiding the companion transcript lane."
