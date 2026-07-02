@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-02
 
+### 2026.07.02.014
+
+- Apple TV reader playback now reinforces the Apple Music bed pause whenever a Music pause is mirrored into reader transport, so one pause press pushes both bed music and sentence narration through the same settled-pause path.
+- Advanced visible Apple app versioning to `v2026.07.02.014`.
+
 ### 2026.07.02.013
 
 - Apple reader sequence playback now enters the same sentence-plan path when a chunk exposes separate Original and Translation audio lanes but no combined option, preventing first-sentence startup from playing only Original and stopping.

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-pause-reinforced",
+                    title: "TV pause reinforces both layers",
+                    detail: "Apple reader playback now reinforces the Apple Music bed pause whenever a Music pause is mirrored into reader transport, so one TV pause press pushes both bed music and sentence narration through the same settled-pause path."
+                ),
+                AppChangelogEntry(
                     id: "apple-launch-log-all-pause-episodes",
                     title: "Launch logs check every pause",
                     detail: "The Apple Music-bed launch-console verifier now checks every pause episode for active narration evidence and settled reader-pause confirmation, matching the pulled playback-transport log guard."

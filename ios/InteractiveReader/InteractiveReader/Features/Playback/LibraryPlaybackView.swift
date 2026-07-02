@@ -410,9 +410,7 @@ struct LibraryPlaybackView: View {
         )
         viewModel.pauseForReaderTransport()
         confirmReaderTransportPauseAfterCommand(source: source)
-        if !musicOwnership.isPausedByReaderTransport {
-            musicOwnership.pauseReadingBedForReaderTransport()
-        }
+        musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()
     }

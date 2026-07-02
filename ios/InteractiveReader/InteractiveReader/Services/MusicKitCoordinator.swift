@@ -436,6 +436,31 @@ final class MusicKitCoordinator: ObservableObject {
         adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")
     }
 
+    func reinforceReadingBedPauseForReaderTransport(reason: String) {
+        guard ownershipState == .appleMusicBed else { return }
+        advanceReaderTransportResumeBarrier(reason: reason)
+        cancelReaderTransportResumeTask(reason: reason)
+        cancelPlaybackSurfaceReassertions()
+        cancelObservedNonPlayingPause()
+        logger.info(
+            "Apple Music reader transport pause reinforced reason=\(reason, privacy: .public)"
+        )
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Apple Music reader transport pause reinforced reason=\(reason)"
+        )
+        isManuallyPaused = true
+        isPausedByReaderTransport = true
+        hasAutoResumeIntent = false
+        observedPlayingAsReadingBed = false
+        shouldIgnoreNextNonPlayingStatus = true
+        beginReaderTransportPauseHold()
+        isPlaying = false
+        updateMusicPlaybackSurfaceSuppression(reason: reason)
+        pauseSystemPlayerForReaderTransport(reason: reason)
+        markPlaybackSurfaceDidChange(reason: reason)
+        scheduleReaderTransportPauseConfirmation()
+    }
+
     func setReaderTransportPauseAdoptionHandler(
         owner: AnyObject,
         handler: @escaping (String, String) -> Void
