@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "acquisition-values-cross-surface-drift-gate",
+                    title: "Discovery values stay aligned",
+                    detail: "Backend acquisition schema values now come from the shared provider contract, with tests comparing the Web and Apple validators against that source so source-discovery value changes move across surfaces together."
+                ),
+                AppChangelogEntry(
                     id: "backend-acquisition-value-contract",
                     title: "Discovery contracts start at backend",
                     detail: "The backend acquisition provider registry now validates media kinds, capabilities, rights, statuses, and default-provider ids against the shared source-discovery contract before Web or Apple source pickers consume them."

@@ -7,24 +7,18 @@ from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field
 
+from modules.services.acquisition.discovery_values import (
+    ACQUISITION_CAPABILITIES,
+    ACQUISITION_MEDIA_KINDS,
+    ACQUISITION_PROVIDER_STATUSES,
+    ACQUISITION_RIGHTS,
+)
 
-AcquisitionCapability = Literal[
-    "search",
-    "metadata",
-    "acquire",
-    "poll",
-    "extract_subtitles",
-    "import_local",
-]
-AcquisitionMediaKind = Literal["book", "video"]
-AcquisitionProviderStatus = Literal["available", "not_configured", "planned"]
-AcquisitionRights = Literal[
-    "public_domain",
-    "open_license",
-    "user_provided",
-    "unknown",
-    "restricted",
-]
+
+AcquisitionCapability = Literal[*ACQUISITION_CAPABILITIES]
+AcquisitionMediaKind = Literal[*ACQUISITION_MEDIA_KINDS]
+AcquisitionProviderStatus = Literal[*ACQUISITION_PROVIDER_STATUSES]
+AcquisitionRights = Literal[*ACQUISITION_RIGHTS]
 
 
 class AcquisitionProviderPayload(BaseModel):

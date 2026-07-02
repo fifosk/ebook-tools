@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
@@ -54,8 +55,34 @@ from modules.services.acquisition import (
 )
 
 
+ROOT = Path(__file__).resolve().parents[3]
+WEB_JOBS_API_CLIENT = ROOT / "web" / "src" / "api" / "client" / "jobs.ts"
+APPLE_PIPELINE_CREATION_API_MODELS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Models"
+    / "PipelineCreationApiModels.swift"
+)
+
+
 def _provider_by_id(payload, provider_id: str):
     return next(provider for provider in payload.providers if provider.id == provider_id)
+
+
+def _quoted_values_from_assignment(
+    source: str,
+    assignment: str,
+    *,
+    quote: str,
+    suffix: str,
+) -> tuple[str, ...]:
+    pattern = re.compile(rf"{re.escape(assignment)}(.*?){re.escape(suffix)}", re.S)
+    match = pattern.search(source)
+    assert match, f"Missing assignment for {assignment}"
+    quoted_value_pattern = rf"{re.escape(quote)}([^{re.escape(quote)}]+){re.escape(quote)}"
+    return tuple(re.findall(quoted_value_pattern, match.group(1)))
 
 
 def _candidate_token(payload: dict[str, object]) -> str:
@@ -625,6 +652,61 @@ def test_acquisition_contract_values_are_shared_with_openapi_schema() -> None:
     assert get_args(acquisition_schemas.AcquisitionProviderStatus) == (
         discovery_values.ACQUISITION_PROVIDER_STATUSES
     )
+
+
+def test_acquisition_contract_values_stay_aligned_across_web_and_apple() -> None:
+    web_source = WEB_JOBS_API_CLIENT.read_text()
+    apple_source = APPLE_PIPELINE_CREATION_API_MODELS.read_text()
+
+    assert _quoted_values_from_assignment(
+        web_source,
+        "const ACQUISITION_MEDIA_KINDS = new Set([",
+        quote="'",
+        suffix="]);",
+    ) == discovery_values.ACQUISITION_MEDIA_KINDS
+    assert _quoted_values_from_assignment(
+        web_source,
+        "const ACQUISITION_CAPABILITIES = new Set([",
+        quote="'",
+        suffix="]);",
+    ) == discovery_values.ACQUISITION_CAPABILITIES
+    assert _quoted_values_from_assignment(
+        web_source,
+        "const ACQUISITION_RIGHTS = new Set([",
+        quote="'",
+        suffix="]);",
+    ) == discovery_values.ACQUISITION_RIGHTS
+    assert _quoted_values_from_assignment(
+        web_source,
+        "const ACQUISITION_PROVIDER_STATUSES = new Set([",
+        quote="'",
+        suffix="]);",
+    ) == discovery_values.ACQUISITION_PROVIDER_STATUSES
+
+    assert _quoted_values_from_assignment(
+        apple_source,
+        "static let mediaKinds: Set<String> = [",
+        quote='"',
+        suffix="]",
+    ) == discovery_values.ACQUISITION_MEDIA_KINDS
+    assert _quoted_values_from_assignment(
+        apple_source,
+        "static let capabilities: Set<String> = [",
+        quote='"',
+        suffix="]",
+    ) == discovery_values.ACQUISITION_CAPABILITIES
+    assert _quoted_values_from_assignment(
+        apple_source,
+        "static let rights: Set<String> = [",
+        quote='"',
+        suffix="]",
+    ) == discovery_values.ACQUISITION_RIGHTS
+    assert _quoted_values_from_assignment(
+        apple_source,
+        "static let providerStatuses: Set<String> = [",
+        quote='"',
+        suffix="]",
+    ) == discovery_values.ACQUISITION_PROVIDER_STATUSES
 
 
 def test_provider_registry_rejects_contract_drift(
