@@ -642,6 +642,39 @@ def test_delete_downloaded_video_uses_safe_stat_for_video_check(
     assert video_path.resolve() in removed_paths
 
 
+def test_delete_downloaded_video_uses_safe_iterdir_for_subtitle_scan(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    video_dir = tmp_path / "Sample Video - 2024-01-01 10-00-00"
+    video_dir.mkdir()
+    video_path = video_dir / "sample_yt.mp4"
+    video_path.write_bytes(b"\x00")
+    subtitle_path = video_dir / "sample_yt.en.srt"
+    subtitle_path.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    original_iterdir = Path.iterdir
+
+    def guarded_iterdir(path: Path):
+        if path == video_dir:
+            raise AssertionError("video deletion should use source_discovery.safe_iterdir")
+        return original_iterdir(path)
+
+    def fake_safe_iterdir(path: Path):
+        if path == video_dir:
+            return [video_path, subtitle_path]
+        return list(original_iterdir(path))
+
+    monkeypatch.setattr(Path, "iterdir", guarded_iterdir)
+    monkeypatch.setattr(_nas_mod.source_discovery, "safe_iterdir", fake_safe_iterdir)
+
+    result = delete_downloaded_video(video_path)
+
+    removed_paths = {path.resolve() for path in result.removed}
+    assert video_dir.resolve() in removed_paths
+    assert video_path.resolve() in removed_paths
+    assert subtitle_path.resolve() in removed_paths
+
+
 def test_delete_downloaded_video_reports_missing_valid_video_path(tmp_path: Path) -> None:
     missing_video = tmp_path / "missing_yt.mp4"
 

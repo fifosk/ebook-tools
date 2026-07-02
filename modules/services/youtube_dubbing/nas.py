@@ -522,22 +522,19 @@ def delete_downloaded_video(video_path: Path) -> SubtitleDeletionResult:
     missing: List[Path] = []
 
     subtitles: List[Path] = []
-    try:
-        for candidate in video_dir.iterdir():
-            try:
-                if not _safe_is_regular_file(candidate):
-                    continue
-                suffix = candidate.suffix.lower().lstrip(".")
-                if suffix not in _SUBTITLE_EXTENSIONS:
-                    continue
-                if not _subtitle_matches_video(resolved, candidate):
-                    continue
-            except OSError:
-                logger.debug("Skipping stale subtitle candidate %s during video deletion", candidate, exc_info=True)
+    for candidate in source_discovery.safe_iterdir(video_dir):
+        try:
+            if not _safe_is_regular_file(candidate):
                 continue
-            subtitles.append(candidate)
-    except OSError:
-        logger.warning("Unable to scan subtitles for %s during deletion", resolved, exc_info=True)
+            suffix = candidate.suffix.lower().lstrip(".")
+            if suffix not in _SUBTITLE_EXTENSIONS:
+                continue
+            if not _subtitle_matches_video(resolved, candidate):
+                continue
+        except OSError:
+            logger.debug("Skipping stale subtitle candidate %s during video deletion", candidate, exc_info=True)
+            continue
+        subtitles.append(candidate)
 
     for subtitle in subtitles:
         try:

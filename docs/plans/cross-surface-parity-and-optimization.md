@@ -1230,7 +1230,9 @@ Optimization candidates:
   shared tolerant stat helper before deleting sidecars, and changed-test
   selection routes YouTube/NAS route or service edits through the focused
   backend YouTube dubbing gate instead of relying only on the broad WebAPI
-  suite.
+  suite. YouTube NAS video deletion now scans adjacent subtitle sidecars through
+  the shared tolerant directory iterator, keeping Web and Apple cleanup flows
+  resilient when a NAS folder briefly cannot be listed.
 - Keep backend source pickers resilient on NAS-backed folders. Status:
   `/api/pipelines/files` now stats each visible ebook/output candidate once and
   skips entries that disappear or become unreadable during listing; EPUB
