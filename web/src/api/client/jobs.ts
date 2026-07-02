@@ -420,6 +420,11 @@ function assertAcquisitionProviderListResponse(
   }
   assertStringMap(payload.paths, 'paths');
   assertStringArrayMap(payload.default_provider_ids, 'default_provider_ids');
+  assertAllowedStringMapKeys(
+    payload.default_provider_ids,
+    ACQUISITION_MEDIA_KINDS,
+    'default_provider_ids'
+  );
   for (const provider of payload.providers) {
     if (!isRecord(provider)) {
       throw new Error('Invalid acquisition provider response: missing provider entry.');
@@ -507,6 +512,16 @@ function assertStringArrayMap(value: Record<string, unknown>, key: string): void
       (entry) => !Array.isArray(entry) || entry.some((item) => typeof item !== 'string')
     )
   ) {
+    throw new Error(`Invalid acquisition provider response: invalid ${key}.`);
+  }
+}
+
+function assertAllowedStringMapKeys(
+  value: Record<string, unknown>,
+  allowed: Set<string>,
+  key: string
+): void {
+  if (Object.keys(value).some((entry) => !allowed.has(entry))) {
     throw new Error(`Invalid acquisition provider response: invalid ${key}.`);
   }
 }

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "web-default-provider-key-validation",
+                    title: "Web Default sources stay typed",
+                    detail: "Web Create now rejects acquisition Default sources maps with unknown media-kind keys, matching the backend schema and Apple Create before source picker defaults are rendered."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-default-provider-key-schema",
                     title: "Default source keys stay typed",
                     detail: "The backend acquisition provider response schema now rejects unknown Default sources media-kind keys before Web or Apple Create can see them, matching the shared source-discovery contract."
