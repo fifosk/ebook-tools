@@ -109,6 +109,6 @@ def _truthy_config(config: Mapping[str, Any], *keys: str) -> bool:
         value = config.get(key)
         if isinstance(value, str) and value.strip():
             return True
-        if value is not None and not isinstance(value, str):
+        if not isinstance(value, str) and bool(value):
             return True
     return False

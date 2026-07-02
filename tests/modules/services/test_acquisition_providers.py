@@ -216,6 +216,20 @@ def test_download_station_readiness_requires_endpoint_account_and_password(
             "download_station_username": "nas-user",
         }
     )
+    assert not provider_defaults.is_download_station_configured(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": False,
+        }
+    )
+    assert not provider_defaults.is_download_station_configured(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": [],
+        }
+    )
 
     monkeypatch.setenv("SYNOLOGY_DOWNLOAD_STATION_HOST", "nas.example.invalid")
     monkeypatch.setenv("SYNOLOGY_DOWNLOAD_STATION_USERNAME", "nas-user")
@@ -895,6 +909,8 @@ def test_default_discovery_provider_ids_are_config_aware(
         {"indexer_url": "https://indexer.example.invalid"}
     )
     assert is_indexer_search_configured({}) is False
+    assert provider_defaults.is_youtube_search_configured({"youtube_api_key": 0}) is False
+    assert is_indexer_search_configured({"indexer_url": []}) is False
     assert provider_defaults.default_discovery_provider_ids_from_readiness(
         "book",
         books_root_readable=False,
