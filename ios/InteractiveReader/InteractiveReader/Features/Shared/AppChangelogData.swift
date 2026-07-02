@@ -8,7 +8,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-language-pills-guarded-multiselect",
                     title: "Language pills support both tracks",
-                    detail: "Apple reader language pills now behave as guarded multi-select toggles: inactive Original or Translation pills add that lane, active pills remove only themselves when the other lane remains active, and the last active lane stays selected."
+                    detail: "Apple reader language pills now behave as guarded multi-select toggles: inactive Original or Translation pills add that lane, active pills remove only themselves when the other lane remains active, and stale chunk state is clamped so the last playable lane stays selected."
                 ),
                 AppChangelogEntry(
                     id: "apple-audio-menu-track-modes",

@@ -239,14 +239,10 @@ extension InteractivePlayerView {
 
         // Capture current sentence position BEFORE changing mode
         let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
-        let desiredRoles = desiredHeaderAudioRoles(
-            toggling: role,
-            activeRoles: activeAudioRoles(for: chunk, availableRoles: availableRoles),
-            availableRoles: availableRoles
-        )
-        audioModeManager.setTracks(
-            original: desiredRoles.contains(.original),
-            translation: desiredRoles.contains(.translation),
+        let track: SequenceTrack = role == .original ? .original : .translation
+        audioModeManager.toggle(
+            track,
+            availableTracks: availableRoles.sequenceTracks,
             preservingPosition: currentSentenceIndex
         )
 
@@ -389,5 +385,18 @@ extension InteractivePlayerView {
             return maxEnd
         }
         return jobEnd
+    }
+}
+
+private extension Set where Element == LanguageFlagRole {
+    var sequenceTracks: [SequenceTrack] {
+        var tracks: [SequenceTrack] = []
+        if contains(.original) {
+            tracks.append(.original)
+        }
+        if contains(.translation) {
+            tracks.append(.translation)
+        }
+        return tracks
     }
 }

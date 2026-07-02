@@ -42,7 +42,7 @@ Large Web UI hotspots to split before redesign work:
   path derivation, and live-media display-name derivation now live
   in `web/src/hooks/liveMediaState.ts`; modern and legacy timing normalization
   now lives in `web/src/hooks/liveMediaTiming.ts` with focused Vitest coverage.
-- `web/src/pages/LibraryPage.tsx` - 668 lines. Status: TV/YouTube/library
+- `web/src/pages/LibraryPage.tsx` - 645 lines. Status: TV/YouTube/library
   title, author, genre, thumbnail, upload-date, ISBN preview merge/cover, and
   tab bucketing and pagination helpers now live in
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
@@ -71,7 +71,11 @@ Large Web UI hotspots to split before redesign work:
   coverage. Library access-policy resolution, selected-item permissions, and
   admin-role detection now live in
   `web/src/pages/library/useLibraryItemPermissions.ts` with focused hook
-  coverage for admin, owner, public, private, and grant-backed access.
+  coverage for admin, owner, public, private, and grant-backed access. Library
+  external focus/search query coordination now lives in
+  `web/src/pages/library/useLibraryFocusQuery.ts` with focused hook coverage
+  for debounced search, consumed focus requests, immediate focus queries, and
+  matched-item cleanup.
 - `web/src/pages/VideoDubbingPage.tsx` - 574 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option

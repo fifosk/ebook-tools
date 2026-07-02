@@ -44,6 +44,7 @@ import type { LibraryDetailTab } from './library/LibraryDetailTabs';
 import LibraryDetailsPanel from './library/LibraryDetailsPanel';
 import LibraryEntriesPanel from './library/LibraryEntriesPanel';
 import LibraryPaginationControls from './library/LibraryPaginationControls';
+import { useLibraryFocusQuery, type LibraryFocusRequest } from './library/useLibraryFocusQuery';
 import { useLibraryItemPermissions } from './library/useLibraryItemPermissions';
 import { useLibrarySelectedPresentation } from './library/useLibrarySelectedPresentation';
 import styles from './LibraryPage.module.css';
@@ -55,7 +56,7 @@ const PAGE_SIZE = 25;
 
 type LibraryPageProps = {
   onPlay?: (item: LibraryOpenInput) => void;
-  focusRequest?: { jobId: string; itemType: LibraryItemType; token: number } | null;
+  focusRequest?: LibraryFocusRequest | null;
   onConsumeFocusRequest?: () => void;
 };
 
@@ -63,8 +64,6 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   const { session } = useAuth();
   const sessionUser = session?.user ?? null;
   const userId = sessionUser?.username ?? null;
-  const [query, setQuery] = useState('');
-  const [effectiveQuery, setEffectiveQuery] = useState('');
   const [view, setView] = useState<LibraryViewMode>('flat');
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<LibraryItem[]>([]);
@@ -93,7 +92,6 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   const [previewCoverUrl, setPreviewCoverUrl] = useState<string | null>(null);
   const [isbnFetchError, setIsbnFetchError] = useState<string | null>(null);
   const [isFetchingIsbn, setIsFetchingIsbn] = useState(false);
-  const [pendingFocus, setPendingFocus] = useState<{ jobId: string; itemType: LibraryItemType; token: number } | null>(null);
   const [isEnriching, setIsEnriching] = useState(false);
   const [enrichmentError, setEnrichmentError] = useState<string | null>(null);
   const [enrichmentResult, setEnrichmentResult] = useState<{
@@ -114,44 +112,23 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     userRole: sessionUser?.role ?? null,
   });
 
-  const handleQueryChange = useCallback(
-    (value: string) => {
-      setQuery(value);
-      if (pendingFocus && value.trim() !== pendingFocus.jobId) {
-        setPendingFocus(null);
-      }
-    },
-    [pendingFocus]
-  );
-
-  useEffect(() => {
-    const handle = window.setTimeout(() => setEffectiveQuery(query), 250);
-    return () => window.clearTimeout(handle);
-  }, [query]);
-
-  useEffect(() => {
-    if (!focusRequest) {
-      return;
-    }
-    setPendingFocus((current) => {
-      if (current && current.token === focusRequest.token) {
-        return current;
-      }
-      return focusRequest;
-    });
-    onConsumeFocusRequest?.();
-  }, [focusRequest, onConsumeFocusRequest]);
-
-  useEffect(() => {
-    if (!pendingFocus) {
-      return;
-    }
-    setQuery(pendingFocus.jobId);
-    setEffectiveQuery(pendingFocus.jobId);
+  const applyFocusRequest = useCallback((request: LibraryFocusRequest) => {
     setView('flat');
     setPage(1);
-    setActiveTab(pendingFocus.itemType);
-  }, [pendingFocus]);
+    setActiveTab(request.itemType);
+  }, []);
+
+  const {
+    query,
+    effectiveQuery,
+    pendingFocus,
+    handleQueryChange,
+    clearPendingFocus,
+  } = useLibraryFocusQuery({
+    focusRequest,
+    onConsumeFocusRequest,
+    onApplyFocusRequest: applyFocusRequest,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -254,9 +231,9 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     const match = items.find((item) => item.jobId === pendingFocus.jobId) ?? null;
     if (match) {
       selectLibraryItem(match);
-      setPendingFocus(null);
+      clearPendingFocus();
     }
-  }, [pendingFocus, items, selectLibraryItem]);
+  }, [clearPendingFocus, pendingFocus, items, selectLibraryItem]);
 
   const openLibraryItem = useCallback(
     (item: LibraryItem) => {

@@ -1465,32 +1465,12 @@ private func toggleHeaderAudioRoleForIntegration(
     preferredSingleTrackMode: inout SequenceTrack?,
     sequenceAudioMode: inout AudioMode
 ) {
-    var desiredRoles = activeAudioRolesForIntegration(
-        availableRoles: availableRoles,
-        manager: manager,
-        sequenceAudioMode: sequenceAudioMode,
-        preferredSingleTrackMode: preferredSingleTrackMode,
-        preferredAudioKind: preferredAudioKind,
-        selectedKind: preferredAudioKind
-    )
-    .intersection(availableRoles)
-    if desiredRoles.isEmpty {
-        desiredRoles = availableRoles
-    }
-    if desiredRoles.contains(role) {
-        if desiredRoles.count > 1 {
-            desiredRoles.remove(role)
-        }
-    } else {
-        desiredRoles.insert(role)
-    }
-    manager.setTracks(
-        original: desiredRoles.contains(.original),
-        translation: desiredRoles.contains(.translation)
-    )
+    let track: SequenceTrack = role == .original ? .original : .translation
+    manager.toggle(track, availableTracks: availableRoles.sequenceTracks)
     sequenceAudioMode = manager.currentMode
-    if desiredRoles.count == 1, let selectedRole = desiredRoles.first {
-        let selectedTrack: SequenceTrack = selectedRole == .original ? .original : .translation
+
+    switch manager.currentMode {
+    case .singleTrack(let selectedTrack):
         applySingleTrackSelection(
             selectedTrack,
             for: chunk,
@@ -1500,12 +1480,25 @@ private func toggleHeaderAudioRoleForIntegration(
             preferredAudioKind: &preferredAudioKind,
             preferredSingleTrackMode: &preferredSingleTrackMode
         )
-    } else {
+    case .sequence:
         selectedAudioTrackID = manager.resolvePreferredTrackID(for: chunk)
         preferredSingleTrackMode = nil
         preferredAudioKind = selectedAudioTrackID.flatMap { id in
             chunk.audioOptions.first(where: { $0.id == id })?.kind
         }
+    }
+}
+
+private extension Set where Element == LanguageFlagRole {
+    var sequenceTracks: [SequenceTrack] {
+        var tracks: [SequenceTrack] = []
+        if contains(.original) {
+            tracks.append(.original)
+        }
+        if contains(.translation) {
+            tracks.append(.translation)
+        }
+        return tracks
     }
 }
 

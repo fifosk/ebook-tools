@@ -461,18 +461,17 @@ def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
         "func toggleHeaderAudioRole(\n        _ role: LanguageFlagRole,\n        for chunk: InteractiveChunk,\n        availableRoles: Set<LanguageFlagRole>\n    )",
     )
     assert "guard availableRoles.contains(role) else { return }" in header_toggle_body
-    assert "let desiredRoles = desiredHeaderAudioRoles(" in header_toggle_body
-    assert "activeRoles: activeAudioRoles(for: chunk, availableRoles: availableRoles)" in header_toggle_body
-    assert "audioModeManager.setTracks(" in header_toggle_body
-    assert "original: desiredRoles.contains(.original)" in header_toggle_body
-    assert "translation: desiredRoles.contains(.translation)" in header_toggle_body
+    assert "let track: SequenceTrack = role == .original ? .original : .translation" in header_toggle_body
+    assert "audioModeManager.toggle(" in header_toggle_body
+    assert "availableTracks: availableRoles.sequenceTracks" in header_toggle_body
     assert "switch audioModeManager.currentMode" in header_toggle_body
     assert "case .singleTrack(let selectedTrack):" in header_toggle_body
     assert "case .sequence:" in header_toggle_body
-    assert "audioModeManager.setTracks(" in header_toggle_body
     assert "viewModel.applySingleTrackSelection(selectedTrack, for: chunk)" in header_toggle_body
     assert "viewModel.rememberAudioModePreference(audioModeManager.currentMode)" in header_toggle_body
     assert "viewModel.synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)" in header_toggle_body
+    assert "private extension Set where Element == LanguageFlagRole" in audio_management
+    assert "var sequenceTracks: [SequenceTrack]" in audio_management
 
     desired_roles_body = _function_body(
         audio_management,

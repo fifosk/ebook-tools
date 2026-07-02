@@ -180,6 +180,68 @@ final class AudioModeManager: ObservableObject {
         )
     }
 
+    /// Toggle the specified track while respecting the tracks that the current chunk can actually play.
+    ///
+    /// Header language pills can be rendered while chunk metadata is loading or while a previous
+    /// chunk left a stale track bit behind. Clamp the current state to the available lanes before
+    /// applying guarded multi-select semantics so the last playable lane cannot be removed, while
+    /// inactive companion lanes can still be added to restore sequence mode.
+    func toggle(
+        _ track: SequenceTrack,
+        availableTracks: [SequenceTrack],
+        preservingPosition currentSentenceIndex: Int? = nil
+    ) {
+        guard availableTracks.contains(track) else { return }
+
+        let canUseOriginal = availableTracks.contains(.original)
+        let canUseTranslation = availableTracks.contains(.translation)
+        var nextOriginal = canUseOriginal && isOriginalEnabled
+        var nextTranslation = canUseTranslation && isTranslationEnabled
+
+        if !nextOriginal && !nextTranslation {
+            nextOriginal = canUseOriginal
+            nextTranslation = canUseTranslation
+        }
+
+        let clampedStateChanged = nextOriginal != isOriginalEnabled || nextTranslation != isTranslationEnabled
+
+        switch track {
+        case .original:
+            guard nextTranslation || !nextOriginal else {
+                if clampedStateChanged {
+                    applyTrackState(
+                        original: nextOriginal,
+                        translation: nextTranslation,
+                        preservingPosition: currentSentenceIndex,
+                        reason: "Clamp available \(track.rawValue)"
+                    )
+                }
+                return
+            }
+            nextOriginal.toggle()
+        case .translation:
+            guard nextOriginal || !nextTranslation else {
+                if clampedStateChanged {
+                    applyTrackState(
+                        original: nextOriginal,
+                        translation: nextTranslation,
+                        preservingPosition: currentSentenceIndex,
+                        reason: "Clamp available \(track.rawValue)"
+                    )
+                }
+                return
+            }
+            nextTranslation.toggle()
+        }
+
+        applyTrackState(
+            original: nextOriginal,
+            translation: nextTranslation,
+            preservingPosition: currentSentenceIndex,
+            reason: "Toggle available \(track.rawValue)"
+        )
+    }
+
     /// Set both tracks at once (e.g., for enabling combined/sequence mode)
     /// - Parameters:
     ///   - original: Whether original should be enabled

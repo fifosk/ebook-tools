@@ -203,6 +203,39 @@ private func runChecks() {
     manager.toggle(kind: .other, preservingPosition: 14)
     requireEqual(events.last?.1, 13, "Other kind should not change mode")
 
+    let availableToggleManager = AudioModeManager()
+    availableToggleManager.toggle(.original, availableTracks: [.original, .translation], preservingPosition: 20)
+    requireEqual(
+        availableToggleManager.currentMode,
+        .singleTrack(.translation),
+        "Available-track toggle should support disabling Original from both-track mode"
+    )
+    availableToggleManager.toggle(.translation, availableTracks: [.original, .translation], preservingPosition: 21)
+    requireEqual(
+        availableToggleManager.currentMode,
+        .singleTrack(.translation),
+        "Available-track toggle should keep the last active Translation lane selected"
+    )
+    availableToggleManager.toggle(.original, availableTracks: [.original, .translation], preservingPosition: 22)
+    requireEqual(
+        availableToggleManager.currentMode,
+        .sequence,
+        "Available-track toggle should restore both lanes by tapping the inactive Original lane"
+    )
+    availableToggleManager.setTracks(original: true, translation: false, preservingPosition: 23)
+    availableToggleManager.toggle(.translation, availableTracks: [.translation], preservingPosition: 24)
+    requireEqual(
+        availableToggleManager.currentMode,
+        .singleTrack(.translation),
+        "Available-track toggle should clamp stale Original-only state to the only playable Translation lane"
+    )
+    availableToggleManager.toggle(.translation, availableTracks: [.translation], preservingPosition: 25)
+    requireEqual(
+        availableToggleManager.currentMode,
+        .singleTrack(.translation),
+        "Available-track toggle should not remove the only available Translation lane"
+    )
+
     requireEqual(manager.resolvePreferredTrackID(for: chunk), "combined", "Sequence preferred audio option")
     manager.setTracks(original: true, translation: false, preservingPosition: 15)
     requireEqual(manager.resolvePreferredTrackID(for: chunk), "original", "Original-only preferred audio option")
