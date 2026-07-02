@@ -46,7 +46,7 @@ Large Web UI hotspots to split before redesign work:
   media item registration, chunk assembly, and timing-track attachment now live
   in `web/src/hooks/liveMediaNormalise.ts`, shared by online playback, Library
   media, and offline export playback with focused coverage.
-- `web/src/pages/LibraryPage.tsx` - 645 lines. Status: TV/YouTube/library
+- `web/src/pages/LibraryPage.tsx` - 591 lines. Status: TV/YouTube/library
   title, author, genre, thumbnail, upload-date, ISBN preview merge/cover, and
   tab bucketing and pagination helpers now live in
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
@@ -68,7 +68,11 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/library/LibraryEntriesPanel.tsx` with focused rendered
   coverage. Library pagination controls now live in
   `web/src/pages/library/LibraryPaginationControls.tsx` with rendered
-  boundary-click coverage. Selected-entry presentation derivation, including
+  boundary-click coverage. Library inventory search, selected-entry
+  reconciliation, empty/error resets, and batched resume evidence now live in
+  `web/src/pages/library/useLibrarySearchResults.ts` with focused hook coverage,
+  keeping Web Library resume behavior aligned with the Apple resume pipeline.
+  Selected-entry presentation derivation, including
   type/title/author/genre fallbacks, job glyph, cover preview override, and
   TV/YouTube artwork metadata, now lives in
   `web/src/pages/library/useLibrarySelectedPresentation.ts` with focused hook

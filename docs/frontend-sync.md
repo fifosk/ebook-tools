@@ -98,9 +98,12 @@ Follow the suggested remediations to restore parity:
   not disappear from mixed legacy/new batch manifests. Header language pills are
   shared audio-mode toggles: with both roles active, tapping either role leaves
   the other role as the single active lane; from Original-only or
-  Translation-only, tapping either available role restores both available roles
-  instead of swapping to the other single lane. Keyboard/audio shortcut toggles
-  should route through the same guarded available-role path. When the manager is
+  Translation-only, tapping the inactive companion role restores both available
+  roles while tapping the sole active role keeps that single-track lane selected.
+  Header pill taps must recompute the live active audio roles at tap time rather
+  than relying on a stale render snapshot after resume or chunk hydration.
+  Keyboard/audio shortcut toggles should route through the same guarded
+  available-role path. When the manager is
   intentionally in sequence mode, duration/progress helpers should prefer the
   combined lane before any stale single-track resume evidence.
   Single-track resume should prefer the AVPlayer's current local clock before

@@ -290,6 +290,7 @@ test-web-library-focused:
 		src/api/client/__tests__/resume.test.ts \
 		src/pages/__tests__/libraryPageMetadata.test.ts \
 		src/pages/__tests__/useLibraryFocusQuery.test.tsx \
+		src/pages/__tests__/useLibrarySearchResults.test.tsx \
 		src/pages/__tests__/useLibraryItemPermissions.test.tsx \
 		src/pages/__tests__/useLibrarySelectedPresentation.test.tsx \
 		src/pages/__tests__/LibraryDetailsPanel.test.tsx \

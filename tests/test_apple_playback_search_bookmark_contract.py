@@ -595,9 +595,9 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "case .singleTrack(.translation):" in active_roles_body
     assert "return [.translation]" in active_roles_body
     assert "guard availableRoles.contains(role) else { return }" in header_toggle_body
-    assert "activeRoles: Set<LanguageFlagRole>" in header_toggle_body
+    assert "let liveActiveRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)" in header_toggle_body
     assert "let desiredRoles = desiredHeaderAudioRoles(" in header_toggle_body
-    assert "activeRoles: activeRoles" in header_toggle_body
+    assert "activeRoles: liveActiveRoles" in header_toggle_body
     assert "audioModeManager.setTracks(" in header_toggle_body
     assert "original: desiredRoles.contains(.original)" in header_toggle_body
     assert "translation: desiredRoles.contains(.translation)" in header_toggle_body

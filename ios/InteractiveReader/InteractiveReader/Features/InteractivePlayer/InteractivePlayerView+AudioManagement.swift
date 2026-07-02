@@ -235,16 +235,16 @@ extension InteractivePlayerView {
     func toggleHeaderAudioRole(
         _ role: LanguageFlagRole,
         for chunk: InteractiveChunk,
-        activeRoles: Set<LanguageFlagRole>,
         availableRoles: Set<LanguageFlagRole>
     ) {
         guard availableRoles.contains(role) else { return }
 
         // Capture current sentence position BEFORE changing mode
         let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
+        let liveActiveRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
         let desiredRoles = desiredHeaderAudioRoles(
             toggling: role,
-            activeRoles: activeRoles,
+            activeRoles: liveActiveRoles,
             availableRoles: availableRoles
         )
         audioModeManager.setTracks(

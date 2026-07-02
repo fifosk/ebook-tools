@@ -3,7 +3,6 @@ import type {
   AccessPolicyUpdatePayload,
   LibraryItem,
   LibraryViewMode,
-  ResumePositionEntry
 } from '../api/dtos';
 import {
   applyLibraryIsbn,
@@ -13,24 +12,19 @@ import {
   lookupLibraryIsbnMetadata,
   removeLibraryEntry,
   reindexLibrary,
-  searchLibrary,
   updateLibraryAccess,
   updateLibraryMetadata,
   uploadLibrarySource,
-  resolveExportDownloadUrl,
-  type LibrarySearchParams
+  resolveExportDownloadUrl
 } from '../api/client';
-import { fetchResumePositions } from '../api/client/resume';
 import {
   buildLibraryItemBuckets,
   buildLibraryMetadataUpdatePlan,
   clearLibraryItemMutating,
   clearSelectedLibraryItem,
   formatLibraryRangeLabel,
-  libraryResumeJobIds,
   markLibraryItemMutating,
   mergeIsbnMetadataIntoEditValues,
-  reconcileSelectedLibraryItem,
   replaceLibraryItem,
   resolveIsbnPreviewCoverCandidate,
   resolveItemType,
@@ -46,6 +40,7 @@ import LibraryEntriesPanel from './library/LibraryEntriesPanel';
 import LibraryPaginationControls from './library/LibraryPaginationControls';
 import { useLibraryFocusQuery, type LibraryFocusRequest } from './library/useLibraryFocusQuery';
 import { useLibraryItemPermissions } from './library/useLibraryItemPermissions';
+import { useLibrarySearchResults } from './library/useLibrarySearchResults';
 import { useLibrarySelectedPresentation } from './library/useLibrarySelectedPresentation';
 import styles from './LibraryPage.module.css';
 import { downloadWithSaveAs } from '../utils/downloads';
@@ -66,12 +61,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   const userId = sessionUser?.username ?? null;
   const [view, setView] = useState<LibraryViewMode>('flat');
   const [page, setPage] = useState(1);
-  const [items, setItems] = useState<LibraryItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
   const [activeTab, setActiveTab] = useState<LibraryItemType>('book');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [mutating, setMutating] = useState<Record<string, boolean>>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [isReindexing, setIsReindexing] = useState(false);
@@ -100,17 +90,6 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     confidence?: string | null;
   } | null>(null);
   const [detailTab, setDetailTab] = useState<LibraryDetailTab>('overview');
-  const [resumeEntries, setResumeEntries] = useState<ResumePositionEntry[]>([]);
-
-  const {
-    isAdmin,
-    selectedPermissions,
-    resolveItemPermissions,
-  } = useLibraryItemPermissions({
-    selectedItem,
-    userId,
-    userRole: sessionUser?.role ?? null,
-  });
 
   const applyFocusRequest = useCallback((request: LibraryFocusRequest) => {
     setView('flat');
@@ -130,65 +109,32 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     onApplyFocusRequest: applyFocusRequest,
   });
 
-  useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
+  const {
+    error,
+    isLoading,
+    items,
+    resumeEntries,
+    selectedItem,
+    setItems,
+    setSelectedItem,
+    total,
+  } = useLibrarySearchResults({
+    effectiveQuery,
+    page,
+    pageSize: PAGE_SIZE,
+    refreshKey,
+    view,
+  });
 
-    const params: LibrarySearchParams = {
-      query: effectiveQuery || undefined,
-      view,
-      page,
-      limit: PAGE_SIZE
-    };
-
-    searchLibrary(params)
-      .then((response) => {
-        if (cancelled) {
-          return;
-        }
-        setItems(response.items);
-        setTotal(response.total);
-        setSelectedItem((current) => reconcileSelectedLibraryItem(current, response.items));
-        const jobIds = libraryResumeJobIds(response.items);
-        if (jobIds.length === 0) {
-          setResumeEntries([]);
-          return;
-        }
-        fetchResumePositions(jobIds)
-          .then((resumeResponse) => {
-            if (!cancelled) {
-              setResumeEntries(resumeResponse.entries);
-            }
-          })
-          .catch(() => {
-            if (!cancelled) {
-              setResumeEntries([]);
-            }
-          });
-      })
-      .catch((loadError) => {
-        if (cancelled) {
-          return;
-        }
-        const message =
-          loadError instanceof Error ? loadError.message : 'Unable to load library inventory.';
-        setError(message);
-        setItems([]);
-        setTotal(0);
-        setSelectedItem(null);
-        setResumeEntries([]);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [effectiveQuery, page, view, refreshKey]);
+  const {
+    isAdmin,
+    selectedPermissions,
+    resolveItemPermissions,
+  } = useLibraryItemPermissions({
+    selectedItem,
+    userId,
+    userRole: sessionUser?.role ?? null,
+  });
 
   useEffect(() => {
     setPage(1);

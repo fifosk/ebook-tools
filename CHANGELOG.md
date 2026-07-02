@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.012
 
+- Apple reader header language pill taps now recompute the live active audio roles before changing lanes, preserving Original-only, Translation-only, and Original + Translation modes even after resume or chunk hydration updates.
 - Apple reader language pills now behave as guarded multi-select toggles: tapping an inactive Original or Translation pill adds that lane, tapping an active pill removes only that lane when the other remains active, and the last active lane stays selected.
 - Apple reader header pill taps now apply the exact role set shown in the header, so both-track playback can be restored by enabling the inactive companion pill while Original-only and Translation-only remain stable single-track modes.
 - Apple reader header language pills now clamp stale track state to the lanes available in the current chunk before toggling, so single-track chunks keep their playable pill active while Original + Translation chunks can still use both lanes.
@@ -15,6 +16,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web live-media snapshot normalization, storage URL resolution, chunk assembly, and progress-generated file parsing now live in a focused helper shared by online playback, Library media, and offline export playback.
 - Web Narrate Ebook form chrome now lives in a focused shell component covering header, step tabs, submit status, template save, and submit routing while the form coordinator stays centered on Create state orchestration.
 - Web Narrate Ebook base form state now lives in a focused hook covering shared language defaults, generated-source mode, image defaults, and prefilled image flags before Apple Create parity comparisons.
+- Web Library inventory loading, selected-entry reconciliation, error resets, and batched resume evidence now live in a focused hook shared by the Library page and its focused regression gate.
 - Web Library external focus and debounced search state now live in a focused hook with coverage for cross-surface jump-to-library requests, trimming more state wiring from the page shell.
 - Web playback shortcut registration, MyLinguist font-scale wiring, and the shortcut-help overlay now live in a focused PlayerPanel hook with coverage for help toggling and feature-disabled MyLinguist shortcuts.
 - Web playback lifecycle effects for autoplay handoff, shell playback/fullscreen callbacks, and per-job pending-reader cleanup now live in a focused PlayerPanel hook with direct coverage.

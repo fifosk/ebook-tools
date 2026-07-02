@@ -269,7 +269,6 @@ extension InteractivePlayerView {
                 handleHeaderLanguageRoleToggle(
                     role,
                     for: chunk,
-                    activeRoles: activeRoles,
                     availableRoles: availableRoles
                 )
             },
@@ -431,13 +430,11 @@ extension InteractivePlayerView {
     private func handleHeaderLanguageRoleToggle(
         _ role: LanguageFlagRole,
         for chunk: InteractiveChunk,
-        activeRoles: Set<LanguageFlagRole>,
         availableRoles: Set<LanguageFlagRole>
     ) {
         toggleHeaderAudioRole(
             role,
             for: chunk,
-            activeRoles: activeRoles,
             availableRoles: availableRoles
         )
     }

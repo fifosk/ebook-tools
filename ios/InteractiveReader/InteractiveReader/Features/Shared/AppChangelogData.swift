@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.02.012",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-header-pill-live-role-toggle",
+                    title: "Track pills keep live state",
+                    detail: "Apple reader header language pill taps now recompute live active audio roles before changing lanes, preserving Original-only, Translation-only, and Original + Translation modes after resume or chunk hydration updates."
+                ),
+                AppChangelogEntry(
+                    id: "web-library-search-results-hook",
+                    title: "Library loading is focused",
+                    detail: "Web Library inventory loading, selected-entry reconciliation, error resets, and batched resume evidence now live in a focused hook shared by the Library page and its regression gate."
+                ),
+                AppChangelogEntry(
                     id: "web-book-narration-base-state-hook",
                     title: "Narrate Ebook defaults are focused",
                     detail: "Web Narrate Ebook base form state now lives in a focused hook covering shared language defaults, generated-source mode, image defaults, and prefilled image flags before Apple Create parity comparisons."
