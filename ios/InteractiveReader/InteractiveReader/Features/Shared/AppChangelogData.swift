@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-manual-root-readiness-helper",
+                    title: "Default sources stay cleaner",
+                    detail: "Backend acquisition provider readiness now resolves manual download roots through one helper that keeps NAS video roots discoverable while excluding them from explicit manual-download default fallback policy, preserving Web and Apple Create default-source semantics."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-selected-timing-eof",
                     title: "Single-track batch ends stay pinned",
                     detail: "Apple reader original-only and translation-only playback now treats the selected timing URL stamped by single-track loading as durable lane evidence at sentence-batch EOF, preventing AVPlayer queue cleanup from resetting rendering back to combined while narration advances."

@@ -369,6 +369,50 @@ def test_manual_download_source_label_uses_configured_root_count(
     assert manual_downloads.source_label == "Manual download folder"
 
 
+def test_video_root_remains_manual_discovery_compatible_without_defaulting_to_manual(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for key in (
+        "EBOOK_ACQUISITION_MANUAL_ROOTS",
+        "EBOOK_MANUAL_DOWNLOAD_ROOTS",
+        "EBOOK_ACQUISITION_MANUAL_ROOT",
+        "EBOOK_MANUAL_DOWNLOAD_ROOT",
+        "DOWNLOAD_STATION_COMPLETED_ROOT",
+        "YOUTUBE_API_KEY",
+        "EBOOK_YOUTUBE_API_KEY",
+        "PROWLARR_URL",
+        "TORZNAB_URL",
+        "NEWZNAB_URL",
+        "EBOOK_PROWLARR_URL",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    video_root = tmp_path / "nas-videos"
+    video_root.mkdir()
+
+    roots = acquisition_provider_registry.resolve_manual_download_roots(
+        {"youtube_video_root": str(video_root)}
+    )
+    assert roots == (video_root,)
+
+    registry = list_acquisition_providers(
+        config={
+            "ebooks_dir": str(tmp_path / "missing-books"),
+            "youtube_video_root": str(video_root),
+        }
+    )
+
+    manual_downloads = _provider_by_id(registry, "manual_downloads")
+    assert manual_downloads.status == "available"
+    assert manual_downloads.source_path == video_root.as_posix()
+    assert manual_downloads.default_eligible_media_kinds == ()
+    assert registry.default_provider_ids == {
+        "book": ("local_epub",),
+        "video": ("nas_video",),
+    }
+
+
 def test_acquisition_provider_config_status_and_policy_notes(
     tmp_path: Path,
     monkeypatch,

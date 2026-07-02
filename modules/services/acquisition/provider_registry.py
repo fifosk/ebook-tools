@@ -31,6 +31,29 @@ DISCOVERY_PROVIDER_MEDIA_KINDS: Mapping[str, tuple[str, ...]] = {
     "youtube_url": ("video",),
 }
 
+_EXPLICIT_MANUAL_DOWNLOAD_ROOT_KEYS = (
+    "acquisition_manual_download_roots",
+    "manual_download_roots",
+    "acquisition_manual_download_root",
+    "manual_download_root",
+    "download_station_completed_root",
+    "downloads_root",
+)
+
+_VIDEO_DOWNLOAD_ROOT_KEYS = (
+    "youtube_video_root",
+    "youtube_library_root",
+    "video_download_root",
+)
+
+_MANUAL_DOWNLOAD_ROOT_ENV_KEYS = (
+    "EBOOK_ACQUISITION_MANUAL_ROOTS",
+    "EBOOK_MANUAL_DOWNLOAD_ROOTS",
+    "EBOOK_ACQUISITION_MANUAL_ROOT",
+    "EBOOK_MANUAL_DOWNLOAD_ROOT",
+    "DOWNLOAD_STATION_COMPLETED_ROOT",
+)
+
 
 def _normalized_catalog_id(value: str | None) -> str:
     return str(value or "").strip().casefold()
@@ -452,82 +475,65 @@ def resolve_video_root(config: Mapping[str, Any]) -> Path:
 def resolve_manual_download_roots(config: Mapping[str, Any]) -> tuple[Path, ...]:
     """Resolve user-authorized manual download folders visible to the backend."""
 
-    raw_values: list[object] = []
-    for key in (
-        "acquisition_manual_download_roots",
-        "manual_download_roots",
-        "acquisition_manual_download_root",
-        "manual_download_root",
-        "download_station_completed_root",
-        "downloads_root",
-        "youtube_video_root",
-        "youtube_library_root",
-        "video_download_root",
-    ):
-        value = config.get(key)
-        if value not in (None, ""):
-            raw_values.append(value)
-    for key in (
-        "EBOOK_ACQUISITION_MANUAL_ROOTS",
-        "EBOOK_MANUAL_DOWNLOAD_ROOTS",
-        "EBOOK_ACQUISITION_MANUAL_ROOT",
-        "EBOOK_MANUAL_DOWNLOAD_ROOT",
-        "DOWNLOAD_STATION_COMPLETED_ROOT",
-    ):
-        value = os.environ.get(key, "").strip()
-        if value:
-            raw_values.append(value)
-
-    roots: list[Path] = []
-    seen: set[str] = set()
-    for value in raw_values:
-        for part in _split_path_values(value):
-            root = _resolve_display_path(part)
-            key = root.as_posix()
-            if key in seen:
-                continue
-            seen.add(key)
-            roots.append(root)
-    return tuple(roots)
+    return _resolve_manual_download_roots(
+        config,
+        include_video_roots=True,
+        readable_only=False,
+    )
 
 
 def _readable_explicit_manual_download_roots(config: Mapping[str, Any]) -> tuple[Path, ...]:
     """Return readable manual roots explicitly configured as download inboxes."""
 
-    raw_values: list[object] = []
-    for key in (
-        "acquisition_manual_download_roots",
-        "manual_download_roots",
-        "acquisition_manual_download_root",
-        "manual_download_root",
-        "download_station_completed_root",
-        "downloads_root",
-    ):
-        value = config.get(key)
-        if value not in (None, ""):
-            raw_values.append(value)
-    for key in (
-        "EBOOK_ACQUISITION_MANUAL_ROOTS",
-        "EBOOK_MANUAL_DOWNLOAD_ROOTS",
-        "EBOOK_ACQUISITION_MANUAL_ROOT",
-        "EBOOK_MANUAL_DOWNLOAD_ROOT",
-        "DOWNLOAD_STATION_COMPLETED_ROOT",
-    ):
-        value = os.environ.get(key, "").strip()
-        if value:
-            raw_values.append(value)
+    return _resolve_manual_download_roots(
+        config,
+        include_video_roots=False,
+        readable_only=True,
+    )
 
+
+def _resolve_manual_download_roots(
+    config: Mapping[str, Any],
+    *,
+    include_video_roots: bool,
+    readable_only: bool,
+) -> tuple[Path, ...]:
     roots: list[Path] = []
     seen: set[str] = set()
-    for value in raw_values:
+    for value in _manual_download_root_values(
+        config,
+        include_video_roots=include_video_roots,
+    ):
         for part in _split_path_values(value):
             root = _resolve_display_path(part)
             key = root.as_posix()
-            if key in seen or not _is_readable_dir(root):
+            if key in seen:
+                continue
+            if readable_only and not _is_readable_dir(root):
                 continue
             seen.add(key)
             roots.append(root)
     return tuple(roots)
+
+
+def _manual_download_root_values(
+    config: Mapping[str, Any],
+    *,
+    include_video_roots: bool,
+) -> tuple[object, ...]:
+    raw_values: list[object] = []
+    config_keys = _EXPLICIT_MANUAL_DOWNLOAD_ROOT_KEYS
+    if include_video_roots:
+        config_keys += _VIDEO_DOWNLOAD_ROOT_KEYS
+    for key in config_keys:
+        value = config.get(key)
+        if value not in (None, ""):
+            raw_values.append(value)
+    for key in _MANUAL_DOWNLOAD_ROOT_ENV_KEYS:
+        value = os.environ.get(key, "").strip()
+        if value:
+            raw_values.append(value)
+    return tuple(raw_values)
 
 
 def _manual_download_source_label(roots: tuple[Path, ...]) -> str:

@@ -703,7 +703,11 @@ Current Apple UI partially exposes:
   lockstep with backend handlers. Default sources readiness now lives in
   `modules/services/acquisition/provider_defaults.py` with focused coverage,
   keeping default book/video fanout policy reusable outside the provider
-  registry payload builder. Backend local/manual/NAS source candidate helpers now live in
+  registry payload builder. Provider readiness also resolves manual-download
+  roots through one helper that keeps NAS video roots available for explicit
+  manual discovery compatibility while excluding them from explicit
+  manual-download default fallback policy, preserving Web/Apple default-source
+  semantics. Backend local/manual/NAS source candidate helpers now live in
   `modules/services/acquisition/source_candidates.py` with focused coverage,
   keeping source-relative paths, display-title derivation, zero-byte EPUB
   filtering, and bounded newest-first manual source ordering shared for
