@@ -28,6 +28,9 @@ def add_source_label(provider: dict[str, object], provider_id: str) -> dict[str,
     }
     if provider_id in labels:
         provider["source_label"] = labels[provider_id]
+    if provider_id == "zlibrary_attended":
+        provider.setdefault("discovery_media_kinds", [])
+        provider.setdefault("default_eligible_media_kinds", [])
     return provider
 
 
@@ -645,6 +648,8 @@ def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entr
     assert inventory["invalid_acquisition_providers"] == [
         "local_epub.source_label",
         "youtube_search.capabilities:search",
+        "zlibrary_attended.default_eligible_media_kinds",
+        "zlibrary_attended.discovery_media_kinds",
         "zlibrary_attended.policy",
     ]
     assert inventory["acquisition_default_providers_ready"] is False
@@ -654,6 +659,49 @@ def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entr
     assert inventory["download_station_handoff_issues"] == [
         "newznab_torznab.missing",
         "download_station.missing",
+    ]
+
+
+def test_acquisition_provider_inventory_rejects_zlibrary_discovery_or_defaulting() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        entry = {
+            "id": provider_id,
+            "media_kinds": sorted(requirements["media_kinds"]),
+            "capabilities": sorted(requirements["capabilities"]),
+            "available": provider_id != "zlibrary_attended",
+            "policy_notes": (
+                [
+                    "Direct Z-Library automation is intentionally disabled.",
+                    "Use an attended browser/download workflow only.",
+                ]
+                if provider_id == "zlibrary_attended"
+                else []
+            ),
+        }
+        discovery_media_kinds = sorted(
+            module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, [])
+        )
+        if discovery_media_kinds:
+            entry["discovery_media_kinds"] = discovery_media_kinds
+        if provider_id == "zlibrary_attended":
+            entry["discovery_media_kinds"] = ["book"]
+            entry["default_eligible_media_kinds"] = ["book"]
+        providers.append(add_source_label(entry, provider_id))
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["local_epub"],
+            "video": ["nas_video"],
+        },
+    })
+
+    assert inventory["zlibrary_policy_ready"] is True
+    assert inventory["acquisition_providers_ready"] is False
+    assert inventory["invalid_acquisition_providers"] == [
+        "zlibrary_attended.default_eligible_media_kinds",
+        "zlibrary_attended.discovery_media_kinds",
     ]
 
 

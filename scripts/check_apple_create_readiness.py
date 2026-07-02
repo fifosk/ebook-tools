@@ -668,6 +668,16 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             and "disabled" in policy_text
             and "attended" in policy_text
         )
+        zlibrary_discovery_media_kinds = zlibrary.get("discovery_media_kinds")
+        if not isinstance(zlibrary_discovery_media_kinds, list):
+            invalid.append("zlibrary_attended.discovery_media_kinds")
+        elif _string_set(zlibrary_discovery_media_kinds):
+            invalid.append("zlibrary_attended.discovery_media_kinds")
+        zlibrary_default_eligible_media_kinds = zlibrary.get("default_eligible_media_kinds")
+        if not isinstance(zlibrary_default_eligible_media_kinds, list):
+            invalid.append("zlibrary_attended.default_eligible_media_kinds")
+        elif _string_set(zlibrary_default_eligible_media_kinds):
+            invalid.append("zlibrary_attended.default_eligible_media_kinds")
     if not zlibrary_policy_ready:
         invalid.append("zlibrary_attended.policy")
 
