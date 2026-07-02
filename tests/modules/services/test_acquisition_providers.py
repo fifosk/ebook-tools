@@ -2217,6 +2217,35 @@ def test_youtube_discovery_helpers_normalize_metadata_and_errors(
 
 
 def test_openlibrary_discovery_helpers_normalize_metadata_links() -> None:
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return {
+                "docs": [
+                    {
+                        "key": "/works/OL45883W",
+                        "title": "Demo Metadata Book",
+                        "author_name": ["Metadata Author"],
+                        "edition_key": ["OL123M"],
+                    }
+                ]
+            }
+
+    class _FakeSession:
+        def get(self, url, *, params, timeout):
+            return _FakeResponse()
+
+    candidates = openlibrary_discovery.discover_openlibrary(
+        "demo metadata",
+        1,
+        language="English",
+        session=_FakeSession(),
+    )
+    assert candidates[0].provider == "openlibrary"
+    assert candidates[0].candidate_id == "openlibrary:works-OL45883W"
+    assert candidates[0].metadata["openlibrary_book_key"] == "/books/OL123M"
     assert openlibrary_discovery.openlibrary_path("works/OL45883W") == "/works/OL45883W"
     assert (
         openlibrary_discovery.openlibrary_path(

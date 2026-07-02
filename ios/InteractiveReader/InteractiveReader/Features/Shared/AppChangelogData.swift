@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-mode-stamp",
+                    title: "Single-track batches hold",
+                    detail: "Apple reader original-only and translation-only playback now stamps the current SwiftUI audio mode into the view model before sentence-batch default setup runs, so the selected track cannot reset and drift rendering."
+                ),
+                AppChangelogEntry(
+                    id: "backend-openlibrary-discovery-provider-helper",
+                    title: "Open Library discovery is leaner",
+                    detail: "Backend Open Library acquisition discovery now lives with the focused Open Library helper module, keeping metadata-only candidate construction and media-metadata lookup payload shaping out of the shared provider fanout while preserving Web and Apple Create contracts."
+                ),
+                AppChangelogEntry(
                     id: "backend-gutenberg-discovery-provider-helper",
                     title: "Gutenberg discovery is leaner",
                     detail: "Backend Project Gutenberg acquisition discovery now lives with the focused Gutenberg helper module, keeping Gutendex API calls and public-domain candidate construction out of the shared provider fanout while preserving Web and Apple Create contracts."

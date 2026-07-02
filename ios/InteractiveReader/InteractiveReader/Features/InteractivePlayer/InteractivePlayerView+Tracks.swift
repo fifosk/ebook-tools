@@ -249,6 +249,10 @@ extension InteractivePlayerView {
 
     func prepareAudioModeForInitialPlayback(for chunk: InteractiveChunk) {
         viewModel.audioModeManager = audioModeManager
+        viewModel.rememberAudioModePreference(
+            audioModeManager.currentMode,
+            clearSingleTrackOnSequence: false
+        )
         let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)
         let restoredViewModelSingleTrack = appliedResumeTrack
             ? false

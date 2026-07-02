@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Apple reader original-only/translation-only playback now stamps the current SwiftUI audio mode into the view model before sentence-batch default setup runs, so the selected track cannot reset and drift rendering after a batch ends.
+- Backend Open Library acquisition discovery now lives with the focused Open Library helper module, keeping metadata-only candidate construction and media-metadata lookup payload shaping out of the shared provider fanout while preserving Web and Apple Create contracts.
 - Backend Project Gutenberg acquisition discovery now lives with the focused Gutenberg helper module, keeping Gutendex API calls and public-domain candidate construction out of the shared provider fanout while preserving Web and Apple Create contracts.
 - Backend Newznab/Torznab acquisition discovery now lives with the focused indexer helper module, keeping review-only metadata candidate construction, source-reference storage, and token-safe indexer error handling out of the shared provider fanout.
 - Backend YouTube URL/search acquisition discovery now lives with the focused YouTube helper module, keeping metadata candidate construction and token-safe API error handling out of the shared provider fanout while preserving Web and Apple Create contracts.
