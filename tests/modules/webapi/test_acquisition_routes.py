@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
+import modules.services.acquisition.discovery_normalization as discovery_normalization
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
     RequestUserContext,
@@ -71,6 +72,7 @@ def test_acquisition_route_ids_trim_whitespace() -> None:
 
 
 def test_acquisition_optional_provider_ids_trim_and_casefold() -> None:
+    assert _normalize_optional_provider_id is discovery_normalization.normalize_provider
     assert _normalize_optional_provider_id("  LOCAL_EPUB  ") == "local_epub"
     assert _normalize_optional_provider_id(" BACKEND_DEFAULTS ") is None
     assert _normalize_optional_provider_id("   ") is None

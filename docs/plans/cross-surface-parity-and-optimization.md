@@ -752,6 +752,9 @@ Current Apple UI partially exposes:
   Apple Create readiness probes can use bounded/no-result discovery without
   unnecessary NAS or provider fanout work; shared discovery policy notes now
   live as a module constant so normal and zero-limit responses cannot drift.
+  The acquisition Web API route now aliases provider-id normalization to the
+  shared discovery normalization helper, keeping `backend_defaults` handling
+  identical at the route boundary and in service fanout for Web/Apple Create.
   Backend acquisition value coercion and
   identifier sanitization now live in
   `modules/services/acquisition/discovery_values.py` with focused coverage,

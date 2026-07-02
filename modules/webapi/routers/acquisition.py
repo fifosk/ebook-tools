@@ -25,6 +25,9 @@ from modules.services.acquisition import (
     prepare_acquisition_artifact,
     resolve_download_station_candidate_source_uri,
 )
+from modules.services.acquisition.discovery_normalization import (
+    normalize_provider as _normalize_optional_provider_id,
+)
 from modules.services.acquisition.url_safety import (
     looks_sensitive_key,
     strip_sensitive_url_parts,
@@ -130,14 +133,6 @@ def _normalize_optional_text(value: str | None) -> str | None:
         return None
     normalized = str(value).strip()
     return normalized or None
-
-
-def _normalize_optional_provider_id(value: str | None) -> str | None:
-    normalized = _normalize_optional_text(value)
-    provider_id = normalized.casefold() if normalized else None
-    if provider_id == "backend_defaults":
-        return None
-    return provider_id
 
 
 def _normalize_async_job_provider_id(
