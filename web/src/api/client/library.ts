@@ -24,6 +24,7 @@ import {
   WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT,
   WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT,
 } from './runtimeContract';
+import { assertPipelineMediaResponse } from './media';
 
 export interface LibrarySearchParams {
   query?: string;
@@ -375,5 +376,7 @@ export async function fetchLibraryMedia(
     ? `${path}?${suffix}`
     : path;
   const response = await apiFetch(url);
-  return handleResponse<PipelineMediaResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertPipelineMediaResponse(payload);
+  return payload;
 }

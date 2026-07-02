@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import PlayerPanel from '../components/PlayerPanel';
 import YoutubeDubPlayer from '../components/YoutubeDubPlayer';
-import type { PipelineMediaResponse } from '../api/dtos';
+import type { PipelineMediaDiagnostics, PipelineMediaResponse } from '../api/dtos';
 import { normaliseFetchedMedia } from '../hooks/liveMediaNormalise';
 import type { ExportPlayerManifest, ExportReadingBed } from '../types/exportPlayer';
 
@@ -27,6 +27,21 @@ function resolveReadingBed(manifest: ExportPlayerManifest | null): ExportReading
   return { id, label, url };
 }
 
+const emptyMediaDiagnostics: PipelineMediaDiagnostics = {
+  mediaFileCount: 0,
+  chunkCount: 0,
+  chunkFileCount: 0,
+  audioFileCount: 0,
+  imageFileCount: 0,
+  chunksWithAudio: 0,
+  chunksWithTiming: 0,
+  chunksWithImages: 0,
+  chunksWithoutFiles: 0,
+  chunksWithoutMetadata: 0,
+  filesWithoutUrl: 0,
+  filesWithoutSize: 0,
+};
+
 export default function ExportPlayerApp() {
   const manifest = getExportManifest();
   if (!manifest) {
@@ -51,6 +66,7 @@ export default function ExportPlayerApp() {
     media: manifest.media ?? {},
     chunks: manifest.chunks ?? [],
     complete: Boolean(manifest.complete),
+    diagnostics: manifest.diagnostics ?? emptyMediaDiagnostics,
   };
   const exportFeatures = useMemo(
     () => ({ ...(manifest.player?.features ?? {}), linguist: false }),

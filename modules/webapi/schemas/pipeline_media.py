@@ -90,14 +90,12 @@ class PipelineMediaChunk(BaseModel):
     range_fragment: Optional[str] = Field(default=None, serialization_alias="rangeFragment")
     start_sentence: Optional[int] = Field(default=None, serialization_alias="startSentence")
     end_sentence: Optional[int] = Field(default=None, serialization_alias="endSentence")
-    files: List[PipelineMediaFile] = Field(default_factory=list)
-    sentences: List[ChunkSentenceMetadata] = Field(default_factory=list)
+    files: List[PipelineMediaFile]
+    sentences: List[ChunkSentenceMetadata]
     metadata_path: Optional[str] = Field(default=None, serialization_alias="metadataPath")
     metadata_url: Optional[str] = Field(default=None, serialization_alias="metadataUrl")
     sentence_count: Optional[int] = Field(default=None, serialization_alias="sentenceCount")
-    audio_tracks: Dict[str, AudioTrackMetadata] = Field(
-        default_factory=dict, serialization_alias="audioTracks"
-    )
+    audio_tracks: Dict[str, AudioTrackMetadata] = Field(serialization_alias="audioTracks")
     timing_tracks: Optional[Dict[str, List[Dict[str, Any]]]] = Field(
         default=None, serialization_alias="timingTracks"
     )
@@ -130,10 +128,10 @@ class PipelineMediaDiagnostics(BaseModel):
 class PipelineMediaResponse(BaseModel):
     """Response payload grouping generated media by type."""
 
-    media: Dict[str, List[PipelineMediaFile]] = Field(default_factory=dict)
-    chunks: List[PipelineMediaChunk] = Field(default_factory=list)
-    complete: bool = False
-    diagnostics: PipelineMediaDiagnostics = Field(default_factory=PipelineMediaDiagnostics)
+    media: Dict[str, List[PipelineMediaFile]]
+    chunks: List[PipelineMediaChunk]
+    complete: bool
+    diagnostics: PipelineMediaDiagnostics
 
 
 class MediaSearchHit(BaseModel):

@@ -22,6 +22,42 @@ function jsonResponse(payload: unknown): Response {
   });
 }
 
+const mediaDiagnostics = {
+  mediaFileCount: 1,
+  chunkCount: 1,
+  chunkFileCount: 1,
+  audioFileCount: 1,
+  imageFileCount: 0,
+  chunksWithAudio: 1,
+  chunksWithTiming: 0,
+  chunksWithImages: 0,
+  chunksWithoutFiles: 0,
+  chunksWithoutMetadata: 0,
+  filesWithoutUrl: 0,
+  filesWithoutSize: 0
+};
+
+const mediaFile = {
+  name: 'sentence.mp3',
+  url: '/storage/job-1/sentence.mp3',
+  size: 1200,
+  source: 'completed'
+};
+
+const mediaPayload = {
+  media: { audio: [mediaFile] },
+  chunks: [
+    {
+      chunk_id: 'chunk_0001',
+      files: [mediaFile],
+      sentences: [],
+      audioTracks: {}
+    }
+  ],
+  complete: true,
+  diagnostics: mediaDiagnostics
+};
+
 describe('media API client', () => {
   const originalFetch = globalThis.fetch;
 
@@ -32,12 +68,12 @@ describe('media API client', () => {
 
   it('encodes job ids for media and live media routes', async () => {
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValueOnce(jsonResponse({ files: [], chunks: [] }))
-      .mockResolvedValueOnce(jsonResponse({ files: [], chunks: [] }));
+      .mockResolvedValueOnce(jsonResponse(mediaPayload))
+      .mockResolvedValueOnce(jsonResponse(mediaPayload));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await fetchJobMedia('job/with?parts');
-    await fetchLiveJobMedia('job/with?parts');
+    await expect(fetchJobMedia('job/with?parts')).resolves.toEqual(mediaPayload);
+    await expect(fetchLiveJobMedia('job/with?parts')).resolves.toEqual(mediaPayload);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[0][0])).toContain(
@@ -45,6 +81,47 @@ describe('media API client', () => {
     );
     expect(String(fetchMock.mock.calls[1][0])).toContain(
       '/api/pipelines/jobs/job%2Fwith%3Fparts/media/live'
+    );
+  });
+
+  it('rejects malformed pipeline media responses before playback renders them', async () => {
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ chunks: [], complete: false, diagnostics: mediaDiagnostics }))
+      .mockResolvedValueOnce(jsonResponse({ media: {}, complete: false, diagnostics: mediaDiagnostics }))
+      .mockResolvedValueOnce(jsonResponse({
+        media: {},
+        chunks: [{ files: [], audioTracks: {} }],
+        complete: false,
+        diagnostics: mediaDiagnostics
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        media: {},
+        chunks: [{ files: [{ name: 'x.mp3' }], sentences: [], audioTracks: {} }],
+        complete: false,
+        diagnostics: mediaDiagnostics
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        media: {},
+        chunks: [],
+        complete: false
+      }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchJobMedia('job-1')).rejects.toThrow(
+      'Invalid pipeline media response: missing media.'
+    );
+    await expect(fetchJobMedia('job-1')).rejects.toThrow(
+      'Invalid pipeline media response: missing chunks.'
+    );
+    await expect(fetchJobMedia('job-1')).rejects.toThrow(
+      'Invalid pipeline media chunk response: missing sentences.'
+    );
+    await expect(fetchJobMedia('job-1')).rejects.toThrow(
+      'Invalid pipeline media file response: missing source.'
+    );
+    await expect(fetchJobMedia('job-1')).rejects.toThrow(
+      'Invalid pipeline media response: missing diagnostics.'
     );
   });
 

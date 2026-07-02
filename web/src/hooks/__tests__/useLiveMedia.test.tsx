@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLiveMedia } from '../useLiveMedia';
-import { PipelineMediaResponse, ProgressEventPayload } from '../../api/dtos';
+import { PipelineMediaDiagnostics, PipelineMediaResponse, ProgressEventPayload } from '../../api/dtos';
 
 const fetchLiveJobMediaMock = vi.hoisted(() => vi.fn<[], Promise<PipelineMediaResponse>>());
 const fetchJobMediaMock = vi.hoisted(() => vi.fn<[], Promise<PipelineMediaResponse>>());
@@ -28,10 +28,25 @@ vi.mock('../../utils/storageResolver', async () => {
   };
 });
 
+const emptyMediaDiagnostics: PipelineMediaDiagnostics = {
+  mediaFileCount: 0,
+  chunkCount: 0,
+  chunkFileCount: 0,
+  audioFileCount: 0,
+  imageFileCount: 0,
+  chunksWithAudio: 0,
+  chunksWithTiming: 0,
+  chunksWithImages: 0,
+  chunksWithoutFiles: 0,
+  chunksWithoutMetadata: 0,
+  filesWithoutUrl: 0,
+  filesWithoutSize: 0,
+};
+
 describe('useLiveMedia', () => {
   beforeEach(() => {
     fetchJobMediaMock.mockReset();
-    fetchJobMediaMock.mockResolvedValue({ media: {}, chunks: [], complete: false });
+    fetchJobMediaMock.mockResolvedValue({ media: {}, chunks: [], complete: false, diagnostics: emptyMediaDiagnostics });
     fetchLiveJobMediaMock.mockReset();
     subscribeToJobEventsMock.mockReset();
     resolveStorageMock.mockReset();
@@ -142,7 +157,7 @@ describe('useLiveMedia', () => {
   });
 
   it('does not update state for non media events', async () => {
-    fetchLiveJobMediaMock.mockResolvedValue({ media: {}, chunks: [], complete: false });
+    fetchLiveJobMediaMock.mockResolvedValue({ media: {}, chunks: [], complete: false, diagnostics: emptyMediaDiagnostics });
 
     const listeners: Array<(event: ProgressEventPayload) => void> = [];
     subscribeToJobEventsMock.mockImplementation((_jobId: string, options: { onEvent?: (event: ProgressEventPayload) => void }) => {

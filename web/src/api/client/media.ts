@@ -41,7 +41,9 @@ export async function fetchJobMedia(jobId: string): Promise<PipelineMediaRespons
       jobId
     )
   );
-  return handleResponse<PipelineMediaResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertPipelineMediaResponse(payload);
+  return payload;
 }
 
 export async function fetchLiveJobMedia(jobId: string): Promise<PipelineMediaResponse> {
@@ -52,7 +54,84 @@ export async function fetchLiveJobMedia(jobId: string): Promise<PipelineMediaRes
       jobId
     )
   );
-  return handleResponse<PipelineMediaResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertPipelineMediaResponse(payload);
+  return payload;
+}
+
+export function assertPipelineMediaResponse(
+  payload: unknown
+): asserts payload is PipelineMediaResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid pipeline media response.');
+  }
+  if (!isRecord(payload.media)) {
+    throw new Error('Invalid pipeline media response: missing media.');
+  }
+  Object.values(payload.media).forEach((entries) => {
+    if (!Array.isArray(entries)) {
+      throw new Error('Invalid pipeline media response: invalid media.');
+    }
+    entries.forEach(assertPipelineMediaFile);
+  });
+  if (!Array.isArray(payload.chunks)) {
+    throw new Error('Invalid pipeline media response: missing chunks.');
+  }
+  payload.chunks.forEach(assertPipelineMediaChunk);
+  assertPlaybackStateBooleanField(payload, 'complete', 'pipeline media');
+  assertPipelineMediaDiagnostics(payload.diagnostics);
+}
+
+function assertPipelineMediaChunk(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid pipeline media response: missing chunk entry.');
+  }
+  if (!Array.isArray(payload.files)) {
+    throw new Error('Invalid pipeline media chunk response: missing files.');
+  }
+  payload.files.forEach(assertPipelineMediaFile);
+  if (!Array.isArray(payload.sentences)) {
+    throw new Error('Invalid pipeline media chunk response: missing sentences.');
+  }
+  if (!isRecord(payload.audioTracks)) {
+    throw new Error('Invalid pipeline media chunk response: missing audioTracks.');
+  }
+}
+
+function assertPipelineMediaFile(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid pipeline media response: missing file entry.');
+  }
+  assertPlaybackStateStringField(payload, 'name', 'pipeline media file');
+  assertPipelineMediaFileSource(payload.source);
+}
+
+function assertPipelineMediaFileSource(value: unknown): void {
+  if (value !== 'completed' && value !== 'live') {
+    throw new Error('Invalid pipeline media file response: missing source.');
+  }
+}
+
+function assertPipelineMediaDiagnostics(value: unknown): void {
+  if (!isRecord(value)) {
+    throw new Error('Invalid pipeline media response: missing diagnostics.');
+  }
+  [
+    'mediaFileCount',
+    'chunkCount',
+    'chunkFileCount',
+    'audioFileCount',
+    'imageFileCount',
+    'chunksWithAudio',
+    'chunksWithTiming',
+    'chunksWithImages',
+    'chunksWithoutFiles',
+    'chunksWithoutMetadata',
+    'filesWithoutUrl',
+    'filesWithoutSize',
+  ].forEach((key) => {
+    assertPlaybackStateNumberField(value, key, 'pipeline media diagnostics');
+  });
 }
 
 // Sentence images

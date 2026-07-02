@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PipelineMediaResponse, ProgressEventPayload } from '../../api/dtos';
+import type { PipelineMediaDiagnostics, PipelineMediaResponse, ProgressEventPayload } from '../../api/dtos';
 
 const fetchLiveJobMediaMock = vi.hoisted(() => vi.fn<[], Promise<PipelineMediaResponse>>());
 const subscribeToJobEventsMock = vi.hoisted(() => vi.fn());
@@ -47,6 +47,21 @@ vi.mock('../../components/YoutubeDubPlayer', () => ({
 }));
 
 import JobDetail from '../JobDetail';
+
+const emptyMediaDiagnostics: PipelineMediaDiagnostics = {
+  mediaFileCount: 0,
+  chunkCount: 0,
+  chunkFileCount: 0,
+  audioFileCount: 0,
+  imageFileCount: 0,
+  chunksWithAudio: 0,
+  chunksWithTiming: 0,
+  chunksWithImages: 0,
+  chunksWithoutFiles: 0,
+  chunksWithoutMetadata: 0,
+  filesWithoutUrl: 0,
+  filesWithoutSize: 0,
+};
 
 describe('JobDetail', () => {
   let playSpy: ReturnType<typeof vi.spyOn>;
@@ -188,6 +203,7 @@ describe('JobDetail', () => {
       },
       chunks: [],
       complete: false,
+      diagnostics: emptyMediaDiagnostics,
     });
 
     subscribeToJobEventsMock.mockReturnValue(() => {});

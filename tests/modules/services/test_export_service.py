@@ -5,12 +5,46 @@ from pathlib import Path
 import pytest
 
 from modules.services.export_service import (
+    _build_export_media_diagnostics,
     _collect_inline_subtitles,
     _ensure_export_assets,
     _sanitize_media_metadata,
 )
 
 pytestmark = pytest.mark.services
+
+
+def test_offline_export_media_diagnostics_match_playback_manifest_shape() -> None:
+    diagnostics = _build_export_media_diagnostics(
+        {
+            "audio": [{"name": "chunk.mp3", "type": "audio", "url": "media/chunk.mp3", "size": 42}],
+            "images": [{"name": "cover.png", "type": "image", "url": None}],
+        },
+        [
+            {
+                "files": [{"name": "chunk.mp3", "type": "audio", "url": "media/chunk.mp3"}],
+                "sentences": [{"timeline": [{"word": "Hello"}], "image_path": "media/images/1.png"}],
+                "audioTracks": {"translation": {"url": "media/chunk.mp3"}},
+                "metadata_path": "metadata/chunk_0000.json",
+            },
+            {"files": [], "sentences": []},
+        ],
+    )
+
+    assert diagnostics == {
+        "mediaFileCount": 2,
+        "chunkCount": 2,
+        "chunkFileCount": 1,
+        "audioFileCount": 1,
+        "imageFileCount": 1,
+        "chunksWithAudio": 1,
+        "chunksWithTiming": 1,
+        "chunksWithImages": 1,
+        "chunksWithoutFiles": 1,
+        "chunksWithoutMetadata": 1,
+        "filesWithoutUrl": 1,
+        "filesWithoutSize": 1,
+    }
 
 
 def test_offline_export_media_metadata_strips_sensitive_fields_and_urls(

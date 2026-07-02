@@ -68,6 +68,81 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _file_type_matches(entry: Mapping[str, Any], candidates: set[str]) -> bool:
+    value = entry.get("type") or entry.get("name") or ""
+    return any(candidate in str(value).lower() for candidate in candidates)
+
+
+def _chunk_has_timing(chunk: Mapping[str, Any]) -> bool:
+    timing_tracks = chunk.get("timingTracks") or chunk.get("timing_tracks")
+    if isinstance(timing_tracks, Mapping):
+        return any(isinstance(entries, list) and bool(entries) for entries in timing_tracks.values())
+    sentences = chunk.get("sentences")
+    if not isinstance(sentences, list):
+        return False
+    return any(isinstance(sentence, Mapping) and bool(sentence.get("timeline")) for sentence in sentences)
+
+
+def _chunk_has_image(chunk: Mapping[str, Any]) -> bool:
+    files = chunk.get("files")
+    if isinstance(files, list):
+        for entry in files:
+            if isinstance(entry, Mapping) and _file_type_matches(entry, {"image", "png", "jpg", "jpeg", "webp"}):
+                return True
+    sentences = chunk.get("sentences")
+    if not isinstance(sentences, list):
+        return False
+    return any(
+        isinstance(sentence, Mapping) and (sentence.get("image") is not None or bool(sentence.get("image_path")))
+        for sentence in sentences
+    )
+
+
+def _build_export_media_diagnostics(
+    media_entries: Mapping[str, list[Dict[str, Any]]],
+    chunk_entries: list[Dict[str, Any]],
+) -> Dict[str, int]:
+    media_files = [entry for entries in media_entries.values() for entry in entries]
+    chunk_files = [
+        entry
+        for chunk in chunk_entries
+        for entry in chunk.get("files", [])
+        if isinstance(entry, Mapping)
+    ]
+
+    return {
+        "mediaFileCount": len(media_files),
+        "chunkCount": len(chunk_entries),
+        "chunkFileCount": len(chunk_files),
+        "audioFileCount": sum(
+            1 for entry in media_files if _file_type_matches(entry, {"audio", "mp3", "wav", "m4a"})
+        ),
+        "imageFileCount": sum(
+            1 for entry in media_files if _file_type_matches(entry, {"image", "png", "jpg", "jpeg", "webp"})
+        ),
+        "chunksWithAudio": sum(
+            1
+            for chunk in chunk_entries
+            if bool(chunk.get("audioTracks"))
+            or any(
+                _file_type_matches(entry, {"audio", "mp3", "wav", "m4a"})
+                for entry in chunk.get("files", [])
+                if isinstance(entry, Mapping)
+            )
+        ),
+        "chunksWithTiming": sum(1 for chunk in chunk_entries if _chunk_has_timing(chunk)),
+        "chunksWithImages": sum(1 for chunk in chunk_entries if _chunk_has_image(chunk)),
+        "chunksWithoutFiles": sum(1 for chunk in chunk_entries if not chunk.get("files")),
+        "chunksWithoutMetadata": sum(
+            1
+            for chunk in chunk_entries
+            if not chunk.get("metadata_path") and not chunk.get("metadata_url") and not chunk.get("sentences")
+        ),
+        "filesWithoutUrl": sum(1 for entry in media_files if not entry.get("url")),
+        "filesWithoutSize": sum(1 for entry in media_files if entry.get("size") is None),
+    }
+
+
 def _resolve_export_assets_root() -> Path:
     override = os.environ.get("EBOOK_EXPORT_PLAYER_ROOT")
     if override:
@@ -922,6 +997,7 @@ class ExportService:
             "media": media_map,
             "chunks": chunk_records,
             "complete": complete,
+            "diagnostics": _build_export_media_diagnostics(media_map, chunk_records),
             "reading_bed": {
                 "id": DEFAULT_READING_BED_ID,
                 "label": DEFAULT_READING_BED_LABEL,

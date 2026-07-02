@@ -4,7 +4,7 @@ struct PipelineMediaResponse: Decodable {
     let media: [String: [PipelineMediaFile]]
     let chunks: [PipelineMediaChunk]
     let complete: Bool
-    let diagnostics: PipelineMediaDiagnostics?
+    let diagnostics: PipelineMediaDiagnostics
 
     enum CodingKeys: String, CodingKey {
         case media
@@ -17,7 +17,7 @@ struct PipelineMediaResponse: Decodable {
         media: [String: [PipelineMediaFile]] = [:],
         chunks: [PipelineMediaChunk] = [],
         complete: Bool = false,
-        diagnostics: PipelineMediaDiagnostics? = nil
+        diagnostics: PipelineMediaDiagnostics = .empty
     ) {
         self.media = media
         self.chunks = chunks
@@ -27,10 +27,10 @@ struct PipelineMediaResponse: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        media = (try? container.decode([String: [PipelineMediaFile]].self, forKey: .media)) ?? [:]
-        chunks = (try? container.decode([PipelineMediaChunk].self, forKey: .chunks)) ?? []
-        complete = (try? container.decode(Bool.self, forKey: .complete)) ?? false
-        diagnostics = try? container.decode(PipelineMediaDiagnostics.self, forKey: .diagnostics)
+        media = try container.decode([String: [PipelineMediaFile]].self, forKey: .media)
+        chunks = try container.decode([PipelineMediaChunk].self, forKey: .chunks)
+        complete = try container.decode(Bool.self, forKey: .complete)
+        diagnostics = try container.decode(PipelineMediaDiagnostics.self, forKey: .diagnostics)
     }
 }
 
@@ -55,6 +55,21 @@ struct PipelineMediaDiagnostics: Decodable, Equatable {
     var hasGaps: Bool {
         missingCount > 0 || chunksWithoutFiles > 0
     }
+
+    static let empty = PipelineMediaDiagnostics(
+        mediaFileCount: 0,
+        chunkCount: 0,
+        chunkFileCount: 0,
+        audioFileCount: 0,
+        imageFileCount: 0,
+        chunksWithAudio: 0,
+        chunksWithTiming: 0,
+        chunksWithImages: 0,
+        chunksWithoutFiles: 0,
+        chunksWithoutMetadata: 0,
+        filesWithoutUrl: 0,
+        filesWithoutSize: 0
+    )
 }
 
 struct PipelineMediaFile: Decodable, Identifiable {
@@ -119,7 +134,7 @@ struct PipelineMediaFile: Decodable, Identifiable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        name = (try? container.decode(String.self, forKey: .name)) ?? "media"
+        name = try container.decode(String.self, forKey: .name)
         url = try? container.decode(String.self, forKey: .url)
         if let sizeValue = try? container.decode(Double.self, forKey: .size) {
             size = sizeValue
@@ -135,7 +150,7 @@ struct PipelineMediaFile: Decodable, Identifiable {
         } else {
             updatedAt = nil
         }
-        source = (try? container.decode(String.self, forKey: .source)) ?? "completed"
+        source = try container.decode(String.self, forKey: .source)
         relativePath = try? container.decode(String.self, forKey: .relativePath)
         path = try? container.decode(String.self, forKey: .path)
         chunkID = try? container.decode(String.self, forKey: .chunkID)
@@ -211,12 +226,12 @@ struct PipelineMediaChunk: Decodable, Identifiable {
         rangeFragment = try? container.decode(String.self, forKey: .rangeFragment)
         startSentence = try? container.decode(Int.self, forKey: .startSentence)
         endSentence = try? container.decode(Int.self, forKey: .endSentence)
-        files = (try? container.decode([PipelineMediaFile].self, forKey: .files)) ?? []
-        sentences = (try? container.decode([ChunkSentenceMetadata].self, forKey: .sentences)) ?? []
+        files = try container.decode([PipelineMediaFile].self, forKey: .files)
+        sentences = try container.decode([ChunkSentenceMetadata].self, forKey: .sentences)
         metadataPath = try? container.decode(String.self, forKey: .metadataPath)
         metadataURL = try? container.decode(String.self, forKey: .metadataURL)
         sentenceCount = try? container.decode(Int.self, forKey: .sentenceCount)
-        audioTracks = (try? container.decode([String: AudioTrackMetadata].self, forKey: .audioTracks)) ?? [:]
+        audioTracks = try container.decode([String: AudioTrackMetadata].self, forKey: .audioTracks)
         timingTracks = try? container.decode([String: [[String: JSONValue]]].self, forKey: .timingTracks)
         timingVersion = try? container.decode(String.self, forKey: .timingVersion)
     }

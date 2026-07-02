@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchLibraryMedia,
   refreshLibraryMetadata,
   reindexLibrary,
   removeLibraryMedia,
@@ -21,6 +22,42 @@ const refreshedItem: LibraryItem = {
   updatedAt: '2026-06-24T00:00:00Z',
   libraryPath: '/library/library-job',
   metadata: {}
+};
+
+const mediaDiagnostics = {
+  mediaFileCount: 1,
+  chunkCount: 1,
+  chunkFileCount: 1,
+  audioFileCount: 1,
+  imageFileCount: 0,
+  chunksWithAudio: 1,
+  chunksWithTiming: 0,
+  chunksWithImages: 0,
+  chunksWithoutFiles: 0,
+  chunksWithoutMetadata: 0,
+  filesWithoutUrl: 0,
+  filesWithoutSize: 0
+};
+
+const mediaFile = {
+  name: 'sentence.mp3',
+  url: '/api/library/media/library-job/file/sentence.mp3',
+  size: 1200,
+  source: 'completed'
+};
+
+const mediaPayload = {
+  media: { audio: [mediaFile] },
+  chunks: [
+    {
+      chunk_id: 'chunk_0001',
+      files: [mediaFile],
+      sentences: [],
+      audioTracks: {}
+    }
+  ],
+  complete: true,
+  diagnostics: mediaDiagnostics
 };
 
 function jsonResponse(payload: unknown): Response {
@@ -175,6 +212,24 @@ describe('library API client', () => {
     );
     await expect(searchLibrary({})).rejects.toThrow(
       'Invalid library item response: missing metadata.'
+    );
+  });
+
+  it('validates library media responses with the shared playback media contract', async () => {
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse(mediaPayload))
+      .mockResolvedValueOnce(jsonResponse({ media: {}, chunks: [], complete: true }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchLibraryMedia('library/job', { summary: true })).resolves.toEqual(mediaPayload);
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.pathname).toBe('/api/library/media/library%2Fjob');
+    expect(url.searchParams.get('summary')).toBe('1');
+
+    await expect(fetchLibraryMedia('library/job')).rejects.toThrow(
+      'Invalid pipeline media response: missing diagnostics.'
     );
   });
 });

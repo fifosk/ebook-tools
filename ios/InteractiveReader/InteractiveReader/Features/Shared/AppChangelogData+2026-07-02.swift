@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "playback-media-manifest-strict",
+                    title: "Playback media fails clearly",
+                    detail: "Backend, Web, Apple, and offline export playback now require media, chunk, completion, and diagnostics fields before rendering, so malformed manifests are caught early instead of becoming empty spinner or audio-only states."
+                ),
+                AppChangelogEntry(
                     id: "lookup-cache-contract-aligned",
                     title: "Lookup cache speaks one shape",
                     detail: "Backend, Web, and Apple lookup-cache responses now share the same bulk result, summary, and audio-reference contract, so cached word bubbles can trust existing narration seek points instead of falling back from stale empty shapes."

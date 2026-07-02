@@ -140,6 +140,18 @@ def test_get_job_media_returns_completed_entries(api_app) -> None:
     assert datetime.fromisoformat(entry["updated_at"]) == expected_mtime
 
 
+def test_pipeline_media_openapi_marks_playback_manifest_fields_required() -> None:
+    schemas = create_app().openapi()["components"]["schemas"]
+
+    response_required = set(schemas["PipelineMediaResponse"]["required"])
+    chunk_required = set(schemas["PipelineMediaChunk"]["required"])
+    file_required = set(schemas["PipelineMediaFile"]["required"])
+
+    assert {"media", "chunks", "complete", "diagnostics"} <= response_required
+    assert {"files", "sentences", "audioTracks"} <= chunk_required
+    assert {"name", "source"} <= file_required
+
+
 def test_stream_chunk_audio_track_uses_safe_stat_for_audio_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

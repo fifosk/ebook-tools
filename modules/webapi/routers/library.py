@@ -51,6 +51,7 @@ from ..schemas import (
     AccessPolicyPayload,
     AccessPolicyUpdateRequest,
     PipelineMediaChunk,
+    PipelineMediaDiagnostics,
     PipelineMediaFile,
     PipelineMediaResponse,
 )
@@ -67,6 +68,58 @@ from modules.permissions import can_access, resolve_access_policy
 
 
 router = APIRouter(prefix="/api/library", tags=["library"])
+
+
+def _build_library_media_diagnostics(
+    media_entries: Mapping[str, list[PipelineMediaFile]],
+    chunk_entries: list[PipelineMediaChunk],
+) -> PipelineMediaDiagnostics:
+    """Build manifest health counters for Library-backed playback."""
+
+    media_files = [file for entries in media_entries.values() for file in entries]
+    chunk_files = [file for chunk in chunk_entries for file in chunk.files]
+
+    def file_type_matches(file: PipelineMediaFile, candidates: set[str]) -> bool:
+        value = (file.type or file.name or "").lower()
+        return any(candidate in value for candidate in candidates)
+
+    def chunk_has_timing(chunk: PipelineMediaChunk) -> bool:
+        if chunk.timing_tracks:
+            return any(entries for entries in chunk.timing_tracks.values())
+        return any(sentence.timeline for sentence in chunk.sentences)
+
+    def chunk_has_image(chunk: PipelineMediaChunk) -> bool:
+        if any(file_type_matches(file, {"image", "png", "jpg", "jpeg", "webp"}) for file in chunk.files):
+            return True
+        return any(sentence.image is not None or sentence.image_path for sentence in chunk.sentences)
+
+    return PipelineMediaDiagnostics(
+        media_file_count=len(media_files),
+        chunk_count=len(chunk_entries),
+        chunk_file_count=len(chunk_files),
+        audio_file_count=sum(
+            1 for file in media_files if file_type_matches(file, {"audio", "mp3", "wav", "m4a"})
+        ),
+        image_file_count=sum(
+            1 for file in media_files if file_type_matches(file, {"image", "png", "jpg", "jpeg", "webp"})
+        ),
+        chunks_with_audio=sum(
+            1
+            for chunk in chunk_entries
+            if chunk.audio_tracks
+            or any(file_type_matches(file, {"audio", "mp3", "wav", "m4a"}) for file in chunk.files)
+        ),
+        chunks_with_timing=sum(1 for chunk in chunk_entries if chunk_has_timing(chunk)),
+        chunks_with_images=sum(1 for chunk in chunk_entries if chunk_has_image(chunk)),
+        chunks_without_files=sum(1 for chunk in chunk_entries if not chunk.files),
+        chunks_without_metadata=sum(
+            1
+            for chunk in chunk_entries
+            if not chunk.metadata_path and not chunk.metadata_url and not chunk.sentences
+        ),
+        files_without_url=sum(1 for file in media_files if not file.url),
+        files_without_size=sum(1 for file in media_files if file.size is None),
+    )
 
 # Ensure common subtitle MIME types are recognized when serving from the library.
 mimetypes.add_type("text/vtt", ".vtt")
@@ -1135,6 +1188,7 @@ async def get_library_media(
             media=serialized_media,
             chunks=serialized_chunks,
             complete=complete,
+            diagnostics=_build_library_media_diagnostics(serialized_media, serialized_chunks),
         )
     except LibraryNotFoundError as exc:
         _log_library_route_result(

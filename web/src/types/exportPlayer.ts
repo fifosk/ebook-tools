@@ -1,4 +1,4 @@
-import type { PipelineMediaChunk, PipelineMediaFile } from '../api/dtos';
+import type { PipelineMediaChunk, PipelineMediaDiagnostics, PipelineMediaFile } from '../api/dtos';
 
 export type ExportPlayerFeatureFlags = {
   linguist?: boolean;
@@ -36,6 +36,7 @@ export type ExportPlayerManifest = {
   inline_subtitles?: Record<string, string> | null;
   chunks?: PipelineMediaChunk[] | null;
   complete?: boolean | null;
+  diagnostics?: PipelineMediaDiagnostics | null;
   reading_bed?: ExportReadingBed | null;
   created_at?: string | null;
 };

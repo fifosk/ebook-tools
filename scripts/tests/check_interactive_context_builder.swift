@@ -126,6 +126,20 @@ private func decodeFixture() throws -> PipelineMediaResponse {
         {
           "complete": true,
           "media": {},
+          "diagnostics": {
+            "mediaFileCount": 0,
+            "chunkCount": 1,
+            "chunkFileCount": 0,
+            "audioFileCount": 0,
+            "imageFileCount": 0,
+            "chunksWithAudio": 0,
+            "chunksWithTiming": 1,
+            "chunksWithImages": 0,
+            "chunksWithoutFiles": 1,
+            "chunksWithoutMetadata": 0,
+            "filesWithoutUrl": 0,
+            "filesWithoutSize": 0
+          },
           "chunks": [
             {
               "chunkId": "chunk_0000",
@@ -204,6 +218,20 @@ private func decodeOutOfOrderChunksFixture() throws -> PipelineMediaResponse {
         {
           "complete": true,
           "media": {},
+          "diagnostics": {
+            "mediaFileCount": 0,
+            "chunkCount": 3,
+            "chunkFileCount": 0,
+            "audioFileCount": 0,
+            "imageFileCount": 0,
+            "chunksWithAudio": 0,
+            "chunksWithTiming": 0,
+            "chunksWithImages": 0,
+            "chunksWithoutFiles": 3,
+            "chunksWithoutMetadata": 3,
+            "filesWithoutUrl": 0,
+            "filesWithoutSize": 0
+          },
           "chunks": [
             {
               "chunkId": "chunk_2230",
@@ -250,6 +278,20 @@ private func decodeLocalSentenceNumberFixture() throws -> PipelineMediaResponse 
         {
           "complete": true,
           "media": {},
+          "diagnostics": {
+            "mediaFileCount": 0,
+            "chunkCount": 1,
+            "chunkFileCount": 0,
+            "audioFileCount": 0,
+            "imageFileCount": 0,
+            "chunksWithAudio": 0,
+            "chunksWithTiming": 0,
+            "chunksWithImages": 0,
+            "chunksWithoutFiles": 1,
+            "chunksWithoutMetadata": 0,
+            "filesWithoutUrl": 0,
+            "filesWithoutSize": 0
+          },
           "chunks": [
             {
               "chunkId": "chunk_2220",
@@ -290,6 +332,20 @@ private func decodeTranslationAudioAliasFixture() throws -> PipelineMediaRespons
         {
           "complete": true,
           "media": {},
+          "diagnostics": {
+            "mediaFileCount": 0,
+            "chunkCount": 3,
+            "chunkFileCount": 2,
+            "audioFileCount": 0,
+            "imageFileCount": 0,
+            "chunksWithAudio": 3,
+            "chunksWithTiming": 0,
+            "chunksWithImages": 0,
+            "chunksWithoutFiles": 1,
+            "chunksWithoutMetadata": 3,
+            "filesWithoutUrl": 0,
+            "filesWithoutSize": 0
+          },
           "chunks": [
             {
               "chunkId": "chunk_alias_tracks",
@@ -313,6 +369,7 @@ private func decodeTranslationAudioAliasFixture() throws -> PipelineMediaRespons
                   "name": "target_audio.mp3",
                   "url": "https://example.test/target_audio.mp3",
                   "relativePath": "chunk_alias_files/target_audio.mp3",
+                  "source": "completed",
                   "type": "audio"
                 }
               ],
@@ -329,6 +386,7 @@ private func decodeTranslationAudioAliasFixture() throws -> PipelineMediaRespons
                   "name": "dubbedAudio.m4a",
                   "url": "https://example.test/dubbedAudio.m4a",
                   "relativePath": "chunk_alias_camel_file/dubbedAudio.m4a",
+                  "source": "completed",
                   "type": "audio"
                 }
               ],
