@@ -305,7 +305,7 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/library-list/LibraryFlatTable.tsx`, with language labels
   shared through `LibraryLanguageLabel.tsx` and rendered coverage in the
   library-focused Web gate.
-- `web/src/components/PlayerPanel.tsx` - 858 lines. Status: selected text
+- `web/src/components/PlayerPanel.tsx` - 823 lines. Status: selected text
   item, selected chunk, and active text chunk resolution now live in
   `web/src/components/player-panel/utils.ts` with focused Vitest coverage.
   Browser storage reads/writes used by PlayerPanel, interactive text, reading
@@ -325,7 +325,10 @@ Large Web UI hotspots to split before redesign work:
   in `web/src/components/player-panel/PlayerPanelContent.tsx` with focused
   rendered coverage. Boundary states for load errors, initial loading, and no
   selected job now live in `web/src/components/player-panel/PlayerPanelBoundaryState.tsx`
-  with focused rendered coverage. Sentence-jump datalist rendering now lives in
+  with focused rendered coverage. Shared prelude chrome for sentence-jump
+  datalist wiring and shortcut-help visibility now lives in
+  `web/src/components/player-panel/PlayerPanelPrelude.tsx` with focused
+  rendered coverage. Sentence-jump datalist rendering now lives in
   `web/src/components/player-panel/PlayerPanelSentenceJumpDatalist.tsx` with
   focused rendered coverage. Compact search panel visibility now lives in
   `web/src/components/player-panel/PlayerPanelSearchSlot.tsx` with focused

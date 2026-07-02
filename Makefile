@@ -328,6 +328,7 @@ test-web-playback-focused:
 		src/components/__tests__/PlayerPanelBoundaryState.test.tsx \
 		src/components/__tests__/PlayerPanelContent.test.tsx \
 		src/components/__tests__/PlayerPanelNavigationGroups.test.tsx \
+		src/components/__tests__/PlayerPanelPrelude.test.tsx \
 		src/components/__tests__/PlayerPanelSearchSlot.test.tsx \
 		src/components/__tests__/PlayerPanelSentenceJumpDatalist.test.tsx \
 		src/components/__tests__/SleepTimerControl.test.tsx \

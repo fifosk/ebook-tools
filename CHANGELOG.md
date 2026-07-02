@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.011
 
+- Web playback now routes PlayerPanel sentence-jump datalist and shortcut-help prelude chrome through a focused component with rendered coverage in the playback gate.
 - Apple reader header language pills now use the shared audio-mode toggle, so Original-only or Translation-only can expand back to both tracks by tapping either available language pill instead of swapping to the other single lane.
 - Apple Settings now shows a dedicated Job Intake Contract row for `/api/pipelines/intake/status`, so the device pipeline can verify queue-pressure parity before opening native Create.
 - Bounded pipeline source-picker calls now trim output entries as well as EPUB entries, keeping Web and Apple Create source refreshes lighter on large shared output roots.

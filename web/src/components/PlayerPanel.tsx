@@ -13,7 +13,7 @@ import { PlayerPanelBoundaryState } from './player-panel/PlayerPanelBoundaryStat
 import { PlayerPanelContent } from './player-panel/PlayerPanelContent';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
 import { buildPlayerPanelSearchSlots } from './player-panel/PlayerPanelSearchSlot';
-import { PlayerPanelSentenceJumpDatalist } from './player-panel/PlayerPanelSentenceJumpDatalist';
+import { PlayerPanelPrelude } from './player-panel/PlayerPanelPrelude';
 import {
   fallbackTextFromSentences,
 } from './player-panel/utils';
@@ -696,10 +696,6 @@ export default function PlayerPanel({
     panelSearchPanel,
     fullscreenSearchPanel,
   });
-  const sentenceJumpDatalist = (
-    <PlayerPanelSentenceJumpDatalist id={sentenceJumpListId} suggestions={sentenceLookup.suggestions} />
-  );
-
   const interactiveViewerProps = buildInteractiveViewerProps({
     core: {
       playerMode,
@@ -777,10 +773,12 @@ export default function PlayerPanel({
         loadingMessage={loadingMessage}
         hasJobId={hasJobId}
         noJobPrelude={
-          <>
-            {sentenceJumpDatalist}
-            {shortcutHelpOverlay}
-          </>
+          <PlayerPanelPrelude
+            sentenceJumpListId={sentenceJumpListId}
+            sentenceSuggestions={sentenceLookup.suggestions}
+            shortcutHelpOverlay={shortcutHelpOverlay}
+            showShortcutHelp
+          />
         }
       />
     );
@@ -790,10 +788,12 @@ export default function PlayerPanel({
     <PlayerPanelShell
       ariaLabel={sectionLabel}
       prelude={
-        <>
-          {sentenceJumpDatalist}
-          {isInteractiveFullscreen ? null : shortcutHelpOverlay}
-        </>
+        <PlayerPanelPrelude
+          sentenceJumpListId={sentenceJumpListId}
+          sentenceSuggestions={sentenceLookup.suggestions}
+          shortcutHelpOverlay={shortcutHelpOverlay}
+          showShortcutHelp={!isInteractiveFullscreen}
+        />
       }
       toolbar={panelNavigation}
     >
