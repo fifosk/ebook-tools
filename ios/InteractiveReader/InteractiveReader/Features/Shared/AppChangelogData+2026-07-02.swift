@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-acquisition-stale-runtime-diagnosis",
+                    title: "Pipeline explains stale source runtime",
+                    detail: "Shared backend checks and repo docs now label acquisition route/value mismatches as stale deployed backend runtime evidence, keeping simulator and device debugging focused."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-acquisition-route-expected",
                     title: "Pipeline pins source routes",
                     detail: "The reusable Apple pipeline manifest now also pins acquisition Create route paths so backend runtime checks catch stale source-discovery endpoints before simulator or device runs."

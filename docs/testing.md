@@ -63,6 +63,11 @@ ebook-tools-owned authenticated XCUITest journeys and report generation.
 Use `--signed-build-only` to check that physical-device provisioning gate before
 attempting an install.
 
+If `check_app_backend.py` reports a `creation.acquisition...` route key or
+`acquisition...` value key mismatch, treat it as a stale deployed
+backend/runtime descriptor. Rebuild or restart the backend before debugging
+Apple source pickers, simulator journeys, or physical devices.
+
 Authenticated Apple journeys should also be launched through the shared
 manifest wrapper when dogfooding the home pipeline:
 

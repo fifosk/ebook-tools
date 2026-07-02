@@ -872,6 +872,13 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         assert command in docs
         assert command in developer_doc
     assert "shared Apple pipeline preflight targets" in plan
+    assert "creation.acquisition..." in docs
+    assert "acquisition..." in docs
+    assert "stale deployed" in docs
+    assert "backend/runtime descriptor" in docs
+    assert "creation.acquisition..." in developer_doc
+    assert "the deployed" in developer_doc
+    assert "backend runtime is stale" in developer_doc
     assert "make apple-device-full-entitlement-plan" in plan
     assert "make apple-device-full-entitlement-fallback-install" in plan
 

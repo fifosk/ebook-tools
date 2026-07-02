@@ -183,6 +183,9 @@ python3 scripts/check_app_source_sync.py --app ebook-tools
 # Verify the Mac Studio/NAS-routed backend before simulator work
 python3 scripts/check_app_backend.py --app ebook-tools
 
+# If this reports creation.acquisition... or acquisition... drift, the deployed
+# backend runtime is stale; update it before debugging Apple clients or devices.
+
 # Prepare/repair required iOS and tvOS simulator runtimes on the MacBook
 python3 scripts/ensure_simulator_fleet.py --app ebook-tools --dry-run
 python3 scripts/ensure_simulator_fleet.py --app ebook-tools --download-missing
