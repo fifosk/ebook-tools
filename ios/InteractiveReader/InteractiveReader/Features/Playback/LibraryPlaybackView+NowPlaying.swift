@@ -549,7 +549,7 @@ extension LibraryPlaybackView {
             }
             resumeManager?.recordInteractiveResume(
                 sentenceIndex: resolvedIndex,
-                playbackTime: highlightTime,
+                playbackTime: currentInteractiveResumePlaybackTime(),
                 playbackTrack: currentInteractiveResumePlaybackTrack()
             )
         }

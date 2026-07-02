@@ -520,7 +520,7 @@ extension JobPlaybackView {
             }
             recordInteractiveResume(
                 sentenceIndex: resolvedIndex,
-                playbackTime: highlightTime,
+                playbackTime: currentInteractiveResumePlaybackTime(),
                 playbackTrack: currentInteractiveResumePlaybackTrack()
             )
         } else if let sentence = viewModel.activeSentence(at: highlightTime) {

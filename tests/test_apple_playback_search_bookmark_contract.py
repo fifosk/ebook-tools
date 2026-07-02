@@ -575,6 +575,10 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
         "func activeAudioRoles(\n        for chunk: InteractiveChunk,",
         1,
     )[1].split("\n    func toggleHeaderAudioRole", 1)[0]
+    header_toggle_body = audio_management.split(
+        "func toggleHeaderAudioRole(",
+        1,
+    )[1].split("\n    func selectAudioTrack", 1)[0]
 
     assert "if option.kind == .combined" in selected_kind_body
     assert "case .singleTrack(.original):" in selected_kind_body
@@ -589,6 +593,12 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "switch audioModeManager.currentMode" in active_roles_body
     assert "case .singleTrack(.translation):" in active_roles_body
     assert "return [.translation]" in active_roles_body
+    assert "let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)" in header_toggle_body
+    assert "let shouldSelectRoleOnly = activeRoles != [role]" in header_toggle_body
+    assert "audioModeManager.setTracks(" in header_toggle_body
+    assert "original: shouldSelectRoleOnly ? role == .original : availableRoles.contains(.original)" in header_toggle_body
+    assert "translation: shouldSelectRoleOnly ? role == .translation : availableRoles.contains(.translation)" in header_toggle_body
+    assert "audioModeManager.toggle(" not in header_toggle_body
 
     playback = _source(INTERACTIVE / "InteractivePlayerViewModel+Playback.swift")
     combined_phase_body = playback.split(

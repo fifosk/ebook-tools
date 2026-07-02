@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-02
 
+### 2026.07.02.004
+
+- Apple reader header language pills now select the tapped lane directly, so tapping Translation from Original-only mode activates Translation-only playback instead of expanding back to both tracks; tapping the already-selected lane restores all available tracks.
+- Apple Job and Library resume recording now stores the same selected-track player clock used by resume, preventing Now Playing refreshes from overwriting the last spoken word offset with a rendered sentence-start highlight time.
+- Advanced visible Apple app versioning to `v2026.07.02.004`.
+
 ### 2026.07.02.003
 
 - Apple reader header roles now expose Translation whenever combined audio contains that stream, even if the chunk also has a dedicated Original option, and single-track resume now uses the exact player clock before falling back to rendered highlight time so playback can continue from the last spoken position.

@@ -244,13 +244,13 @@ extension InteractivePlayerView {
         // Capture current sentence position BEFORE changing mode
         let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
 
-        // Convert role to audio track kind and use AudioModeManager
-        switch role {
-        case .original:
-            audioModeManager.toggle(.original, preservingPosition: currentSentenceIndex)
-        case .translation:
-            audioModeManager.toggle(.translation, preservingPosition: currentSentenceIndex)
-        }
+        let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
+        let shouldSelectRoleOnly = activeRoles != [role]
+        audioModeManager.setTracks(
+            original: shouldSelectRoleOnly ? role == .original : availableRoles.contains(.original),
+            translation: shouldSelectRoleOnly ? role == .translation : availableRoles.contains(.translation),
+            preservingPosition: currentSentenceIndex
+        )
         alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
 
         // Reconfigure playback with position preservation

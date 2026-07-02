@@ -223,6 +223,13 @@ def test_interactive_resume_records_sentence_playback_time() -> None:
     assert "return (sentenceNumber ?? 0) > 1 || (playbackTime ?? 0) > 1" in store_source
     assert "playbackTime: currentInteractiveResumePlaybackTime()" in job_resume_source
     assert "playbackTrack: currentInteractiveResumePlaybackTrack()" in job_resume_source
+    for source in (job_now_playing_source, library_now_playing_source):
+        record_body = source.split("recordInteractiveResume(", 1)[1].split(
+            "playbackTrack: currentInteractiveResumePlaybackTrack()",
+            1,
+        )[0]
+        assert "playbackTime: currentInteractiveResumePlaybackTime()" in record_body
+        assert "playbackTime: highlightTime" not in record_body
     assert "if viewModel.isSequenceModeActive {\n            return nil\n        }" in job_resume_source
     assert "if viewModel.isSequenceModeActive {\n            return nil\n        }" in library_resume_source
     for source in (job_resume_source, library_resume_source):

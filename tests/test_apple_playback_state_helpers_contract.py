@@ -442,8 +442,14 @@ def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
     assert "reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)" in tracks
 
     assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in audio_management
-    assert "audioModeManager.toggle(.original, preservingPosition: currentSentenceIndex)" in audio_management
-    assert "audioModeManager.toggle(.translation, preservingPosition: currentSentenceIndex)" in audio_management
+    header_toggle_body = _function_body(
+        audio_management,
+        "func toggleHeaderAudioRole(\n        _ role: LanguageFlagRole,\n        for chunk: InteractiveChunk,\n        availableRoles: Set<LanguageFlagRole>\n    )",
+    )
+    assert "let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)" in header_toggle_body
+    assert "let shouldSelectRoleOnly = activeRoles != [role]" in header_toggle_body
+    assert "audioModeManager.setTracks(" in header_toggle_body
+    assert "audioModeManager.toggle(" not in header_toggle_body
 
 
 def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> None:

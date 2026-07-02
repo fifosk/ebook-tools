@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
-            version: "2026.07.02.003",
+            version: "2026.07.02.004",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-header-role-selection-resume-clock",
+                    title: "Track selection and resume hold better",
+                    detail: "Apple reader header language pills now select the tapped lane directly, and Job/Library resume recording stores the selected-track player clock so resume can continue nearer the last spoken word."
+                ),
                 AppChangelogEntry(
                     id: "apple-combined-translation-role-resume-clock",
                     title: "Translation and resume are steadier",
