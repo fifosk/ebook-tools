@@ -1,15 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LiveMediaChunk, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
-import { useWakeLock } from '../hooks/useWakeLock';
 import type { LibraryItem } from '../api/dtos';
 import { PlayerPanelFrame } from './player-panel/PlayerPanelFrame';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
 import { buildPlayerPanelSearchSlots } from './player-panel/PlayerPanelSearchSlot';
-import {
-  fallbackTextFromSentences,
-} from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
 import { useCoverArt } from './player-panel/useCoverArt';
@@ -30,7 +26,6 @@ import { usePlayerPanelExport } from './player-panel/usePlayerPanelExport';
 import { useMediaSessionActions, useMediaSessionMetadata } from './player-panel/useMediaSession';
 import { usePlayerPanelActions } from './player-panel/usePlayerPanelActions';
 import { buildInteractiveViewerProps } from './player-panel/playerPanelProps';
-import { useInteractiveFullscreenPreference } from './player-panel/useInteractiveFullscreenPreference';
 import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollMemory';
 import { usePlayerPanelMediaNavigation } from './player-panel/usePlayerPanelMediaNavigation';
 import { usePlayerPanelChapterNavigation } from './player-panel/usePlayerPanelChapterNavigation';
@@ -39,16 +34,10 @@ import { usePlayerPanelActiveText } from './player-panel/usePlayerPanelActiveTex
 import { usePlayerPanelTextActivation } from './player-panel/usePlayerPanelTextActivation';
 import { usePendingChunkSelection } from './player-panel/usePendingChunkSelection';
 import { SleepTimerControl } from './SleepTimerControl';
-import {
-  buildPlayerPanelDocumentState,
-  resolveInteractiveViewerRenderability,
-} from './player-panel/playerPanelDocumentState';
-import {
-  buildPlayerPanelChromeState,
-} from './player-panel/playerPanelChromeState';
 import { usePlayerPanelNavigationChrome } from './player-panel/usePlayerPanelNavigationChrome';
 import { usePlayerPanelShortcutControls } from './player-panel/usePlayerPanelShortcutControls';
 import { usePlayerPanelLifecycleEffects } from './player-panel/usePlayerPanelLifecycleEffects';
+import { usePlayerPanelViewerState } from './player-panel/usePlayerPanelViewerState';
 
 type ReadingBedOverride = {
   id: string;
@@ -380,63 +369,41 @@ export default function PlayerPanel({
     updateSelection,
   });
 
-  const fallbackTextContent = useMemo(
-    () => fallbackTextFromSentences(resolvedActiveTextChunk),
-    [resolvedActiveTextChunk],
-  );
-  const canRenderInteractiveViewer = resolveInteractiveViewerRenderability({
-    previewContent: textPreview?.content,
-    fallbackTextContent,
-    resolvedActiveTextChunk,
-  });
   const {
+    canRenderInteractiveViewer,
     isInteractiveFullscreen,
     handleInteractiveFullscreenToggle,
     handleExitInteractiveFullscreen,
     resetInteractiveFullscreen,
-  } = useInteractiveFullscreenPreference({
-    canRenderInteractiveViewer,
-    hasInteractiveChunks,
-  });
-  const {
     hasAnyMedia,
     hasTextItems,
     isInitialLoading,
-    playbackControlsAvailable,
     isActiveMediaPlaying,
-    shouldHoldWakeLock,
     isPlaybackDisabled,
     isFullscreenDisabled,
     shouldShowBackToLibrary,
-  } = buildPlayerPanelChromeState({
-    mediaTextCount: media.text.length,
-    mediaAudioCount: media.audio.length,
-    mediaVideoCount: media.video.length,
-    isLoading,
-    hasInlineAudioControls,
-    canRenderInteractiveViewer,
-    isInlineAudioPlaying,
-    origin,
-    showBackToLibrary,
-  });
-  const {
     interactiveViewerContent,
     interactiveViewerRaw,
     shouldShowInteractiveViewer,
     shouldShowEmptySelectionPlaceholder,
     shouldShowLoadingPlaceholder,
     shouldShowStandaloneError,
-  } = buildPlayerPanelDocumentState({
+  } = usePlayerPanelViewerState({
+    mediaTextCount: media.text.length,
+    mediaAudioCount: media.audio.length,
+    mediaVideoCount: media.video.length,
+    isLoading,
+    hasInlineAudioControls,
+    isInlineAudioPlaying,
+    origin,
+    showBackToLibrary,
     textPreview,
-    fallbackTextContent,
-    resolvedActiveTextChunk,
-    isInteractiveFullscreen,
-    hasTextItems,
-    hasSelectedItem: Boolean(selectedItem),
     textLoading,
     textError,
+    resolvedActiveTextChunk,
+    hasInteractiveChunks,
+    hasSelectedItem: Boolean(selectedItem),
   });
-  useWakeLock(shouldHoldWakeLock);
 
   const activateTextItem = usePlayerPanelTextActivation({
     chunks,

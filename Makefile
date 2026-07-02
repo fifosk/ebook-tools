@@ -329,6 +329,7 @@ test-web-playback-focused:
 		src/components/__tests__/usePendingChunkSelection.test.tsx \
 		src/components/__tests__/usePlayerPanelTextActivation.test.tsx \
 		src/components/__tests__/usePlayerPanelChapterNavigation.test.tsx \
+		src/components/__tests__/usePlayerPanelViewerState.test.tsx \
 		src/components/__tests__/usePlayerPanelMediaNavigation.test.tsx \
 		src/components/__tests__/usePlayerPanelLifecycleEffects.test.tsx \
 		src/components/__tests__/usePlayerPanelNavigationChrome.test.tsx \

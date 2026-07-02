@@ -99,7 +99,10 @@ Follow the suggested remediations to restore parity:
   shared audio-mode toggles: with both roles active, tapping either role leaves
   the other role as the single active lane; from Original-only or
   Translation-only, tapping either available role restores both available roles
-  instead of swapping to the other single lane.
+  instead of swapping to the other single lane. Keyboard/audio shortcut toggles
+  should route through the same guarded available-role path. When the manager is
+  intentionally in sequence mode, duration/progress helpers should prefer the
+  combined lane before any stale single-track resume evidence.
   Single-track resume should prefer the AVPlayer's current local clock before
   falling back to rendered highlight time, preserving the last spoken word when
   lookup bubbles or render refreshes temporarily move the displayed highlight

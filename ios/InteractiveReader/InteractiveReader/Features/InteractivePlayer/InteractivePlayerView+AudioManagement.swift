@@ -151,10 +151,6 @@ extension InteractivePlayerView {
     }
 
     func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind? {
-        if let track = viewModel.requestedSingleTrackMode(),
-           chunkSupportsAudioTrack(track, in: chunk) {
-            return track == .original ? .original : .translation
-        }
         switch audioModeManager.currentMode {
         case .singleTrack(.original):
             if chunkSupportsAudioTrack(.original, in: chunk) {
@@ -165,7 +161,9 @@ extension InteractivePlayerView {
                 return .translation
             }
         case .sequence:
-            break
+            if chunk.audioOptions.contains(where: { $0.kind == .combined }) {
+                return .combined
+            }
         }
         if let selectedID = viewModel.selectedAudioTrackID,
            let option = chunk.audioOptions.first(where: { $0.id == selectedID }) {
@@ -180,6 +178,10 @@ extension InteractivePlayerView {
                 }
             }
             return option.kind
+        }
+        if let track = viewModel.requestedSingleTrackMode(),
+           chunkSupportsAudioTrack(track, in: chunk) {
+            return track == .original ? .original : .translation
         }
         return chunk.audioOptions.first?.kind
     }

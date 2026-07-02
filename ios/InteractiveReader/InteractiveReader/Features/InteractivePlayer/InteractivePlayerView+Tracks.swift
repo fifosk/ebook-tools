@@ -97,13 +97,42 @@ extension InteractivePlayerView {
 
         // Capture current sentence position BEFORE changing mode
         let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
+        let availableRoles = availableAudioRoles(for: chunk)
 
-        // Toggle via the mode manager (handles the logic of not disabling both)
-        audioModeManager.toggle(kind: kind, preservingPosition: currentSentenceIndex)
+        // Toggle via the mode manager while clamping stale state to lanes this chunk can play.
+        switch kind {
+        case .original:
+            audioModeManager.toggle(
+                .original,
+                availableTracks: availableSequenceTracks(from: availableRoles),
+                preservingPosition: currentSentenceIndex
+            )
+        case .translation:
+            audioModeManager.toggle(
+                .translation,
+                availableTracks: availableSequenceTracks(from: availableRoles),
+                preservingPosition: currentSentenceIndex
+            )
+        case .combined:
+            audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)
+        case .other:
+            return
+        }
         alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
 
         // Reconfigure playback based on new toggle state
         reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
+    }
+
+    func availableSequenceTracks(from roles: Set<LanguageFlagRole>) -> [SequenceTrack] {
+        var tracks: [SequenceTrack] = []
+        if roles.contains(.original) {
+            tracks.append(.original)
+        }
+        if roles.contains(.translation) {
+            tracks.append(.translation)
+        }
+        return tracks
     }
 
     /// Capture the current sentence index using SentencePositionProvider

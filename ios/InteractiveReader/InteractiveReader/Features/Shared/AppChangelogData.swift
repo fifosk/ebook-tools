@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.02.012",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-audio-shortcuts-sequence-lane",
+                    title: "Track pills and shortcuts agree",
+                    detail: "Apple reader audio shortcuts now use the same guarded track-toggle path as the header pills, and sequence mode prefers the combined lane before stale single-track evidence when calculating timeline duration and header progress."
+                ),
+                AppChangelogEntry(
+                    id: "web-player-viewer-state-hook",
+                    title: "Web player state is slimmer",
+                    detail: "Web playback viewer renderability, fullscreen preference, document/chrome state, and wake-lock activation now live in a focused PlayerPanel hook with direct playback-gate coverage."
+                ),
+                AppChangelogEntry(
                     id: "apple-language-pills-guarded-multiselect",
                     title: "Language pills support both tracks",
                     detail: "Apple reader language pills now behave as guarded multi-select toggles: inactive Original or Translation pills add that lane, active pills remove only themselves when the other lane remains active, and stale chunk state is clamped so the last playable lane stays selected."

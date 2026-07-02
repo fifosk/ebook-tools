@@ -446,7 +446,9 @@ def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
     assert "preservingPosition: currentSentenceIndex" in toggle_body
 
     assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in tracks
-    assert "audioModeManager.toggle(kind: kind, preservingPosition: currentSentenceIndex)" in tracks
+    assert "let availableRoles = availableAudioRoles(for: chunk)" in tracks
+    assert "func availableSequenceTracks(from roles: Set<LanguageFlagRole>) -> [SequenceTrack]" in tracks
+    assert "availableTracks: availableSequenceTracks(from: availableRoles)" in tracks
     assert "reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)" in tracks
     available_tracks_body = _function_body(
         tracks,
