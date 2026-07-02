@@ -743,7 +743,7 @@ def normalized_default_provider_ids(default_provider_ids: Any, media_kind: str) 
     for value in values:
         if not isinstance(value, str):
             continue
-        provider_id = value.strip()
+        provider_id = value.strip().casefold()
         if not provider_id or provider_id in seen:
             continue
         seen.add(provider_id)

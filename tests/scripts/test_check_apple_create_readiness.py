@@ -1066,6 +1066,42 @@ def test_acquisition_provider_inventory_reports_unavailable_default_providers() 
     ]
 
 
+def test_acquisition_provider_inventory_normalizes_default_provider_id_case() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        providers.append(
+            {
+                "id": provider_id,
+                "media_kinds": sorted(requirements["media_kinds"]),
+                "discovery_media_kinds": sorted(requirements["media_kinds"]),
+                "default_eligible_media_kinds": sorted(requirements["media_kinds"]),
+                "capabilities": sorted(requirements["capabilities"]),
+                "available": provider_id != "zlibrary_attended",
+                "policy_notes": (
+                    [
+                        "Direct Z-Library automation is intentionally disabled.",
+                        "Use an attended browser/download workflow only.",
+                    ]
+                    if provider_id == "zlibrary_attended"
+                    else []
+                ),
+            }
+        )
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": [" LOCAL_EPUB ", "LOCAL_EPUB"],
+            "video": [" NAS_VIDEO "],
+        },
+    })
+
+    assert inventory["acquisition_default_providers_ready"] is True
+    assert inventory["acquisition_default_book_providers"] == 1
+    assert inventory["acquisition_default_video_providers"] == 1
+    assert inventory["acquisition_default_provider_issues"] == []
+
+
 def test_acquisition_discovery_inventory_checks_default_provider_routes(monkeypatch) -> None:
     paths: list[str] = []
 
