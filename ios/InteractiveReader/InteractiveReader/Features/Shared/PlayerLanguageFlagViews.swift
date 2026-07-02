@@ -73,7 +73,9 @@ struct PlayerLanguageFlagRow: View {
     }
 
     private func isActive(role: LanguageFlagRole) -> Bool {
-        guard !activeRoles.isEmpty else { return true }
+        guard !activeRoles.isEmpty else {
+            return onToggleRole == nil
+        }
         return activeRoles.contains(role)
     }
 

@@ -31,10 +31,15 @@ INTERACTIVE = (
     / "Features"
     / "InteractivePlayer"
 )
+SHARED = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Features" / "Shared"
 
 
 def _source(name: str) -> str:
     return (INTERACTIVE / name).read_text(encoding="utf-8")
+
+
+def _shared_source(name: str) -> str:
+    return (SHARED / name).read_text(encoding="utf-8")
 
 
 def _function_body(source: str, signature: str) -> str:
@@ -212,6 +217,9 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Translation-only render anchors must reject a stale dedicated original option after the batch selection refreshes" in swift_check
     assert "Translation-only render anchors should still accept the translation stream after the selected option refreshes to original" in swift_check
     assert "Explicit text-track toggle should still be able to expand translation-only playback to combined" in swift_check
+    assert "Header role pills should disable Original and keep Translation active" in swift_check
+    assert "Header role pills should restore both roles when tapping the inactive Original role" in swift_check
+    assert "Header role pills should disable Translation and keep Original active" in swift_check
     frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
     assert "Once live\n  playback reaches the anchored sentence, the anchor must be consumed/cleared" in frontend_sync
     assert "first following translated sentence is rendered from live audio time" in frontend_sync
@@ -991,6 +999,7 @@ def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:
 def test_visible_text_track_toggles_sync_audio_mode() -> None:
     tracks = _source("InteractivePlayerView+Tracks.swift")
     menu_controls = _source("InteractivePlayerView+MenuControls.swift")
+    language_flags = _shared_source("PlayerLanguageFlagViews.swift")
 
     track_toggle_body = _function_body(
         tracks,
@@ -1032,6 +1041,14 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "linguistSelection = nil" in generic_toggle_body
     assert "linguistSelectionRange = nil" in generic_toggle_body
     assert "trackToggle(label: trackLabel(kind), kind: kind)" in menu_controls
+
+    language_flag_active_body = _function_body(
+        language_flags,
+        "private func isActive(role: LanguageFlagRole) -> Bool",
+    )
+    assert "guard !activeRoles.isEmpty else" in language_flag_active_body
+    assert "return onToggleRole == nil" in language_flag_active_body
+    assert "return activeRoles.contains(role)" in language_flag_active_body
 
     initial_playback_body = _function_body(
         tracks,

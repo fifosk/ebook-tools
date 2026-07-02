@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-language-pill-empty-active-state",
+                    title: "Track pills stay honest",
+                    detail: "Apple reader language/audio pills now keep inactive lanes visually inactive during transient loading states while still supporting Original + Translation, Original-only, and Translation-only playback modes."
+                ),
+                AppChangelogEntry(
                     id: "apple-changelog-july2-shard",
                     title: "Changelog data is slimmer",
                     detail: "Apple in-app changelog entries for July 2 now live in a dated shard, keeping the root changelog day index smaller as Web, backend, and Apple dogfood checkpoints accumulate."

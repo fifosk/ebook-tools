@@ -50,6 +50,14 @@ APP_CHANGELOG_DATA = (
     / "Shared"
     / "AppChangelogData.swift"
 )
+APP_CHANGELOG_DATA_DIR = APP_CHANGELOG_DATA.parent
+
+
+def _swift_changelog_sources() -> str:
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted(APP_CHANGELOG_DATA_DIR.glob("AppChangelogData*.swift"))
+    )
 
 REPO_OWNED_BACKEND_CHECKS = [
     "make test-backend-auth-session",
@@ -621,7 +629,7 @@ def test_living_room_candidate_gate_is_visible_in_apple_changelog() -> None:
 
 
 def test_apple_web_create_handoff_source_is_visible_in_changelogs() -> None:
-    swift_changelog = APP_CHANGELOG_DATA.read_text(encoding="utf-8")
+    swift_changelog = _swift_changelog_sources()
     markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
 
     assert 'id: "apple-web-create-handoff-source"' in swift_changelog
@@ -636,7 +644,7 @@ def test_apple_web_create_handoff_source_is_visible_in_changelogs() -> None:
 
 
 def test_apple_create_default_sources_request_mapping_is_visible_in_changelogs() -> None:
-    swift_changelog = APP_CHANGELOG_DATA.read_text(encoding="utf-8")
+    swift_changelog = _swift_changelog_sources()
     markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
 
     assert 'id: "apple-create-default-source-request-normalization"' in swift_changelog

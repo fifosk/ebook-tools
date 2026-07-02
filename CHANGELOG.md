@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.012
 
+- Apple reader language/audio pills now keep inactive lanes visually inactive during transient loading states while still allowing Original + Translation, Original-only, and Translation-only playback modes.
+- Apple in-app changelog entries for July 1 now also live in a dated shard, continuing the cleanup that keeps the root changelog as a small day index for simulator and device builds.
 - Apple in-app changelog entries for July 2 now live in a dated shard, keeping the root changelog day index smaller as Web, backend, and Apple dogfood checkpoints accumulate.
 - Apple reader header language/audio pills now route taps through the shared guarded audio-mode toggle, preserving Original-only or Translation-only states while allowing the inactive companion pill to restore both-track playback without disabling the wrong lane.
 - Backend Library route telemetry now lives in a focused router support module while preserving the same token-safe duration metrics and logs used by Web and Apple Library actions.
