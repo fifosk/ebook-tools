@@ -332,6 +332,8 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/useVideoDubbingDiscoverySearch.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDownloadStation.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDownloadStationCompletion.test.tsx" in block
+    assert "src/pages/__tests__/VideoDiscoveryPanel.test.tsx" in block
+    assert "src/pages/__tests__/VideoDownloadedListPanel.test.tsx" in block
     assert "src/pages/__tests__/VideoDownloadStationPanel.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingJobActions.test.tsx" in block
     assert "src/pages/__tests__/videoDubbingUtils.test.ts" in block
@@ -357,6 +359,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     ).read_text(encoding="utf-8")
     discovery_panel = (
         ROOT / "web" / "src" / "pages" / "video-dubbing" / "VideoDiscoveryPanel.tsx"
+    ).read_text(encoding="utf-8")
+    downloaded_list_panel = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "VideoDownloadedListPanel.tsx"
     ).read_text(encoding="utf-8")
     download_station_panel = (
         ROOT
@@ -546,6 +556,17 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "is unavailable on this backend. Choose another discovery source." in discovery_helper
     assert "onSelectDiscoveryCandidate" in source_panel
     assert "VideoDiscoveryPanel" in source_panel
+    assert "VideoDownloadedListPanel" in source_panel
+    assert "videos.map" not in source_panel
+    assert "playableSubtitles.map" not in source_panel
+    assert "availableSubtitleStreams.map" not in source_panel
+    assert "videoSourceBadge" not in source_panel
+    assert "Selected discovered video path" in downloaded_list_panel
+    assert "Subtitle selection" in downloaded_list_panel
+    assert "videoSourceBadge" in downloaded_list_panel
+    assert "playableSubtitles.map" in downloaded_list_panel
+    assert "availableSubtitleStreams.map" in downloaded_list_panel
+    assert "onExtractAllStreams" in downloaded_list_panel
     assert "VideoDownloadStationPanel" in discovery_panel
     assert "Download Station handoff" in download_station_panel
     assert "resolveDownloadStationCompletedFiles" in download_station_panel

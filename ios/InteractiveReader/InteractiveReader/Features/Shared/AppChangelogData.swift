@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-video-downloaded-list-panel",
+                    title: "Downloaded video sources are cleaner",
+                    detail: "Web Video Dubbing downloaded-video rows, detached discovered-source display, subtitle picker, embedded stream chooser, and delete/extract actions now live in a focused component with rendered coverage and changed-test routing."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-context-rebuild-reprepare",
                     title: "Single-track refreshes stay synced",
                     detail: "Apple reader live-media and chunk-metadata context rebuilds now reprepare Original-only or Translation-only audio at the recent sentence anchor, so batch refreshes cannot keep stale timing or audio URLs while rendering advances."

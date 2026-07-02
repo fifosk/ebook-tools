@@ -118,6 +118,11 @@ Large Web UI hotspots to split before redesign work:
   candidate selection, and embedded Download Station handoff chrome now live in
   `web/src/pages/video-dubbing/VideoDiscoveryPanel.tsx` with rendered coverage,
   keeping discovery behavior easier to compare with Apple YouTube Dub.
+  Downloaded-video rows, detached discovered-source display, subtitle selection,
+  embedded subtitle stream selection, and video/subtitle delete actions now live
+  in `web/src/pages/video-dubbing/VideoDownloadedListPanel.tsx` with rendered
+  coverage and changed-test routing, leaving `VideoSourcePanel` as the source
+  composition shell.
   YouTube Dub generate/save-template action state, intake
   capacity guard, shared payload construction, backend submission, template
   persistence, and discovery-state template preservation now live in

@@ -519,6 +519,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "web/src/pages/__tests__/VideoDubbingFeedbackPanel.test.tsx",
             "web/src/pages/__tests__/VideoTvMetadataPreview.test.tsx",
             "web/src/pages/__tests__/VideoDiscoveryPanel.test.tsx",
+            "web/src/pages/__tests__/VideoDownloadedListPanel.test.tsx",
             "web/src/pages/__tests__/VideoDownloadStationPanel.test.tsx",
         ),
         ("test-web-video-dubbing-focused",),
