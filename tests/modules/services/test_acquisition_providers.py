@@ -132,7 +132,7 @@ def test_acquisition_discovery_planning_orders_default_sources_and_limits() -> N
         candidates=ordered[:2],
         effective_limit=2,
         is_default_provider_fanout=True,
-    ) == 1
+    ) == 0
     assert provider_query_limit(
         "gutenberg",
         candidates=ordered[:2],
@@ -919,7 +919,7 @@ def test_backend_defaults_provider_id_uses_default_book_discovery_fanout(
     }
 
 
-def test_default_discovery_keeps_local_limits_but_probes_remote_providers(
+def test_default_discovery_skips_remote_providers_when_local_candidates_fill_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[str, int]] = []
@@ -986,9 +986,8 @@ def test_default_discovery_keeps_local_limits_but_probes_remote_providers(
     assert calls == [
         ("local_epub", 2),
         ("manual_downloads", 2),
-        ("gutenberg", 1),
     ]
-    assert result.providers_queried == ("local_epub", "manual_downloads", "gutenberg")
+    assert result.providers_queried == ("local_epub", "manual_downloads")
     assert [candidate.provider for candidate in result.candidates] == [
         "manual_downloads",
         "manual_downloads",
@@ -2923,6 +2922,7 @@ def test_default_video_discovery_keeps_local_candidates_when_remote_provider_fai
         media_kind="video",
         query="readable history",
         provider=None,
+        limit=2,
         config={
             "youtube_video_root": str(video_root),
             "newznab_url": "https://indexer.example.invalid/api",
@@ -2946,7 +2946,7 @@ def test_default_video_discovery_keeps_local_candidates_when_remote_provider_fai
             {
                 "t": "search",
                 "q": "readable history",
-                "limit": 19,
+                "limit": 1,
                 "apikey": "secret-indexer-key",
             },
             15,

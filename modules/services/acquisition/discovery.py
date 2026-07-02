@@ -117,6 +117,8 @@ def discover_acquisition_candidates(
                 effective_limit=effective_limit,
                 is_default_provider_fanout=is_default_provider_fanout,
             )
+            if remaining <= 0:
+                continue
             provider_candidates = _discover_provider_candidates(
                 provider_id,
                 discovery_context,

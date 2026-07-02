@@ -176,7 +176,10 @@ Initial routes:
     treats optional remote provider failures as partial results: YouTube search
     or Newznab/Torznab provider errors add a token-safe policy note and local
     NAS/manual candidates still return, while explicit provider searches keep
-    surfacing the provider error.
+    surfacing the provider error. Default-source fan-out also skips optional
+    remote providers once local/NAS/manual candidates already fill the visible
+    result limit, avoiding hidden quota/network work that cannot affect the
+    returned Web/Apple Create candidate list.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.

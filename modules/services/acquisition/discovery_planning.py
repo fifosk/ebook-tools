@@ -57,4 +57,4 @@ def provider_query_limit(
     if provider_id in LOCAL_FILE_DISCOVERY_PROVIDERS:
         return effective_limit
     remaining_visible_slots = effective_limit - len(candidates)
-    return max(1, remaining_visible_slots)
+    return max(0, remaining_visible_slots)
