@@ -961,16 +961,16 @@ final class MusicKitCoordinator: ObservableObject {
         logger.info(
             "Apple Music observed non-playing candidate observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public) readerActive=\(self.isReaderNarrationActiveForMusicBed, privacy: .public) guard=\(self.isReaderTransportPauseGuardActive, privacy: .public)"
         )
+        if shouldDeferObservedNonPlayingDuringActiveReadingBed {
+            deferObservedNonPlayingDuringActiveReadingBed(reason: "observedNonPlaying")
+            return
+        }
         #if os(tvOS)
         if shouldConfirmActiveNarrationNonPlayingAsReaderPause {
             confirmActiveNarrationNonPlayingAsReaderPause(reason: "observedNonPlaying")
             return
         }
         #endif
-        if shouldDeferObservedNonPlayingDuringActiveReadingBed {
-            deferObservedNonPlayingDuringActiveReadingBed(reason: "observedNonPlaying")
-            return
-        }
         guard shouldTreatObservedNonPlayingAsReaderPause else {
             logger.info(
                 "Apple Music observed non-playing ignored observedAsBed=false autoResume=\(self.hasAutoResumeIntent, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"

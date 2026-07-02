@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-startup-recovery",
+                    title: "TV startup playback holds",
+                    detail: "Apple TV reader playback now recovers a transient Apple Music bed non-playing signal during active narration before adopting it as a reader pause, preventing first-sentence playback from stopping before the Translation lane starts."
+                ),
+                AppChangelogEntry(
                     id: "apple-header-language-pills-restore-from-metadata",
                     title: "Language pills re-enable",
                     detail: "Apple reader header language pills now keep known book language roles selectable while chunks hydrate or single-track audio is active, so disabling Original or Translation can be reversed without stale single-track memory forcing the pill grey."

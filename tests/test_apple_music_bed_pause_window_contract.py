@@ -111,7 +111,7 @@ def test_tvos_reader_pause_reasserts_against_stray_music_play() -> None:
         assert "e2eReaderTransportCommandCount == 0" in reassert_body, label
 
 
-def test_tvos_active_music_pause_adopts_reader_pause_before_recovery() -> None:
+def test_tvos_active_music_pause_recovers_before_reader_pause_adoption() -> None:
     music = _source(SERVICES / "MusicKitCoordinator.swift")
     observed_body = _function_body(music, "private func handleObservedNonPlayingStatus")
     confirm_gate_body = _function_body(
@@ -129,8 +129,8 @@ def test_tvos_active_music_pause_adopts_reader_pause_before_recovery() -> None:
 
     assert "if shouldConfirmActiveNarrationNonPlayingAsReaderPause" in observed_body
     assert "confirmActiveNarrationNonPlayingAsReaderPause(reason: \"observedNonPlaying\")" in observed_body
-    assert observed_body.index("if shouldConfirmActiveNarrationNonPlayingAsReaderPause") < observed_body.index(
-        "if shouldDeferObservedNonPlayingDuringActiveReadingBed"
+    assert observed_body.index("if shouldDeferObservedNonPlayingDuringActiveReadingBed") < observed_body.index(
+        "if shouldConfirmActiveNarrationNonPlayingAsReaderPause"
     )
     assert "#if os(tvOS)" in confirm_gate_body
     assert "ownershipState == .appleMusicBed" in confirm_gate_body
