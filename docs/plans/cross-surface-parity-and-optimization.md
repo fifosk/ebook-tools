@@ -755,6 +755,9 @@ Current Apple UI partially exposes:
   The acquisition Web API route now aliases provider-id normalization to the
   shared discovery normalization helper, keeping `backend_defaults` handling
   identical at the route boundary and in service fanout for Web/Apple Create.
+  Discovery fanout also normalizes language once before calling providers, so
+  YouTube search and public book catalogs receive the same compact language
+  code from Web and Apple Create.
   Backend acquisition value coercion and
   identifier sanitization now live in
   `modules/services/acquisition/discovery_values.py` with focused coverage,

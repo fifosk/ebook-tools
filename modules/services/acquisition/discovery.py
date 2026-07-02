@@ -16,6 +16,7 @@ from .discovery_planning import (
 )
 from .discovery_normalization import (
     normalize_limit as _normalize_limit,
+    normalize_language_code as _normalize_language_code,
     normalize_media_kind as _normalize_media_kind,
     normalize_provider as _normalize_provider,
     normalize_query as _normalize_query,
@@ -83,6 +84,7 @@ def discover_acquisition_candidates(
     raw_query = (query or "").strip()
     normalized_query = _normalize_query(query)
     normalized_provider = _normalize_provider(provider)
+    normalized_language = _normalize_language_code(language)
     effective_limit = _normalize_limit(limit)
     if effective_limit <= 0:
         if normalized_provider is not None:
@@ -103,7 +105,7 @@ def discover_acquisition_candidates(
         media_kind=normalized_kind,
         raw_query=raw_query,
         query=normalized_query,
-        language=language,
+        language=normalized_language,
         source_ids=normalized_source_ids,
         session=session,
     )

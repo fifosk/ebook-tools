@@ -2603,6 +2603,7 @@ def test_discover_youtube_search_normalizes_metadata_without_secret() -> None:
         media_kind="video",
         query="demo",
         provider="youtube_search",
+        language="English",
         config={"youtube_api_key": "secret-youtube-key"},
         session=session,
     )
@@ -2616,6 +2617,7 @@ def test_discover_youtube_search_normalizes_metadata_without_secret() -> None:
     serialized = str(result)
     assert "secret-youtube-key" not in serialized
     assert session.calls[0][1]["safeSearch"] == "moderate"
+    assert session.calls[0][1]["relevanceLanguage"] == "en"
 
 
 @pytest.mark.parametrize(
