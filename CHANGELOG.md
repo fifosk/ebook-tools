@@ -4,7 +4,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-02
 
-### 2026.07.02.012
+### 2026.07.02.013
 
 - Apple reader sequence playback now enters the same sentence-plan path when a chunk exposes separate Original and Translation audio lanes but no combined option, preventing first-sentence startup from playing only Original and stopping.
 - The Apple Music bed launch-log verifier now has a `reader-progress` mode and `make apple-device-verify-music-bed-reader-progress-log` shortcut that require reader Now Playing sentence position to advance, catching logs where transport says playing while position stays pinned at zero.
@@ -45,7 +45,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web Library selected-entry details now render through a focused details panel with overview, metadata, permissions, and empty-state coverage, further trimming the page shell before redesign.
 - Web Library selected-entry presentation now lives in a focused hook with direct coverage for book cover previews and TV/YouTube artwork metadata, trimming the page shell while preserving Library detail behavior.
 - Web Library permission resolution now lives in a focused hook with coverage for admin, owner, public, private, and grant-backed access, keeping row actions and details aligned while slimming the page shell.
-- Advanced visible Apple app versioning to `v2026.07.02.012`.
+- Advanced visible Apple app versioning to `v2026.07.02.013`.
 
 ### 2026.07.02.011
 
