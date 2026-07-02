@@ -220,6 +220,8 @@ REQUIRED_APPLE_CONTRACT_TARGETS = (
     "test-apple-contracts",
 )
 REQUIRED_BACKEND_RUNTIME_EXPECTED = {
+    "app": "ebook-tools",
+    "service": "ebook-tools-api",
     **{
         f"auth.{key}": value
         for key, value in _runtime_descriptor.AUTH_DESCRIPTOR.items()
@@ -414,6 +416,11 @@ def _validate_backend_runtime_expected(payload: dict[str, Any]) -> list[str]:
             errors.append(
                 f"backend.runtimeExpected.{key}={actual_value!r} expected {expected_value!r}"
             )
+    unknown_keys = sorted(set(runtime_expected) - set(REQUIRED_BACKEND_RUNTIME_EXPECTED))
+    if unknown_keys:
+        errors.append(
+            "backend.runtimeExpected has unknown keys: " + ", ".join(unknown_keys)
+        )
     return errors
 
 

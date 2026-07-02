@@ -673,6 +673,28 @@ def test_validate_manifest_requires_backend_acquisition_runtime_expectations(
     ) in errors
 
 
+def test_validate_manifest_rejects_stale_backend_runtime_expected_keys(
+    tmp_path: Path,
+) -> None:
+    runtime_expected = dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+    del runtime_expected["app"]
+    runtime_expected["service"] = "old-api"
+    runtime_expected["creation.oldSearchPath"] = "/api/old/search"
+    path = _write_manifest(tmp_path, backend_runtime_expected=runtime_expected)
+
+    errors = module.validate_manifest(path)
+
+    assert "backend.runtimeExpected.app=None expected 'ebook-tools'" in errors
+    assert (
+        "backend.runtimeExpected.service='old-api' expected 'ebook-tools-api'"
+        in errors
+    )
+    assert (
+        "backend.runtimeExpected has unknown keys: creation.oldSearchPath"
+        in errors
+    )
+
+
 def test_validate_manifest_requires_backend_create_runtime_expectations(
     tmp_path: Path,
 ) -> None:
