@@ -143,7 +143,28 @@ def _write_manifest(
                 "E2E_PASSWORD",
                 "E2E_AUTH_TOKEN",
                 "EBOOKTOOLS_SESSION_TOKEN",
+                "E2E_API_BASE_URL",
             ],
+            "configEnvironment": [
+                "INTERACTIVE_READER_API_BASE_URL",
+                "EBOOK_TOOLS_API_BASE_URL",
+                "E2E_API_BASE_URL",
+            ],
+            "remoteEnvironmentFile": ".env",
+            "appLaunchEnvironment": [
+                "INTERACTIVE_READER_API_BASE_URL",
+                "EBOOK_TOOLS_API_BASE_URL",
+                "E2E_API_BASE_URL",
+            ],
+            "xcuitestConfigFile": (
+                "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/"
+                "ios_e2e_config.json"
+            ),
+            "xcuitestJourneyFile": (
+                "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/"
+                "ios_e2e_journey.json"
+            ),
+            "appLockBypass": "none",
         },
         "appOwnedJourneys": app_owned_journeys
         if app_owned_journeys is not None
@@ -325,6 +346,60 @@ def test_validate_manifest_accepts_token_env_keys(tmp_path: Path) -> None:
     path = _write_manifest(tmp_path)
 
     assert module.validate_manifest(path) == []
+
+
+def test_validate_manifest_requires_simulator_contract_handoff(
+    tmp_path: Path,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    contract = payload["simulatorContract"]
+    contract["configEnvironment"] = ["INTERACTIVE_READER_API_BASE_URL"]
+    contract["credentialEnvironment"] = ["E2E_USERNAME"]
+    contract["remoteEnvironmentAllowlist"] = ["E2E_USERNAME"]
+    contract["appLaunchEnvironment"] = ["E2E_API_BASE_URL"]
+    contract["remoteEnvironmentFile"] = ".secrets"
+    contract["xcuitestConfigFile"] = "/tmp/config.json"
+    contract["xcuitestJourneyFile"] = "/tmp/journey.json"
+    contract["appLockBypass"] = "PFR_DISABLE_APP_LOCK=1"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "simulatorContract.configEnvironment=['INTERACTIVE_READER_API_BASE_URL'] "
+        "expected ['INTERACTIVE_READER_API_BASE_URL', 'EBOOK_TOOLS_API_BASE_URL', "
+        "'E2E_API_BASE_URL']"
+    ) in errors
+    assert (
+        "simulatorContract.credentialEnvironment=['E2E_USERNAME'] "
+        "expected ['E2E_USERNAME', 'E2E_PASSWORD', 'E2E_AUTH_TOKEN', "
+        "'EBOOKTOOLS_SESSION_TOKEN']"
+    ) in errors
+    assert (
+        "simulatorContract.remoteEnvironmentAllowlist=['E2E_USERNAME'] "
+        "expected ['E2E_USERNAME', 'E2E_PASSWORD', 'E2E_AUTH_TOKEN', "
+        "'EBOOKTOOLS_SESSION_TOKEN', 'E2E_API_BASE_URL']"
+    ) in errors
+    assert (
+        "simulatorContract.appLaunchEnvironment=['E2E_API_BASE_URL'] "
+        "expected ['INTERACTIVE_READER_API_BASE_URL', 'EBOOK_TOOLS_API_BASE_URL', "
+        "'E2E_API_BASE_URL']"
+    ) in errors
+    assert "simulatorContract.remoteEnvironmentFile='.secrets' expected '.env'" in errors
+    assert (
+        "simulatorContract.xcuitestConfigFile='/tmp/config.json' "
+        "expected '/tmp/apple-device-app-pipeline/ebook-tools/{profile}/"
+        "ios_e2e_config.json'"
+    ) in errors
+    assert (
+        "simulatorContract.xcuitestJourneyFile='/tmp/journey.json' "
+        "expected '/tmp/apple-device-app-pipeline/ebook-tools/{profile}/"
+        "ios_e2e_journey.json'"
+    ) in errors
+    assert (
+        "simulatorContract.appLockBypass='PFR_DISABLE_APP_LOCK=1' expected 'none'"
+    ) in errors
 
 
 def test_validate_manifest_requires_operational_backend_and_storage_contracts(

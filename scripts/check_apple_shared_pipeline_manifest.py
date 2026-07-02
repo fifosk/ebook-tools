@@ -59,6 +59,20 @@ REQUIRED_IOS_DEVICE_CAPABILITIES = (
     "Sign In with Apple",
     "iCloud",
 )
+REQUIRED_API_ENVIRONMENT = list(_runtime_descriptor.API_BASE_URL_ENVIRONMENT)
+REQUIRED_CREDENTIAL_ENVIRONMENT = list(_runtime_descriptor.CREDENTIAL_ENVIRONMENT)
+REQUIRED_REMOTE_ENVIRONMENT_ALLOWLIST = [
+    *REQUIRED_CREDENTIAL_ENVIRONMENT,
+    "E2E_API_BASE_URL",
+]
+REQUIRED_REMOTE_ENVIRONMENT_FILE = ".env"
+REQUIRED_XCUITEST_CONFIG_FILE = (
+    "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json"
+)
+REQUIRED_XCUITEST_JOURNEY_FILE = (
+    "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_journey.json"
+)
+REQUIRED_APP_LOCK_BYPASS = "none"
 REQUIRED_BACKEND_HEALTH_PATH = "/_health"
 REQUIRED_BACKEND_RUNTIME_PATH = "/api/system/runtime"
 REQUIRED_BACKEND_CHECKS = (REQUIRED_BACKEND_HEALTH_PATH, REQUIRED_BACKEND_RUNTIME_PATH)
@@ -193,6 +207,7 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
             errors.append(
                 f"simulatorContract.{field} missing token env keys: {', '.join(missing)}"
             )
+    errors.extend(_validate_simulator_contract(contract))
     errors.extend(_validate_app_owned_journeys(payload, make_targets=make_targets))
     errors.extend(
         _validate_command_section(
@@ -223,6 +238,36 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
     errors.extend(_validate_backend_runtime_expected(payload))
     errors.extend(_validate_operational_contracts(payload))
     errors.extend(_validate_known_gates(payload))
+    return errors
+
+
+def _validate_simulator_contract(contract: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    expected_values = {
+        "configEnvironment": REQUIRED_API_ENVIRONMENT,
+        "credentialEnvironment": REQUIRED_CREDENTIAL_ENVIRONMENT,
+        "remoteEnvironmentAllowlist": REQUIRED_REMOTE_ENVIRONMENT_ALLOWLIST,
+        "appLaunchEnvironment": REQUIRED_API_ENVIRONMENT,
+    }
+    for field, expected_value in expected_values.items():
+        actual_value = contract.get(field)
+        if actual_value != expected_value:
+            errors.append(
+                f"simulatorContract.{field}={actual_value!r} expected {expected_value!r}"
+            )
+
+    expected_scalars = {
+        "remoteEnvironmentFile": REQUIRED_REMOTE_ENVIRONMENT_FILE,
+        "xcuitestConfigFile": REQUIRED_XCUITEST_CONFIG_FILE,
+        "xcuitestJourneyFile": REQUIRED_XCUITEST_JOURNEY_FILE,
+        "appLockBypass": REQUIRED_APP_LOCK_BYPASS,
+    }
+    for field, expected_value in expected_scalars.items():
+        actual_value = contract.get(field)
+        if actual_value != expected_value:
+            errors.append(
+                f"simulatorContract.{field}={actual_value!r} expected {expected_value!r}"
+            )
     return errors
 
 

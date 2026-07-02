@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-simulator-contract-guard",
+                    title: "Pipeline pins simulator handoff",
+                    detail: "The reusable Apple pipeline manifest checker now validates simulator API environment, credential allow-list, XCUITest config paths, remote .env handoff, and app-lock policy from the backend descriptor."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-operational-contract-guard",
                     title: "Pipeline pins ops checks",
                     detail: "The reusable Apple pipeline manifest checker now validates ebook-tools backend probe paths, API environment, timeout, and external WD staging/runtime cleanup policy before simulator or device work."
