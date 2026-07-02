@@ -93,15 +93,15 @@ class YoutubeNasVideoPayload(BaseModel):
     size_bytes: int
     modified_at: datetime
     source: Optional[str] = Field(default="youtube")
-    linked_job_ids: List[str] = Field(default_factory=list)
-    subtitles: List[YoutubeNasSubtitlePayload] = Field(default_factory=list)
+    linked_job_ids: List[str]
+    subtitles: List[YoutubeNasSubtitlePayload]
 
 
 class YoutubeNasLibraryResponse(BaseModel):
     """Response describing the NAS directory of downloaded YouTube videos."""
 
     base_dir: str
-    videos: List[YoutubeNasVideoPayload] = Field(default_factory=list)
+    videos: List[YoutubeNasVideoPayload]
 
 
 class YoutubeSubtitleExtractionRequest(BaseModel):
@@ -119,21 +119,21 @@ class YoutubeInlineSubtitleStream(BaseModel):
     language: Optional[str] = None
     codec: Optional[str] = None
     title: Optional[str] = None
-    can_extract: bool = True
+    can_extract: bool
 
 
 class YoutubeSubtitleExtractionResponse(BaseModel):
     """Response describing extracted subtitle tracks."""
 
     video_path: str
-    extracted: List[YoutubeNasSubtitlePayload] = Field(default_factory=list)
+    extracted: List[YoutubeNasSubtitlePayload]
 
 
 class YoutubeInlineSubtitleListResponse(BaseModel):
     """Response describing subtitle streams embedded in a video."""
 
     video_path: str
-    streams: List[YoutubeInlineSubtitleStream] = Field(default_factory=list)
+    streams: List[YoutubeInlineSubtitleStream]
 
 
 class YoutubeSubtitleDeleteRequest(BaseModel):

@@ -55,7 +55,7 @@ class SubtitleSubmissionPayload(BaseModel):
 class SubtitleSourceListResponse(BaseModel):
     """Collection of available subtitle sources."""
 
-    sources: List[SubtitleSourceEntry] = Field(default_factory=list)
+    sources: List[SubtitleSourceEntry]
 
 
 class SubtitleTvMetadataParse(BaseModel):

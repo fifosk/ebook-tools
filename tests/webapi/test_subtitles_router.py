@@ -70,6 +70,17 @@ def test_parse_end_time_relative_minutes() -> None:
     assert end_seconds == pytest.approx(start_seconds + 300.0)
 
 
+def test_subtitle_source_openapi_marks_picker_fields_required() -> None:
+    app = create_app()
+    schemas = app.openapi()["components"]["schemas"]
+
+    entry_required = set(schemas["SubtitleSourceEntry"]["required"])
+    assert {"name", "path", "format"} <= entry_required
+
+    list_required = set(schemas["SubtitleSourceListResponse"]["required"])
+    assert {"sources"} <= list_required
+
+
 def test_parse_end_time_accepts_absolute() -> None:
     start_seconds = parse_time_offset("00:00")
     end_seconds = parse_end_time("03:00", start_seconds)

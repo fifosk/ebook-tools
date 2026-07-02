@@ -46,6 +46,37 @@ def _assert_no_traceback_logging(logger: _RecordingLogger) -> None:
     assert all(not kwargs.get("exc_info") for kwargs in logger.kwargs)
 
 
+def test_youtube_source_picker_openapi_marks_response_fields_required() -> None:
+    app = create_app()
+    schemas = app.openapi()["components"]["schemas"]
+
+    subtitle_required = set(schemas["YoutubeNasSubtitlePayload"]["required"])
+    assert {"path", "filename", "format"} <= subtitle_required
+
+    video_required = set(schemas["YoutubeNasVideoPayload"]["required"])
+    assert {
+        "path",
+        "filename",
+        "folder",
+        "size_bytes",
+        "modified_at",
+        "linked_job_ids",
+        "subtitles",
+    } <= video_required
+
+    library_required = set(schemas["YoutubeNasLibraryResponse"]["required"])
+    assert {"base_dir", "videos"} <= library_required
+
+    stream_required = set(schemas["YoutubeInlineSubtitleStream"]["required"])
+    assert {"index", "position", "can_extract"} <= stream_required
+
+    stream_list_required = set(schemas["YoutubeInlineSubtitleListResponse"]["required"])
+    assert {"video_path", "streams"} <= stream_list_required
+
+    extraction_required = set(schemas["YoutubeSubtitleExtractionResponse"]["required"])
+    assert {"video_path", "extracted"} <= extraction_required
+
+
 class _MetadataOnlyJobManager:
     def __init__(self) -> None:
         self.list_metadata_calls: list[dict[str, str | None]] = []

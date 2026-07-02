@@ -162,6 +162,9 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
         / "bookNarrationDiscoveryProviders.ts"
     ).read_text(encoding="utf-8")
     api_client = (ROOT / "web" / "src" / "api" / "client" / "jobs.ts").read_text(encoding="utf-8")
+    subtitles_api_client = (
+        ROOT / "web" / "src" / "api" / "client" / "subtitles.ts"
+    ).read_text(encoding="utf-8")
     dto_source = (ROOT / "web" / "src" / "api" / "dtos.ts").read_text(encoding="utf-8")
     assert "default_provider_ids: Partial<Record<AcquisitionMediaKind, string[]>>" in dto_source
     assert "discovery_media_kinds: AcquisitionMediaKind[]" in dto_source
@@ -206,6 +209,12 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "assertImageNodeAvailabilityResponse(responsePayload)" in api_client
     assert "assertReadinessStringArray(payload.available, 'available', 'image node availability')" in api_client
     assert "assertReadinessBooleanField(node, 'available', 'image node availability')" in api_client
+    assert "assertSubtitleSourceListResponse(payload)" in subtitles_api_client
+    assert "assertYoutubeNasLibraryResponse(payload)" in subtitles_api_client
+    assert "assertYoutubeInlineSubtitleListResponse(payload)" in subtitles_api_client
+    assert "assertYoutubeSubtitleExtractionResponse(responsePayload)" in subtitles_api_client
+    assert "assertSourcePickerStringArray(payload.linked_job_ids, 'linked_job_ids', 'YouTube NAS library')" in subtitles_api_client
+    assert "assertSourcePickerBooleanField(stream, 'can_extract', 'YouTube subtitle stream list')" in subtitles_api_client
     assert "resolveDefaultBookDiscoveryProvider(" in discovery_hook
     assert "defaultProviderIds?.book" in discovery_providers
     assert "hasUserSelectedDiscoveryProvider.current" in discovery_hook
