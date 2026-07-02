@@ -151,6 +151,11 @@ def _write_manifest(
     }
     payload = {
         "id": "ebook-tools",
+        "release": {
+            "plist": "ios/InteractiveReader/InteractiveReader/Supporting/Info.plist",
+            "versionKey": "EBOOK_TOOLS_RELEASE_VERSION",
+            "versionPrefix": "v",
+        },
         "simulatorContract": {
             "credentialEnvironment": credential_environment
             if credential_environment is not None
@@ -380,6 +385,30 @@ def test_validate_manifest_accepts_token_env_keys(tmp_path: Path) -> None:
     path = _write_manifest(tmp_path)
 
     assert module.validate_manifest(path) == []
+
+
+def test_validate_manifest_requires_release_contract(
+    tmp_path: Path,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["release"] = {
+        "plist": "ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist",
+        "versionKey": "CFBundleVersion",
+        "versionPrefix": "",
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "release.plist='ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist' "
+        "expected 'ios/InteractiveReader/InteractiveReader/Supporting/Info.plist'"
+    ) in errors
+    assert (
+        "release.versionKey='CFBundleVersion' expected 'EBOOK_TOOLS_RELEASE_VERSION'"
+    ) in errors
+    assert "release.versionPrefix='' expected 'v'" in errors
 
 
 def test_validate_manifest_requires_simulator_contract_handoff(

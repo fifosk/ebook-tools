@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-release-contract-guard",
+                    title: "Pipeline pins release metadata",
+                    detail: "The reusable Apple pipeline manifest checker now validates the app release Info.plist path, EBOOK_TOOLS_RELEASE_VERSION key, and visible v-prefix used by deployment-delta reporting."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-generated-artifacts-guard",
                     title: "Pipeline pins cleanup outputs",
                     detail: "The reusable Apple pipeline manifest checker now validates backend cache and Web build-output declarations so shared cleanup and test runners keep generated artifacts predictable."

@@ -59,6 +59,9 @@ REQUIRED_IOS_DEVICE_CAPABILITIES = (
     "Sign In with Apple",
     "iCloud",
 )
+REQUIRED_RELEASE_PLIST = "ios/InteractiveReader/InteractiveReader/Supporting/Info.plist"
+REQUIRED_RELEASE_VERSION_KEY = "EBOOK_TOOLS_RELEASE_VERSION"
+REQUIRED_RELEASE_VERSION_PREFIX = "v"
 EXPECTED_SIMULATOR_PROFILE_CONTRACTS = {
     "ios": {
         "platform": "ios",
@@ -299,6 +302,7 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
                 f"simulatorContract.{field} missing token env keys: {', '.join(missing)}"
             )
     errors.extend(_validate_simulator_contract(contract))
+    errors.extend(_validate_release_contract(payload))
     errors.extend(_validate_app_owned_journeys(payload, make_targets=make_targets))
     errors.extend(
         _validate_command_section(
@@ -345,6 +349,23 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
     errors.extend(_validate_backend_runtime_expected(payload))
     errors.extend(_validate_operational_contracts(payload))
     errors.extend(_validate_known_gates(payload))
+    return errors
+
+
+def _validate_release_contract(payload: dict[str, Any]) -> list[str]:
+    release = payload.get("release")
+    if not isinstance(release, dict):
+        return ["release must be an object"]
+    errors: list[str] = []
+    expected_values = {
+        "plist": REQUIRED_RELEASE_PLIST,
+        "versionKey": REQUIRED_RELEASE_VERSION_KEY,
+        "versionPrefix": REQUIRED_RELEASE_VERSION_PREFIX,
+    }
+    for field, expected_value in expected_values.items():
+        actual_value = release.get(field)
+        if actual_value != expected_value:
+            errors.append(f"release.{field}={actual_value!r} expected {expected_value!r}")
     return errors
 
 
