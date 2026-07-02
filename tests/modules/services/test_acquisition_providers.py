@@ -66,6 +66,14 @@ APPLE_PIPELINE_CREATION_API_MODELS = (
     / "Models"
     / "PipelineCreationApiModels.swift"
 )
+APPLE_AUTH_API_MODELS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Models"
+    / "AuthApiModels.swift"
+)
 APPLE_CREATE_READINESS_SCRIPT = ROOT / "scripts" / "check_apple_create_readiness.py"
 
 
@@ -660,6 +668,7 @@ def test_acquisition_contract_values_stay_aligned_across_web_apple_and_readiness
     web_source = WEB_JOBS_API_CLIENT.read_text()
     web_runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text()
     apple_source = APPLE_PIPELINE_CREATION_API_MODELS.read_text()
+    apple_auth_source = APPLE_AUTH_API_MODELS.read_text()
     readiness_source = APPLE_CREATE_READINESS_SCRIPT.read_text()
 
     assert "WEB_ACQUISITION_RUNTIME_CONTRACT" in web_source
@@ -702,27 +711,33 @@ def test_acquisition_contract_values_stay_aligned_across_web_apple_and_readiness
         suffix="],",
     ) == discovery_values.ACQUISITION_PROVIDER_STATUSES
 
+    assert "BackendRuntimeDescriptorResponse.AcquisitionContract.supported" in apple_source
+    assert "static let mediaKinds = Set(runtimeContract.mediaKinds)" in apple_source
+    assert "static let capabilities = Set(runtimeContract.capabilities)" in apple_source
+    assert "static let rights = Set(runtimeContract.rights)" in apple_source
+    assert "static let providerStatuses = Set(runtimeContract.providerStatuses)" in apple_source
+
     assert _quoted_values_from_assignment(
-        apple_source,
-        "static let mediaKinds: Set<String> = [",
+        apple_auth_source,
+        "        mediaKinds: [",
         quote='"',
-        suffix="]",
+        suffix="],",
     ) == discovery_values.ACQUISITION_MEDIA_KINDS
     assert _quoted_values_from_assignment(
-        apple_source,
-        "static let capabilities: Set<String> = [",
+        apple_auth_source,
+        "        capabilities: [",
         quote='"',
-        suffix="]",
+        suffix="],",
     ) == discovery_values.ACQUISITION_CAPABILITIES
     assert _quoted_values_from_assignment(
-        apple_source,
-        "static let rights: Set<String> = [",
+        apple_auth_source,
+        "        rights: [",
         quote='"',
-        suffix="]",
+        suffix="],",
     ) == discovery_values.ACQUISITION_RIGHTS
     assert _quoted_values_from_assignment(
-        apple_source,
-        "static let providerStatuses: Set<String> = [",
+        apple_auth_source,
+        "        providerStatuses: [",
         quote='"',
         suffix="]",
     ) == discovery_values.ACQUISITION_PROVIDER_STATUSES

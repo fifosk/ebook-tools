@@ -408,6 +408,8 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let capabilities: [String]" in source
     assert "let rights: [String]" in source
     assert "let providerStatuses: [String]" in source
+    assert "extension BackendRuntimeDescriptorResponse.AcquisitionContract" in source
+    assert "static let supported = Self(" in source
     assert "let applePipeline: ApplePipelineContract?" in source
     assert "let creation: CreationContract?" in source
     assert "let acquisition: AcquisitionContract?" in source

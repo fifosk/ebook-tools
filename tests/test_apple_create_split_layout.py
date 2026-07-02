@@ -242,6 +242,14 @@ PIPELINE_CREATION_API_MODELS = (
     / "Models"
     / "PipelineCreationApiModels.swift"
 )
+AUTH_API_MODELS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Models"
+    / "AuthApiModels.swift"
+)
 API_CLIENT_CREATION = (
     ROOT
     / "ios"
@@ -3346,9 +3354,19 @@ def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
 def test_apple_acquisition_api_validates_backend_enum_contracts() -> None:
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
+    auth_models_source = _source(AUTH_API_MODELS)
 
     assert "enum AcquisitionContractValidation" in api_models_source
-    assert 'static let mediaKinds: Set<String> = ["book", "video"]' in api_models_source
+    assert (
+        "private static let runtimeContract = "
+        "BackendRuntimeDescriptorResponse.AcquisitionContract.supported"
+    ) in api_models_source
+    assert "static let mediaKinds = Set(runtimeContract.mediaKinds)" in api_models_source
+    assert "static let capabilities = Set(runtimeContract.capabilities)" in api_models_source
+    assert "static let rights = Set(runtimeContract.rights)" in api_models_source
+    assert "static let providerStatuses = Set(runtimeContract.providerStatuses)" in api_models_source
+    assert "extension BackendRuntimeDescriptorResponse.AcquisitionContract" in auth_models_source
+    assert "static let supported = Self(" in auth_models_source
     for value in [
         '"search"',
         '"metadata"',
@@ -3365,7 +3383,7 @@ def test_apple_acquisition_api_validates_backend_enum_contracts() -> None:
         '"not_configured"',
         '"planned"',
     ]:
-        assert value in api_models_source
+        assert value in auth_models_source
     for field in [
         '"status"',
         '"media_kinds"',

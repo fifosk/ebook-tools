@@ -8,6 +8,7 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 swiftc \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Utilities/String+Extras.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Models/ApiModels.swift" \
+  "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Models/AuthApiModels.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Utilities/JSONValue+Helpers.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Models/LibraryJobApiModels.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Models/PipelineCreationApiModels.swift" \

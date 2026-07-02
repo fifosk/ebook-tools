@@ -340,23 +340,11 @@ enum AcquisitionContractValidationError: Error, LocalizedError, Equatable {
 }
 
 enum AcquisitionContractValidation {
-    static let mediaKinds: Set<String> = ["book", "video"]
-    static let capabilities: Set<String> = [
-        "search",
-        "metadata",
-        "acquire",
-        "poll",
-        "extract_subtitles",
-        "import_local",
-    ]
-    static let rights: Set<String> = [
-        "public_domain",
-        "open_license",
-        "user_provided",
-        "unknown",
-        "restricted",
-    ]
-    static let providerStatuses: Set<String> = ["available", "not_configured", "planned"]
+    private static let runtimeContract = BackendRuntimeDescriptorResponse.AcquisitionContract.supported
+    static let mediaKinds = Set(runtimeContract.mediaKinds)
+    static let capabilities = Set(runtimeContract.capabilities)
+    static let rights = Set(runtimeContract.rights)
+    static let providerStatuses = Set(runtimeContract.providerStatuses)
 
     static func validate(_ response: AcquisitionProviderListResponse) throws {
         let providersByID = Dictionary(

@@ -194,6 +194,28 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     let notifications: NotificationsContract?
 }
 
+extension BackendRuntimeDescriptorResponse.AcquisitionContract {
+    static let supported = Self(
+        mediaKinds: ["book", "video"],
+        capabilities: [
+            "search",
+            "metadata",
+            "acquire",
+            "poll",
+            "extract_subtitles",
+            "import_local",
+        ],
+        rights: [
+            "public_domain",
+            "open_license",
+            "user_provided",
+            "unknown",
+            "restricted",
+        ],
+        providerStatuses: ["available", "not_configured", "planned"]
+    )
+}
+
 struct LoginRequestPayload: Encodable {
     let username: String
     let password: String
