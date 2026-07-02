@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-provider-defaults-helper",
+                    title: "Default sources are leaner",
+                    detail: "Backend acquisition Default sources readiness now lives in a focused provider-defaults helper with direct coverage, keeping Web and Apple Create default book and video source fanout policy reusable outside the provider registry payload builder."
+                ),
+                AppChangelogEntry(
                     id: "backend-discovery-routing-table",
                     title: "Discovery routing is guarded",
                     detail: "Backend acquisition discovery now dispatches providers through a registry-aligned routing table with direct coverage, so Web and Apple Create provider metadata cannot drift from backend discovery handlers."

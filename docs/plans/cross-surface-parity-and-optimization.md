@@ -700,7 +700,10 @@ Current Apple UI partially exposes:
   discovery without reopening the shared provider fanout. Backend acquisition
   discovery now dispatches provider calls through a registry-aligned routing
   table with direct coverage, keeping Web/Apple-visible provider metadata in
-  lockstep with backend handlers. Backend local/manual/NAS source candidate helpers now live in
+  lockstep with backend handlers. Default sources readiness now lives in
+  `modules/services/acquisition/provider_defaults.py` with focused coverage,
+  keeping default book/video fanout policy reusable outside the provider
+  registry payload builder. Backend local/manual/NAS source candidate helpers now live in
   `modules/services/acquisition/source_candidates.py` with focused coverage,
   keeping source-relative paths, display-title derivation, zero-byte EPUB
   filtering, and bounded newest-first manual source ordering shared for

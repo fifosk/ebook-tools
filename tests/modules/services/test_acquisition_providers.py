@@ -18,6 +18,7 @@ import modules.services.acquisition.indexer_discovery as indexer_discovery
 import modules.services.acquisition.internet_archive_discovery as internet_archive_discovery
 import modules.services.acquisition.models as acquisition_models
 import modules.services.acquisition.openlibrary_discovery as openlibrary_discovery
+import modules.services.acquisition.provider_defaults as provider_defaults
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
 import modules.services.acquisition.source_candidates as source_candidates
 import modules.services.acquisition.discovery_values as discovery_values
@@ -488,6 +489,22 @@ def test_default_discovery_provider_ids_are_config_aware(
         {"indexer_url": "https://indexer.example.invalid"}
     )
     assert is_indexer_search_configured({}) is False
+    assert provider_defaults.default_discovery_provider_ids_from_readiness(
+        "book",
+        books_root_readable=False,
+        video_root_readable=True,
+        has_readable_manual_roots=True,
+        youtube_search_configured=True,
+        indexer_search_configured=True,
+    ) == ("manual_downloads",)
+    assert provider_defaults.default_discovery_provider_ids_from_readiness(
+        "video",
+        books_root_readable=True,
+        video_root_readable=False,
+        has_readable_manual_roots=True,
+        youtube_search_configured=True,
+        indexer_search_configured=True,
+    ) == ("manual_downloads", "youtube_search", "newznab_torznab")
     assert default_discovery_provider_ids(" VIDEO ", {}) == ("nas_video",)
     assert default_discovery_provider_ids("audio", {}) == ()
 
