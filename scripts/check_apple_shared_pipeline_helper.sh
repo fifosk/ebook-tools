@@ -3,6 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MAKEFILE="${ROOT_DIR}/Makefile"
+APPLE_PIPELINE_ROOT_DEFAULT="/Users/fifo/Projects/home/apple-device-app-pipeline"
+APPLE_PIPELINE_ROOT_RESOLVED="${APPLE_PIPELINE_ROOT:-${APPLE_PIPELINE_ROOT_DEFAULT}}"
+PIPELINE_BACKEND_CHECKER="${APPLE_PIPELINE_ROOT_RESOLVED}/scripts/check_app_backend.py"
 
 assert_contains() {
   local haystack="$1"
@@ -180,5 +183,13 @@ assert_not_contains "${golden_verify_line}" "apple-device-full-entitlement-fallb
 assert_not_contains "${golden_verify_line}" "apple-device-full-entitlement-stable-install" "golden pipeline verification should not install stable signed artifacts"
 
 python3 "${ROOT_DIR}/scripts/check_apple_shared_pipeline_manifest.py"
+
+if [[ -f "${PIPELINE_BACKEND_CHECKER}" ]]; then
+  backend_checker="$(<"${PIPELINE_BACKEND_CHECKER}")"
+  assert_contains "${backend_checker}" "runtime_descriptor_mismatch_message" "shared backend checker should keep a dedicated runtime mismatch formatter"
+  assert_contains "${backend_checker}" "Acquisition runtime contract drift" "shared backend checker should explain acquisition runtime drift"
+  assert_contains "${backend_checker}" "deployed backend is older than the app manifest" "shared backend checker should guide stale backend remediation"
+  assert_contains "${backend_checker}" "before debugging Apple client or device behavior" "shared backend checker should keep acquisition drift from looking like an Apple/device bug"
+fi
 
 echo "apple shared pipeline helper checks passed"

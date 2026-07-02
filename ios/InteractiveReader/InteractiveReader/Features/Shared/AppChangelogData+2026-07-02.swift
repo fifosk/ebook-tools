@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-backend-diagnosis-guard",
+                    title: "Pipeline guards source diagnosis",
+                    detail: "The repo-owned shared pipeline helper now checks the local pipeline backend checker for the acquisition stale-runtime diagnosis so future pipeline edits do not blur backend drift with Apple client bugs."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-acquisition-stale-runtime-diagnosis",
                     title: "Pipeline explains stale source runtime",
                     detail: "Shared backend checks and repo docs now label acquisition route/value mismatches as stale deployed backend runtime evidence, keeping simulator and device debugging focused."

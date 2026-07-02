@@ -746,6 +746,10 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "check_mac_studio_runtime_checkout.sh" in contract_check
     assert "run_app_contract_checks.py" in contract_check
     assert "check_app_backend.py" in contract_check
+    assert "PIPELINE_BACKEND_CHECKER" in contract_check
+    assert "runtime_descriptor_mismatch_message" in contract_check
+    assert "Acquisition runtime contract drift" in contract_check
+    assert "deployed backend is older than the app manifest" in contract_check
     assert "run_app_backend_tests.py" in contract_check
     assert "check_app_source_sync.py" in contract_check
     assert "run_app_web_checks.py" in contract_check
