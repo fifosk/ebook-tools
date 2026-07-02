@@ -1164,6 +1164,11 @@ Optimization candidates:
   preserves titles, book/media metadata, generated files, parameter snapshots,
   and Apple/Web recent-default fields without materializing heavy full pipeline
   results; single-job status/detail routes still return rich result payloads.
+- Reduce repeated job-store scans in shared list/count wrappers. Status:
+  the write-batching job store now scans underlying ids at most once when
+  counting buffered jobs, skips that scan entirely when the buffer is empty, and
+  returns deterministic underlying-then-buffered ids so job-list and readiness
+  callers avoid repeated storage walks while writes are pending.
 - Avoid avoidable library repository reads in shared search paths. Status:
   `/api/pipelines/search` now defers the library item lookup until the pipeline
   job is missing, so normal active-job media searches avoid a library sync

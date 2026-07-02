@@ -472,18 +472,23 @@ class BatchingJobStore:
         """Return total count (may include buffered new jobs)."""
         base_count = self._store.count()
         with self._lock:
-            # Count new jobs in buffer not yet in store
-            new_in_buffer = sum(
-                1 for job_id in self._buffer
-                if job_id not in self._store.list_ids()
-            )
+            buffered_ids = set(self._buffer)
+        if not buffered_ids:
+            return base_count
+        stored_ids = set(self._store.list_ids())
+        new_in_buffer = sum(1 for job_id in buffered_ids if job_id not in stored_ids)
         return base_count + new_in_buffer
 
     def list_ids(self) -> List[str]:
         """Return all job IDs including buffered."""
-        ids = set(self._store.list_ids())
+        ids = list(self._store.list_ids())
+        seen = set(ids)
         with self._lock:
-            ids.update(self._buffer.keys())
+            for job_id in self._buffer:
+                if job_id in seen:
+                    continue
+                ids.append(job_id)
+                seen.add(job_id)
         return list(ids)
 
     def delete(self, job_id: str) -> None:
