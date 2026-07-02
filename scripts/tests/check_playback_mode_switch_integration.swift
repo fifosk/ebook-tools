@@ -238,6 +238,27 @@ private func audioOption(
     )
 }
 
+private func sequenceTrackURLsForIntegration(
+    in chunk: InteractiveChunk,
+    selectedTrackID: String?
+) -> (original: URL?, translation: URL?) {
+    let selectedTrack = selectedTrackID.flatMap { trackID in
+        chunk.audioOptions.first(where: { $0.id == trackID })
+    }
+    let combinedTrack: InteractiveChunk.AudioOption? = {
+        if selectedTrack?.kind == .combined {
+            return selectedTrack
+        }
+        return chunk.audioOptions.first { $0.kind == .combined }
+    }()
+    let originalTrack = chunk.audioOptions.first { $0.kind == .original }
+    let translationTrack = chunk.audioOptions.first { $0.kind == .translation }
+    let combinedStreamURLs = combinedTrack?.streamURLs ?? []
+    let originalURL = originalTrack?.primaryURL ?? combinedStreamURLs.first
+    let translationURL = translationTrack?.primaryURL ?? (combinedStreamURLs.count > 1 ? combinedStreamURLs[1] : nil)
+    return (originalURL, translationURL)
+}
+
 private func activeSentenceIndex(
     in chunk: InteractiveChunk,
     at time: Double,
@@ -2409,6 +2430,20 @@ private func runChecks() {
         audioOptions: [
             audioOption("combined-only-next", kind: .combined, urls: [originalURL, translationURL])
         ]
+    )
+    let combinedOnlySequenceURLs = sequenceTrackURLsForIntegration(
+        in: combinedOnlyNextBatch,
+        selectedTrackID: "combined-only-next"
+    )
+    requireEqual(
+        combinedOnlySequenceURLs.original,
+        originalURL,
+        "Combined-only sequence setup should derive the Original controller lane from the first stream URL"
+    )
+    requireEqual(
+        combinedOnlySequenceURLs.translation,
+        translationURL,
+        "Combined-only sequence setup should derive the Translation controller lane from the second stream URL"
     )
     var selectedCombinedOnlyTrackID: String? = "combined"
     var preferredCombinedOnlyKind: InteractiveChunk.AudioOption.Kind? = .combined
