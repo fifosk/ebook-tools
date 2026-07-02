@@ -185,15 +185,7 @@ extension LibraryPlaybackView {
     }
 
     func currentInteractiveResumePlaybackTime() -> Double? {
-        let highlightTime = viewModel.highlightingTime
-        let playerTime = viewModel.audioCoordinator.currentTime
-        if !viewModel.isSequenceModeActive, playerTime.isFinite, playerTime >= 0 {
-            if playerTime > 0 || !highlightTime.isFinite || highlightTime < 0 {
-                return playerTime
-            }
-        }
-        guard highlightTime.isFinite, highlightTime >= 0 else { return nil }
-        return highlightTime
+        viewModel.currentTrackLocalResumePlaybackTime()
     }
 
     func currentInteractiveResumePlaybackTrack() -> String? {

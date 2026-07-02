@@ -31,6 +31,8 @@ extension InteractivePlayerViewModel {
         case .singleTrack(let track):
             preferredSingleTrackMode = track
             durableSingleTrackPlaybackMode = track
+            loadedSingleTrackPlaybackMode = track
+            selectedTimingSingleTrackMode = track
         case .sequence:
             if clearSingleTrackOnSequence {
                 preferredSingleTrackMode = nil
@@ -391,6 +393,13 @@ extension InteractivePlayerViewModel {
     }
 
     func requestedSingleTrackMode() -> SequenceTrack? {
+        if let audioModeManager,
+           case .singleTrack(let track) = audioModeManager.currentMode {
+            return track
+        }
+        if case .singleTrack(let track) = sequenceController.audioMode {
+            return track
+        }
         if let loadedSingleTrackPlaybackMode {
             return loadedSingleTrackPlaybackMode
         }
@@ -403,13 +412,6 @@ extension InteractivePlayerViewModel {
         if let chunk = selectedChunk,
            let selectedTimingSingleTrack = selectedTimingSingleTrackMode(in: chunk) {
             return selectedTimingSingleTrack
-        }
-        if let audioModeManager,
-           case .singleTrack(let track) = audioModeManager.currentMode {
-            return track
-        }
-        if case .singleTrack(let track) = sequenceController.audioMode {
-            return track
         }
         if let chunk = selectedChunk,
            let selectedAudioTrackID,
@@ -438,6 +440,13 @@ extension InteractivePlayerViewModel {
     }
 
     func lifecycleSingleTrackRestoreMode(in chunk: InteractiveChunk? = nil) -> SequenceTrack? {
+        if let audioModeManager,
+           case .singleTrack(let track) = audioModeManager.currentMode {
+            return track
+        }
+        if case .singleTrack(let track) = sequenceController.audioMode {
+            return track
+        }
         if let loadedSingleTrackPlaybackMode {
             return loadedSingleTrackPlaybackMode
         }
@@ -450,13 +459,6 @@ extension InteractivePlayerViewModel {
         if let chunk,
            let selectedTimingSingleTrack = selectedTimingSingleTrackMode(in: chunk) {
             return selectedTimingSingleTrack
-        }
-        if case .singleTrack(let track) = sequenceController.audioMode {
-            return track
-        }
-        if let audioModeManager,
-           case .singleTrack(let track) = audioModeManager.currentMode {
-            return track
         }
         return nil
     }
@@ -1706,6 +1708,25 @@ extension InteractivePlayerViewModel {
             return time >= max(0, start - 0.05) && time <= duration + 0.05
         }
         return time >= max(0, start - 0.05)
+    }
+
+    func currentTrackLocalResumePlaybackTime() -> Double? {
+        let highlightTime = highlightingTime
+        let playerTime = audioCoordinator.currentTime
+        if let segment = sequenceController.currentSegment,
+           !sequenceController.plan.isEmpty,
+           playerTime.isFinite,
+           playerTime >= max(0, segment.start - 0.25),
+           playerTime <= segment.end + 0.75 {
+            return min(max(playerTime, segment.start), segment.end)
+        }
+        if playerTime.isFinite, playerTime >= 0 {
+            if playerTime > 0 || !highlightTime.isFinite || highlightTime < 0 {
+                return playerTime
+            }
+        }
+        guard highlightTime.isFinite, highlightTime >= 0 else { return nil }
+        return highlightTime
     }
 
     func resumeValidationTimingTracks(for chunk: InteractiveChunk) -> [TextPlayerTimingTrack] {

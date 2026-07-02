@@ -809,6 +809,10 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert "loadedSingleTrackPlaybackMode" in requested_body
     assert "durableSingleTrackPlaybackMode" in requested_body
     assert "selectedTimingSingleTrackMode(in: chunk)" in requested_body
+    assert requested_body.index("if let audioModeManager") < requested_body.index("if let loadedSingleTrackPlaybackMode")
+    assert requested_body.index("if case .singleTrack(let track) = sequenceController.audioMode") < requested_body.index(
+        "if let loadedSingleTrackPlaybackMode"
+    )
     assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let preferredSingleTrackMode")
     assert requested_body.index("if let preferredSingleTrackMode") < requested_body.index(
         "if let durableSingleTrackPlaybackMode"
@@ -816,7 +820,6 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert requested_body.index("if let durableSingleTrackPlaybackMode") < requested_body.index(
         "selectedTimingSingleTrackMode(in: chunk)"
     )
-    assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let audioModeManager")
     lifecycle_restore_body = _function_body(
         selection,
         "func lifecycleSingleTrackRestoreMode(in chunk: InteractiveChunk? = nil) -> SequenceTrack?",
@@ -825,6 +828,12 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert "preferredSingleTrackMode" in lifecycle_restore_body
     assert "durableSingleTrackPlaybackMode" in lifecycle_restore_body
     assert "selectedTimingSingleTrackMode(in: chunk)" in lifecycle_restore_body
+    assert lifecycle_restore_body.index("if let audioModeManager") < lifecycle_restore_body.index(
+        "if let loadedSingleTrackPlaybackMode"
+    )
+    assert lifecycle_restore_body.index("if case .singleTrack(let track) = sequenceController.audioMode") < lifecycle_restore_body.index(
+        "if let loadedSingleTrackPlaybackMode"
+    )
     assert lifecycle_restore_body.index("if let loadedSingleTrackPlaybackMode") < lifecycle_restore_body.index(
         "if let preferredSingleTrackMode"
     )
@@ -834,8 +843,8 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert lifecycle_restore_body.index("if let durableSingleTrackPlaybackMode") < lifecycle_restore_body.index(
         "selectedTimingSingleTrackMode(in: chunk)"
     )
-    assert lifecycle_restore_body.index("sequenceController.audioMode") < lifecycle_restore_body.index(
-        "audioModeManager.currentMode"
+    assert lifecycle_restore_body.index("audioModeManager.currentMode") < lifecycle_restore_body.index(
+        "sequenceController.audioMode"
     )
     selected_timing_body = _function_body(
         selection,

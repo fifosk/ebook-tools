@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.004",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-live-lane-resume-clock",
+                    title: "Track switching and resume recover",
+                    detail: "Apple reader Original/Translation pills now let the live single-track toggle override stale loaded-lane memory, and Job/Library resume recording shares a track-local player clock so pause or relaunch can continue nearer the last spoken word."
+                ),
+                AppChangelogEntry(
                     id: "apple-header-role-selection-resume-clock",
                     title: "Track selection and resume hold better",
                     detail: "Apple reader header language pills now select the tapped lane directly, and Job/Library resume recording stores the selected-track player clock so resume can continue nearer the last spoken word."

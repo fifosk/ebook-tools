@@ -237,10 +237,20 @@ def test_interactive_resume_records_sentence_playback_time() -> None:
             "\n    func currentInteractiveResumePlaybackTrack()",
             1,
         )[0]
-        assert "let playerTime = viewModel.audioCoordinator.currentTime" in resume_time_body
-        assert "if !viewModel.isSequenceModeActive, playerTime.isFinite, playerTime >= 0" in resume_time_body
-        assert "return playerTime" in resume_time_body
-        assert resume_time_body.index("return playerTime") < resume_time_body.index("return highlightTime")
+        assert "viewModel.currentTrackLocalResumePlaybackTime()" in resume_time_body
+    selection_source = INTERACTIVE_SELECTION.read_text(encoding="utf-8")
+    resume_time_body = selection_source.split("func currentTrackLocalResumePlaybackTime() -> Double?", 1)[1].split(
+        "\n    func resumeValidationTimingTracks",
+        1,
+    )[0]
+    assert "let playerTime = audioCoordinator.currentTime" in resume_time_body
+    assert "sequenceController.currentSegment" in resume_time_body
+    assert "return min(max(playerTime, segment.start), segment.end)" in resume_time_body
+    assert "return playerTime" in resume_time_body
+    assert resume_time_body.index("return min(max(playerTime, segment.start), segment.end)") < resume_time_body.index(
+        "return playerTime"
+    )
+    assert resume_time_body.index("return playerTime") < resume_time_body.index("return highlightTime")
 
 
 def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() -> None:
