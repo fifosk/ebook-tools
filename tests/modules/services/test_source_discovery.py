@@ -139,6 +139,25 @@ def test_append_bounded_newest_source_file_ignores_non_positive_limits(tmp_path:
     assert matches == []
 
 
+def test_append_bounded_newest_source_file_discards_worse_entries_when_full(tmp_path: Path) -> None:
+    newest = tmp_path / "newest.epub"
+    older = tmp_path / "older.epub"
+    newest.write_bytes(b"newest")
+    older.write_bytes(b"older")
+    os.utime(newest, (1_700_000_100, 1_700_000_100))
+    os.utime(older, (1_700_000_000, 1_700_000_000))
+
+    entries = {
+        entry.path.name: entry
+        for entry in iter_visible_source_files(tmp_path, suffixes={".epub"})
+    }
+    matches = [entries["newest.epub"]]
+
+    append_bounded_newest_source_file(matches, entries["older.epub"], 1)
+
+    assert [entry.path.name for entry in matches] == ["newest.epub"]
+
+
 def test_walk_visible_source_files_uses_safe_root_stat_instead_of_exists(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

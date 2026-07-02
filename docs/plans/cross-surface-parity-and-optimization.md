@@ -1017,11 +1017,12 @@ Current Apple UI partially exposes:
   rebuilt around an already-loaded player item. Single-track playback time now also uses the durable requested
   original/translation lane before considering multi-file queue offsets, so a
   transient sequence-mode bridge at a batch boundary cannot add the hidden track
-  duration back into rendering; header active-role pills now use the same
-  durable lane before transient manager state so the visible selection does not
-  flash back to both tracks during the handoff. Adjacent-batch prefetch now
-  also treats that durable lane as authoritative and warms the requested stream
-  inside combined-only chunks instead of the hidden first/original stream. The
+  duration back into rendering; header active-role pills now trust the live
+  `AudioModeManager` state before stale remembered single-track state so
+  restoring both tracks stays visibly active instead of being greyed by old
+  resume memory. Adjacent-batch prefetch now also treats that durable lane as
+  authoritative and warms the requested stream inside combined-only chunks
+  instead of the hidden first/original stream. The
   audio coordinator now keeps reader playback intent alive
   through URL-aware EOF handoff callbacks until the view model loads the next
   sentence batch or pauses at end-of-book, and the playback mode-switch harness
@@ -1248,6 +1249,10 @@ Optimization candidates:
   are both available. Apple Create readiness now probes that bounded
   picker URL as its inventory check, so reusable pipeline preflights exercise
   the path the native clients actually load.
+  Bounded newest-source helpers now insert only candidates that can still beat
+  the current tail instead of sorting the retained list after every match, so
+  large NAS scans discard old EPUB/video/source candidates with less per-file
+  work while preserving the same cached-stat ordering contract.
   Output-root readiness and route-level source/output presence flags now use
   the same tolerant stat path instead of direct `Path.exists()` checks, so
   completed output folders stay visible during transient NAS existence races.

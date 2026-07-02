@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from bisect import bisect_right
 from datetime import datetime
 from pathlib import Path
 from typing import Protocol, TypeVar
@@ -47,13 +48,17 @@ def append_bounded_newest_manual_entry(
     absolute_path: str,
     limit: int,
 ) -> None:
-    matches.append((entry, root, absolute_path))
-    matches.sort(
-        key=lambda item: newest_source_file_sort_key(
-            item[0],
-            secondary_key=lambda source: title_from_filename(source.path),
-        )
+    if limit <= 0:
+        return
+    match = (entry, root, absolute_path)
+    match_key = _manual_source_match_sort_key(match)
+    if len(matches) >= limit and match_key >= _manual_source_match_sort_key(matches[-1]):
+        return
+    insert_at = bisect_right(
+        [_manual_source_match_sort_key(item) for item in matches],
+        match_key,
     )
+    matches.insert(insert_at, match)
     if len(matches) > limit:
         del matches[limit:]
 
@@ -65,12 +70,31 @@ def append_bounded_newest_candidate(
 ) -> None:
     """Append and keep the newest visible source candidates up to ``limit``."""
 
-    matches.append(candidate)
-    matches.sort(
-        key=lambda item: (
-            -item.modified_at.timestamp() if item.modified_at else 0,
-            item.title.casefold(),
-        ),
+    if limit <= 0:
+        return
+    candidate_key = _newest_candidate_sort_key(candidate)
+    if len(matches) >= limit and candidate_key >= _newest_candidate_sort_key(matches[-1]):
+        return
+    insert_at = bisect_right(
+        [_newest_candidate_sort_key(item) for item in matches],
+        candidate_key,
     )
+    matches.insert(insert_at, candidate)
     if len(matches) > limit:
         del matches[limit:]
+
+
+def _manual_source_match_sort_key(
+    item: ManualSourceMatch,
+) -> tuple[float, str]:
+    return newest_source_file_sort_key(
+        item[0],
+        secondary_key=lambda source: title_from_filename(source.path),
+    )
+
+
+def _newest_candidate_sort_key(candidate: NewestCandidate) -> tuple[float, str]:
+    return (
+        -candidate.modified_at.timestamp() if candidate.modified_at else 0,
+        candidate.title.casefold(),
+    )

@@ -230,6 +230,15 @@ def test_acquisition_source_candidate_helpers_normalize_paths_and_newest_order(
 
     assert [path for _, _, path in matches] == [alpha.as_posix()]
 
+    source_candidates.append_bounded_newest_manual_entry(
+        matches,
+        _discovered_source(zulu),
+        root,
+        zulu.as_posix(),
+        limit=0,
+    )
+    assert [path for _, _, path in matches] == [alpha.as_posix()]
+
     candidate_matches: list[acquisition_models.AcquisitionCandidate] = []
     source_candidates.append_bounded_newest_candidate(
         candidate_matches,
@@ -260,6 +269,22 @@ def test_acquisition_source_candidate_helpers_normalize_paths_and_newest_order(
         limit=1,
     )
 
+    assert [candidate.title for candidate in candidate_matches] == ["Newer"]
+
+    source_candidates.append_bounded_newest_candidate(
+        candidate_matches,
+        acquisition_models.AcquisitionCandidate(
+            candidate_id="manual_downloads:video:ignored",
+            provider="manual_downloads",
+            media_kind="video",
+            title="Ignored",
+            rights="user_provided",
+            capabilities=("metadata",),
+            candidate_token=_candidate_token({"provider": "manual_downloads", "path": "ignored"}),
+            modified_at=datetime(2026, 7, 2, tzinfo=timezone.utc),
+        ),
+        limit=0,
+    )
     assert [candidate.title for candidate in candidate_matches] == ["Newer"]
 
 

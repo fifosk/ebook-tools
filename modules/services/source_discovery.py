@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import stat as stat_module
+from bisect import bisect_right
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, List, Optional
@@ -57,13 +58,26 @@ def append_bounded_newest_source_file(
 
     if limit <= 0:
         return
-    matches.append(entry)
-    matches.sort(
-        key=lambda item: newest_source_file_sort_key(
-            item,
-            secondary_key=secondary_key,
-        )
+    entry_key = newest_source_file_sort_key(
+        entry,
+        secondary_key=secondary_key,
     )
+    if len(matches) >= limit:
+        last_key = newest_source_file_sort_key(matches[-1], secondary_key=secondary_key)
+        if entry_key >= last_key:
+            return
+
+    insert_at = bisect_right(
+        [
+            newest_source_file_sort_key(
+                item,
+                secondary_key=secondary_key,
+            )
+            for item in matches
+        ],
+        entry_key,
+    )
+    matches.insert(insert_at, entry)
     if len(matches) > limit:
         del matches[limit:]
 
