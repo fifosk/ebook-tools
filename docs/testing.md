@@ -1151,13 +1151,14 @@ can prove either route: a foreground/broker reader forced-pause breadcrumb or an
 `Apple Music reader transport pause adopted source=observed non-playing
 reason=observedNonPlaying` breadcrumb. The latter is the path where tvOS sends
 the first Play/Pause press to Music, then the app adopts that observed Music
-stop as reader transport pause. The verifier also requires the active
-Job/Library playback breadcrumb that accepts or mirrors that Music pause into
-reader transport, proving sentence narration stopped instead of only proving
-Apple Music paused. That first-episode proof must include active reader state,
-such as `requested=true` or `playing=true`; a standalone `readerPause=true`
-flag is treated as too weak because it can appear in the split-pause failure
-after Music has stopped. For pause/resume captures, the checker also rejects
+stop as reader transport pause. The verifier also requires every pause episode
+in the capture to include the active Job/Library playback breadcrumb that
+accepts or mirrors that Music pause into reader transport, then confirms
+narration reached `requested=false playing=false` before the next transport
+command. Each episode must include active reader state, such as `requested=true`
+or `playing=true`; a standalone `readerPause=true` flag is treated as too weak
+because it can appear in the split-pause failure after Music has stopped. For
+pause/resume captures, the checker also rejects
 two `brokerPause` decisions for the same Job/Library surface without an
 intervening `brokerResume`, narration-restore, or accepted reader play
 breadcrumb. That is the token-safe signature of the Cinema two-click regression:

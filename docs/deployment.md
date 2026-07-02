@@ -377,6 +377,10 @@ watchdog starts. That pause-release check accepts either a reader forced-pause
 breadcrumb or `Apple Music reader transport pause adopted source=observed
 non-playing reason=observedNonPlaying`, covering the physical Apple TV route
 where the first remote press pauses Music before the reader command arrives. Use
+the playback transport verifier after repeated Play/Pause repros when you need
+to prove every pause episode reached active narration and confirmed stopped
+before the next transport command.
+Use
 `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=guarded-play` for
 diagnostic captures that also exercise an ignored stray Now Playing play
 callback and should contain the `reader-pause-guard` breadcrumb, or run

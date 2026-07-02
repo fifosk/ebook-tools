@@ -181,7 +181,10 @@ def test_pause_release_rejects_split_pause_that_only_reaches_narration_on_second
 
     missing = module.validate_log(log, mode="pause-release")
 
-    assert missing == ["first pause episode did not reach narration before the next transport command"]
+    assert missing == [
+        "pause episode 1 did not reach narration before the next transport command",
+        "pause episode 2 did not confirm narration stopped before the next transport command",
+    ]
 
 
 def test_pause_release_rejects_first_episode_with_only_reader_pause_flag(tmp_path: Path) -> None:
@@ -190,7 +193,10 @@ def test_pause_release_rejects_first_episode_with_only_reader_pause_flag(tmp_pat
 
     missing = module.validate_log(log, mode="pause-release")
 
-    assert missing == ["first pause episode did not reach narration before the next transport command"]
+    assert missing == [
+        "pause episode 1 did not reach narration before the next transport command",
+        "pause episode 2 did not confirm narration stopped before the next transport command",
+    ]
 
 
 def test_pause_release_rejects_unsettled_first_pause_episode(tmp_path: Path) -> None:
@@ -199,7 +205,29 @@ def test_pause_release_rejects_unsettled_first_pause_episode(tmp_path: Path) -> 
 
     missing = module.validate_log(log, mode="pause-release")
 
-    assert missing == ["first pause episode did not confirm narration stopped before the next transport command"]
+    assert missing == ["pause episode 1 did not confirm narration stopped before the next transport command"]
+
+
+def test_pause_resume_rejects_later_unsettled_pause_episode(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        PAUSE_RESUME_LOG
+        + """
+1782670002.000 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670002.050 [PlaybackTransport] Library forced pause source=brokerPause requested=true playing=true musicPlaying=true systemMusicPlaying=false
+1782670002.060 [PlaybackTransport] Library pause command accepted requested=true playing=true musicPlaying=true
+1782670003.000 [PlaybackTransport] Library forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+1782670003.010 [PlaybackTransport] Library restoring narration playback request source=brokerResume sentence=42
+1782670003.020 [PlaybackTransport] Library play command accepted requested=true playing=true musicPlaying=false deferredMusic=true
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert missing == [
+        "pause episode 2 did not confirm narration stopped before the next transport command"
+    ]
 
 
 def test_pause_resume_requires_explicit_play_evidence(tmp_path: Path) -> None:
@@ -275,6 +303,7 @@ def test_pause_resume_rejects_consecutive_broker_pauses_without_reader_play(tmp_
     assert missing == [
         "reader transport accepted explicit play",
         "stale Music pause was ignored or play was accepted cleanly",
+        "pause episode 2 did not confirm narration stopped before the next transport command",
         "reader received consecutive broker pauses without an intervening reader play",
     ]
 

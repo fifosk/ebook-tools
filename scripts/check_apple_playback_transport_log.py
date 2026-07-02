@@ -108,7 +108,6 @@ PLAYBACK_TRANSPORT_BREADCRUMB_PATTERNS: tuple[str, ...] = (
 FIRST_PAUSE_EVENT_PATTERN = re.compile(
     r"\[PlaybackTransport\] (?:"
     r"Apple Music reader transport pause adopted|"
-    r"(?:Job|Library) (?:foreground|broker) tvOS Play/Pause command|"
     r"(?:Job|Library) forced pause source=|"
     r"(?:Job|Library) pause command accepted|"
     r"(?:Job|Library) accepted Apple Music pause as reader transport"
@@ -208,28 +207,33 @@ def _pause_guard_violations(text: str) -> list[str]:
     return []
 
 
-def _first_pause_episode_violations(text: str) -> list[str]:
+def _pause_episode_violations(text: str) -> list[str]:
     lines = text.splitlines()
-    first_index: int | None = None
-    for index, line in enumerate(lines):
-        if FIRST_PAUSE_EVENT_PATTERN.search(line):
-            first_index = index
-            break
-    if first_index is None:
-        return []
+    violations: list[str] = []
+    episode_number = 0
+    index = 0
+    while index < len(lines):
+        if not FIRST_PAUSE_EVENT_PATTERN.search(lines[index]):
+            index += 1
+            continue
+        episode_number += 1
+        end_index = len(lines)
+        for candidate in range(index + 1, len(lines)):
+            if NEXT_TRANSPORT_EVENT_PATTERN.search(lines[candidate]):
+                end_index = candidate
+                break
 
-    end_index = len(lines)
-    for index in range(first_index + 1, len(lines)):
-        if NEXT_TRANSPORT_EVENT_PATTERN.search(lines[index]):
-            end_index = index
-            break
-
-    first_episode = "\n".join(lines[first_index:end_index])
-    if not NARRATION_PAUSE_EVIDENCE_PATTERN.search(first_episode):
-        return ["first pause episode did not reach narration before the next transport command"]
-    if not NARRATION_PAUSE_SETTLED_PATTERN.search(first_episode):
-        return ["first pause episode did not confirm narration stopped before the next transport command"]
-    return []
+        episode = "\n".join(lines[index:end_index])
+        if not NARRATION_PAUSE_EVIDENCE_PATTERN.search(episode):
+            violations.append(
+                f"pause episode {episode_number} did not reach narration before the next transport command"
+            )
+        elif not NARRATION_PAUSE_SETTLED_PATTERN.search(episode):
+            violations.append(
+                f"pause episode {episode_number} did not confirm narration stopped before the next transport command"
+            )
+        index = max(end_index, index + 1)
+    return violations
 
 
 def _dead_resume_violations(text: str) -> list[str]:
@@ -357,7 +361,7 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
     missing = _missing_requirements(text, requirements)
     if mode != "resume-offset":
         missing.extend(_pause_guard_violations(text))
-        missing.extend(_first_pause_episode_violations(text))
+        missing.extend(_pause_episode_violations(text))
     if mode == "pause-resume":
         missing.extend(_dead_resume_violations(text))
         missing.extend(_consecutive_broker_pause_violations(text))

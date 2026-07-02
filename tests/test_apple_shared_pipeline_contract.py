@@ -423,12 +423,13 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "apple-device-verify-playback-resume-offset-log:" in makefile
     testing_doc = TESTING_DOC.read_text(encoding="utf-8")
     deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")
-    assert "first pause episode did not reach narration before the next transport command" in testing_doc
+    assert "every pause episode" in testing_doc
     assert 'old "first click pauses Music, second click pauses track"' in testing_doc
-    assert "`requested=true` or `playing=true`" in testing_doc
+    assert "such as `requested=true`" in testing_doc
+    assert "or `playing=true`" in testing_doc
     assert "standalone `readerPause=true`" in testing_doc
     assert "regression from passing" in testing_doc
-    assert "first pause episode did not reach narration before the" in deployment_doc
+    assert "every pause episode" in deployment_doc
     assert "next transport command" in deployment_doc
     assert "`requested=true` or\n`playing=true`" in deployment_doc
     assert "lone `readerPause=true` flag is not enough" in deployment_doc
