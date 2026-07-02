@@ -128,7 +128,12 @@ Follow the suggested remediations to restore parity:
   Apple text-track availability must therefore be audio-backed during that
   placeholder state: dedicated translation audio or a combined stream with a
   translation lane keeps the Translation pill/selectable row alive until the
-  chunk metadata fetch fills real tokens.
+  chunk metadata fetch fills real tokens. When sequence mode is active and a
+  chunk only exposes a two-stream combined audio option, Apple should split
+  those stream URLs into Original and Translation sequence-controller lanes
+  instead of loading the combined queue directly; otherwise first-sentence
+  playback can leave highlighting and the follow-up track handoff outside the
+  sequence state machine.
   Library playback uses `/api/library/media/{job_id}` for the same contract:
   the route must preserve chunk `audioTracks` and `timingTracks` even when
   `sentences` are omitted or loaded lazily, otherwise Apple TV can show a grey

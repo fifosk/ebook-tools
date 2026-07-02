@@ -248,6 +248,28 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "sequenceController.translationTrackURL != nil" in sequence_active_body
 
 
+def test_combined_only_sequence_mode_splits_stream_urls_for_controller() -> None:
+    source = _source("InteractivePlayerViewModel+Sequence.swift")
+    body = _function_body(
+        source,
+        "func configureSequencePlayback(for chunk: InteractiveChunk, autoPlay: Bool, targetSentenceIndex: Int? = nil)",
+    )
+
+    assert "let combinedStreamURLs = combinedTrack?.streamURLs ?? []" in body
+    assert "let originalURL = originalTrack?.primaryURL ?? combinedStreamURLs.first" in body
+    assert (
+        "let translationURL = translationTrack?.primaryURL ?? "
+        "(combinedStreamURLs.count > 1 ? combinedStreamURLs[1] : nil)"
+    ) in body
+    assert "originalTrackURL: originalURL" in body
+    assert "translationTrackURL: translationURL" in body
+    assert "originalDuration: originalTrack?.duration ?? combinedTrack?.fileDurations?.first" in body
+    assert (
+        "translationDuration: translationTrack?.duration ?? "
+        "combinedTrack?.fileDurations?.dropFirst().first"
+    ) in body
+
+
 def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
     audio_coordinator = (
         ROOT

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-combined-only-sequence-controller",
+                    title: "Combined-only playback sequences correctly",
+                    detail: "Apple reader sequence setup now splits two-stream combined audio into Original and Translation controller lanes when dedicated track options are missing, keeping first-sentence playback, highlighting, and follow-up handoff under the same sequence path."
+                ),
+                AppChangelogEntry(
                     id: "apple-resume-offset-order-contract",
                     title: "Resume offset order is guarded",
                     detail: "Apple resume contracts now verify Job and Library playback restore the saved single-track lane, validate the in-sentence offset, and use exact time seeking before any sentence-start fallback path."

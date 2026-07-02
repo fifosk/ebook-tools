@@ -104,8 +104,12 @@ extension InteractivePlayerViewModel {
             return
         }
 
-        guard let originalURL = originalTrack?.primaryURL,
-              let translationURL = translationTrack?.primaryURL else {
+        let combinedStreamURLs = combinedTrack?.streamURLs ?? []
+        let originalURL = originalTrack?.primaryURL ?? combinedStreamURLs.first
+        let translationURL = translationTrack?.primaryURL ?? (combinedStreamURLs.count > 1 ? combinedStreamURLs[1] : nil)
+
+        guard let originalURL,
+              let translationURL else {
             // No separate tracks available, fallback to combined track's URLs
             if Self.sequenceDebug {
                 interactiveSequenceLogger.debug("Configure sequence: no separate tracks available, falling back to combined track URLs")
@@ -149,8 +153,8 @@ extension InteractivePlayerViewModel {
             from: chunk.sentences,
             originalTrackURL: originalURL,
             translationTrackURL: translationURL,
-            originalDuration: originalTrack?.duration,
-            translationDuration: translationTrack?.duration,
+            originalDuration: originalTrack?.duration ?? combinedTrack?.fileDurations?.first,
+            translationDuration: translationTrack?.duration ?? combinedTrack?.fileDurations?.dropFirst().first,
             mode: audioModeManager?.currentMode
         )
 
