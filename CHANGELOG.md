@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.012
 
+- Web Video Dubbing presentation helpers for source badges, subtitle labels, stream labels, byte/date/count formatting, output paths, and job labels now live in a focused module while preserving existing imports, keeping source display behavior easier to compare with Apple YouTube Dub.
 - Web YouTube video search/download helper logic now lives in a focused tested module covering subtitle defaults, quality labels, source badges, provider lookup, and discovery metadata summaries, trimming the page shell for Apple YouTube Dub parity work.
 - Apple reader track pills now treat one-file combined audio as a mixed fallback rather than an independently selectable Translation lane, while two-stream combined audio and dedicated Original/Translation tracks still support single-track and both-track playback.
 - Backend generated-book option/default construction now lives in a focused router support module, keeping `/api/books/options` easier to compare across Web Narrate Ebook and Apple Create while preserving the same response contract.

@@ -92,7 +92,11 @@ Large Web UI hotspots to split before redesign work:
   preservation helpers, subtitle extraction/availability messages, and
   job-parameter prefill mapping now live in
   `web/src/pages/video-dubbing/videoDubbingUtils.ts` with focused Vitest
-  coverage. Video Dubbing discovery provider buttons now derive video-capable
+  coverage. Source/video presentation helpers for byte/date/count labels,
+  subtitle/stream labels, source badges, output paths, and job labels now live
+  in `web/src/pages/video-dubbing/videoDubbingPresentation.ts`, preserving the
+  old utility exports while keeping display semantics easier to compare with
+  Apple YouTube Dub. Video Dubbing discovery provider buttons now derive video-capable
   providers from the backend acquisition registry while preserving the familiar
   NAS, manual download, YouTube search, and Indexers ordering. Video deletion selection fallback now lives there too, preserving
   the current selection when deleting a different video and choosing the next

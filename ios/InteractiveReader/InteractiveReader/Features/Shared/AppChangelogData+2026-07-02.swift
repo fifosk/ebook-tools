@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "web-video-dubbing-presentation-helper",
+                    title: "Video source display is focused",
+                    detail: "Web Video Dubbing presentation helpers for source badges, subtitle labels, stream labels, byte/date/count formatting, output paths, and job labels now live in a focused module while preserving existing imports, keeping source display behavior easier to compare with Apple YouTube Dub."
+                ),
+                AppChangelogEntry(
                     id: "web-youtube-video-utils-helper",
                     title: "YouTube helper is focused",
                     detail: "Web YouTube video search/download helper logic now lives in a focused tested module covering subtitle defaults, quality labels, source badges, provider lookup, and discovery metadata summaries, trimming the page shell for Apple YouTube Dub parity work."
