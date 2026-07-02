@@ -454,8 +454,20 @@ export async function fetchSubtitleModels(): Promise<string[]> {
   if (response.status === 401 || response.status === 403) {
     return [];
   }
-  const payload = await handleResponse<LlmModelListResponse>(response);
-  return payload.models ?? [];
+  const payload = await handleResponse<unknown>(response);
+  assertSubtitleModelListResponse(payload);
+  return payload.models;
+}
+
+function assertSubtitleModelListResponse(
+  payload: unknown
+): asserts payload is LlmModelListResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid subtitle model list response.');
+  }
+  if (!Array.isArray(payload.models) || payload.models.some((entry) => typeof entry !== 'string')) {
+    throw new Error('Invalid subtitle model list response: missing models.');
+  }
 }
 
 // Assistant

@@ -476,6 +476,12 @@ def test_llm_models_endpoint_records_token_safe_telemetry(
     )
 
 
+def test_llm_model_openapi_marks_models_required() -> None:
+    schema = create_app().openapi()["components"]["schemas"]
+
+    assert {"models"} <= set(schema["LLMModelListResponse"]["required"])
+
+
 def test_llm_models_endpoint_rejects_guest_with_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

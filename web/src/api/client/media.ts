@@ -115,7 +115,9 @@ export async function regenerateSentenceImage(
 // Audio/Voice endpoints
 export async function fetchVoiceInventory(): Promise<VoiceInventoryResponse> {
   const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.audioVoicesPath);
-  return handleResponse<VoiceInventoryResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertVoiceInventoryResponse(payload);
+  return payload;
 }
 
 export interface VoicePreviewRequest {
@@ -246,6 +248,53 @@ function assertPlaybackBookmarkDeleteResponse(
   assertPlaybackStateStringField(payload, 'bookmark_id', 'playback bookmark delete');
 }
 
+function assertVoiceInventoryResponse(payload: unknown): asserts payload is VoiceInventoryResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid voice inventory response.');
+  }
+  assertVoiceArray(payload.macos, 'macos', assertMacOSVoiceEntry);
+  assertVoiceArray(payload.gtts, 'gtts', assertGTTSLanguageEntry);
+  assertVoiceArray(payload.piper, 'piper', assertPiperVoiceEntry);
+}
+
+function assertMacOSVoiceEntry(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid voice inventory response: missing macos entry.');
+  }
+  assertPlaybackStateStringField(payload, 'name', 'voice inventory macos');
+  assertPlaybackStateStringField(payload, 'lang', 'voice inventory macos');
+  assertOptionalString(payload.quality, 'quality', 'voice inventory macos');
+  assertOptionalString(payload.gender, 'gender', 'voice inventory macos');
+}
+
+function assertGTTSLanguageEntry(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid voice inventory response: missing gtts entry.');
+  }
+  assertPlaybackStateStringField(payload, 'code', 'voice inventory gtts');
+  assertPlaybackStateStringField(payload, 'name', 'voice inventory gtts');
+}
+
+function assertPiperVoiceEntry(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid voice inventory response: missing piper entry.');
+  }
+  assertPlaybackStateStringField(payload, 'name', 'voice inventory piper');
+  assertPlaybackStateStringField(payload, 'lang', 'voice inventory piper');
+  assertPlaybackStateStringField(payload, 'quality', 'voice inventory piper');
+}
+
+function assertVoiceArray(
+  value: unknown,
+  key: string,
+  assertEntry: (entry: unknown) => void
+): void {
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid voice inventory response: missing ${key}.`);
+  }
+  value.forEach(assertEntry);
+}
+
 // Export
 export async function createExport(payload: ExportRequestPayload): Promise<ExportResponse> {
   const response = await apiFetch(WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT.createPath, {
@@ -295,6 +344,12 @@ function assertPlaybackStateBooleanField(
 function assertPlaybackStateBookmarkKind(value: unknown, responseKind: string): void {
   if (value !== 'time' && value !== 'sentence') {
     throw new Error(`Invalid ${responseKind} response: missing kind.`);
+  }
+}
+
+function assertOptionalString(value: unknown, key: string, responseKind: string): void {
+  if (value !== undefined && value !== null && typeof value !== 'string') {
+    throw new Error(`Invalid ${responseKind} response: invalid ${key}.`);
   }
 }
 

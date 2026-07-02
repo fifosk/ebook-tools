@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 class LLMModelListResponse(BaseModel):
     """Response payload describing available LLM models."""
 
-    models: List[str] = Field(default_factory=list)
+    models: List[str]
 
 
 class AssistantChatMessage(BaseModel):

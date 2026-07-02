@@ -49,14 +49,63 @@ describe('media API client', () => {
   });
 
   it('uses the shared audio voices route for voice inventory', async () => {
+    const voiceInventory = {
+      macos: [
+        {
+          name: 'Alex',
+          lang: 'en_US',
+          quality: 'Enhanced',
+          gender: 'Male',
+        },
+      ],
+      gtts: [{ code: 'en', name: 'English' }],
+      piper: [{ name: 'en_US-lessac-medium', lang: 'en_US', quality: 'medium' }],
+    };
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValueOnce(jsonResponse({ macos: [], gtts: [], piper: [] }));
+      .mockResolvedValueOnce(jsonResponse(voiceInventory));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await fetchVoiceInventory();
+    await expect(fetchVoiceInventory()).resolves.toEqual(voiceInventory);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe('/api/audio/voices');
+  });
+
+  it('rejects malformed voice inventory response payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ macos: [], gtts: [] }));
+    await expect(fetchVoiceInventory()).rejects.toThrow(
+      'Invalid voice inventory response: missing piper.'
+    );
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      macos: [{ name: 'Alex', quality: 'Enhanced' }],
+      gtts: [],
+      piper: [],
+    }));
+    await expect(fetchVoiceInventory()).rejects.toThrow(
+      'Invalid voice inventory macos response: missing lang.'
+    );
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      macos: [],
+      gtts: [{ code: 'en' }],
+      piper: [],
+    }));
+    await expect(fetchVoiceInventory()).rejects.toThrow(
+      'Invalid voice inventory gtts response: missing name.'
+    );
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      macos: [],
+      gtts: [],
+      piper: [{ name: 'en_US-lessac-medium', lang: 'en_US' }],
+    }));
+    await expect(fetchVoiceInventory()).rejects.toThrow(
+      'Invalid voice inventory piper response: missing quality.'
+    );
   });
 
   it('uses shared audio synthesis and pipeline search routes', async () => {

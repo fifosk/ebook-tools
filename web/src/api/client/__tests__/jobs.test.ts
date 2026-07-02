@@ -430,7 +430,7 @@ describe('jobs API client', () => {
     await checkImageNodeAvailability({ base_urls: ['http://127.0.0.1:7860'] });
     await uploadEpubFile(new File(['epub'], 'upload.epub'));
     await deletePipelineEbook('/books/delete.epub');
-    await fetchLlmModels();
+    await expect(fetchLlmModels()).resolves.toEqual(['model-a']);
     await clearTvMetadataCache('show s01e01');
     await clearYoutubeMetadataCache('clip id');
 
@@ -460,6 +460,20 @@ describe('jobs API client', () => {
     );
     expect(new URL(String(fetchMock.mock.calls[9][0])).pathname).toBe(
       '/api/subtitles/metadata/youtube/cache/clear'
+    );
+  });
+
+  it('rejects malformed pipeline LLM model payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(jsonResponse({ models: ['model-a', 42] }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchLlmModels()).rejects.toThrow(
+      'Invalid LLM model list response: missing models.'
+    );
+    await expect(fetchLlmModels()).rejects.toThrow(
+      'Invalid LLM model list response: missing models.'
     );
   });
 

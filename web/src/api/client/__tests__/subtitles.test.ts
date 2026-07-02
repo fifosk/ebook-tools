@@ -145,7 +145,7 @@ describe('subtitles API client', () => {
 
     await fetchSubtitleSources('/media/subs?season=1');
     await deleteSubtitleSource('/media/show.en.srt', '/media');
-    await fetchSubtitleModels();
+    await expect(fetchSubtitleModels()).resolves.toEqual(['model-a']);
     await fetchSubtitleTvMetadata('job/with?parts');
     await lookupSubtitleTvMetadata('job/with?parts', { force: true });
     await lookupSubtitleTvMetadataPreview({ source_name: 'show s01e01', force: true });
@@ -238,6 +238,20 @@ describe('subtitles API client', () => {
       '/api/subtitles/jobs/job%2Fwith%3Fparts/result'
     );
     expect(new URL(String(fetchMock.mock.calls[20][0])).pathname).toBe('/api/assistant/lookup');
+  });
+
+  it('rejects malformed subtitle model payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(jsonResponse({ models: ['model-a', 42] }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchSubtitleModels()).rejects.toThrow(
+      'Invalid subtitle model list response: missing models.'
+    );
+    await expect(fetchSubtitleModels()).rejects.toThrow(
+      'Invalid subtitle model list response: missing models.'
+    );
   });
 
   it('rejects malformed subtitle and YouTube source picker payloads', async () => {

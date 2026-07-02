@@ -393,6 +393,20 @@ def test_list_voices_returns_cached_inventory(audio_client: TestClient, monkeypa
     assert payload["gtts"] == list(gtts_languages)
 
 
+def test_voice_inventory_openapi_marks_catalog_fields_required() -> None:
+    schema = create_app().openapi()["components"]["schemas"]
+
+    inventory_required = set(schema["VoiceInventoryResponse"]["required"])
+    macos_required = set(schema["MacOSVoice"]["required"])
+    gtts_required = set(schema["GTTSLanguage"]["required"])
+    piper_required = set(schema["PiperVoice"]["required"])
+
+    assert {"macos", "gtts", "piper"} <= inventory_required
+    assert {"name", "lang"} <= macos_required
+    assert {"code", "name"} <= gtts_required
+    assert {"name", "lang", "quality"} <= piper_required
+
+
 def test_list_voices_records_token_safe_telemetry(
     audio_client: TestClient,
     monkeypatch,

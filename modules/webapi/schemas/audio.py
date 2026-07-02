@@ -41,15 +41,12 @@ class VoiceInventoryResponse(BaseModel):
     """Payload returned by the ``GET /api/audio/voices`` endpoint."""
 
     macos: list[MacOSVoice] = Field(
-        default_factory=list,
         description="Cached inventory of macOS voices",
     )
     gtts: list[GTTSLanguage] = Field(
-        default_factory=list,
         description="Supported gTTS language entries",
     )
     piper: list[PiperVoice] = Field(
-        default_factory=list,
         description="Installed Piper voice models",
     )
 
