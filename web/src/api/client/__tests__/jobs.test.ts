@@ -147,6 +147,22 @@ function acquisitionJobStatusResponse(overrides: Record<string, unknown> = {}): 
   };
 }
 
+function pipelineJobStatus(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    job_id: 'job-1',
+    job_type: 'pipeline',
+    status: 'completed',
+    created_at: '2026-07-02T12:00:00Z',
+    started_at: null,
+    completed_at: null,
+    result: null,
+    error: null,
+    latest_event: null,
+    tuning: null,
+    ...overrides
+  };
+}
+
 function pipelineFileEntry(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     name: 'demo.epub',
@@ -553,9 +569,10 @@ describe('jobs API client', () => {
   });
 
   it('uses shared pipeline job, timing, and lookup-cache routes', async () => {
+    const jobList = [pipelineJobStatus({ job_id: 'job/with?parts' })];
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
       .mockResolvedValueOnce(jsonResponse({ job_id: 'new-job' }))
-      .mockResolvedValueOnce(jsonResponse({ jobs: [] }))
+      .mockResolvedValueOnce(jsonResponse({ jobs: jobList }))
       .mockResolvedValueOnce(jsonResponse({ entries: [] }))
       .mockResolvedValueOnce(jsonResponse({ word: 'Merhaba', cached: true }))
       .mockResolvedValueOnce(jsonResponse({ entries: [] }))
@@ -589,7 +606,7 @@ describe('jobs API client', () => {
     };
 
     await submitPipeline(payload);
-    await fetchJobs();
+    await expect(fetchJobs()).resolves.toEqual(jobList);
     await fetchJobTiming('job/with?parts');
     await fetchCachedLookup('job/with?parts', 'günaydın?');
     await fetchCachedLookupsBulk('job/with?parts', ['günaydın']);
@@ -609,6 +626,24 @@ describe('jobs API client', () => {
     );
     expect(new URL(String(fetchMock.mock.calls[5][0])).pathname).toBe(
       '/api/pipelines/jobs/job%2Fwith%3Fparts/lookup-cache/summary'
+    );
+  });
+
+  it('rejects malformed pipeline job list payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(jsonResponse({ jobs: [pipelineJobStatus({ job_id: undefined })] }))
+      .mockResolvedValueOnce(jsonResponse({ jobs: [pipelineJobStatus({ status: 'unknown' })] }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchJobs()).rejects.toThrow(
+      'Invalid pipeline job list response: missing jobs.'
+    );
+    await expect(fetchJobs()).rejects.toThrow(
+      'Invalid pipeline job list response: missing job_id.'
+    );
+    await expect(fetchJobs()).rejects.toThrow(
+      'Invalid pipeline job list response: missing status.'
     );
   });
 });

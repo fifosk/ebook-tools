@@ -837,7 +837,7 @@ class PipelineStatusResponse(BaseModel):
 class PipelineJobListResponse(BaseModel):
     """Response payload describing a collection of pipeline jobs."""
 
-    jobs: List[PipelineStatusResponse] = Field(default_factory=list)
+    jobs: List[PipelineStatusResponse]
     total: Optional[int] = Field(
         default=None,
         description="Total number of jobs (for pagination). Only included when pagination is used.",

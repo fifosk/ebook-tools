@@ -75,8 +75,49 @@ export async function fetchPipelineStatus(jobId: string): Promise<PipelineStatus
 
 export async function fetchJobs(): Promise<PipelineStatusResponse[]> {
   const response = await apiFetch(WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.listPath);
-  const payload = await handleResponse<PipelineJobListResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertPipelineJobListResponse(payload);
   return payload.jobs;
+}
+
+function assertPipelineJobListResponse(payload: unknown): asserts payload is PipelineJobListResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid pipeline job list response.');
+  }
+  if (!Array.isArray(payload.jobs)) {
+    throw new Error('Invalid pipeline job list response: missing jobs.');
+  }
+  payload.jobs.forEach(assertPipelineJobListEntry);
+}
+
+function assertPipelineJobListEntry(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid pipeline job list response: missing job entry.');
+  }
+  assertPipelineJobStringField(payload, 'job_id');
+  assertPipelineJobStringField(payload, 'job_type');
+  assertPipelineJobStatus(payload.status);
+  assertPipelineJobStringField(payload, 'created_at');
+}
+
+function assertPipelineJobStringField(record: Record<string, unknown>, key: string): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid pipeline job list response: missing ${key}.`);
+  }
+}
+
+function assertPipelineJobStatus(value: unknown): void {
+  if (
+    value !== 'pending' &&
+    value !== 'running' &&
+    value !== 'pausing' &&
+    value !== 'paused' &&
+    value !== 'completed' &&
+    value !== 'failed' &&
+    value !== 'cancelled'
+  ) {
+    throw new Error('Invalid pipeline job list response: missing status.');
+  }
 }
 
 async function postJobAction(jobId: string, action: string): Promise<PipelineJobActionResponse> {

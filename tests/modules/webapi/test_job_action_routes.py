@@ -52,6 +52,12 @@ class _RestartValueErrorPipelineService:
         raise ValueError("Restart is not supported for job type 'youtube_dub'")
 
 
+def test_pipeline_job_list_openapi_marks_jobs_required() -> None:
+    schema = create_app().openapi()["components"]["schemas"]
+
+    assert {"jobs"} <= set(schema["PipelineJobListResponse"]["required"])
+
+
 def test_job_action_routes_normalize_route_job_id() -> None:
     app = create_app()
     service = _RecordingPipelineService()
