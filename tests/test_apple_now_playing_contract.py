@@ -161,8 +161,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'toggleReaderNowPlayingTransport(source: "foregroundToggle")' in job_playback
     assert 'toggleReaderNowPlayingTransport(source: "brokerToggle")' in job_playback
     assert "@State var e2eReaderTransportCommandCount = 0" in job_playback
+    assert "@State var e2eReaderPauseConfirmationCount = 0" in job_playback
     assert "e2eReaderTransportCommandCount += 1" in job_now_playing
+    assert "e2eReaderPauseConfirmationCount += 1" in job_now_playing
     assert "readerTransportCommandCount: e2eReaderTransportCommandCount" in job_playback
+    assert "readerPauseConfirmationCount: e2eReaderPauseConfirmationCount" in job_playback
     assert "@State var e2eInteractiveAutoplaySettledCount = 0" in job_playback
     assert "e2eInteractiveAutoplaySettledCount += 1" in job_playback
     assert "interactiveAutoplayPendingSentence: pendingInteractiveAutoplaySentence" in job_playback
@@ -584,6 +587,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "Job confirming reader pause source=" in job_confirm_pause_body
     assert "Job confirmed reader pause source=" in job_confirm_pause_body
     assert "requested=false playing=false" in job_confirm_pause_body
+    assert "e2eReaderPauseConfirmationCount += 1" in job_confirm_pause_body
     job_interactive_toggle_body = _function_body(job_now_playing, "func toggleInteractiveReaderPlaybackTransport()")
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job_interactive_toggle_body
     assert "viewModel.audioCoordinator.isPlaying" in job_interactive_toggle_body
@@ -683,8 +687,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'toggleReaderNowPlayingTransport(source: "foregroundToggle")' in library_playback
     assert 'toggleReaderNowPlayingTransport(source: "brokerToggle")' in library_playback
     assert "@State var e2eReaderTransportCommandCount = 0" in library_playback
+    assert "@State var e2eReaderPauseConfirmationCount = 0" in library_playback
     assert "e2eReaderTransportCommandCount += 1" in library_now_playing
+    assert "e2eReaderPauseConfirmationCount += 1" in library_now_playing
     assert "readerTransportCommandCount: e2eReaderTransportCommandCount" in library_playback
+    assert "readerPauseConfirmationCount: e2eReaderPauseConfirmationCount" in library_playback
     assert "@State var e2eInteractiveAutoplaySettledCount = 0" in library_playback
     assert "e2eInteractiveAutoplaySettledCount += 1" in library_playback
     assert "interactiveAutoplayPendingSentence: pendingInteractiveAutoplaySentence" in library_playback
@@ -937,6 +944,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "Library confirming reader pause source=" in library_confirm_pause_body
     assert "Library confirmed reader pause source=" in library_confirm_pause_body
     assert "requested=false playing=false" in library_confirm_pause_body
+    assert "e2eReaderPauseConfirmationCount += 1" in library_confirm_pause_body
     library_interactive_toggle_body = _function_body(library_now_playing, "func toggleInteractiveReaderPlaybackTransport()")
     assert "viewModel.audioCoordinator.isPlaybackRequested" in library_interactive_toggle_body
     assert "viewModel.audioCoordinator.isPlaying" in library_interactive_toggle_body
@@ -1103,6 +1111,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     chrome = _source(PLAYBACK / "LibraryPlaybackChromeViews.swift")
     assert "let readerTransportCommandCount: Int" in chrome
     assert '"readerTransportCommands=\\(readerTransportCommandCount)"' in chrome
+    assert "let readerPauseConfirmationCount: Int" in chrome
+    assert '"readerPauseConfirmations=\\(readerPauseConfirmationCount)"' in chrome
     assert "let interactiveAutoplayPendingSentence: Int?" in chrome
     assert "let interactiveAutoplaySettledCount: Int" in chrome
     assert '"autoplayPending=\\(interactiveAutoplayPendingSentence.map(String.init) ?? "none")"' in chrome
@@ -2099,6 +2109,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "music_bed_guarded_remote_play" not in journey
     assert "music_bed_remote_second_pause_pressed" in journey
     assert "music_bed_remote_second_pause_observed" in journey
+    assert '"key": "readerPauseConfirmations"' in journey
+    assert '"min_value": 1' in journey
+    assert '"min_value": 2' in journey
     assert "music_bed_remote_double_pause" not in journey
 
 

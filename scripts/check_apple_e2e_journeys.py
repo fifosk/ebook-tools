@@ -605,8 +605,44 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "readerTransportCommands=1",
                 "lastAction=pause",
                 "reader=paused",
-                "guard=true",
-                "music=paused",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_step_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "assert_value_contains",
+                "selector": MUSIC_BED_STATUS_SELECTOR,
+                "text": "reader=paused",
+                "platforms": ["tvOS"],
+                "timeout": 3,
+                "screenshot": "music_bed_remote_pause_observed",
+            },
+            expected_steps=[
+                {
+                    "action": "assert_value_key_at_least",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "key": "readerPauseConfirmations",
+                    "min_value": 1,
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "guard=true",
+                    "platforms": ["tvOS"],
+                    "timeout": 3,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "music=paused",
+                    "platforms": ["tvOS"],
+                    "timeout": 3,
+                },
             ],
         )
     )
@@ -795,9 +831,6 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "readerTransportCommands=3",
                 "lastAction=pause",
                 "reader=paused",
-                "music=paused",
-                "guard=true",
-                "fullscreen=blocked",
             ],
         )
     )
@@ -814,6 +847,14 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "screenshot": "music_bed_remote_second_pause_observed",
             },
             expected_steps=[
+                {
+                    "action": "assert_value_key_at_least",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "key": "readerPauseConfirmations",
+                    "min_value": 2,
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
                 {
                     "action": "assert_value_contains",
                     "selector": MUSIC_BED_STATUS_SELECTOR,

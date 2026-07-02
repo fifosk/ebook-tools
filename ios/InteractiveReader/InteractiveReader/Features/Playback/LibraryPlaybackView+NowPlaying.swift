@@ -451,6 +451,9 @@ extension LibraryPlaybackView {
                 guard viewModel.audioCoordinator.isPlaybackRequested ||
                     viewModel.audioCoordinator.isPlaying
                 else {
+                    #if DEBUG
+                    e2eReaderPauseConfirmationCount += 1
+                    #endif
                     playbackTransportDebugLog(
                         "[PlaybackTransport] Library confirmed reader pause source=\(source) requested=false playing=false musicPlaying=\(musicOwnership.isPlaying)"
                     )

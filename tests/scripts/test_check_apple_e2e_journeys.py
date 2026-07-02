@@ -32,6 +32,8 @@ def _write_music_bed_journey(
     path: Path,
     *,
     remove_text: str | None = None,
+    remove_key: str | None = None,
+    remove_min_value: int | None = None,
     remove_screenshot: str | None = None,
     remove_ipad_unless_visible: bool = False,
     remove_ipad_auto_resume: bool = False,
@@ -53,6 +55,18 @@ def _write_music_bed_journey(
                 step.get("action") == "assert_value_contains"
                 and step.get("selector") == "e2eMusicBedSyncStatus"
                 and step.get("text") == remove_text
+            )
+        ]
+        steps = payload["steps"]
+    if remove_key is not None:
+        payload["steps"] = [
+            step
+            for step in steps
+            if not (
+                step.get("action") == "assert_value_key_at_least"
+                and step.get("selector") == "e2eMusicBedSyncStatus"
+                and step.get("key") == remove_key
+                and (remove_min_value is None or step.get("min_value") == remove_min_value)
             )
         ]
     if remove_screenshot is not None:
@@ -349,6 +363,15 @@ def test_music_bed_validator_requires_transport_command_sequence(tmp_path: Path)
     errors = module.validate_journey(journey)
 
     assert any("requires e2eMusicBedSyncStatus assertion 'readerTransportCommands=3'" in error for error in errors)
+
+
+def test_music_bed_validator_requires_settled_pause_confirmation(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_key="readerPauseConfirmations", remove_min_value=2)
+
+    errors = module.validate_journey(journey)
+
+    assert any("requires 'readerPauseConfirmations' immediately after 'music_bed_remote_second_pause_observed'" in error for error in errors)
 
 
 def test_music_bed_validator_requires_ipad_session_stability_branch(tmp_path: Path) -> None:

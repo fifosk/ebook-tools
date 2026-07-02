@@ -38,6 +38,7 @@ struct LibraryPlaybackView: View {
     @State var readerTransportResumeGeneration = 0
     #if DEBUG
     @State var e2eReaderTransportCommandCount = 0
+    @State var e2eReaderPauseConfirmationCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
     @State var e2eInteractiveAutoplaySettledCount = 0
     @State var e2eTVInteractiveMusicDeferredResumeCount = 0
@@ -760,6 +761,7 @@ struct LibraryPlaybackView: View {
                 musicOwnership: musicOwnership,
                 audioCoordinator: viewModel.audioCoordinator,
                 readerTransportCommandCount: e2eReaderTransportCommandCount,
+                readerPauseConfirmationCount: e2eReaderPauseConfirmationCount,
                 foregroundPlayPauseCount: e2eTVPlayPauseCommandCount,
                 interactiveAutoplayPendingSentence: pendingInteractiveAutoplaySentence,
                 interactiveAutoplaySettledCount: e2eInteractiveAutoplaySettledCount,

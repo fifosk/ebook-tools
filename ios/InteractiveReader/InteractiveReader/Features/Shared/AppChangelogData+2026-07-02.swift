@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-settled-pause-e2e",
+                    title: "TV pause proof is stronger",
+                    detail: "The Apple TV Music-bed simulator journey now waits for the reader pause confirmation loop after each remote pause, proving narration has settled stopped instead of only seeing an instant paused flag."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-combined-pause-adopts-before-recovery",
                     title: "TV pause joins bed and sentence",
                     detail: "Apple TV now adopts an active Apple Music bed pause as a reader pause before the Music recovery branch, so one remote press is routed toward pausing both the bed and sentence track."

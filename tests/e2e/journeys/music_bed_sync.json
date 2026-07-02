@@ -783,6 +783,14 @@
       "screenshot": "music_bed_remote_pause_observed"
     },
     {
+      "action": "assert_value_key_at_least",
+      "selector": "e2eMusicBedSyncStatus",
+      "key": "readerPauseConfirmations",
+      "min_value": 1,
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "guard=true",
@@ -905,6 +913,14 @@
       "platforms": ["tvOS"],
       "timeout": 10,
       "screenshot": "music_bed_remote_second_pause_observed"
+    },
+    {
+      "action": "assert_value_key_at_least",
+      "selector": "e2eMusicBedSyncStatus",
+      "key": "readerPauseConfirmations",
+      "min_value": 2,
+      "platforms": ["tvOS"],
+      "timeout": 10
     },
     {
       "action": "assert_value_contains",
