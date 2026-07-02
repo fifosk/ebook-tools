@@ -449,6 +449,12 @@ def test_pipeline_file_picker_accepts_bounded_ebook_limit(
     newer.write_bytes(b"newer")
     os.utime(older, (1_700_000_000, 1_700_000_000))
     os.utime(newer, (1_700_000_300, 1_700_000_300))
+    older_output = output_dir / "zzz-older-output"
+    newer_output = output_dir / "aaa-newer-output"
+    older_output.mkdir()
+    newer_output.mkdir()
+    os.utime(older_output, (1_700_000_010, 1_700_000_010))
+    os.utime(newer_output, (1_700_000_400, 1_700_000_400))
     logger = _RecordingLogger()
 
     app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
@@ -467,9 +473,11 @@ def test_pipeline_file_picker_accepts_bounded_ebook_limit(
     assert response.status_code == 200
     body = response.json()
     assert [entry["path"] for entry in body["ebooks"]] == ["Public/newer.epub"]
+    assert [entry["path"] for entry in body["outputs"]] == ["aaa-newer-output"]
     rendered_logs = "\n".join(logger.messages)
-    assert "Pipeline source picker result=success ebooks=1 outputs=0 ebook_limit=1" in rendered_logs
+    assert "Pipeline source picker result=success ebooks=1 outputs=1 ebook_limit=1" in rendered_logs
     assert "Public/newer.epub" not in rendered_logs
+    assert "aaa-newer-output" not in rendered_logs
     assert "office-ipad-user" not in rendered_logs
 
 

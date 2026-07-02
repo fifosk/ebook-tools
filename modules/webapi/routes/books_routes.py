@@ -244,7 +244,25 @@ def _list_ebook_files(root: Path, *, limit: int | None = None) -> List[PipelineF
     return entries
 
 
-def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
+def _output_sort_key(entry: PipelineFileEntry) -> tuple[float, str]:
+    modified = entry.modified_at.timestamp() if entry.modified_at is not None else 0.0
+    return (-modified, entry.path)
+
+
+def _append_bounded_output_entry(
+    entries: List[PipelineFileEntry],
+    entry: PipelineFileEntry,
+    limit: int,
+) -> None:
+    entries.append(entry)
+    entries.sort(key=_output_sort_key)
+    if len(entries) > limit:
+        entries.pop()
+
+
+def _list_output_entries(root: Path, *, limit: int | None = None) -> List[PipelineFileEntry]:
+    if limit is not None and limit <= 0:
+        return []
     entries: List[PipelineFileEntry] = []
     if not _is_present_directory(root):
         return entries
@@ -262,16 +280,18 @@ def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
             size_bytes = stat.st_size
         else:
             continue
-        entries.append(
-            PipelineFileEntry(
-                name=path.name,
-                path=_format_relative_path(path, root),
-                type=entry_type,
-                size_bytes=size_bytes,
-                modified_at=datetime.fromtimestamp(stat.st_mtime),
-            )
+        entry = PipelineFileEntry(
+            name=path.name,
+            path=_format_relative_path(path, root),
+            type=entry_type,
+            size_bytes=size_bytes,
+            modified_at=datetime.fromtimestamp(stat.st_mtime),
         )
-    return entries
+        if limit is not None:
+            _append_bounded_output_entry(entries, entry, limit)
+        else:
+            entries.append(entry)
+    return entries if limit is None else sorted(entries, key=_output_sort_key)
 
 
 def _normalise_epub_name(filename: str | None) -> str:
@@ -328,7 +348,7 @@ async def list_pipeline_files(
             books_root_present = _is_present_directory(context.books_dir)
             output_root_present = _is_present_directory(context.output_dir)
             ebooks = _list_ebook_files(context.books_dir, limit=limit)
-            outputs = _list_output_entries(context.output_dir)
+            outputs = _list_output_entries(context.output_dir, limit=limit)
     except Exception:
         _log_pipeline_file_picker(started_at, result="error")
         raise

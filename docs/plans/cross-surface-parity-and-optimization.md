@@ -1264,6 +1264,10 @@ Optimization candidates:
   the same tolerant stat helper, so Web/Apple Create handoffs fail as ordinary
   missing artifacts when a file vanishes after discovery instead of racing on
   direct `Path.exists()` / `Path.is_file()` checks.
+  Bounded `/api/pipelines/files` calls now trim output entries with the same
+  low-payload limit used for EPUBs, keeping Web and Apple Create source pickers
+  from receiving every completed output folder on large shared roots while
+  preserving the legacy full output list for unbounded callers.
   Reviewed public-catalog EPUB acquisition now also reserves destination
   filenames with the same tolerant stat helper instead of `Path.exists()`, so
   Web/Apple Create acquisition can choose a collision-safe `-N` filename even

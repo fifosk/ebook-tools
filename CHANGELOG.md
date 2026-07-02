@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.02.010
 
 - Apple Settings now shows a dedicated Job Intake Contract row for `/api/pipelines/intake/status`, so the device pipeline can verify queue-pressure parity before opening native Create.
+- Bounded pipeline source-picker calls now trim output entries as well as EPUB entries, keeping Web and Apple Create source refreshes lighter on large shared output roots.
 - Apple reader sequence resume retries now keep the same resolved track as the initial in-sentence seek, preventing job open from starting in Translation and then retrying the first sentence on Original before the next Translation plays.
 - Apple playback transport log verification now rejects sequence resume retries that change tracks for the same saved sentence/time, so physical Apple TV logs catch this regression directly.
 - Apple reader header language pills now use true toggle semantics: when Original and Translation are both active, tapping Original disables only Original and keeps Translation active, with the symmetric behavior for Translation.
