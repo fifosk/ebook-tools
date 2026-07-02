@@ -109,7 +109,10 @@ Follow the suggested remediations to restore parity:
   lane is also render-authoritative before transient audio-manager or picker
   state; if no URL is available during EOF/stall recovery, the stored
   `selectedTimingSingleTrackMode` may still pin rendering when the current
-  batch supports that lane.
+  batch supports that lane. Because sequence-mode setup clears selected timing
+  lane state itself, a stale enabled sequence controller at a batch boundary
+  must not suppress `selectedTimingSingleTrackMode`; otherwise audio can remain
+  on the selected single track while rendering falls back to combined.
   If the user has explicitly hidden Original or Translation, chunk lifecycle
   setup must restore that visible single-track selection into `AudioModeManager`
   before any default selection can expand the reader back to All. Resume and

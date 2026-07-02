@@ -946,7 +946,10 @@ Current Apple UI partially exposes:
   track-availability setup. The selected timing lane is now consulted by the
   requested single-track resolver before transient manager or picker state, so
   no-URL EOF/stall recovery or a hydrated-batch refresh cannot make rendering
-  follow combined audio while narration remains on the selected stream. Passive
+  follow combined audio while narration remains on the selected stream, and a
+  stale enabled sequence controller no longer suppresses that stored timing lane
+  during batch handoff because sequence-mode setup clears the timing lane when
+  sequence mode is intentional. Passive
   hydrated-batch text/audio synchronization
   now also refuses to broaden a remembered original-only/translation-only lane
   back to combined merely because the freshly loaded batch exposes both text

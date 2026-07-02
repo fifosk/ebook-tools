@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-selected-timing-stale-sequence-override",
+                    title: "Single-track batches resist resets",
+                    detail: "Apple reader original-only and translation-only batch handoffs now let the stored selected timing lane override a stale enabled sequence controller, preventing end-of-batch resets where narration stays selected but rendering falls back to combined."
+                ),
+                AppChangelogEntry(
                     id: "web-video-dubbing-feedback-panel",
                     title: "Video feedback is focused",
                     detail: "Web Video Dubbing page feedback, template status, template errors, and intake callout rendering now live in a focused panel with rendered coverage and changed-test routing, trimming the page coordinator without changing the cross-surface Create workflow."

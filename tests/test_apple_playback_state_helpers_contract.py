@@ -810,6 +810,7 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
         selection,
         "private func selectedTimingSingleTrackMode(in chunk: InteractiveChunk) -> SequenceTrack?",
     )
+    assert "!sequenceController.isEnabled" not in selected_timing_body
     assert "singleTrackMode(forAudioURL: selectedTimingURL, in: chunk) == selectedTimingSingleTrackMode" in selected_timing_body
     assert "chunkSupportsSingleTrack(selectedTimingSingleTrackMode, in: chunk)" in selected_timing_body
     loaded_url_body = _function_body(selection, "private func loadedSingleURLTrackMode() -> SequenceTrack?")

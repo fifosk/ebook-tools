@@ -829,8 +829,7 @@ extension InteractivePlayerViewModel {
     }
 
     private func selectedTimingSingleTrackMode(in chunk: InteractiveChunk) -> SequenceTrack? {
-        guard !sequenceController.isEnabled,
-              let selectedTimingSingleTrackMode else {
+        guard let selectedTimingSingleTrackMode else {
             return nil
         }
         if let selectedTimingURL,
