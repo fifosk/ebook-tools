@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-single-track-visible-lane-repair",
+                    title: "Single audio keeps both transcripts",
+                    detail: "Apple reader lifecycle refreshes now repair restored Original-only or Translation-only audio without carrying forward stale text-track hiding, so the narrated lane can stay single-track while both Original and Translation remain visible and re-enableable."
+                ),
+                AppChangelogEntry(
                     id: "create-content-index-contract-strict",
                     title: "Chapter loading trusts shaped indexes",
                     detail: "Backend, Web, and Apple Create now require content-index responses to include the selected EPUB, total sentence count, and chapter inventory, while Web matches Apple by preserving zero-start chapter ranges as sentence 1 instead of dropping them."

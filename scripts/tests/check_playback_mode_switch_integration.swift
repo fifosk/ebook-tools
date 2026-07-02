@@ -582,6 +582,8 @@ private func restoreSingleTrackModeFromVisibleSelectionIfNeeded(
         return false
     }
 
+    visibleTracks = availableTracks
+    hasCustomTrackSelection = false
     manager.setTracks(
         original: requestedTrack == .original,
         translation: requestedTrack == .translation
@@ -2976,6 +2978,16 @@ private func runChecks() {
         staleVisibleLifecycleManager.currentMode,
         .singleTrack(.translation),
         "Visible Translation-only lifecycle refresh should re-pin audio mode to Translation"
+    )
+    requireEqual(
+        staleVisibleTracks,
+        [.original, .translation, .transliteration],
+        "Visible Translation-only lifecycle refresh should restore all renderable transcript tracks while keeping audio on Translation"
+    )
+    requireEqual(
+        staleVisibleHasCustomTrackSelection,
+        false,
+        "Visible Translation-only lifecycle refresh should clear stale custom text-track hiding"
     )
     requireEqual(
         staleVisibleSelectedTrackID,

@@ -347,6 +347,7 @@ extension InteractivePlayerView {
         viewModel.rememberAudioModePreference(audioModeManager.currentMode)
         viewModel.sequenceController.audioMode = audioModeManager.currentMode
         viewModel.applySingleTrackSelection(requestedTrack, for: chunk)
+        keepAllRenderableTextTracksVisible(for: chunk)
         return true
     }
 
