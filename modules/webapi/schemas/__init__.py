@@ -85,6 +85,7 @@ from .pipeline_media import (
     PipelineMediaFile,
     PipelineMediaResponse,
 )
+from .pipeline_timing import JobTimingAudioBinding, JobTimingResponse, JobTimingTrackPayload
 from .pipeline_requests import (
     BookContentIndexResponse,
     ImageNodeAvailabilityEntry,
@@ -184,6 +185,9 @@ __all__ = [
     "ImageNodeAvailabilityRequest",
     "ImageNodeAvailabilityResponse",
     "JobParameterSnapshot",
+    "JobTimingAudioBinding",
+    "JobTimingResponse",
+    "JobTimingTrackPayload",
     "LibraryIsbnLookupResponse",
     "LibraryIsbnUpdateRequest",
     "LibraryItemPayload",

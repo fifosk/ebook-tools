@@ -105,8 +105,33 @@ def test_job_timing_route_normalizes_padded_job_id(tmp_path: Path) -> None:
     assert payload["tracks"]["translation"]["segments"] == [
         {"text": "Hello", "start": 0.0, "end": 0.5}
     ]
+    assert payload["audio"] == {
+        "orig_trans": {"track": "mix", "available": False},
+        "orig": {"track": "original", "available": False},
+        "translation": {"track": "translation", "available": False},
+    }
+    assert payload["highlighting_policy"] is None
+    assert payload["has_estimated_segments"] is False
     assert manager.calls == [(job_id, "alice", "editor")]
     assert library_repository.calls == [job_id]
+
+
+def test_job_timing_openapi_marks_playback_timing_fields_required() -> None:
+    schemas = create_app().openapi()["components"]["schemas"]
+
+    response_required = set(schemas["JobTimingResponse"]["required"])
+    track_required = set(schemas["JobTimingTrackPayload"]["required"])
+    audio_required = set(schemas["JobTimingAudioBinding"]["required"])
+
+    assert {
+        "job_id",
+        "tracks",
+        "audio",
+        "highlighting_policy",
+        "has_estimated_segments",
+    } <= response_required
+    assert {"track", "segments"} <= track_required
+    assert {"track", "available"} <= audio_required
 
 
 def test_job_timing_route_canonicalizes_audio_track_aliases(tmp_path: Path) -> None:

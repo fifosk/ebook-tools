@@ -14,9 +14,30 @@ struct JobTimingResponse: Decodable {
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: DynamicTimingTrackKey.self)
-            track = Self.decodeIfPresent(String.self, from: container, keys: ["track"]) ?? ""
-            segments = Self.decodeIfPresent([JobTimingEntry].self, from: container, keys: ["segments"]) ?? []
+            track = try Self.decodeRequired(String.self, from: container, keys: ["track"])
+            segments = try Self.decodeRequired([JobTimingEntry].self, from: container, keys: ["segments"])
             playbackRate = Self.decodeIfPresent(Double.self, from: container, keys: ["playbackRate", "playback_rate"])
+        }
+
+        private static func decodeRequired<T: Decodable>(
+            _ type: T.Type,
+            from container: KeyedDecodingContainer<DynamicTimingTrackKey>,
+            keys: [String]
+        ) throws -> T {
+            for key in keys {
+                guard let codingKey = DynamicTimingTrackKey(stringValue: key),
+                      container.contains(codingKey) else {
+                    continue
+                }
+                return try container.decode(type, forKey: codingKey)
+            }
+            throw DecodingError.keyNotFound(
+                DynamicTimingTrackKey(stringValue: keys.first ?? "")!,
+                DecodingError.Context(
+                    codingPath: container.codingPath,
+                    debugDescription: "No value associated with any of \(keys)"
+                )
+            )
         }
 
         private static func decodeIfPresent<T: Decodable>(
@@ -37,7 +58,7 @@ struct JobTimingResponse: Decodable {
 
     struct AudioBinding: Decodable {
         let track: String
-        let available: Bool?
+        let available: Bool
     }
 
     let jobID: String
@@ -49,40 +70,45 @@ struct JobTimingResponse: Decodable {
     struct TimingTracks: Decodable {
         let mix: TrackPayload
         let translation: TrackPayload
+        let original: TrackPayload
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: DynamicTimingTrackKey.self)
             var mixPayload: TrackPayload?
             var translationPayload: TrackPayload?
+            var originalPayload: TrackPayload?
             for key in container.allKeys {
-                guard let payload = try? container.decode(TrackPayload.self, forKey: key) else {
-                    continue
-                }
                 switch canonicalTimingTrackKey(key.stringValue) {
                 case "mix":
+                    let payload = try container.decode(TrackPayload.self, forKey: key)
                     mixPayload = mixPayload ?? payload
                 case "translation":
+                    let payload = try container.decode(TrackPayload.self, forKey: key)
                     translationPayload = translationPayload ?? payload
+                case "original":
+                    let payload = try container.decode(TrackPayload.self, forKey: key)
+                    originalPayload = originalPayload ?? payload
                 default:
                     continue
                 }
             }
             mix = mixPayload ?? TrackPayload(track: "mix")
             translation = translationPayload ?? TrackPayload(track: "translation")
+            original = originalPayload ?? TrackPayload(track: "original")
         }
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: DynamicTimingTrackKey.self)
-        jobID = Self.decodeIfPresent(String.self, from: container, keys: ["jobId", "jobID", "job_id"]) ?? ""
+        jobID = try Self.decodeRequired(String.self, from: container, keys: ["jobId", "jobID", "job_id"])
         tracks = try Self.decodeRequired(TimingTracks.self, from: container, keys: ["tracks"])
-        audio = Self.decodeIfPresent([String: AudioBinding].self, from: container, keys: ["audio"]) ?? [:]
-        highlightingPolicy = Self.decodeIfPresent(
+        audio = try Self.decodeRequired([String: AudioBinding].self, from: container, keys: ["audio"])
+        highlightingPolicy = try Self.decodeRequiredNullable(
             String.self,
             from: container,
             keys: ["highlightingPolicy", "highlighting_policy"]
         )
-        hasEstimatedSegments = Self.decodeIfPresent(
+        hasEstimatedSegments = try Self.decodeRequired(
             Bool.self,
             from: container,
             keys: ["hasEstimatedSegments", "has_estimated_segments"]
@@ -96,10 +122,31 @@ struct JobTimingResponse: Decodable {
     ) throws -> T {
         for key in keys {
             guard let codingKey = DynamicTimingTrackKey(stringValue: key),
-                  let value = try? container.decode(type, forKey: codingKey) else {
+                  container.contains(codingKey) else {
                 continue
             }
-            return value
+            return try container.decode(type, forKey: codingKey)
+        }
+        throw DecodingError.keyNotFound(
+            DynamicTimingTrackKey(stringValue: keys.first ?? "")!,
+            DecodingError.Context(
+                codingPath: container.codingPath,
+                debugDescription: "No value associated with any of \(keys)"
+            )
+        )
+    }
+
+    private static func decodeRequiredNullable<T: Decodable>(
+        _ type: T.Type,
+        from container: KeyedDecodingContainer<DynamicTimingTrackKey>,
+        keys: [String]
+    ) throws -> T? {
+        for key in keys {
+            guard let codingKey = DynamicTimingTrackKey(stringValue: key),
+                  container.contains(codingKey) else {
+                continue
+            }
+            return try container.decodeIfPresent(type, forKey: codingKey)
         }
         throw DecodingError.keyNotFound(
             DynamicTimingTrackKey(stringValue: keys.first ?? "")!,

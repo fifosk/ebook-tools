@@ -129,6 +129,27 @@ function acquisitionPreparedArtifactResponse(overrides: Record<string, unknown> 
   };
 }
 
+function jobTimingResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    job_id: 'job-1',
+    tracks: {
+      translation: {
+        track: 'translation',
+        segments: [{ text: 'Hallo', start: 0, end: 0.5 }],
+        playback_rate: 1
+      }
+    },
+    audio: {
+      translation: { track: 'translation', available: true },
+      orig: { track: 'original', available: false },
+      orig_trans: { track: 'mix', available: false }
+    },
+    highlighting_policy: null,
+    has_estimated_segments: false,
+    ...overrides
+  };
+}
+
 function acquisitionJobStatusResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     provider: 'download_station',
@@ -589,7 +610,7 @@ describe('jobs API client', () => {
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
       .mockResolvedValueOnce(jsonResponse({ job_id: 'new-job' }))
       .mockResolvedValueOnce(jsonResponse({ jobs: jobList }))
-      .mockResolvedValueOnce(jsonResponse({ entries: [] }))
+      .mockResolvedValueOnce(jsonResponse(jobTimingResponse({ job_id: 'job/with?parts' })))
       .mockResolvedValueOnce(jsonResponse(lookupEntry))
       .mockResolvedValueOnce(jsonResponse({
         results: { 'günaydın': lookupEntry, missing: null },
@@ -654,6 +675,36 @@ describe('jobs API client', () => {
     );
     expect(new URL(String(fetchMock.mock.calls[5][0])).pathname).toBe(
       '/api/pipelines/jobs/job%2Fwith%3Fparts/lookup-cache/summary'
+    );
+  });
+
+  it('rejects malformed job timing responses before playback sync uses them', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ tracks: {}, audio: {}, highlighting_policy: null, has_estimated_segments: false }))
+      .mockResolvedValueOnce(jsonResponse(jobTimingResponse({ tracks: undefined })))
+      .mockResolvedValueOnce(jsonResponse(jobTimingResponse({
+        tracks: { translation: { track: 'translation', playback_rate: 1 } }
+      })))
+      .mockResolvedValueOnce(jsonResponse(jobTimingResponse({
+        audio: { translation: { track: 'translation' } }
+      })))
+      .mockResolvedValueOnce(jsonResponse(jobTimingResponse({ has_estimated_segments: undefined })));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchJobTiming('job-1')).rejects.toThrow(
+      'Invalid job timing response: missing job_id.'
+    );
+    await expect(fetchJobTiming('job-1')).rejects.toThrow(
+      'Invalid job timing response: missing tracks.'
+    );
+    await expect(fetchJobTiming('job-1')).rejects.toThrow(
+      'Invalid job timing response: missing segments.'
+    );
+    await expect(fetchJobTiming('job-1')).rejects.toThrow(
+      'Invalid job timing audio response: missing available.'
+    );
+    await expect(fetchJobTiming('job-1')).rejects.toThrow(
+      'Invalid job timing response: missing has_estimated_segments.'
     );
   });
 

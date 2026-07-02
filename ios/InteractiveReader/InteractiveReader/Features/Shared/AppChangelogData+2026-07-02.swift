@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "playback-timing-contract-strict",
+                    title: "Timing payloads stay shaped",
+                    detail: "Backend, Web, and Apple playback timing now require job id, track maps, audio bindings, highlighting policy, and estimated-timing flags before building sync state, while Apple also preserves the Original timing track alongside Translation and Mix."
+                ),
+                AppChangelogEntry(
                     id: "playback-media-manifest-strict",
                     title: "Playback media fails clearly",
                     detail: "Backend, Web, Apple, and offline export playback now require media, chunk, completion, and diagnostics fields before rendering, so malformed manifests are caught early instead of becoming empty spinner or audio-only states."

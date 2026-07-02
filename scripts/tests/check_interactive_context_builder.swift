@@ -418,7 +418,9 @@ private func decodeTranslationOnlyTimingFixture() throws -> JobTimingResponse {
           },
           "audio": {
             "translation": {"track": "translation", "available": true}
-          }
+          },
+          "highlighting_policy": null,
+          "has_estimated_segments": false
         }
         """.utf8
     )

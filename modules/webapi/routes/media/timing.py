@@ -24,6 +24,7 @@ from ...dependencies import (
     get_request_user,
 )
 from modules.services.job_manager import PipelineJob
+from ...schemas.pipeline_timing import JobTimingResponse
 from .audio_roles import canonical_audio_track_key, canonical_timing_track_key
 from .common import _resolve_job_path
 
@@ -211,7 +212,11 @@ def _probe_highlighting_policy(
     return fallback_policy, estimated_detected
 
 
-@jobs_timing_router.get("/{job_id}/timing", response_class=JSONResponse)
+@jobs_timing_router.get(
+    "/{job_id}/timing",
+    response_class=JSONResponse,
+    response_model=JobTimingResponse,
+)
 async def get_job_timing(
     job_id: str,
     *,
@@ -440,13 +445,14 @@ async def get_job_timing(
             "segments": segments,
             "playback_rate": playback_rate,
         }
+    response_payload = JobTimingResponse(
+        job_id=normalized_job_id,
+        tracks=tracks_payload,
+        audio=_collect_audio_availability(),
+        highlighting_policy=highlighting_policy,
+        has_estimated_segments=has_estimated_segments,
+    )
     return JSONResponse(
-        content={
-            "job_id": normalized_job_id,
-            "tracks": tracks_payload,
-            "audio": _collect_audio_availability(),
-            "highlighting_policy": highlighting_policy,
-            "has_estimated_segments": has_estimated_segments,
-        },
+        content=response_payload.model_dump(mode="json", by_alias=True),
         headers=headers,
     )

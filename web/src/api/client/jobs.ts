@@ -229,7 +229,79 @@ export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promi
   if (response.status === 404 || response.status === 403) {
     return null;
   }
-  return handleResponse<JobTimingResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertJobTimingResponse(payload);
+  return payload;
+}
+
+function assertJobTimingResponse(payload: unknown): asserts payload is JobTimingResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid job timing response.');
+  }
+  assertTimingStringField(payload, 'job_id', 'job timing');
+  if (!isRecord(payload.tracks)) {
+    throw new Error('Invalid job timing response: missing tracks.');
+  }
+  Object.values(payload.tracks).forEach(assertJobTimingTrackPayload);
+  if (!isRecord(payload.audio)) {
+    throw new Error('Invalid job timing response: missing audio.');
+  }
+  Object.values(payload.audio).forEach(assertJobTimingAudioBinding);
+  if (payload.highlighting_policy !== null && typeof payload.highlighting_policy !== 'string') {
+    throw new Error('Invalid job timing response: invalid highlighting_policy.');
+  }
+  assertTimingBooleanField(payload, 'has_estimated_segments', 'job timing');
+}
+
+function assertJobTimingTrackPayload(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid job timing response: missing track entry.');
+  }
+  assertTimingTrackName(payload.track, 'job timing track');
+  if (!Array.isArray(payload.segments)) {
+    throw new Error('Invalid job timing response: missing segments.');
+  }
+  if (
+    payload.playback_rate !== undefined &&
+    payload.playback_rate !== null &&
+    typeof payload.playback_rate !== 'number'
+  ) {
+    throw new Error('Invalid job timing response: invalid playback_rate.');
+  }
+}
+
+function assertJobTimingAudioBinding(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid job timing response: missing audio binding.');
+  }
+  assertTimingTrackName(payload.track, 'job timing audio');
+  assertTimingBooleanField(payload, 'available', 'job timing audio');
+}
+
+function assertTimingTrackName(value: unknown, responseKind: string): void {
+  if (value !== 'mix' && value !== 'translation' && value !== 'original') {
+    throw new Error(`Invalid ${responseKind} response: missing track.`);
+  }
+}
+
+function assertTimingStringField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertTimingBooleanField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'boolean') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
 }
 
 // Pipeline files and configuration

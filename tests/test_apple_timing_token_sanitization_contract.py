@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INTERACTIVE = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Features" / "InteractivePlayer"
 CONTEXT_BUILDER = INTERACTIVE / "InteractivePlayerContextBuilder.swift"
+TIMING_MODELS = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Models" / "PipelineTimingApiModels.swift"
 
 
 def _source(path: Path) -> str:
@@ -44,3 +45,19 @@ def test_timing_token_sanitizer_preserves_sentence_and_file_boundaries() -> None
     assert "return left.key.sentenceSortValue < right.key.sentenceSortValue" in source
     assert "sentenceIndex: token.sentenceIndex" in source
     assert "fileIndex: token.fileIndex" in source
+
+
+def test_job_timing_decoder_requires_envelope_and_track_shape() -> None:
+    source = _source(TIMING_MODELS)
+
+    assert 'track = try Self.decodeRequired(String.self, from: container, keys: ["track"])' in source
+    assert 'segments = try Self.decodeRequired([JobTimingEntry].self, from: container, keys: ["segments"])' in source
+    assert 'jobID = try Self.decodeRequired(String.self, from: container, keys: ["jobId", "jobID", "job_id"])' in source
+    assert 'audio = try Self.decodeRequired([String: AudioBinding].self, from: container, keys: ["audio"])' in source
+    assert "highlightingPolicy = try Self.decodeRequiredNullable(" in source
+    assert "hasEstimatedSegments = try Self.decodeRequired(" in source
+    assert "let original: TrackPayload" in source
+    assert 'original = originalPayload ?? TrackPayload(track: "original")' in source
+    assert "try? container.decode(TrackPayload.self" not in source
+    assert "?? []" not in source
+    assert 'jobID = Self.decodeIfPresent(String.self, from: container, keys: ["jobId", "jobID", "job_id"]) ?? ""' not in source
