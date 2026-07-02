@@ -835,6 +835,29 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     assert "!isSequenceTransitioning" in audible_body
 
 
+def test_initial_sequence_seek_has_startup_fallback_without_weakening_resume_seeks() -> None:
+    sequence = _source("InteractivePlayerViewModel+Sequence.swift")
+    complete_body = _function_body(
+        sequence,
+        "private func completeSequenceTransition(\n        seekTime: Double?,\n        shouldPlay: Bool = false,\n        transitionToken: Int,\n        requiresPlaybackRequest: Bool = false\n    )",
+    )
+    fallback_body = _function_body(
+        sequence,
+        "private func scheduleInitialSequenceSeekFallbackIfNeeded(\n        seekTime: Double,\n        shouldPlay: Bool,\n        transitionToken: Int,\n        requiresPlaybackRequest: Bool\n    )",
+    )
+    finish_body = _function_body(
+        sequence,
+        "private func finishSequenceTransition(\n        expectedTime: Double?,\n        shouldPlay: Bool,\n        transitionToken: Int,\n        requiresPlaybackRequest: Bool\n    )",
+    )
+
+    assert "scheduleInitialSequenceSeekFallbackIfNeeded(" in complete_body
+    assert "guard seekTime >= 0, seekTime <= 0.1 else { return }" in fallback_body
+    assert "guard self.sequenceController.isTransitioning else { return }" in fallback_body
+    assert "initial seek completion fallback" in fallback_body
+    assert "guard sequenceController.isTransitioning else { return }" in finish_body
+    assert "sequenceController.endTransition(expectedTime: expectedTime)" in finish_body
+
+
 def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     selection = _source("InteractivePlayerViewModel+Selection.swift")
 

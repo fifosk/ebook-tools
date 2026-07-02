@@ -349,6 +349,12 @@ extension InteractivePlayerViewModel {
         }
 
         if let seekTime {
+            scheduleInitialSequenceSeekFallbackIfNeeded(
+                seekTime: seekTime,
+                shouldPlay: shouldPlay,
+                transitionToken: transitionToken,
+                requiresPlaybackRequest: requiresPlaybackRequest
+            )
             audioCoordinator.seek(to: seekTime) { [weak self] finished in
                 guard let self else { return }
                 guard transitionToken == self.currentTransitionToken else {
@@ -376,47 +382,75 @@ extension InteractivePlayerViewModel {
                     self.audioCoordinator.seek(to: seekTime) { [weak self] _ in
                         guard let self else { return }
                         guard transitionToken == self.currentTransitionToken else { return }
-                        self.sequenceController.endTransition(expectedTime: seekTime)
-                        self.readyCancellable?.cancel()
-                        self.readyCancellable = nil
-                        self.audioCoordinator.restoreVolume()
-                        if shouldPlay && (!requiresPlaybackRequest || self.audioCoordinator.isPlaybackRequested) {
-                            self.audioCoordinator.play()
-                        } else if shouldPlay && requiresPlaybackRequest {
-                            #if DEBUG
-                            self.audioCoordinator.recordStickySequenceResumeForE2E()
-                            #endif
-                            self.audioCoordinator.play()
-                        }
+                        self.finishSequenceTransition(
+                            expectedTime: seekTime,
+                            shouldPlay: shouldPlay,
+                            transitionToken: transitionToken,
+                            requiresPlaybackRequest: requiresPlaybackRequest
+                        )
                     }
                     return
                 }
-                self.sequenceController.endTransition(expectedTime: seekTime)
-                self.readyCancellable?.cancel()
-                self.readyCancellable = nil
-                self.audioCoordinator.restoreVolume()
-                if shouldPlay && (!requiresPlaybackRequest || self.audioCoordinator.isPlaybackRequested) {
-                    self.audioCoordinator.play()
-                } else if shouldPlay && requiresPlaybackRequest {
-                    #if DEBUG
-                    self.audioCoordinator.recordStickySequenceResumeForE2E()
-                    #endif
-                    self.audioCoordinator.play()
-                }
+                self.finishSequenceTransition(
+                    expectedTime: seekTime,
+                    shouldPlay: shouldPlay,
+                    transitionToken: transitionToken,
+                    requiresPlaybackRequest: requiresPlaybackRequest
+                )
             }
         } else {
-            sequenceController.endTransition(expectedTime: nil)
-            readyCancellable?.cancel()
-            readyCancellable = nil
-            audioCoordinator.restoreVolume()
-            if shouldPlay && (!requiresPlaybackRequest || audioCoordinator.isPlaybackRequested) {
-                audioCoordinator.play()
-            } else if shouldPlay && requiresPlaybackRequest {
-                #if DEBUG
-                audioCoordinator.recordStickySequenceResumeForE2E()
-                #endif
-                audioCoordinator.play()
-            }
+            finishSequenceTransition(
+                expectedTime: nil,
+                shouldPlay: shouldPlay,
+                transitionToken: transitionToken,
+                requiresPlaybackRequest: requiresPlaybackRequest
+            )
+        }
+    }
+
+    private func scheduleInitialSequenceSeekFallbackIfNeeded(
+        seekTime: Double,
+        shouldPlay: Bool,
+        transitionToken: Int,
+        requiresPlaybackRequest: Bool
+    ) {
+        guard seekTime >= 0, seekTime <= 0.1 else { return }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            guard let self else { return }
+            guard transitionToken == self.currentTransitionToken else { return }
+            guard self.sequenceController.isTransitioning else { return }
+            interactiveSequenceLogger.debug(
+                "Complete sequence transition: initial seek completion fallback time=\(String(format: "%.3f", seekTime), privacy: .public)"
+            )
+            self.finishSequenceTransition(
+                expectedTime: seekTime,
+                shouldPlay: shouldPlay,
+                transitionToken: transitionToken,
+                requiresPlaybackRequest: requiresPlaybackRequest
+            )
+        }
+    }
+
+    private func finishSequenceTransition(
+        expectedTime: Double?,
+        shouldPlay: Bool,
+        transitionToken: Int,
+        requiresPlaybackRequest: Bool
+    ) {
+        guard transitionToken == currentTransitionToken else { return }
+        guard sequenceController.isTransitioning else { return }
+        sequenceController.endTransition(expectedTime: expectedTime)
+        readyCancellable?.cancel()
+        readyCancellable = nil
+        audioCoordinator.restoreVolume()
+        if shouldPlay && (!requiresPlaybackRequest || self.audioCoordinator.isPlaybackRequested) {
+            self.audioCoordinator.play()
+        } else if shouldPlay && requiresPlaybackRequest {
+            #if DEBUG
+            self.audioCoordinator.recordStickySequenceResumeForE2E()
+            #endif
+            self.audioCoordinator.play()
         }
     }
 
