@@ -1424,6 +1424,20 @@ private func availableAudioRolesForIntegration(_ chunk: InteractiveChunk) -> Set
     return roles
 }
 
+private func availableTextTracksForIntegration(_ chunk: InteractiveChunk) -> [TextPlayerVariantKind] {
+    var available: [TextPlayerVariantKind] = []
+    if !available.contains(.original), chunkSupportsAudioTrack(.original, in: chunk) {
+        available.append(.original)
+    }
+    if !available.contains(.translation), chunkSupportsAudioTrack(.translation, in: chunk) {
+        available.append(.translation)
+    }
+    if available.isEmpty {
+        return [.original]
+    }
+    return available
+}
+
 @MainActor
 private func runChecks() {
     let originalURL = URL(string: "https://example.invalid/original.m4a")!
@@ -1456,6 +1470,33 @@ private func runChecks() {
         availableAudioRolesForIntegration(combinedBackedRoleChunk),
         [.original, .translation],
         "Header audio role availability should expose Translation when a combined option carries the translation stream"
+    )
+    let lazyMetadataAudioBackedChunk = InteractiveChunk(
+        id: "lazy-media-audio-backed",
+        startSentence: 2656,
+        sentences: [],
+        audioOptions: [
+            audioOption("original-lazy", kind: .original, urls: [originalURL]),
+            audioOption("translation-lazy", kind: .translation, urls: [translationURL])
+        ]
+    )
+    requireEqual(
+        availableTextTracksForIntegration(lazyMetadataAudioBackedChunk),
+        [.original, .translation],
+        "Lazy chunks with dedicated audio lanes should keep Translation text track selectable while metadata loads"
+    )
+    let lazyMetadataCombinedBackedChunk = InteractiveChunk(
+        id: "lazy-media-combined-backed",
+        startSentence: 2666,
+        sentences: [],
+        audioOptions: [
+            audioOption("combined-lazy", kind: .combined, urls: [originalURL, translationURL])
+        ]
+    )
+    requireEqual(
+        availableTextTracksForIntegration(lazyMetadataCombinedBackedChunk),
+        [.original, .translation],
+        "Lazy chunks with combined audio should keep Translation text track selectable while metadata loads"
     )
 
     let sequenceController = SequencePlaybackController(isEnabled: true, currentSentenceIndex: 14)

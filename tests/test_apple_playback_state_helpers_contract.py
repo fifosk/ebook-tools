@@ -166,6 +166,8 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Translation-only previous sentence at a chunk boundary should return to the previous displayed batch" in swift_check
     assert "Translation-only anchored next sentence should use visible sentence numbers on the active track" in swift_check
     assert "Translation-only slider anchor should beat stale end-of-chunk time so next moves one sentence, not one batch" in swift_check
+    assert "Lazy chunks with dedicated audio lanes should keep Translation text track selectable while metadata loads" in swift_check
+    assert "Lazy chunks with combined audio should keep Translation text track selectable while metadata loads" in swift_check
     assert "prepareResumeSingleTrack(" in swift_check
     assert "applyPendingResumeSingleTrackIfNeeded(" in swift_check
     assert "Translation-only resume should restore single-track mode before seeking" in swift_check
