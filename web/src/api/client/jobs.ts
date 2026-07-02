@@ -445,7 +445,9 @@ export async function acquireAcquisitionCandidate(
     },
     body: JSON.stringify(payload)
   });
-  return handleResponse<AcquisitionArtifactResponse>(response);
+  const responsePayload = await handleResponse<unknown>(response);
+  assertAcquisitionArtifactResponse(responsePayload);
+  return responsePayload;
 }
 
 export async function prepareAcquisitionArtifact(
@@ -459,7 +461,9 @@ export async function prepareAcquisitionArtifact(
     ),
     { method: 'POST' }
   );
-  return handleResponse<AcquisitionPreparedArtifactResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertAcquisitionPreparedArtifactResponse(payload);
+  return payload;
 }
 
 export async function createAcquisitionJob(
@@ -472,7 +476,9 @@ export async function createAcquisitionJob(
     },
     body: JSON.stringify(payload)
   });
-  return handleResponse<AcquisitionJobStatusResponse>(response);
+  const responsePayload = await handleResponse<unknown>(response);
+  assertAcquisitionJobStatusResponse(responsePayload);
+  return responsePayload;
 }
 
 export async function fetchAcquisitionJobStatus(
@@ -487,7 +493,125 @@ export async function fetchAcquisitionJobStatus(
       taskId
     )}?${params.toString()}`
   );
-  return handleResponse<AcquisitionJobStatusResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertAcquisitionJobStatusResponse(payload);
+  return payload;
+}
+
+function assertAcquisitionArtifactResponse(
+  payload: unknown
+): asserts payload is AcquisitionArtifactResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid acquisition artifact response.');
+  }
+  assertHandoffStringField(payload, 'provider', 'artifact');
+  assertHandoffStringField(payload, 'media_kind', 'artifact');
+  assertHandoffStringField(payload, 'status', 'artifact');
+  assertHandoffStringField(payload, 'artifact_id', 'artifact');
+  assertHandoffStringField(payload, 'artifact_path', 'artifact');
+  assertHandoffStringField(payload, 'local_path', 'artifact');
+  assertHandoffStringField(payload, 'filename', 'artifact');
+  assertHandoffNumberField(payload, 'size_bytes', 'artifact');
+  assertHandoffStringField(payload, 'modified_at', 'artifact');
+  assertHandoffStringArray(payload.next_actions, 'next_actions', 'artifact');
+  assertHandoffMetadata(payload.metadata, 'artifact');
+}
+
+function assertAcquisitionPreparedArtifactResponse(
+  payload: unknown
+): asserts payload is AcquisitionPreparedArtifactResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid acquisition prepared artifact response.');
+  }
+  assertHandoffStringField(payload, 'provider', 'prepared artifact');
+  assertHandoffStringField(payload, 'media_kind', 'prepared artifact');
+  assertHandoffStringField(payload, 'source_kind', 'prepared artifact');
+  assertHandoffStringField(payload, 'local_path', 'prepared artifact');
+  assertHandoffOptionalString(payload.input_file, 'input_file', 'prepared artifact');
+  assertHandoffOptionalString(payload.video_path, 'video_path', 'prepared artifact');
+  assertHandoffOptionalString(payload.subtitle_path, 'subtitle_path', 'prepared artifact');
+  assertHandoffSubtitleHints(payload.subtitles, 'prepared artifact');
+  assertHandoffStringArray(payload.next_actions, 'next_actions', 'prepared artifact');
+  assertHandoffMetadata(payload.metadata, 'prepared artifact');
+}
+
+function assertAcquisitionJobStatusResponse(
+  payload: unknown
+): asserts payload is AcquisitionJobStatusResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid acquisition job response.');
+  }
+  assertHandoffStringField(payload, 'provider', 'job');
+  assertHandoffStringField(payload, 'task_id', 'job');
+  assertHandoffStringField(payload, 'status', 'job');
+  assertHandoffOptionalNumber(payload.progress, 'progress', 'job');
+  assertHandoffOptionalString(payload.message, 'message', 'job');
+  assertHandoffOptionalString(payload.external_task_id, 'external_task_id', 'job');
+  assertHandoffOptionalString(payload.raw_status, 'raw_status', 'job');
+  assertHandoffOptionalString(payload.started_at, 'started_at', 'job');
+  assertHandoffStringField(payload, 'updated_at', 'job');
+  assertHandoffStringArray(payload.completed_files, 'completed_files', 'job');
+  assertHandoffStringArray(payload.next_actions, 'next_actions', 'job');
+  assertHandoffMetadata(payload.metadata, 'job');
+}
+
+function assertHandoffStringField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid acquisition ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertHandoffNumberField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'number') {
+    throw new Error(`Invalid acquisition ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertHandoffStringArray(value: unknown, key: string, responseKind: string): void {
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+    throw new Error(`Invalid acquisition ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertHandoffSubtitleHints(value: unknown, responseKind: string): void {
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid acquisition ${responseKind} response: missing subtitles.`);
+  }
+  for (const subtitle of value) {
+    if (!isRecord(subtitle)) {
+      throw new Error(`Invalid acquisition ${responseKind} response: missing subtitle entry.`);
+    }
+    assertHandoffStringField(subtitle, 'path', responseKind);
+    assertHandoffStringField(subtitle, 'filename', responseKind);
+    assertHandoffOptionalString(subtitle.language, 'language', responseKind);
+    assertHandoffOptionalString(subtitle.format, 'format', responseKind);
+  }
+}
+
+function assertHandoffMetadata(value: unknown, responseKind: string): void {
+  if (!isRecord(value)) {
+    throw new Error(`Invalid acquisition ${responseKind} response: missing metadata.`);
+  }
+}
+
+function assertHandoffOptionalString(value: unknown, key: string, responseKind: string): void {
+  if (value !== undefined && value !== null && typeof value !== 'string') {
+    throw new Error(`Invalid acquisition ${responseKind} response: invalid ${key}.`);
+  }
+}
+
+function assertHandoffOptionalNumber(value: unknown, key: string, responseKind: string): void {
+  if (value !== undefined && value !== null && typeof value !== 'number') {
+    throw new Error(`Invalid acquisition ${responseKind} response: invalid ${key}.`);
+  }
 }
 
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {

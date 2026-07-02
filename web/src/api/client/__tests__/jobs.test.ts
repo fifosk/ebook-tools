@@ -95,6 +95,57 @@ function acquisitionDiscoveryResponse(overrides: Record<string, unknown> = {}): 
   };
 }
 
+function acquisitionArtifactResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    provider: 'internet_archive',
+    media_kind: 'book',
+    status: 'ready',
+    artifact_id: 'artifact-token',
+    artifact_path: '/artifacts/demo.epub',
+    local_path: '/books/demo.epub',
+    filename: 'demo.epub',
+    size_bytes: 42,
+    modified_at: '2026-07-02T12:00:00Z',
+    next_actions: [],
+    metadata: {},
+    ...overrides
+  };
+}
+
+function acquisitionPreparedArtifactResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    provider: 'local_epub',
+    media_kind: 'book',
+    source_kind: 'local_epub',
+    local_path: '/books/demo.epub',
+    input_file: '/books/demo.epub',
+    video_path: null,
+    subtitle_path: null,
+    subtitles: [],
+    next_actions: [],
+    metadata: {},
+    ...overrides
+  };
+}
+
+function acquisitionJobStatusResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    provider: 'download_station',
+    task_id: 'task-id',
+    status: 'completed',
+    progress: 1,
+    message: null,
+    external_task_id: null,
+    raw_status: 'finished',
+    started_at: null,
+    updated_at: '2026-07-02T12:00:00Z',
+    completed_files: [],
+    next_actions: [],
+    metadata: {},
+    ...overrides
+  };
+}
+
 describe('jobs API client', () => {
   const originalFetch = globalThis.fetch;
 
@@ -142,10 +193,10 @@ describe('jobs API client', () => {
         candidates: [acquisitionCandidate({ provider: 'nas_video', media_kind: 'video' })],
         providers_queried: ['nas_video']
       })))
-      .mockResolvedValueOnce(jsonResponse({}))
-      .mockResolvedValueOnce(jsonResponse({}))
-      .mockResolvedValueOnce(jsonResponse({}))
-      .mockResolvedValueOnce(jsonResponse({}));
+      .mockResolvedValueOnce(jsonResponse(acquisitionArtifactResponse()))
+      .mockResolvedValueOnce(jsonResponse(acquisitionPreparedArtifactResponse()))
+      .mockResolvedValueOnce(jsonResponse(acquisitionJobStatusResponse()))
+      .mockResolvedValueOnce(jsonResponse(acquisitionJobStatusResponse()));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await fetchAcquisitionProviders();
@@ -279,6 +330,38 @@ describe('jobs API client', () => {
     );
     await expect(discoverAcquisitionCandidates({ mediaKind: 'book' })).rejects.toThrow(
       'Invalid acquisition discovery response: missing filename.'
+    );
+  });
+
+  it('rejects malformed acquisition handoff payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse(acquisitionArtifactResponse({ artifact_id: undefined })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionArtifactResponse({ metadata: null })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionPreparedArtifactResponse({
+        subtitles: [{ path: '/subs.srt' }]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionPreparedArtifactResponse({ next_actions: [42] })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionJobStatusResponse({ completed_files: undefined })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionJobStatusResponse({ progress: '1' })));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      acquireAcquisitionCandidate({ candidate_token: 'candidate-token', confirmed: true })
+    ).rejects.toThrow('Invalid acquisition artifact response: missing artifact_id.');
+    await expect(
+      acquireAcquisitionCandidate({ candidate_token: 'candidate-token', confirmed: true })
+    ).rejects.toThrow('Invalid acquisition artifact response: missing metadata.');
+    await expect(prepareAcquisitionArtifact('artifact-token')).rejects.toThrow(
+      'Invalid acquisition prepared artifact response: missing filename.'
+    );
+    await expect(prepareAcquisitionArtifact('artifact-token')).rejects.toThrow(
+      'Invalid acquisition prepared artifact response: missing next_actions.'
+    );
+    await expect(createAcquisitionJob({ provider: 'download_station', confirmed: true })).rejects.toThrow(
+      'Invalid acquisition job response: missing completed_files.'
+    );
+    await expect(fetchAcquisitionJobStatus('task-id')).rejects.toThrow(
+      'Invalid acquisition job response: invalid progress.'
     );
   });
 

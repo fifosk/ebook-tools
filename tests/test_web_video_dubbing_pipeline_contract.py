@@ -186,6 +186,14 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "assertDiscoveryStringArray(candidate.capabilities, 'capabilities')" in api_client
     assert "assertDiscoverySubtitleHints(candidate.subtitles)" in api_client
     assert "Invalid acquisition discovery response: missing metadata." in api_client
+    assert "assertAcquisitionArtifactResponse(responsePayload)" in api_client
+    assert "assertAcquisitionPreparedArtifactResponse(payload)" in api_client
+    assert "assertAcquisitionJobStatusResponse(responsePayload)" in api_client
+    assert "assertAcquisitionJobStatusResponse(payload)" in api_client
+    assert "assertHandoffStringField(payload, 'artifact_id', 'artifact')" in api_client
+    assert "assertHandoffSubtitleHints(payload.subtitles, 'prepared artifact')" in api_client
+    assert "assertHandoffStringArray(payload.completed_files, 'completed_files', 'job')" in api_client
+    assert "assertHandoffMetadata(payload.metadata, 'job')" in api_client
     assert "resolveDefaultBookDiscoveryProvider(" in discovery_hook
     assert "defaultProviderIds?.book" in discovery_providers
     assert "hasUserSelectedDiscoveryProvider.current" in discovery_hook
