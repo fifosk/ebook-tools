@@ -179,7 +179,7 @@ def test_dashboard_jobs_endpoint_returns_paginated_job_contract(
             }
         },
     )
-    stub_service.jobs = {older.job_id: older, newer.job_id: newer}
+    stub_service.jobs = {newer.job_id: newer, older.job_id: older}
     stub_service.total = 12
     app.dependency_overrides[get_pipeline_service] = lambda: stub_service
 
@@ -227,6 +227,51 @@ def test_dashboard_jobs_endpoint_returns_paginated_job_contract(
         "media_metadata": {"title": "Slow Book"},
         "book_metadata": {"title": "Slow Book"},
     }
+
+
+def test_dashboard_jobs_endpoint_preserves_service_page_order() -> None:
+    app = create_app()
+    stub_service = _StubPipelineService()
+    first_page_item = PipelineJob(
+        job_id="page-slot-1",
+        job_type="pipeline",
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime(2026, 6, 22, 9, 30, tzinfo=timezone.utc),
+        user_id="alice",
+        user_role="editor",
+    )
+    second_page_item = PipelineJob(
+        job_id="page-slot-2",
+        job_type="pipeline",
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime(2026, 6, 22, 10, 45, tzinfo=timezone.utc),
+        user_id="alice",
+        user_role="editor",
+    )
+    stub_service.jobs = {
+        first_page_item.job_id: first_page_item,
+        second_page_item.job_id: second_page_item,
+    }
+    stub_service.total = 4
+    app.dependency_overrides[get_pipeline_service] = lambda: stub_service
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/pipelines/jobs?offset=2&limit=2",
+            headers={"X-User-Id": "alice", "X-User-Role": "editor"},
+        )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 4
+    assert payload["offset"] == 2
+    assert payload["limit"] == 2
+    assert [job["job_id"] for job in payload["jobs"]] == ["page-slot-1", "page-slot-2"]
+    assert stub_service.list_calls == [
+        {"user_id": "alice", "user_role": "editor", "offset": 2, "limit": 2}
+    ]
 
 
 def test_dashboard_jobs_endpoint_records_safe_timing(

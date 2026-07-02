@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
 import logging
 import time
 from typing import AsyncIterator, Callable
@@ -201,18 +200,13 @@ async def list_jobs(
             offset=offset,
             limit=limit,
         ).values()
-        ordered = sorted(
-            jobs,
-            key=lambda job: job.created_at or datetime.min.replace(tzinfo=timezone.utc),
-            reverse=True,
-        )
         payload = [
             PipelineStatusResponse.from_job(
                 job,
                 include_filesystem_image_summary=False,
                 compact_result=True,
             )
-            for job in ordered
+            for job in jobs
         ]
     except Exception:
         _log_job_list_route_result(

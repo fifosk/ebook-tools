@@ -1092,12 +1092,15 @@ Optimization candidates:
 - Guard paginated `/api/pipelines/jobs` response shape before changing list internals. Status:
   backend tests now pin `total`, `offset`, `limit`, newest-first route ordering,
   access payload normalization, generated files, job labels, and parameter
-  snapshots; service tests pin active admin pagination, persisted-only
-  store pagination, and metadata-only non-admin counts/lists that hydrate only
-  the requested visible page. The shared cross-surface checkpoint now exposes
+  snapshots; service tests pin active admin pagination, manager-owned
+  newest-first metadata pagination, and metadata-only non-admin counts/lists
+  that hydrate only the requested visible page. The shared cross-surface checkpoint now exposes
   those route/service guards as `test-backend-pipeline-jobs`, and changed-test
   selection runs that slice for job-route, pipeline-job schema, pipeline-service,
-  and job-manager edits before the broader Web API/service fallbacks.
+  and job-manager edits before the broader Web API/service fallbacks. The
+  route now preserves the service-provided page order instead of re-sorting
+  after `offset`/`limit` are applied, so paginated Web and Apple job lists
+  cannot have their visible slice reshuffled by response serialization.
 - Audit repeated filesystem metadata reads during job list/library list rendering.
   Status: `/api/pipelines/jobs` now skips filesystem image prompt summary reads
   while preserving those rich summaries for single-job status responses.

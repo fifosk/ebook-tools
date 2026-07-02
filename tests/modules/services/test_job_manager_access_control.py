@@ -139,7 +139,7 @@ def test_admin_list_jobs_paginates_active_job_snapshot(tmp_path: Path) -> None:
         manager._executor.shutdown()
 
 
-def test_admin_list_jobs_uses_store_pagination_without_active_jobs(tmp_path: Path) -> None:
+def test_admin_list_jobs_sorts_visible_metadata_before_pagination(tmp_path: Path) -> None:
     store = _RecordingInMemoryJobStore()
     for index in range(3):
         store.save(
@@ -168,7 +168,7 @@ def test_admin_list_jobs_uses_store_pagination_without_active_jobs(tmp_path: Pat
             limit=1,
         )
 
-        assert store.list_calls == [{"offset": 1, "limit": 1}]
+        assert store.list_calls == [{"offset": None, "limit": None}]
         assert list(paged_jobs.keys()) == ["stored-1"]
     finally:
         manager._executor.shutdown()

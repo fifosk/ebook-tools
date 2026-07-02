@@ -890,6 +890,27 @@ class PipelineJobManager:
             media_completed=job.media_completed,
         )
 
+    @staticmethod
+    def _created_sort_value(value: Optional[datetime]) -> datetime:
+        if value is None:
+            return datetime.min.replace(tzinfo=timezone.utc)
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+
+    @classmethod
+    def _sort_metadata_newest_first(
+        cls,
+        jobs: Dict[str, PipelineJobMetadata],
+    ) -> Dict[str, PipelineJobMetadata]:
+        return dict(
+            sorted(
+                jobs.items(),
+                key=lambda item: (cls._created_sort_value(item[1].created_at), item[0]),
+                reverse=True,
+            )
+        )
+
     def list_metadata(
         self,
         *,
@@ -927,7 +948,7 @@ class PipelineJobManager:
             ):
                 visible[job_id] = metadata
 
-        return visible
+        return self._sort_metadata_newest_first(visible)
 
     def list(
         self,
@@ -938,14 +959,6 @@ class PipelineJobManager:
         limit: Optional[int] = None,
     ) -> Dict[str, PipelineJob]:
         """Return a snapshot mapping of jobs respecting role-based visibility."""
-
-        def _apply_pagination(jobs: Dict[str, PipelineJob]) -> Dict[str, PipelineJob]:
-            if offset is None and limit is None:
-                return jobs
-            items = list(jobs.items())
-            start = offset or 0
-            end = start + limit if limit is not None else None
-            return dict(items[start:end])
 
         def _apply_metadata_pagination(
             jobs: Dict[str, PipelineJobMetadata]
@@ -960,15 +973,7 @@ class PipelineJobManager:
         with self._lock:
             active_jobs = dict(self._jobs)
 
-        pagination_applied_by_store = (
-            self._is_admin(user_role)
-            and not active_jobs
-            and (offset is not None or limit is not None)
-        )
-        if pagination_applied_by_store:
-            stored = self._store.list(offset=offset, limit=limit)
-        else:
-            stored = self._store.list()
+        stored = self._store.list()
 
         with self._lock:
             terminal_states = {
@@ -987,12 +992,6 @@ class PipelineJobManager:
                 active_jobs.pop(job_id, None)
                 self._last_event_sig.pop(job_id, None)
                 self._job_locks.remove_job_lock(job_id)
-        if self._is_admin(user_role):
-            for job_id, metadata in stored.items():
-                active_jobs.setdefault(job_id, self._persistence.build_job(metadata))
-            if pagination_applied_by_store:
-                return active_jobs
-            return _apply_pagination(active_jobs)
 
         visible_metadata: Dict[str, PipelineJobMetadata] = {}
         metadata_by_id: Dict[str, PipelineJobMetadata] = dict(stored)
@@ -1000,6 +999,10 @@ class PipelineJobManager:
             metadata_by_id[job_id] = self._metadata_from_active_job(job)
 
         for job_id, metadata in metadata_by_id.items():
+            if self._is_admin(user_role):
+                visible_metadata[job_id] = metadata
+                continue
+
             default_visibility = "private" if metadata.user_id else "public"
             policy = resolve_access_policy(metadata.access, default_visibility=default_visibility)
             if can_access(
@@ -1011,7 +1014,9 @@ class PipelineJobManager:
             ):
                 visible_metadata[job_id] = metadata
 
-        paged_metadata = _apply_metadata_pagination(visible_metadata)
+        paged_metadata = _apply_metadata_pagination(
+            self._sort_metadata_newest_first(visible_metadata)
+        )
         filtered: Dict[str, PipelineJob] = {}
         for job_id, metadata in paged_metadata.items():
             active_job = active_jobs.get(job_id)
