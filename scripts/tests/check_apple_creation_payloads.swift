@@ -3983,7 +3983,8 @@ struct AppleCreationPayloadCheck {
         sourceLabel: String? = nil,
         policyNotes: [String] = []
     ) -> AcquisitionProviderEntry {
-        AcquisitionProviderEntry(
+        let declaredDiscoveryMediaKinds = discoveryMediaKinds ?? mediaKinds
+        return AcquisitionProviderEntry(
             id: id,
             label: label,
             mediaKinds: mediaKinds,
@@ -3992,8 +3993,8 @@ struct AppleCreationPayloadCheck {
             configured: configured,
             available: available,
             rights: ["unknown"],
-            discoveryMediaKinds: discoveryMediaKinds,
-            defaultEligibleMediaKinds: defaultEligibleMediaKinds,
+            discoveryMediaKinds: declaredDiscoveryMediaKinds,
+            defaultEligibleMediaKinds: defaultEligibleMediaKinds ?? declaredDiscoveryMediaKinds,
             sourcePath: nil,
             sourceLabel: sourceLabel,
             policyNotes: policyNotes,

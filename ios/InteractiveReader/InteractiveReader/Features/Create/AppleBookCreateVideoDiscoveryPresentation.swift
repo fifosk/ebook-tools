@@ -367,17 +367,8 @@ extension AppleBookCreatePresentation {
         available: true
     )
 
-    private static let videoDiscoveryCapabilities: Set<String> = [
-        "search",
-        "import_local"
-    ]
-
     private static func isVideoDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
-        if let discoveryMediaKinds = provider.discoveryMediaKinds {
-            return discoveryMediaKinds.contains("video")
-        }
-        return provider.mediaKinds.contains("video")
-            && provider.capabilities.contains { videoDiscoveryCapabilities.contains($0) }
+        return provider.discoveryMediaKinds.contains("video")
     }
 
     private static func videoDiscoveryProviderRank(_ id: String) -> Int {

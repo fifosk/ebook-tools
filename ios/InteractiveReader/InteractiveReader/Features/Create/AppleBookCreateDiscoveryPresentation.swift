@@ -356,23 +356,12 @@ extension AppleBookCreatePresentation {
         available: true
     )
 
-    private static let bookDiscoveryCapabilities: Set<String> = [
-        "search",
-        "metadata",
-        "acquire",
-        "import_local"
-    ]
-
     private static let explicitOnlyDefaultVideoDiscoveryProviderIDs: Set<String> = [
         "youtube_url"
     ]
 
     private static func isBookDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
-        if let discoveryMediaKinds = provider.discoveryMediaKinds {
-            return discoveryMediaKinds.contains("book")
-        }
-        return provider.mediaKinds.contains("book")
-            && provider.capabilities.contains { bookDiscoveryCapabilities.contains($0) }
+        return provider.discoveryMediaKinds.contains("book")
     }
 
     private static func bookDiscoveryProviderRank(_ id: String) -> Int {

@@ -3490,7 +3490,8 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     )[0]
     assert "!didApplyBackendDiscoveryDefault" not in discovery_default_body
     assert "acquisitionDiscoveryProvider != providerID || !currentProviderIsKnown" in discovery_default_body
-    assert "let discoveryMediaKinds: [String]?" in api_models_source
+    assert "let discoveryMediaKinds: [String]" in api_models_source
+    assert "let defaultEligibleMediaKinds: [String]" in api_models_source
     assert "enum AppleBookCreateNarrateSourcePanel" in controls_source
     assert "case discovery" in controls_source
     assert "@Binding var sourcePanel: AppleBookCreateNarrateSourcePanel" in controls_source
@@ -3503,10 +3504,10 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'accessibilityIdentifier("createNarrateSourceModePicker")' in controls_source
     assert "discoverySourceControls" in controls_source
     assert 'accessibilityIdentifier("createNarrateDiscoveryPanel")' in controls_source
-    assert 'provider.mediaKinds.contains("book")' in discovery_source
-    assert "if let discoveryMediaKinds = provider.discoveryMediaKinds" in discovery_source
-    assert 'return discoveryMediaKinds.contains("book")' in discovery_source
-    assert "bookDiscoveryCapabilities.contains($0)" in discovery_source
+    assert 'return provider.discoveryMediaKinds.contains("book")' in discovery_source
+    assert 'provider.mediaKinds.contains("book")' not in discovery_source
+    assert "if let discoveryMediaKinds = provider.discoveryMediaKinds" not in discovery_source
+    assert "bookDiscoveryCapabilities.contains($0)" not in discovery_source
     assert "private static func bookDiscoveryProviderRank(" in discovery_source
     assert "private static func bookDiscoveryProviderLabel(" in discovery_source
     assert "private func discoveryProviderRank(" not in controls_source
@@ -3761,7 +3762,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     presentation_source = _source(CREATE_PRESENTATION_HELPERS)
     assert "struct AppleBookCreateVideoDiscoveryProviderOption" in video_discovery_source
     assert "struct AppleBookCreateVideoDiscoveryProviderOption" not in discovery_source
-    assert "let defaultEligibleMediaKinds: [String]?" in _source(PIPELINE_CREATION_API_MODELS)
+    assert "let defaultEligibleMediaKinds: [String]" in _source(PIPELINE_CREATION_API_MODELS)
     assert "static func videoDiscoveryProviderOptions(" in video_discovery_source
     assert "defaultProviderIds: [String: [String]] = [:]" in video_discovery_source
     assert "defaultVideoDiscoveryProviderID" in video_discovery_source
@@ -3815,9 +3816,10 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     )[0]
     assert "!didApplyBackendVideoDiscoveryDefault" not in video_default_body
     assert "videoDiscoveryProvider != providerID || !currentProviderIsKnown" in video_default_body
-    assert "provider.mediaKinds.contains(\"video\")" in video_discovery_source
-    assert 'return discoveryMediaKinds.contains("video")' in video_discovery_source
-    assert "videoDiscoveryCapabilities.contains($0)" in video_discovery_source
+    assert "provider.mediaKinds.contains(\"video\")" not in video_discovery_source
+    assert 'return provider.discoveryMediaKinds.contains("video")' in video_discovery_source
+    assert "if let discoveryMediaKinds = provider.discoveryMediaKinds" not in video_discovery_source
+    assert "videoDiscoveryCapabilities.contains($0)" not in video_discovery_source
     assert "private static func videoDiscoveryProviderRank(" in video_discovery_source
     assert "private static func videoDiscoveryProviderLabel(" in video_discovery_source
     assert "static func videoDiscoveryProviderFallbackLabel(for providerID: String)" in video_discovery_source
