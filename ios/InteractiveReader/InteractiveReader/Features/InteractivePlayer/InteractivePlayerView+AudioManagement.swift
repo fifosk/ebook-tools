@@ -239,17 +239,16 @@ extension InteractivePlayerView {
 
         // Capture current sentence position BEFORE changing mode
         let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
-
-        if availableRoles.contains(.original), availableRoles.contains(.translation) {
-            let track: SequenceTrack = role == .original ? .original : .translation
-            audioModeManager.toggle(track, preservingPosition: currentSentenceIndex)
-        } else {
-            audioModeManager.setTracks(
-                original: availableRoles.contains(.original),
-                translation: availableRoles.contains(.translation),
-                preservingPosition: currentSentenceIndex
-            )
-        }
+        let desiredRoles = desiredHeaderAudioRoles(
+            toggling: role,
+            activeRoles: activeAudioRoles(for: chunk, availableRoles: availableRoles),
+            availableRoles: availableRoles
+        )
+        audioModeManager.setTracks(
+            original: desiredRoles.contains(.original),
+            translation: desiredRoles.contains(.translation),
+            preservingPosition: currentSentenceIndex
+        )
 
         switch audioModeManager.currentMode {
         case .singleTrack(let selectedTrack):
@@ -263,6 +262,26 @@ extension InteractivePlayerView {
 
         // Reconfigure playback with position preservation
         reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
+    }
+
+    func desiredHeaderAudioRoles(
+        toggling role: LanguageFlagRole,
+        activeRoles: Set<LanguageFlagRole>,
+        availableRoles: Set<LanguageFlagRole>
+    ) -> Set<LanguageFlagRole> {
+        var desiredRoles = activeRoles.intersection(availableRoles)
+        if desiredRoles.isEmpty {
+            desiredRoles = availableRoles
+        }
+        guard desiredRoles.count > 1 || !desiredRoles.contains(role) else {
+            return desiredRoles
+        }
+        if desiredRoles.contains(role) {
+            desiredRoles.remove(role)
+        } else {
+            desiredRoles.insert(role)
+        }
+        return desiredRoles.intersection(availableRoles)
     }
 
     func selectAudioTrack(
