@@ -51,6 +51,15 @@ APP_CHANGELOG_DATA = (
     / "AppChangelogData.swift"
 )
 APP_CHANGELOG_DATA_DIR = APP_CHANGELOG_DATA.parent
+APPLE_CREATE_SOURCE_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSourceControls.swift"
+)
 
 
 def _swift_changelog_sources() -> str:
@@ -674,6 +683,25 @@ def test_july3_music_bed_pause_sync_is_visible_in_changelogs() -> None:
     for source in (swift_changelog, markdown_changelog):
         assert "stale AVPlayer play callbacks" in source
         assert "volume comes back with narration" in source
+
+
+def test_apple_narrate_epub_stale_discovery_provider_matches_web_guidance() -> None:
+    source = APPLE_CREATE_SOURCE_CONTROLS.read_text(encoding="utf-8")
+    swift_changelog = _swift_changelog_sources()
+    markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
+
+    assert "selectedDiscoveryProvider == nil" in source
+    assert "!acquisitionProviders.isEmpty" in source
+    assert "isDefaultBookDiscoveryProviderID(acquisitionDiscoveryProvider)" in source
+    assert "isDefaultBookDiscoveryProviderID(providerID)" in source
+    assert "return false" in source
+    assert "selectedDiscoveryProviderLabel" in source
+    assert "is unavailable on this backend. Choose another discovery source." in source
+    assert "AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage" in source
+    assert 'id: "apple-create-stale-book-provider-message"' in swift_changelog
+    for changelog in (swift_changelog, markdown_changelog):
+        assert "stale template-restored book providers" in changelog
+        assert "leaving Search enabled" in changelog
 
 
 def test_apple_web_create_handoff_source_is_visible_in_changelogs() -> None:

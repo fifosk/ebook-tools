@@ -363,15 +363,29 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 
     private var isSelectedDiscoveryProviderAvailable: Bool {
-        selectedDiscoveryProviderOption?.available != false
+        if !AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(acquisitionDiscoveryProvider),
+           !acquisitionProviders.isEmpty,
+           selectedDiscoveryProvider == nil {
+            return false
+        }
+        return selectedDiscoveryProviderOption?.available != false
             && selectedDiscoveryProvider?.available != false
     }
 
     private var selectedDiscoveryProviderUnavailableMessage: String? {
-        AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage(
+        if !AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(acquisitionDiscoveryProvider),
+           !acquisitionProviders.isEmpty,
+           selectedDiscoveryProvider == nil {
+            return "\(selectedDiscoveryProviderLabel) is unavailable on this backend. Choose another discovery source."
+        }
+        return AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage(
             for: selectedDiscoveryProvider,
             selectedOption: selectedDiscoveryProviderOption
         )
+    }
+
+    private var selectedDiscoveryProviderLabel: String {
+        selectedDiscoveryProviderOption?.label ?? acquisitionDiscoveryProvider
     }
 
     private var noServerEbooksMessage: String {
@@ -449,6 +463,11 @@ struct AppleBookCreateNarrateSourceControls: View {
     private func isDiscoveryProviderAvailable(_ providerID: String) -> Bool {
         let selectedProvider = acquisitionProviders.first { $0.id == providerID }
         let selectedOption = discoveryProviderOptions.first { $0.id == providerID }
+        if !AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(providerID),
+           !acquisitionProviders.isEmpty,
+           selectedProvider == nil {
+            return false
+        }
         return selectedProvider?.available != false
             && selectedOption?.available != false
     }
