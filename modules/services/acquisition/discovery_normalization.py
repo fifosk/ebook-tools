@@ -22,7 +22,7 @@ def normalize_media_kind(media_kind: str) -> str:
 
 def normalize_provider(provider: str | None) -> str | None:
     value = normalized_provider_id(provider)
-    if value == "backend_defaults":
+    if value in {"backend_defaults", "default_sources"}:
         return None
     return value or None
 

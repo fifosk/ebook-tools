@@ -417,6 +417,7 @@ def test_acquisition_discovery_normalization_helpers_normalize_request_values() 
         == provider_catalog.normalized_provider_id(" LOCAL_EPUB ")
     )
     assert discovery_normalization.normalize_provider(" backend_defaults ") is None
+    assert discovery_normalization.normalize_provider(" default_sources ") is None
     assert discovery_normalization.normalize_provider(" LOCAL_EPUB ") == "local_epub"
     assert discovery_normalization.normalize_provider("   ") is None
     assert discovery_normalization.normalize_source_id_filters(

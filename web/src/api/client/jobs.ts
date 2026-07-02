@@ -611,7 +611,12 @@ export async function discoverAcquisitionCandidates({
     limit: String(limit)
   });
   const normalizedProvider = provider?.trim();
-  if (normalizedProvider && normalizedProvider.toLowerCase() !== 'backend_defaults') {
+  const normalizedProviderKey = normalizedProvider?.toLowerCase();
+  if (
+    normalizedProvider &&
+    normalizedProviderKey !== 'backend_defaults' &&
+    normalizedProviderKey !== 'default_sources'
+  ) {
     params.set('provider', normalizedProvider);
   }
   if (language) {

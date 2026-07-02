@@ -78,6 +78,7 @@ def test_acquisition_optional_provider_ids_trim_and_casefold() -> None:
     assert _normalize_optional_provider_id is discovery_normalization.normalize_provider
     assert _normalize_optional_provider_id("  LOCAL_EPUB  ") == "local_epub"
     assert _normalize_optional_provider_id(" BACKEND_DEFAULTS ") is None
+    assert _normalize_optional_provider_id(" Default_Sources ") is None
     assert _normalize_optional_provider_id("   ") is None
     assert _normalize_optional_provider_id(None) is None
 

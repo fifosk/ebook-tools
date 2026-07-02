@@ -328,7 +328,7 @@ describe('jobs API client', () => {
     expect(discoveryUrl.pathname).toBe('/api/acquisition/discover');
     expect(discoveryUrl.searchParams.get('media_kind')).toBe('book');
     expect(discoveryUrl.searchParams.get('q')).toBe('origin');
-    expect(discoveryUrl.searchParams.get('provider')).toBe('default_sources');
+    expect(discoveryUrl.searchParams.get('provider')).toBeNull();
     expect(discoveryUrl.searchParams.get('language')).toBe('tr');
     expect(discoveryUrl.searchParams.get('limit')).toBe('7');
     expect(discoveryUrl.searchParams.getAll('source_id')).toEqual(['nas']);
