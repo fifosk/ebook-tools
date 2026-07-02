@@ -237,9 +237,33 @@ def _write_manifest(
             ]
         },
         "backend": {
+            "defaultBaseUrl": "https://api.langtools.fifosk.synology.me",
+            "healthPath": "/_health",
+            "runtimePath": "/api/system/runtime",
             "runtimeExpected": backend_runtime_expected
             if backend_runtime_expected is not None
             else dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+        },
+        "backendCheckBaseEnv": "INTERACTIVE_READER_API_BASE_URL",
+        "backendCheckTimeoutSeconds": 30,
+        "backendChecks": [
+            "/_health",
+            "/api/system/runtime",
+        ],
+        "runtimeStorage": {
+            "remoteStagingRoot": "/Volumes/WD-1TB/Data/staging/ebook-tools",
+            "reusableArtifactRoots": [
+                {
+                    "label": "remote:wd-staging",
+                    "path": "/Volumes/WD-1TB/Data/staging/ebook-tools",
+                }
+            ],
+            "remoteDisposableRoots": [
+                "/Users/fifo/Library/Developer/XcodeBuildArtifacts/ebook-tools"
+            ],
+            "cleanupPolicy": "Keep reusable WD staging and dependency caches.",
+            "localVolumePolicy": "Mac Studio internal disk is runtime-only.",
+            "dockerBuildPolicy": "Docker cache experiments use external staging.",
         },
         "profiles": profiles if profiles is not None else default_profiles,
         "deviceProfiles": device_profiles
@@ -301,6 +325,51 @@ def test_validate_manifest_accepts_token_env_keys(tmp_path: Path) -> None:
     path = _write_manifest(tmp_path)
 
     assert module.validate_manifest(path) == []
+
+
+def test_validate_manifest_requires_operational_backend_and_storage_contracts(
+    tmp_path: Path,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["backend"]["healthPath"] = "/health"
+    payload["backendChecks"] = ["/health"]
+    payload["backendCheckBaseEnv"] = "EBOOK_API_BASE_URL"
+    payload["backendCheckTimeoutSeconds"] = 5
+    payload["runtimeStorage"] = {
+        "remoteStagingRoot": "/tmp/ebook-tools",
+        "reusableArtifactRoots": [],
+        "remoteDisposableRoots": [],
+        "cleanupPolicy": "Clean everything.",
+        "localVolumePolicy": "Use local disk.",
+        "dockerBuildPolicy": "Build wherever.",
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    errors = module.validate_manifest(path)
+
+    assert "backend.healthPath='/health' expected '/_health'" in errors
+    assert "backendChecks=['/health'] expected ['/_health', '/api/system/runtime']" in errors
+    assert (
+        "backendCheckBaseEnv='EBOOK_API_BASE_URL' "
+        "expected 'INTERACTIVE_READER_API_BASE_URL'"
+    ) in errors
+    assert "backendCheckTimeoutSeconds=5 expected 30" in errors
+    assert (
+        "runtimeStorage.remoteStagingRoot='/tmp/ebook-tools' "
+        "expected '/Volumes/WD-1TB/Data/staging/ebook-tools'"
+    ) in errors
+    assert (
+        "runtimeStorage.reusableArtifactRoots must include "
+        "/Volumes/WD-1TB/Data/staging/ebook-tools"
+    ) in errors
+    assert (
+        "runtimeStorage.remoteDisposableRoots must include "
+        "/Users/fifo/Library/Developer/XcodeBuildArtifacts/ebook-tools"
+    ) in errors
+    assert "runtimeStorage.cleanupPolicy must mention 'Keep reusable WD staging'" in errors
+    assert "runtimeStorage.localVolumePolicy must mention 'runtime-only'" in errors
+    assert "runtimeStorage.dockerBuildPolicy must mention 'Docker cache'" in errors
 
 
 def test_validate_manifest_reports_missing_token_env_keys(tmp_path: Path) -> None:

@@ -59,7 +59,16 @@ REQUIRED_IOS_DEVICE_CAPABILITIES = (
     "Sign In with Apple",
     "iCloud",
 )
+REQUIRED_BACKEND_HEALTH_PATH = "/_health"
+REQUIRED_BACKEND_RUNTIME_PATH = "/api/system/runtime"
+REQUIRED_BACKEND_CHECKS = (REQUIRED_BACKEND_HEALTH_PATH, REQUIRED_BACKEND_RUNTIME_PATH)
+REQUIRED_BACKEND_CHECK_BASE_ENV = "INTERACTIVE_READER_API_BASE_URL"
+REQUIRED_BACKEND_CHECK_TIMEOUT_SECONDS = 30
 REQUIRED_SIM_ENV = "INTERACTIVE_READER_API_BASE_URL"
+REQUIRED_REMOTE_STAGING_ROOT = "/Volumes/WD-1TB/Data/staging/ebook-tools"
+REQUIRED_REMOTE_DISPOSABLE_ROOT = (
+    "/Users/fifo/Library/Developer/XcodeBuildArtifacts/ebook-tools"
+)
 REQUIRED_BACKEND_TARGETS = (
     "test-backend-auth-session",
     "test-backend-library-search-source-isbn",
@@ -212,6 +221,7 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
     errors.extend(_validate_simulator_profiles(payload))
     errors.extend(_validate_device_profiles(payload))
     errors.extend(_validate_backend_runtime_expected(payload))
+    errors.extend(_validate_operational_contracts(payload))
     errors.extend(_validate_known_gates(payload))
     return errors
 
@@ -533,6 +543,86 @@ def _validate_device_profiles(payload: dict[str, Any]) -> list[str]:
                     f"deviceProfiles.{profile}.requiredCapabilities missing: "
                     + ", ".join(missing_capabilities)
                 )
+    return errors
+
+
+def _validate_operational_contracts(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    backend = payload.get("backend")
+    if not isinstance(backend, dict):
+        errors.append("backend must be an object")
+        backend = {}
+
+    for field, expected_value in (
+        ("healthPath", REQUIRED_BACKEND_HEALTH_PATH),
+        ("runtimePath", REQUIRED_BACKEND_RUNTIME_PATH),
+    ):
+        actual_value = backend.get(field)
+        if actual_value != expected_value:
+            errors.append(f"backend.{field}={actual_value!r} expected {expected_value!r}")
+
+    backend_checks = payload.get("backendChecks")
+    if backend_checks != list(REQUIRED_BACKEND_CHECKS):
+        errors.append(
+            f"backendChecks={backend_checks!r} expected {list(REQUIRED_BACKEND_CHECKS)!r}"
+        )
+
+    backend_check_base_env = payload.get("backendCheckBaseEnv")
+    if backend_check_base_env != REQUIRED_BACKEND_CHECK_BASE_ENV:
+        errors.append(
+            "backendCheckBaseEnv="
+            f"{backend_check_base_env!r} expected {REQUIRED_BACKEND_CHECK_BASE_ENV!r}"
+        )
+
+    backend_timeout = payload.get("backendCheckTimeoutSeconds")
+    if backend_timeout != REQUIRED_BACKEND_CHECK_TIMEOUT_SECONDS:
+        errors.append(
+            "backendCheckTimeoutSeconds="
+            f"{backend_timeout!r} expected {REQUIRED_BACKEND_CHECK_TIMEOUT_SECONDS!r}"
+        )
+
+    runtime_storage = payload.get("runtimeStorage")
+    if not isinstance(runtime_storage, dict):
+        return errors + ["runtimeStorage must be an object"]
+
+    remote_staging_root = runtime_storage.get("remoteStagingRoot")
+    if remote_staging_root != REQUIRED_REMOTE_STAGING_ROOT:
+        errors.append(
+            "runtimeStorage.remoteStagingRoot="
+            f"{remote_staging_root!r} expected {REQUIRED_REMOTE_STAGING_ROOT!r}"
+        )
+
+    reusable_roots = runtime_storage.get("reusableArtifactRoots")
+    if not isinstance(reusable_roots, list) or not any(
+        isinstance(root, dict) and root.get("path") == REQUIRED_REMOTE_STAGING_ROOT
+        for root in reusable_roots
+    ):
+        errors.append(
+            "runtimeStorage.reusableArtifactRoots must include "
+            f"{REQUIRED_REMOTE_STAGING_ROOT}"
+        )
+
+    disposable_roots = runtime_storage.get("remoteDisposableRoots")
+    if (
+        not isinstance(disposable_roots, list)
+        or REQUIRED_REMOTE_DISPOSABLE_ROOT not in disposable_roots
+    ):
+        errors.append(
+            "runtimeStorage.remoteDisposableRoots must include "
+            f"{REQUIRED_REMOTE_DISPOSABLE_ROOT}"
+        )
+
+    text_fields = {
+        "cleanupPolicy": "Keep reusable WD staging",
+        "localVolumePolicy": "runtime-only",
+        "dockerBuildPolicy": "Docker cache",
+    }
+    for field, expected_phrase in text_fields.items():
+        value = runtime_storage.get(field)
+        if not isinstance(value, str) or expected_phrase not in value:
+            errors.append(
+                f"runtimeStorage.{field} must mention {expected_phrase!r}"
+            )
     return errors
 
 

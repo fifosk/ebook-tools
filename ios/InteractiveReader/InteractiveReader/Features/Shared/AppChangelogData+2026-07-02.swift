@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-operational-contract-guard",
+                    title: "Pipeline pins ops checks",
+                    detail: "The reusable Apple pipeline manifest checker now validates ebook-tools backend probe paths, API environment, timeout, and external WD staging/runtime cleanup policy before simulator or device work."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-create-runtime-expected",
                     title: "Pipeline pins Create runtime",
                     detail: "The reusable Apple pipeline manifest checker now derives the full Create runtime descriptor, including picker limits, defaults, model/search routes, voice/image readiness, YouTube download/delete, and book metadata paths."
