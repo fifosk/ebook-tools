@@ -11,6 +11,11 @@ enum AppChangelogData {
                     detail: "Apple reader language pills now behave as guarded multi-select toggles: inactive Original or Translation pills add that lane, active pills remove only themselves when the other lane remains active, and the last active lane stays selected."
                 ),
                 AppChangelogEntry(
+                    id: "apple-audio-menu-track-modes",
+                    title: "Audio menu supports both tracks",
+                    detail: "Apple reader Audio controls now expose Original + Translation, Original-only, and Translation-only as first-class choices, with the header pill label following the live audio mode instead of stale single-track resume memory."
+                ),
+                AppChangelogEntry(
                     id: "apple-header-language-pills-enable-both",
                     title: "Language pills restore both tracks",
                     detail: "Apple reader header language pills now route through the shared audio-mode toggle, so Original-only or Translation-only can be expanded back to both tracks by tapping the inactive companion pill while stale single-track resume memory no longer keeps the pill grey."

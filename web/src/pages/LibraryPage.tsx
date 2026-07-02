@@ -46,9 +46,9 @@ import {
   type LibraryEditValues,
   type LibraryItemType
 } from './library/libraryPageMetadata';
-import LibraryList from '../components/LibraryList';
 import LibraryToolbar from '../components/LibraryToolbar';
 import LibraryDetailTabs, { type LibraryDetailTab } from './library/LibraryDetailTabs';
+import LibraryEntriesPanel from './library/LibraryEntriesPanel';
 import LibraryMetadataTab from './library/LibraryMetadataTab';
 import LibraryOverviewTab from './library/LibraryOverviewTab';
 import LibraryPermissionsTab from './library/LibraryPermissionsTab';
@@ -673,55 +673,24 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         isReindexing={isReindexing}
       />
       <div className={styles.content}>
-        <section aria-label="Library entries">
-          <div className={styles.listCard}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.tabs} role="tablist" aria-label="Library tabs">
-                <button
-                  type="button"
-                  role="tab"
-                  className={`${styles.tabButton} ${activeTab === 'book' ? styles.tabButtonActive : ''}`}
-                  aria-selected={activeTab === 'book'}
-                  onClick={() => setActiveTab('book')}
-                >
-                  Books <span className={styles.sectionCount}>{bookItems.length}</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  className={`${styles.tabButton} ${activeTab === 'narrated_subtitle' ? styles.tabButtonActive : ''}`}
-                  aria-selected={activeTab === 'narrated_subtitle'}
-                  onClick={() => setActiveTab('narrated_subtitle')}
-                >
-                  Subtitles <span className={styles.sectionCount}>{subtitleItems.length}</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  className={`${styles.tabButton} ${activeTab === 'video' ? styles.tabButtonActive : ''}`}
-                  aria-selected={activeTab === 'video'}
-                  onClick={() => setActiveTab('video')}
-                >
-                  Videos <span className={styles.sectionCount}>{videoItems.length}</span>
-                </button>
-              </div>
-            </div>
-            <LibraryList
-              items={activeItems}
-              view={view}
-              variant="embedded"
-              onSelect={selectLibraryItem}
-              onOpen={handleOpen}
-              onExport={handleExportEntry}
-              onRemove={handleRemoveEntry}
-              onEditMetadata={handleEditMetadata}
-              resolvePermissions={resolveItemPermissions}
-              selectedJobId={selectedItem?.jobId}
-              mutating={mutating}
-              resumeEntries={resumeEntries}
-            />
-          </div>
-        </section>
+        <LibraryEntriesPanel
+          activeTab={activeTab}
+          onActiveTabChange={setActiveTab}
+          bookCount={bookItems.length}
+          subtitleCount={subtitleItems.length}
+          videoCount={videoItems.length}
+          items={activeItems}
+          view={view}
+          onSelect={selectLibraryItem}
+          onOpen={handleOpen}
+          onExport={handleExportEntry}
+          onRemove={handleRemoveEntry}
+          onEditMetadata={handleEditMetadata}
+          resolvePermissions={resolveItemPermissions}
+          selectedJobId={selectedItem?.jobId}
+          mutating={mutating}
+          resumeEntries={resumeEntries}
+        />
         <div className={styles.pagination}>
           <button type="button" onClick={() => setPage((previous) => Math.max(1, previous - 1))} disabled={page <= 1}>
             Previous

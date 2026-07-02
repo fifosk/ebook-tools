@@ -42,7 +42,7 @@ Large Web UI hotspots to split before redesign work:
   path derivation, and live-media display-name derivation now live
   in `web/src/hooks/liveMediaState.ts`; modern and legacy timing normalization
   now lives in `web/src/hooks/liveMediaTiming.ts` with focused Vitest coverage.
-- `web/src/pages/LibraryPage.tsx` - 813 lines. Status: TV/YouTube/library
+- `web/src/pages/LibraryPage.tsx` - 782 lines. Status: TV/YouTube/library
   title, author, genre, thumbnail, upload-date, ISBN preview merge/cover, and
   tab bucketing and pagination helpers now live in
   `web/src/pages/library/libraryPageMetadata.ts` with focused Vitest coverage.
@@ -58,7 +58,10 @@ Large Web UI hotspots to split before redesign work:
   preview, and source replacement form, now lives in
   `web/src/pages/library/LibraryOverviewTab.tsx`. Detail tab switching and
   sharing/permission editing now live in `LibraryDetailTabs.tsx` and
-  `LibraryPermissionsTab.tsx`.
+  `LibraryPermissionsTab.tsx`. Library media-kind tab counts, active-tab
+  switching, and embedded list wiring now live in
+  `web/src/pages/library/LibraryEntriesPanel.tsx` with focused rendered
+  coverage.
 - `web/src/pages/VideoDubbingPage.tsx` - 574 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option
@@ -287,7 +290,7 @@ Large Web UI hotspots to split before redesign work:
   `test-web-job-progress-focused` target covers the JobProgress component,
   job settings summary rows, stage label formatting, and shared job-progress
   utilities.
-- `web/src/components/LibraryList.tsx` - 624 lines. Status: layout type
+- `web/src/components/LibraryList.tsx` - 265 lines. Status: layout type
   detection, title/author/genre fallback labels, and author/genre/language
   grouping now live in `web/src/components/library-list/libraryListUtils.ts`
   with focused Vitest coverage. Book summary, TV/episode metadata, subtitle

@@ -216,10 +216,23 @@ extension InteractivePlayerView {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if !chunk.audioOptions.isEmpty {
-                #if os(tvOS)
                 Menu {
-                    ForEach(chunk.audioOptions) { option in
-                        audioTrackButton(option)
+                    let availableRoles = availableAudioRoles(for: chunk)
+                    if availableRoles.contains(.original), availableRoles.contains(.translation) {
+                        audioModeButton("Original + Translation", mode: .sequence, chunk: chunk)
+                    }
+                    if availableRoles.contains(.original) {
+                        audioModeButton(audioLabel(for: .original, in: chunk), mode: .singleTrack(.original), chunk: chunk)
+                    }
+                    if availableRoles.contains(.translation) {
+                        audioModeButton(audioLabel(for: .translation, in: chunk), mode: .singleTrack(.translation), chunk: chunk)
+                    }
+                    let otherOptions = chunk.audioOptions.filter { $0.kind == .other }
+                    if !otherOptions.isEmpty {
+                        Divider()
+                        ForEach(otherOptions) { option in
+                            audioTrackButton(option)
+                        }
                     }
                 } label: {
                     menuLabel(selectedAudioLabel(for: chunk))
@@ -227,15 +240,6 @@ extension InteractivePlayerView {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .focused($focusedArea, equals: .controls)
-                #else
-                Picker("Audio track", selection: viewModel.audioTrackBinding(defaultID: chunk.audioOptions.first?.id)) {
-                    ForEach(chunk.audioOptions) { option in
-                        Text(option.label).tag(option.id)
-                    }
-                }
-                .pickerStyle(.menu)
-                .focused($focusedArea, equals: .controls)
-                #endif
             } else {
                 Text("No audio")
                     .font(.caption)
@@ -245,17 +249,27 @@ extension InteractivePlayerView {
     }
 
     func selectedAudioLabel(for chunk: InteractiveChunk) -> String {
-        if let track = viewModel.requestedSingleTrackMode() {
-            let kind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
-            if let option = chunk.audioOptions.first(where: { $0.kind == kind }) {
-                return option.label
+        switch audioModeManager.currentMode {
+        case .sequence:
+            let roles = availableAudioRoles(for: chunk)
+            if roles.contains(.original), roles.contains(.translation) {
+                return "Original + Translation"
             }
-            return track == .original ? "Original" : "Translation"
+        case .singleTrack(let track):
+            return audioLabel(for: track, in: chunk)
         }
         guard let selectedID = viewModel.selectedAudioTrackID else {
             return chunk.audioOptions.first?.label ?? "Audio Mode"
         }
         return chunk.audioOptions.first(where: { $0.id == selectedID })?.label ?? "Audio Mode"
+    }
+
+    func audioLabel(for track: SequenceTrack, in chunk: InteractiveChunk) -> String {
+        let kind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
+        if let option = chunk.audioOptions.first(where: { $0.kind == kind }) {
+            return option.label
+        }
+        return track == .original ? "Original" : "Translation"
     }
 
     @ViewBuilder
@@ -343,9 +357,27 @@ extension InteractivePlayerView {
         }
     }
 
+    func audioModeButton(_ title: String, mode: AudioMode, chunk: InteractiveChunk) -> some View {
+        Button {
+            selectAudioMode(mode, for: chunk)
+        } label: {
+            if audioModeManager.currentMode == mode {
+                Label(title, systemImage: "checkmark")
+            } else {
+                Text(title)
+            }
+        }
+    }
+
     func audioTrackButton(_ option: InteractiveChunk.AudioOption) -> some View {
-        Button(option.label) {
+        Button {
             selectAudioTrack(option)
+        } label: {
+            if option.id == viewModel.selectedAudioTrackID {
+                Label(option.label, systemImage: "checkmark")
+            } else {
+                Text(option.label)
+            }
         }
     }
 
@@ -425,31 +457,38 @@ extension InteractivePlayerView {
             viewModel.selectAudioTrack(id: option.id)
             return
         }
-        let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
         switch option.kind {
         case .combined:
-            audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)
-            alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
-            reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
+            selectAudioMode(.sequence, for: chunk)
         case .original:
+            selectAudioMode(.singleTrack(.original), for: chunk)
+        case .translation:
+            selectAudioMode(.singleTrack(.translation), for: chunk)
+        case .other:
+            viewModel.selectAudioTrack(id: option.id)
+        }
+    }
+
+    func selectAudioMode(_ mode: AudioMode, for chunk: InteractiveChunk) {
+        let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
+        switch mode {
+        case .sequence:
+            audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)
+        case .singleTrack(.original):
             audioModeManager.setTracks(
                 original: true,
                 translation: false,
                 preservingPosition: currentSentenceIndex
             )
-            alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
-            reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
-        case .translation:
+        case .singleTrack(.translation):
             audioModeManager.setTracks(
                 original: false,
                 translation: true,
                 preservingPosition: currentSentenceIndex
             )
-            alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
-            reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
-        case .other:
-            viewModel.selectAudioTrack(id: option.id)
         }
+        alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
+        reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
     }
 
     func selectPlaybackRate(_ rate: Double) {

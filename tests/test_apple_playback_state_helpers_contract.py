@@ -1223,29 +1223,63 @@ def test_passive_audio_mode_observation_keeps_single_track_lane() -> None:
         "func selectAudioTrack(_ option: InteractiveChunk.AudioOption)",
     )
     assert "case .combined:" in select_audio_body
-    assert "audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)" in select_audio_body
-    assert "reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)" in select_audio_body
+    assert "selectAudioMode(.sequence, for: chunk)" in select_audio_body
+
+    select_audio_mode_body = _function_body(
+        menu_controls,
+        "func selectAudioMode(_ mode: AudioMode, for chunk: InteractiveChunk)",
+    )
+    assert "case .sequence:" in select_audio_mode_body
+    assert "audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)" in select_audio_mode_body
+    assert "reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)" in select_audio_mode_body
 
 
 def test_audio_menu_selection_syncs_audio_mode() -> None:
     menu_controls = _source("InteractivePlayerView+MenuControls.swift")
 
+    audio_picker_body = _function_body(menu_controls, "func audioPicker(for chunk: InteractiveChunk) -> some View")
+    assert 'audioModeButton("Original + Translation", mode: .sequence, chunk: chunk)' in audio_picker_body
+    assert "audioModeButton(audioLabel(for: .original, in: chunk), mode: .singleTrack(.original), chunk: chunk)" in audio_picker_body
+    assert "audioModeButton(audioLabel(for: .translation, in: chunk), mode: .singleTrack(.translation), chunk: chunk)" in audio_picker_body
+    assert 'Picker("Audio track"' not in audio_picker_body
+
+    selected_audio_label_body = _function_body(
+        menu_controls,
+        "func selectedAudioLabel(for chunk: InteractiveChunk) -> String",
+    )
+    assert "switch audioModeManager.currentMode" in selected_audio_label_body
+    assert 'return "Original + Translation"' in selected_audio_label_body
+    assert "return audioLabel(for: track, in: chunk)" in selected_audio_label_body
+    assert "viewModel.requestedSingleTrackMode()" not in selected_audio_label_body
+
     select_audio_body = _function_body(
         menu_controls,
         "func selectAudioTrack(_ option: InteractiveChunk.AudioOption)",
     )
-    assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in select_audio_body
     assert "case .combined:" in select_audio_body
-    assert "audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)" in select_audio_body
+    assert "selectAudioMode(.sequence, for: chunk)" in select_audio_body
     assert "case .original:" in select_audio_body
-    assert "original: true" in select_audio_body
-    assert "translation: false" in select_audio_body
+    assert "selectAudioMode(.singleTrack(.original), for: chunk)" in select_audio_body
     assert "case .translation:" in select_audio_body
-    assert "original: false" in select_audio_body
-    assert "translation: true" in select_audio_body
-    assert select_audio_body.count("reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)") >= 3
+    assert "selectAudioMode(.singleTrack(.translation), for: chunk)" in select_audio_body
     assert "case .other:" in select_audio_body
     assert "viewModel.selectAudioTrack(id: option.id)" in select_audio_body
+
+    select_audio_mode_body = _function_body(
+        menu_controls,
+        "func selectAudioMode(_ mode: AudioMode, for chunk: InteractiveChunk)",
+    )
+    assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in select_audio_mode_body
+    assert "case .sequence:" in select_audio_mode_body
+    assert "audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)" in select_audio_mode_body
+    assert "case .singleTrack(.original):" in select_audio_mode_body
+    assert "original: true" in select_audio_mode_body
+    assert "translation: false" in select_audio_mode_body
+    assert "case .singleTrack(.translation):" in select_audio_mode_body
+    assert "original: false" in select_audio_mode_body
+    assert "translation: true" in select_audio_mode_body
+    assert "alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)" in select_audio_mode_body
+    assert "reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)" in select_audio_mode_body
 
 
 def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() -> None:

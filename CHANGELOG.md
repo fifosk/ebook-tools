@@ -7,8 +7,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.02.012
 
 - Apple reader language pills now behave as guarded multi-select toggles: tapping an inactive Original or Translation pill adds that lane, tapping an active pill removes only that lane when the other remains active, and the last active lane stays selected.
+- Apple reader Audio controls now expose Original + Translation, Original-only, and Translation-only as first-class choices across Apple surfaces, with the header pill label driven by the live audio mode instead of stale single-track resume memory.
 - Web playback now renders PlayerPanel boundary, shell, prelude, content, and document slots through a focused frame component with direct coverage in the playback gate.
 - Backend YouTube NAS video deletion now scans adjacent subtitle sidecars through the shared tolerant directory iterator, so transient NAS directory failures do not break Web or Apple cleanup flows.
+- Web Library tab counts, active media-kind switching, and embedded LibraryList wiring now live in a focused entries panel with direct coverage in the Library Web gate.
 - Advanced visible Apple app versioning to `v2026.07.02.012`.
 
 ### 2026.07.02.011
