@@ -452,6 +452,14 @@ def test_get_job_media_canonicalizes_audio_track_aliases(api_app) -> None:
                     },
                     "mix": "media/chunk-aliases/mix.mp3",
                 },
+                "timingTracks": {
+                    "targetAudio": [
+                        {"text": "Hallo", "start": 0.0, "end": 0.5},
+                    ],
+                    "OriginalAudio": [
+                        {"text": "Hello", "start": 0.0, "end": 0.4},
+                    ],
+                },
             }
         ],
     }
@@ -468,12 +476,15 @@ def test_get_job_media_canonicalizes_audio_track_aliases(api_app) -> None:
     assert chunk["audioTracks"]["orig"]["url"].endswith("/original.mp3")
     assert chunk["audioTracks"]["translation"]["url"].endswith("/translated.mp3")
     assert chunk["audioTracks"]["orig_trans"]["path"] == "media/chunk-aliases/mix.mp3"
+    assert set(chunk["timingTracks"]) == {"original", "translation"}
+    assert chunk["timingTracks"]["translation"][0]["text"] == "Hallo"
     assert "OriginalAudio" not in chunk["audioTracks"]
     assert "translated_audio" not in chunk["audioTracks"]
     assert "mix" not in chunk["audioTracks"]
 
     assert chunk_response.status_code == 200
     assert set(chunk_response.json()["audioTracks"]) == {"orig", "translation", "orig_trans"}
+    assert set(chunk_response.json()["timingTracks"]) == {"original", "translation"}
 
 
 def test_get_job_media_records_safe_timing(

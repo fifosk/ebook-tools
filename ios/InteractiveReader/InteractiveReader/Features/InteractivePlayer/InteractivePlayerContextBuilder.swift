@@ -688,7 +688,9 @@ enum JobContextBuilder {
         from timingTracks: [String: [[String: JSONValue]]]?,
         trackKey: String
     ) -> [Int: [WordTimingToken]] {
-        guard let trackEntries = timingTracks?[trackKey] else {
+        let trackEntries = timingTracks?[trackKey]
+            ?? timingTracks?.first(where: { canonicalTimingTrackKey($0.key) == trackKey })?.value
+        guard let trackEntries else {
             return [:]
         }
 
@@ -758,6 +760,19 @@ enum JobContextBuilder {
 
         // Group by sentence index after normalising malformed or overlapping token windows.
         return Dictionary(grouping: sanitizeTimingTokens(tokens)) { $0.sentenceIndex ?? -1 }
+    }
+
+    private static func canonicalTimingTrackKey(_ key: String) -> String {
+        switch audioKind(for: key) {
+        case .combined:
+            return "mix"
+        case .original:
+            return "original"
+        case .translation:
+            return "translation"
+        case .other:
+            return normalizedAudioKey(key)
+        }
     }
 }
 

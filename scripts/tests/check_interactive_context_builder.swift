@@ -169,7 +169,7 @@ private func decodeFixture() throws -> PipelineMediaResponse {
               ],
               "audioTracks": {},
               "timingTracks": {
-                "translation": [
+                "targetAudio": [
                   {"sentenceIdx": 0, "wordIdx": 0, "text": "Het", "start": 0.0, "end": 0.2},
                   {"sentenceIdx": 0, "wordIdx": 1, "text": "atrium", "start": 0.2, "end": 0.5},
                   {"sentenceIdx": 0, "wordIdx": 2, "text": "werd", "start": 0.5, "end": 0.75},
@@ -344,6 +344,31 @@ private func decodeTranslationAudioAliasFixture() throws -> PipelineMediaRespons
     return try decoder.decode(PipelineMediaResponse.self, from: data)
 }
 
+private func decodeTranslationOnlyTimingFixture() throws -> JobTimingResponse {
+    let data = Data(
+        """
+        {
+          "job_id": "translation-only-timing",
+          "tracks": {
+            "targetAudio": {
+              "track": "targetAudio",
+              "segments": [
+                {"text": "Hallo", "start": 0.0, "end": 0.4}
+              ],
+              "playback_rate": 1.0
+            }
+          },
+          "audio": {
+            "translation": {"track": "translation", "available": true}
+          }
+        }
+        """.utf8
+    )
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return try decoder.decode(JobTimingResponse.self, from: data)
+}
+
 private func runChecks() throws {
     let media = try decodeFixture()
     let context = try JobContextBuilder.build(
@@ -388,6 +413,18 @@ private func runChecks() throws {
         second.timingTokens.compactMap(\.sentenceIndex),
         [1, 1, 1],
         "Second translation tokens should remain chunk-local"
+    )
+
+    let translationOnlyTiming = try decodeTranslationOnlyTimingFixture()
+    requireEqual(
+        translationOnlyTiming.tracks.translation.segments.map(\.text),
+        ["Hallo"],
+        "Translation-only job timing should decode targetAudio aliases without requiring mix"
+    )
+    requireEqual(
+        translationOnlyTiming.tracks.mix.segments.count,
+        0,
+        "Missing mix timing should decode as an empty track instead of failing the response"
     )
 
     requireEqual(

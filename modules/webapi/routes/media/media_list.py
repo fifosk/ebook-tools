@@ -29,7 +29,7 @@ from ...schemas import (
     PipelineMediaFile,
     PipelineMediaResponse,
 )
-from .audio_roles import canonical_audio_track_key
+from .audio_roles import canonical_audio_track_key, canonical_timing_track_key
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -509,7 +509,7 @@ def _serialize_media_entries(
                 timing_tracks_payload = {}
                 for track_key, track_entries in raw_timing.items():
                     if isinstance(track_key, str) and isinstance(track_entries, list):
-                        timing_tracks_payload[track_key] = copy.deepcopy(track_entries)
+                        timing_tracks_payload[canonical_timing_track_key(track_key)] = copy.deepcopy(track_entries)
 
             # Extract timing version (v2 = pre-scaled timing from backend)
             raw_timing_version = (
@@ -723,7 +723,7 @@ def _serialize_chunk_entry(
         timing_tracks_payload = {}
         for track_key, track_entries in raw_timing.items():
             if isinstance(track_key, str) and isinstance(track_entries, list):
-                timing_tracks_payload[track_key] = copy.deepcopy(track_entries)
+                timing_tracks_payload[canonical_timing_track_key(track_key)] = copy.deepcopy(track_entries)
 
     # Extract timing version (v2 = pre-scaled timing from backend)
     raw_timing_version = (
