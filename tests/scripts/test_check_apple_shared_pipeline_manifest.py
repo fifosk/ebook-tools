@@ -460,6 +460,26 @@ def test_validate_manifest_requires_backend_library_action_runtime_expectations(
     ) in errors
 
 
+def test_validate_manifest_requires_backend_pipeline_media_runtime_expectations(
+    tmp_path: Path,
+) -> None:
+    runtime_expected = dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+    del runtime_expected["pipelineMedia.jobTimingPathTemplate"]
+    runtime_expected["pipelineMedia.chunkOrdering"] = "chunk"
+    path = _write_manifest(tmp_path, backend_runtime_expected=runtime_expected)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "backend.runtimeExpected.pipelineMedia.jobTimingPathTemplate=None "
+        "expected '/api/jobs/{job_id}/timing'"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.pipelineMedia.chunkOrdering='chunk' "
+        "expected 'sentenceRange'"
+    ) in errors
+
+
 def test_validate_manifest_rejects_missing_aggregate_journey_profile(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
