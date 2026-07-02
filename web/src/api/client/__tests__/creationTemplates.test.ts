@@ -20,6 +20,13 @@ const templateEntry: CreationTemplateEntry = {
   }
 };
 
+function template(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...templateEntry,
+    ...overrides
+  };
+}
+
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
@@ -37,7 +44,7 @@ describe('creation template API client', () => {
 
   it('fetches template lists with an encoded mode filter', async () => {
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>().mockResolvedValue(
-      jsonResponse({ templates: [templateEntry] })
+      jsonResponse({ templates: [template()] })
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -52,7 +59,7 @@ describe('creation template API client', () => {
 
   it('fetches a single template by encoded id for Web handoff loads', async () => {
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>().mockResolvedValue(
-      jsonResponse(templateEntry)
+      jsonResponse(template())
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -68,7 +75,7 @@ describe('creation template API client', () => {
   it('saves and deletes templates through the shared template path', async () => {
     const fetchMock = vi
       .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValueOnce(jsonResponse(templateEntry))
+      .mockResolvedValueOnce(jsonResponse(template()))
       .mockResolvedValueOnce(jsonResponse({ deleted: true, template_id: 'draft-template' }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -89,5 +96,37 @@ describe('creation template API client', () => {
       '/api/creation/templates/draft-template'
     );
     expect(fetchMock.mock.calls[1][1]?.method).toBe('DELETE');
+  });
+
+  it('rejects malformed template payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ templates: undefined }))
+      .mockResolvedValueOnce(jsonResponse({ templates: [template({ payload: null })] }))
+      .mockResolvedValueOnce(jsonResponse(template({ mode: 'unexpected_mode' })))
+      .mockResolvedValueOnce(jsonResponse(template({ created_at: '1' })))
+      .mockResolvedValueOnce(jsonResponse({ deleted: 'true', template_id: 'draft-template' }))
+      .mockResolvedValueOnce(jsonResponse({ deleted: true }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchCreationTemplates()).rejects.toThrow(
+      'Invalid creation template list response: missing templates.'
+    );
+    await expect(fetchCreationTemplates()).rejects.toThrow(
+      'Invalid creation template response: missing payload.'
+    );
+    await expect(fetchCreationTemplate('draft-template')).rejects.toThrow(
+      'Invalid creation template response: missing mode.'
+    );
+    await expect(saveCreationTemplate({
+      name: 'Draft template',
+      mode: 'narrate_ebook',
+      payload: templateEntry.payload
+    })).rejects.toThrow('Invalid creation template response: missing created_at.');
+    await expect(deleteCreationTemplate('draft-template')).rejects.toThrow(
+      'Invalid creation template delete response: missing deleted.'
+    );
+    await expect(deleteCreationTemplate('draft-template')).rejects.toThrow(
+      'Invalid creation template delete response: missing template_id.'
+    );
   });
 });

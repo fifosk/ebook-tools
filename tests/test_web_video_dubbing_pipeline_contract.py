@@ -214,6 +214,9 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
 
 def test_creation_templates_focused_web_target_covers_shared_payload_builders() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
+    api_client = (
+        ROOT / "web" / "src" / "api" / "client" / "creationTemplates.ts"
+    ).read_text(encoding="utf-8")
 
     assert "test-web-creation-templates-focused" in makefile
     block = _target_block(makefile, "test-web-creation-templates-focused")
@@ -223,6 +226,14 @@ def test_creation_templates_focused_web_target_covers_shared_payload_builders() 
     assert "src/components/__tests__/bookNarrationTemplates.test.ts" in block
     assert "src/pages/__tests__/subtitleToolUtils.test.ts" in block
     assert "src/pages/__tests__/videoDubbingUtils.test.ts" in block
+    assert "assertCreationTemplateListResponse(payload)" in api_client
+    assert "assertCreationTemplateEntry(payload)" in api_client
+    assert "assertCreationTemplateEntry(responsePayload)" in api_client
+    assert "assertCreationTemplateDeleteResponse(payload)" in api_client
+    assert "Invalid creation template list response: missing templates." in api_client
+    assert "Invalid creation template response: missing payload." in api_client
+    assert "Invalid creation template response: missing mode." in api_client
+    assert "Invalid creation template delete response: missing template_id." in api_client
 
 
 def test_library_focused_web_target_covers_library_metadata() -> None:
