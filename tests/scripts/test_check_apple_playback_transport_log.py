@@ -238,7 +238,7 @@ def test_pause_resume_requires_explicit_play_evidence(tmp_path: Path) -> None:
 
     assert missing == [
         "reader transport accepted explicit play",
-        "stale Music pause was ignored or play was accepted cleanly",
+        "reader resume reached healthy narration",
     ]
 
 
@@ -258,7 +258,7 @@ def test_pause_resume_rejects_dead_broker_resume_without_reader_request(tmp_path
 
     assert missing == [
         "reader transport accepted explicit play",
-        "stale Music pause was ignored or play was accepted cleanly",
+        "reader resume reached healthy narration",
         "reader resume accepted without restoring narration playback request",
     ]
 
@@ -302,9 +302,30 @@ def test_pause_resume_rejects_consecutive_broker_pauses_without_reader_play(tmp_
 
     assert missing == [
         "reader transport accepted explicit play",
-        "stale Music pause was ignored or play was accepted cleanly",
+        "reader resume reached healthy narration",
         "pause episode 2 did not confirm narration stopped before the next transport command",
         "reader received consecutive broker pauses without an intervening reader play",
+    ]
+
+
+def test_pause_resume_rejects_stale_pause_ignore_before_reader_playback_recovers(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        PAUSE_LOG
+        + """
+1782670001.200 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670001.220 [PlaybackTransport] Library forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+1782670001.260 [PlaybackTransport] Library ignored stale adopted Apple Music pause after reader play source=brokerResume
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert missing == [
+        "reader transport accepted explicit play",
+        "reader resume reached healthy narration",
+        "stale Apple Music pause was ignored before reader playback recovered",
     ]
 
 

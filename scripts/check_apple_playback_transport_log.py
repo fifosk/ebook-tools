@@ -52,9 +52,8 @@ RESUME_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "stale Music pause was ignored or play was accepted cleanly",
+        "reader resume reached healthy narration",
         (
-            r"\[PlaybackTransport\] (?:Job|Library) ignored stale adopted Apple Music pause after reader play",
             r"\[PlaybackTransport\] (?:Job|Library) play command accepted requested=true",
             r"\[PlaybackTransport\] (?:Job|Library) restoring narration playback request source=",
         ),
@@ -285,6 +284,35 @@ def _consecutive_broker_pause_violations(text: str) -> list[str]:
     return []
 
 
+def _stale_pause_ignore_violations(text: str) -> list[str]:
+    reader_play_seen = False
+    for line in text.splitlines():
+        match = TRANSPORT_EVENT_LINE_PATTERN.match(line)
+        if not match:
+            continue
+        event = match.group("event")
+        if (
+            "play command accepted requested=true" in event
+            or "restoring narration playback request source=" in event
+        ):
+            reader_play_seen = True
+            continue
+        if (
+            "forced pause source=" in event
+            or "pause command accepted" in event
+            or "accepted Apple Music pause as reader transport" in event
+        ):
+            reader_play_seen = False
+            continue
+        if "ignored stale adopted Apple Music pause after reader play" not in event:
+            continue
+        if not reader_play_seen:
+            return [
+                "stale Apple Music pause was ignored before reader playback recovered"
+            ]
+    return []
+
+
 def _resume_offset_violations(text: str) -> list[str]:
     violations: list[str] = []
     if re.search(
@@ -365,6 +393,7 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
     if mode == "pause-resume":
         missing.extend(_dead_resume_violations(text))
         missing.extend(_consecutive_broker_pause_violations(text))
+        missing.extend(_stale_pause_ignore_violations(text))
     elif mode == "resume-offset":
         missing.extend(_resume_offset_violations(text))
     return missing

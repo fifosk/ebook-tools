@@ -487,7 +487,10 @@ matches the Cinema regression where a stray Apple Music play/status update made
 the reader believe playback was active again, so the next remote press paused
 again instead of resuming. Healthy captures should show `brokerResume`,
 `restoring narration playback request`, or `play command accepted requested=true`
-between two intentional pause episodes.
+between two intentional pause episodes. If a stale Apple Music pause is ignored
+before that reader playback recovery evidence appears, validation fails with
+`stale Apple Music pause was ignored before reader playback recovered`, because
+that breadcrumb can otherwise hide the two-press pause/resume regression.
 
 ### Makefile Shortcuts
 

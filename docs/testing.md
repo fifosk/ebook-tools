@@ -1168,7 +1168,11 @@ two `brokerPause` decisions for the same Job/Library surface without an
 intervening `brokerResume`, narration-restore, or accepted reader play
 breadcrumb. That is the token-safe signature of the Cinema two-click regression:
 Music or stale state made the next remote press resolve as another pause instead
-of a reader resume.
+of a reader resume. An `ignored stale adopted Apple Music pause after reader
+play` breadcrumb is accepted only after the same resume episode has restored
+narration or accepted reader playback; if stale Music pause suppression appears
+before reader playback has recovered, the verifier fails with
+`stale Apple Music pause was ignored before reader playback recovered`.
 For pause-only captures, the pulled playback-log checker evaluates every
 Music/app pause handoff as a numbered pause episode. If any episode does not
 contain active narration-pause evidence and settled
