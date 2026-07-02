@@ -967,7 +967,8 @@ private func singleTrackModeForCompletedPlayback(
     manager: AudioModeManager?,
     sequenceAudioMode: AudioMode,
     preferredSingleTrackMode: SequenceTrack?,
-    preferredAudioKind: InteractiveChunk.AudioOption.Kind?
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
+    selectedTimingURL: URL? = nil
 ) -> SequenceTrack? {
     if let track = requestedSingleTrackMode(
         manager: manager,
@@ -978,6 +979,22 @@ private func singleTrackModeForCompletedPlayback(
         return track
     }
     guard !sequenceEnabled else { return nil }
+    if let selectedTimingURL,
+       let selectedTimingSingleTrack = singleTrackModeForAudioURL(selectedTimingURL, in: chunk) {
+        if let endedURL {
+            let combinedURLs = chunk.audioOptions.first(where: { $0.kind == .combined })?.streamURLs
+                ?? [selectedTimingURL]
+            if PlaybackEndedURLPolicy.endedURL(
+                endedURL,
+                belongsToSingleTrack: selectedTimingSingleTrack,
+                in: combinedURLs
+            ) {
+                return selectedTimingSingleTrack
+            }
+        } else {
+            return selectedTimingSingleTrack
+        }
+    }
     let completedURL: URL? = {
         if let endedURL {
             if !activeURLs.isEmpty,
@@ -1019,8 +1036,17 @@ private func playbackEndedURLBelongsToCurrentChunk(
     manager: AudioModeManager?,
     sequenceAudioMode: AudioMode,
     preferredSingleTrackMode: SequenceTrack?,
-    preferredAudioKind: InteractiveChunk.AudioOption.Kind?
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
+    selectedTimingURL: URL? = nil
 ) -> Bool {
+    if let selectedTimingURL,
+       let selectedTimingSingleTrack = singleTrackModeForAudioURL(selectedTimingURL, in: chunk) {
+        return PlaybackEndedURLPolicy.endedURL(
+            endedURL,
+            belongsTo: selectedOption,
+            singleTrack: selectedTimingSingleTrack
+        )
+    }
     let activeSingleTrack = singleTrackModeForCompletedPlayback(
         endedURL: nil,
         chunk: chunk,
@@ -1029,7 +1055,8 @@ private func playbackEndedURLBelongsToCurrentChunk(
         manager: manager,
         sequenceAudioMode: sequenceAudioMode,
         preferredSingleTrackMode: preferredSingleTrackMode,
-        preferredAudioKind: preferredAudioKind
+        preferredAudioKind: preferredAudioKind,
+        selectedTimingURL: selectedTimingURL
     )
     return PlaybackEndedURLPolicy.endedURL(
         endedURL,
@@ -2077,6 +2104,22 @@ private func runChecks() {
     )
     requireEqual(
         playbackEndedURLBelongsToCurrentChunk(
+            originalURL,
+            selectedOption: combinedOnlyOption,
+            chunk: combinedOnlyNextBatch,
+            activeURLs: [],
+            sequenceEnabled: false,
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined,
+            selectedTimingURL: translationURL
+        ),
+        false,
+        "Selected translation timing URL should reject stale hidden original EOF after AVPlayer clears active state"
+    )
+    requireEqual(
+        playbackEndedURLBelongsToCurrentChunk(
             translationURL,
             selectedOption: combinedOnlyOption,
             chunk: combinedOnlyNextBatch,
@@ -2089,6 +2132,21 @@ private func runChecks() {
         ),
         true,
         "Active translation-only URL should accept its own EOF for batch handoff"
+    )
+    requireEqual(
+        singleTrackModeForCompletedPlayback(
+            endedURL: translationURL,
+            chunk: combinedOnlyNextBatch,
+            activeURLs: [],
+            sequenceEnabled: false,
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined,
+            selectedTimingURL: translationURL
+        ),
+        .translation,
+        "Selected translation timing URL should preserve the lane when EOF active URLs are empty"
     )
     requireEqual(
         requestedSingleTrackMode(

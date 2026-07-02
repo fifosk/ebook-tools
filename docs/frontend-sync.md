@@ -101,6 +101,9 @@ Follow the suggested remediations to restore parity:
   membership guard should resolve that active single URL before falling back to
   picker or manager state, otherwise a stale hidden-track completion can advance
   the reader as combined and desync the next rendered batch from narration.
+  If AVPlayer has already cleared or rewritten active queue state by the time
+  the EOF callback arrives, the selected timing URL is durable single-track lane
+  evidence and should still pin Original-only or Translation-only handoff state.
   If the user has explicitly hidden Original or Translation, chunk lifecycle
   setup must restore that visible single-track selection into `AudioModeManager`
   before any default selection can expand the reader back to All. Resume and

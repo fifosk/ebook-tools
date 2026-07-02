@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-selected-timing-eof",
+                    title: "Single-track batch ends stay pinned",
+                    detail: "Apple reader original-only and translation-only playback now treats the selected timing URL as durable lane evidence at sentence-batch EOF, preventing AVPlayer queue cleanup from resetting rendering back to combined while narration advances."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-watchdog-reader-recovery",
                     title: "TV reader starts recover better",
                     detail: "Apple TV Music-bed watchdogs now recover reader starts that still have a pending interactive autoplay sentence but no reader player, and restore narration volume if reader audio is playing or requested but remains muted outside a sentence transition."

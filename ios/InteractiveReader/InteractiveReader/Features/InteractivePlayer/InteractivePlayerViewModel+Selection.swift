@@ -728,6 +728,7 @@ extension InteractivePlayerViewModel {
         )
         if let preservedSingleTrack {
             preferredSingleTrackMode = preservedSingleTrack
+            loadedSingleTrackPlaybackMode = preservedSingleTrack
         }
         selectChunkPreservingAudioLane(
             nextChunk,
@@ -745,6 +746,21 @@ extension InteractivePlayerViewModel {
             return track
         }
         guard !sequenceController.isEnabled else { return nil }
+        if let selectedTimingSingleTrack = selectedTimingSingleTrackMode(in: chunk) {
+            if let endedURL {
+                let combinedURLs = chunk.audioOptions.first(where: { $0.kind == .combined })?.streamURLs
+                    ?? [selectedTimingURL].compactMap { $0 }
+                if PlaybackEndedURLPolicy.endedURL(
+                    endedURL,
+                    belongsToSingleTrack: selectedTimingSingleTrack,
+                    in: combinedURLs
+                ) {
+                    return selectedTimingSingleTrack
+                }
+            } else {
+                return selectedTimingSingleTrack
+            }
+        }
         let activeURLs = audioCoordinator.activeURLs
         let completedURL: URL? = {
             if let endedURL {
@@ -803,6 +819,14 @@ extension InteractivePlayerViewModel {
         return selectedOption.streamURLs.contains(url)
     }
 
+    private func selectedTimingSingleTrackMode(in chunk: InteractiveChunk) -> SequenceTrack? {
+        guard !sequenceController.isEnabled,
+              let selectedTimingURL else {
+            return nil
+        }
+        return singleTrackMode(forAudioURL: selectedTimingURL, in: chunk)
+    }
+
     private func playbackEndedURLBelongsToCurrentChunk(
         _ endedURL: URL,
         chunk: InteractiveChunk
@@ -811,6 +835,13 @@ extension InteractivePlayerViewModel {
             return audioURLBelongsToSelectedLane(endedURL, in: chunk)
         }
         if let selectedOption = selectedAudioOption(for: chunk) {
+            if let selectedTimingSingleTrack = selectedTimingSingleTrackMode(in: chunk) {
+                return PlaybackEndedURLPolicy.endedURL(
+                    endedURL,
+                    belongsTo: selectedOption,
+                    singleTrack: selectedTimingSingleTrack
+                )
+            }
             let activeSingleTrack = singleTrackModeForCompletedPlayback(
                 endedURL: nil,
                 in: chunk
