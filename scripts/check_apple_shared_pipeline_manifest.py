@@ -59,6 +59,94 @@ REQUIRED_IOS_DEVICE_CAPABILITIES = (
     "Sign In with Apple",
     "iCloud",
 )
+EXPECTED_SIMULATOR_PROFILE_CONTRACTS = {
+    "ios": {
+        "platform": "ios",
+        "target": "InteractiveReader",
+        "productName": "InteractiveReader",
+        "bundleId": "com.example.InteractiveReader",
+        "simulator": "iPhone 17 Pro",
+        "simulatorRuntimeVersion": "26.5",
+        "buildRootSuffix": "ebook-tools/build-sim-ios",
+    },
+    "ipados": {
+        "platform": "ipados",
+        "target": "InteractiveReader",
+        "productName": "InteractiveReader",
+        "bundleId": "com.example.InteractiveReader",
+        "simulator": "iPad Pro 13-inch (M5)",
+        "simulatorRuntimeVersion": "26.5",
+        "buildRootSuffix": "ebook-tools/build-sim-ipados",
+    },
+    "tvos": {
+        "platform": "tvos",
+        "target": "InteractiveReaderTV",
+        "productName": "InteractiveReaderTV",
+        "bundleId": "com.example.InteractiveReader.tvos",
+        "simulator": "Apple TV 4K (3rd generation)",
+        "simulatorRuntimeVersion": "26.5",
+        "buildRootSuffix": "ebook-tools/build-sim-tvos",
+    },
+    "tvos-cinema": {
+        "platform": "tvos",
+        "target": "InteractiveReaderTV",
+        "productName": "InteractiveReaderTV",
+        "bundleId": "com.example.InteractiveReader.tvos",
+        "simulator": "Apple TV 4K (2nd generation)",
+        "simulatorRuntimeVersion": "26.4",
+        "buildRootSuffix": "ebook-tools/build-sim-tvos-cinema",
+    },
+}
+EXPECTED_DEVICE_PROFILE_CONTRACTS = {
+    "iphone": {
+        "device": "Fifo iPhone",
+        "platform": "ios",
+        "target": "InteractiveReader",
+        "productName": "InteractiveReader",
+        "bundleId": "com.example.InteractiveReader",
+        "deviceSdk": "iphoneos",
+        "configuration": "Debug",
+        "simulatorSmokeProfile": "ios",
+        "buildRootSuffix": "ebook-tools/build-device-iphoneos",
+        "embeddedBundleIds": ["com.example.InteractiveReader.NotificationServiceExtension"],
+        "requiredCapabilities": list(REQUIRED_IOS_DEVICE_CAPABILITIES),
+    },
+    "ipad": {
+        "device": "Fifo Ipad Pro",
+        "platform": "ipados",
+        "target": "InteractiveReader",
+        "productName": "InteractiveReader",
+        "bundleId": "com.example.InteractiveReader",
+        "deviceSdk": "iphoneos",
+        "configuration": "Debug",
+        "simulatorSmokeProfile": "ipados",
+        "buildRootSuffix": "ebook-tools/build-device-ipados",
+        "embeddedBundleIds": ["com.example.InteractiveReader.NotificationServiceExtension"],
+        "requiredCapabilities": list(REQUIRED_IOS_DEVICE_CAPABILITIES),
+    },
+    "appletv": {
+        "device": "Living Room",
+        "platform": "tvos",
+        "target": "InteractiveReaderTV",
+        "productName": "InteractiveReaderTV",
+        "bundleId": "com.example.InteractiveReader.tvos",
+        "deviceSdk": "appletvos",
+        "configuration": "Debug",
+        "simulatorSmokeProfile": "tvos",
+        "buildRootSuffix": "ebook-tools/build-device-appletvos",
+    },
+    "cinema": {
+        "device": "Cinema",
+        "platform": "tvos",
+        "target": "InteractiveReaderTV",
+        "productName": "InteractiveReaderTV",
+        "bundleId": "com.example.InteractiveReader.tvos",
+        "deviceSdk": "appletvos",
+        "configuration": "Debug",
+        "simulatorSmokeProfile": "tvos-cinema",
+        "buildRootSuffix": "ebook-tools/build-device-cinema-appletvos",
+    },
+}
 REQUIRED_API_ENVIRONMENT = list(_runtime_descriptor.API_BASE_URL_ENVIRONMENT)
 REQUIRED_CREDENTIAL_ENVIRONMENT = list(_runtime_descriptor.CREDENTIAL_ENVIRONMENT)
 REQUIRED_REMOTE_ENVIRONMENT_ALLOWLIST = [
@@ -535,6 +623,14 @@ def _validate_simulator_profiles(payload: dict[str, Any]) -> list[str]:
             errors.append(
                 f"profiles.{profile}.requiredSimEnv must include {REQUIRED_SIM_ENV}"
             )
+        expected_contract = EXPECTED_SIMULATOR_PROFILE_CONTRACTS.get(profile, {})
+        errors.extend(
+            _validate_profile_contract(
+                details,
+                prefix=f"profiles.{profile}",
+                expected_contract=expected_contract,
+            )
+        )
     return errors
 
 
@@ -588,6 +684,37 @@ def _validate_device_profiles(payload: dict[str, Any]) -> list[str]:
                     f"deviceProfiles.{profile}.requiredCapabilities missing: "
                     + ", ".join(missing_capabilities)
                 )
+        expected_contract = EXPECTED_DEVICE_PROFILE_CONTRACTS.get(profile, {})
+        errors.extend(
+            _validate_profile_contract(
+                details,
+                prefix=f"deviceProfiles.{profile}",
+                expected_contract=expected_contract,
+            )
+        )
+    return errors
+
+
+def _validate_profile_contract(
+    details: dict[str, Any],
+    *,
+    prefix: str,
+    expected_contract: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    for field, expected_value in expected_contract.items():
+        if field == "buildRootSuffix":
+            build_root = details.get("buildRoot")
+            if not isinstance(build_root, str) or not build_root.endswith(
+                f"/{expected_value}"
+            ):
+                errors.append(
+                    f"{prefix}.buildRoot={build_root!r} must end with /{expected_value}"
+                )
+            continue
+        actual_value = details.get(field)
+        if actual_value != expected_value:
+            errors.append(f"{prefix}.{field}={actual_value!r} expected {expected_value!r}")
     return errors
 
 

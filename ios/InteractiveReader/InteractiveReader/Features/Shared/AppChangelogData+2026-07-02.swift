@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-device-profile-guard",
+                    title: "Pipeline pins device profiles",
+                    detail: "The reusable Apple pipeline manifest checker now validates exact iPhone, iPad, Living Room TV, and Cinema TV profile identity, bundle IDs, build roots, simulator smoke mapping, and iOS extension/capability requirements."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-simulator-contract-guard",
                     title: "Pipeline pins simulator handoff",
                     detail: "The reusable Apple pipeline manifest checker now validates simulator API environment, credential allow-list, XCUITest config paths, remote .env handoff, and app-lock policy from the backend descriptor."

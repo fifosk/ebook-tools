@@ -53,11 +53,17 @@ def _write_manifest(
             "bundleId": "com.example.InteractiveReader.tvos"
             if profile.startswith("tvos")
             else "com.example.InteractiveReader",
-            "buildRoot": f"/tmp/build-sim-{profile}",
+            "buildRoot": (
+                "/Users/fifo/Library/Developer/XcodeBuildArtifacts/ebook-tools/"
+                f"build-sim-{profile}"
+            ),
             "stageAppForInstall": False,
-            "simulator": "Apple TV 4K"
-            if profile.startswith("tvos")
-            else "iPhone 17 Pro",
+            "simulator": {
+                "ios": "iPhone 17 Pro",
+                "ipados": "iPad Pro 13-inch (M5)",
+                "tvos": "Apple TV 4K (3rd generation)",
+                "tvos-cinema": "Apple TV 4K (2nd generation)",
+            }[profile],
             "simulatorRuntimeVersion": "26.4"
             if profile == "tvos-cinema"
             else "26.5",
@@ -74,9 +80,15 @@ def _write_manifest(
             "productName": "InteractiveReader",
             "bundleId": "com.example.InteractiveReader",
             "deviceSdk": "iphoneos",
-            "buildRoot": "/tmp/build-device-iphoneos",
+            "buildRoot": (
+                "/Users/fifo/Library/Developer/XcodeBuildArtifacts/ebook-tools/"
+                "build-device-iphoneos"
+            ),
             "configuration": "Debug",
             "simulatorSmokeProfile": "ios",
+            "embeddedBundleIds": [
+                "com.example.InteractiveReader.NotificationServiceExtension"
+            ],
             "requiredCapabilities": [
                 "Push Notifications",
                 "Sign In with Apple",
@@ -91,9 +103,15 @@ def _write_manifest(
             "productName": "InteractiveReader",
             "bundleId": "com.example.InteractiveReader",
             "deviceSdk": "iphoneos",
-            "buildRoot": "/tmp/build-device-ipados",
+            "buildRoot": (
+                "/Users/fifo/Library/Developer/XcodeBuildArtifacts/ebook-tools/"
+                "build-device-ipados"
+            ),
             "configuration": "Debug",
             "simulatorSmokeProfile": "ipados",
+            "embeddedBundleIds": [
+                "com.example.InteractiveReader.NotificationServiceExtension"
+            ],
             "requiredCapabilities": [
                 "Push Notifications",
                 "Sign In with Apple",
@@ -108,7 +126,10 @@ def _write_manifest(
             "productName": "InteractiveReaderTV",
             "bundleId": "com.example.InteractiveReader.tvos",
             "deviceSdk": "appletvos",
-            "buildRoot": "/tmp/build-device-appletvos",
+            "buildRoot": (
+                "/Users/fifo/Library/Developer/XcodeBuildArtifacts/ebook-tools/"
+                "build-device-appletvos"
+            ),
             "configuration": "Debug",
             "simulatorSmokeProfile": "tvos",
         },
@@ -120,7 +141,10 @@ def _write_manifest(
             "productName": "InteractiveReaderTV",
             "bundleId": "com.example.InteractiveReader.tvos",
             "deviceSdk": "appletvos",
-            "buildRoot": "/tmp/build-device-cinema-appletvos",
+            "buildRoot": (
+                "/Users/fifo/Library/Developer/XcodeBuildArtifacts/ebook-tools/"
+                "build-device-cinema-appletvos"
+            ),
             "configuration": "Debug",
             "simulatorSmokeProfile": "tvos-cinema",
         },
@@ -445,6 +469,47 @@ def test_validate_manifest_requires_operational_backend_and_storage_contracts(
     assert "runtimeStorage.cleanupPolicy must mention 'Keep reusable WD staging'" in errors
     assert "runtimeStorage.localVolumePolicy must mention 'runtime-only'" in errors
     assert "runtimeStorage.dockerBuildPolicy must mention 'Docker cache'" in errors
+
+
+def test_validate_manifest_requires_exact_simulator_and_device_profile_contracts(
+    tmp_path: Path,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["profiles"]["ipados"]["simulator"] = "iPad Air"
+    payload["profiles"]["tvos-cinema"]["buildRoot"] = "/tmp/tvos-cinema"
+    payload["deviceProfiles"]["iphone"]["embeddedBundleIds"] = []
+    payload["deviceProfiles"]["ipad"]["bundleId"] = "com.example.InteractiveReader.ipad"
+    payload["deviceProfiles"]["appletv"]["device"] = "Cinema"
+    payload["deviceProfiles"]["appletv"]["simulatorSmokeProfile"] = "tvos-cinema"
+    payload["deviceProfiles"]["cinema"]["deviceSdk"] = "iphoneos"
+    payload["deviceProfiles"]["cinema"]["buildRoot"] = "/tmp/cinema"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    errors = module.validate_manifest(path)
+
+    assert "profiles.ipados.simulator='iPad Air' expected 'iPad Pro 13-inch (M5)'" in errors
+    assert (
+        "profiles.tvos-cinema.buildRoot='/tmp/tvos-cinema' must end with "
+        "/ebook-tools/build-sim-tvos-cinema"
+    ) in errors
+    assert (
+        "deviceProfiles.iphone.embeddedBundleIds=[] expected "
+        "['com.example.InteractiveReader.NotificationServiceExtension']"
+    ) in errors
+    assert (
+        "deviceProfiles.ipad.bundleId='com.example.InteractiveReader.ipad' "
+        "expected 'com.example.InteractiveReader'"
+    ) in errors
+    assert "deviceProfiles.appletv.device='Cinema' expected 'Living Room'" in errors
+    assert (
+        "deviceProfiles.appletv.simulatorSmokeProfile='tvos-cinema' expected 'tvos'"
+    ) in errors
+    assert "deviceProfiles.cinema.deviceSdk='iphoneos' expected 'appletvos'" in errors
+    assert (
+        "deviceProfiles.cinema.buildRoot='/tmp/cinema' must end with "
+        "/ebook-tools/build-device-cinema-appletvos"
+    ) in errors
 
 
 def test_validate_manifest_reports_missing_token_env_keys(tmp_path: Path) -> None:
