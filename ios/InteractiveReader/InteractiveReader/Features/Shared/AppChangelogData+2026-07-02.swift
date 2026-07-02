@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-resume-offset-order-contract",
+                    title: "Resume offset order is guarded",
+                    detail: "Apple resume contracts now verify Job and Library playback restore the saved single-track lane, validate the in-sentence offset, and use exact time seeking before any sentence-start fallback path."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-render-sync-contract",
                     title: "Single-track render sync is guarded",
                     detail: "The Apple playback-mode regression harness now composes audio-mode and timeline logic to prove translation-only playback renders from translation gates even when stale original URL or sequence state is still present."

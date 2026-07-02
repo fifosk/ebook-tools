@@ -267,6 +267,37 @@ def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() 
         assert "preferredTrack: preferredTrack" in source
         assert "viewModel.jumpToSentence(sentence, autoPlay: true)" in source
 
+        interactive_body = source.split("func startInteractivePlayback(", 1)[1].split(
+            "\n    func resumeAppleMusicBedAfterInteractiveStartIfNeeded",
+            1,
+        )[0]
+        prepare_index = interactive_body.index("viewModel.prepareResumeSingleTrack(preferredTrack)")
+        validate_index = interactive_body.index(
+            "validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence)"
+        )
+        exact_seek_index = interactive_body.index("viewModel.jumpToTime(")
+        fallback_log_index = interactive_body.index("resume offset fallback=sentenceStart")
+        sentence_seek_index = interactive_body.index("viewModel.jumpToSentence(sentence, autoPlay: true)")
+        retry_index = interactive_body.index("scheduleInteractiveAutoplayRetry(")
+        assert prepare_index < validate_index < exact_seek_index < fallback_log_index < sentence_seek_index < retry_index
+        exact_seek_body = interactive_body[exact_seek_index:fallback_log_index]
+        assert "matchingSentenceNumber: sentence" in exact_seek_body
+        assert "preferredTrack: preferredTrack" in exact_seek_body
+
+        retry_body = source.split("func scheduleInteractiveAutoplayRetry(", 1)[1].split(
+            "\n    func isInteractiveAutoplaySettled",
+            1,
+        )[0]
+        retry_validate_index = retry_body.index(
+            "validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence)"
+        )
+        retry_exact_seek_index = retry_body.index("viewModel.jumpToTime(")
+        retry_sentence_seek_index = retry_body.index("viewModel.jumpToSentence(sentence, autoPlay: true)")
+        assert retry_validate_index < retry_exact_seek_index < retry_sentence_seek_index
+        retry_exact_seek_body = retry_body[retry_exact_seek_index:retry_sentence_seek_index]
+        assert "matchingSentenceNumber: sentence" in retry_exact_seek_body
+        assert "preferredTrack: preferredTrack" in retry_exact_seek_body
+
     assert "func prepareResumeSingleTrack(_ track: SequenceTrack?)" in selection_source
     assert "pendingResumeSingleTrack = track" in selection_source
     assert "audioModeManager.setTracks(" in selection_source
