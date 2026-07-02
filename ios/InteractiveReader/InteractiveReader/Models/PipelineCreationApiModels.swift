@@ -225,14 +225,14 @@ struct ImageNodeAvailabilityResponse: Decodable, Equatable {
 struct PipelineFileEntry: Decodable, Equatable {
     let name: String
     let path: String
-    let type: String?
+    let type: String
     let sizeBytes: Int?
     let modifiedAt: String?
 
     init(
         name: String,
         path: String,
-        type: String? = "file",
+        type: String = "file",
         sizeBytes: Int? = nil,
         modifiedAt: String? = nil
     ) {

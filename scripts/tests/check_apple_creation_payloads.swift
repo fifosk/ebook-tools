@@ -1187,7 +1187,7 @@ struct AppleCreationPayloadCheck {
         )
         require(
             AppleBookCreatePresentation.pipelineEbookPickerLabel(
-                PipelineFileEntry(name: "", path: "backend-scoped-book", type: nil)
+                PipelineFileEntry(name: "", path: "backend-scoped-book", type: "file")
             ) == "backend-scoped-book",
             "Apple Create should fall back to the backend EPUB path when picker labels omit a name"
         )
@@ -1198,7 +1198,7 @@ struct AppleCreationPayloadCheck {
                         PipelineFileEntry(
                             name: "Backend scoped book",
                             path: "backend-scoped-book",
-                            type: nil,
+                            type: "file",
                             modifiedAt: "2026-06-25T12:00:00Z"
                         ),
                         PipelineFileEntry(

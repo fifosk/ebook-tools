@@ -1708,7 +1708,15 @@ def test_apple_create_response_models_match_api_client_decoder_strategy() -> Non
     for model_name in response_models:
         body = _swift_struct_body(api_models_source, model_name)
         assert not re.search(r'case\s+\w+\s*=\s*"[^"]*_[^"]*"', body), model_name
-    assert "let type: String?" in _swift_struct_body(api_models_source, "PipelineFileEntry")
+    pipeline_file_entry_body = _swift_struct_body(api_models_source, "PipelineFileEntry")
+    assert "let type: String" in pipeline_file_entry_body
+    assert "let type: String?" not in pipeline_file_entry_body
+    assert 'type: String = "file"' in pipeline_file_entry_body
+    pipeline_file_browser_body = _swift_struct_body(api_models_source, "PipelineFileBrowserResponse")
+    assert "let ebooks: [PipelineFileEntry]" in pipeline_file_browser_body
+    assert "let outputs: [PipelineFileEntry]" in pipeline_file_browser_body
+    assert "let booksRoot: String" in pipeline_file_browser_body
+    assert "let outputRoot: String" in pipeline_file_browser_body
     assert "let sentenceSplitterMode: String?" in _swift_struct_body(
         api_models_source,
         "BookCreationPipelineDefaults",
@@ -4118,12 +4126,13 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     assert "AppleBookCreatePresentation.selectedPipelineEbook(" in view_source
     assert "sortedPipelineEbookEntries(files?.ebooks.filter { isPipelineEbookEntry($0) } ?? [])" in source
     assert "let ebooks = pipelineEbookEntries(from: files)" in source
-    assert "normalizedSourceText(entry.type ?? \"\").lowercased()" in source
+    assert "normalizedSourceText(entry.type).lowercased()" in source
+    assert "normalizedSourceText(entry.type ?? \"\").lowercased()" not in source
     assert 'guard type != "directory" else' in source
     assert "guard !path.isEmpty else" in source
     assert "private static func isEpubCandidate(name: String, path: String) -> Bool" in source
     assert "name.hasSuffix(\".epub\") || path.hasSuffix(\".epub\")" in source
-    assert "return type.isEmpty" in source
+    assert 'return type == "file"' in source
     assert "private static func sortedPipelineEbookEntries(_ entries: [PipelineFileEntry]) -> [PipelineFileEntry]" in source
     assert "files?.ebooks.filter({ $0.type == \"file\" })" not in source
     assert "pipelineFiles?.ebooks.filter { $0.type == \"file\" }" not in controls_source

@@ -47,7 +47,7 @@ extension AppleBookCreatePresentation {
     }
 
     private static func isPipelineEbookEntry(_ entry: PipelineFileEntry) -> Bool {
-        let type = normalizedSourceText(entry.type ?? "").lowercased()
+        let type = normalizedSourceText(entry.type).lowercased()
         guard type != "directory" else {
             return false
         }
@@ -59,7 +59,7 @@ extension AppleBookCreatePresentation {
         if isEpubCandidate(name: name, path: path) {
             return true
         }
-        return type.isEmpty
+        return type == "file"
     }
 
     private static func isEpubCandidate(name: String, path: String) -> Bool {
