@@ -199,14 +199,6 @@ extension InteractivePlayerView {
         for chunk: InteractiveChunk,
         availableRoles: Set<LanguageFlagRole>
     ) -> Set<LanguageFlagRole> {
-        if let track = viewModel.requestedSingleTrackMode() {
-            switch track {
-            case .original:
-                return availableRoles.contains(.original) ? [.original] : []
-            case .translation:
-                return availableRoles.contains(.translation) ? [.translation] : []
-            }
-        }
         switch audioModeManager.currentMode {
         case .sequence:
             return availableRoles.intersection([.original, .translation])
@@ -217,6 +209,14 @@ extension InteractivePlayerView {
         case .singleTrack(.translation):
             if availableRoles.contains(.translation) {
                 return [.translation]
+            }
+        }
+        if let track = viewModel.requestedSingleTrackMode() {
+            switch track {
+            case .original:
+                return availableRoles.contains(.original) ? [.original] : []
+            case .translation:
+                return availableRoles.contains(.translation) ? [.translation] : []
             }
         }
         guard let kind = selectedAudioKind(for: chunk) else { return [] }
@@ -235,34 +235,26 @@ extension InteractivePlayerView {
         for chunk: InteractiveChunk,
         availableRoles: Set<LanguageFlagRole>
     ) {
-        guard !availableRoles.isEmpty else { return }
+        guard availableRoles.contains(role) else { return }
 
         // Capture current sentence position BEFORE changing mode
         let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
 
-        let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
-        var desiredRoles = activeRoles.intersection(availableRoles)
-        if desiredRoles.isEmpty {
-            desiredRoles = availableRoles
-        }
-        if desiredRoles.contains(role) {
-            if desiredRoles.count > 1 {
-                desiredRoles.remove(role)
-            } else {
-                desiredRoles = availableRoles
-            }
+        if availableRoles.contains(.original), availableRoles.contains(.translation) {
+            let track: SequenceTrack = role == .original ? .original : .translation
+            audioModeManager.toggle(track, preservingPosition: currentSentenceIndex)
         } else {
-            desiredRoles = availableRoles.intersection([role])
+            audioModeManager.setTracks(
+                original: availableRoles.contains(.original),
+                translation: availableRoles.contains(.translation),
+                preservingPosition: currentSentenceIndex
+            )
         }
-        audioModeManager.setTracks(
-            original: desiredRoles.contains(.original),
-            translation: desiredRoles.contains(.translation),
-            preservingPosition: currentSentenceIndex
-        )
-        if desiredRoles.count == 1, let selectedRole = desiredRoles.first {
-            let selectedTrack: SequenceTrack = selectedRole == .original ? .original : .translation
+
+        switch audioModeManager.currentMode {
+        case .singleTrack(let selectedTrack):
             viewModel.applySingleTrackSelection(selectedTrack, for: chunk)
-        } else {
+        case .sequence:
             viewModel.rememberAudioModePreference(audioModeManager.currentMode)
             viewModel.sequenceController.audioMode = audioModeManager.currentMode
             viewModel.synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)

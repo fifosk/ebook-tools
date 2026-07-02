@@ -465,9 +465,9 @@ active_audio_roles_body = function_body(
     "func activeAudioRoles(\n        for chunk: InteractiveChunk,\n        availableRoles: Set<LanguageFlagRole>\n    ) -> Set<LanguageFlagRole>",
 )
 if "if let track = viewModel.requestedSingleTrackMode()" not in active_audio_roles_body:
-    fail("active audio roles must use the durable requested single-track lane before manager state")
-if active_audio_roles_body.find("viewModel.requestedSingleTrackMode()") > active_audio_roles_body.find("switch audioModeManager.currentMode"):
-    fail("active audio roles must check requested single-track state before SwiftUI manager mode")
+    fail("active audio roles must keep a durable requested single-track fallback")
+if active_audio_roles_body.find("switch audioModeManager.currentMode") > active_audio_roles_body.find("viewModel.requestedSingleTrackMode()"):
+    fail("header active audio roles must trust live SwiftUI manager mode before stale requested single-track state")
 select_chunk_body = function_body(
     selection_source,
     "func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil)",

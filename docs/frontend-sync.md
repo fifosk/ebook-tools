@@ -96,8 +96,10 @@ Follow the suggested remediations to restore parity:
   playable combined option as exposing both Original and Translation, even when
   a chunk also has only one dedicated single-track option, so Translation does
   not disappear from mixed legacy/new batch manifests. Header language pills are
-  lane selectors: tapping an inactive/alternate role selects that role only,
-  while tapping the already-selected single lane restores all available roles.
+  shared audio-mode toggles: with both roles active, tapping either role leaves
+  the other role as the single active lane; from Original-only or
+  Translation-only, tapping either available role restores both available roles
+  instead of swapping to the other single lane.
   Single-track resume should prefer the AVPlayer's current local clock before
   falling back to rendered highlight time, preserving the last spoken word when
   lookup bubbles or render refreshes temporarily move the displayed highlight

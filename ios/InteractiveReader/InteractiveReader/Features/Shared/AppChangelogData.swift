@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
-            version: "2026.07.02.010",
+            version: "2026.07.02.011",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-header-language-pills-enable-both",
+                    title: "Language pills restore both tracks",
+                    detail: "Apple reader header language pills now route through the shared audio-mode toggle, so Original-only or Translation-only can be expanded back to both tracks by tapping either available language pill while stale single-track resume memory no longer keeps the pill grey."
+                ),
                 AppChangelogEntry(
                     id: "apple-settings-intake-contract-visible",
                     title: "Settings shows intake readiness",

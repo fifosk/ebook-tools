@@ -4,8 +4,9 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-02
 
-### 2026.07.02.010
+### 2026.07.02.011
 
+- Apple reader header language pills now use the shared audio-mode toggle, so Original-only or Translation-only can expand back to both tracks by tapping either available language pill instead of swapping to the other single lane.
 - Apple Settings now shows a dedicated Job Intake Contract row for `/api/pipelines/intake/status`, so the device pipeline can verify queue-pressure parity before opening native Create.
 - Bounded pipeline source-picker calls now trim output entries as well as EPUB entries, keeping Web and Apple Create source refreshes lighter on large shared output roots.
 - Apple reader sequence resume retries now keep the same resolved track as the initial in-sentence seek, preventing job open from starting in Translation and then retrying the first sentence on Original before the next Translation plays.
@@ -19,7 +20,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Backend media manifests now canonicalize chunk timing-track aliases through the same Original, Translation, and Mix role mapping as audio tracks, so Web and Apple diagnostics agree on translation availability.
 - Apple reader header language pills and audio shortcuts keep the active lane stable across single-track switching and restore all available tracks when tapping the only active lane.
 - Apple Job and Library resume recording now stores the same selected-track player clock used by resume, preventing Now Playing refreshes from overwriting the last spoken word offset with a rendered sentence-start highlight time.
-- Advanced visible Apple app versioning to `v2026.07.02.010`.
+- Advanced visible Apple app versioning to `v2026.07.02.011`.
 
 ### 2026.07.02.003
 
