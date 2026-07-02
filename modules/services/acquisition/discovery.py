@@ -80,6 +80,19 @@ def discover_acquisition_candidates(
     normalized_query = _normalize_query(query)
     normalized_provider = _normalize_provider(provider)
     effective_limit = _normalize_limit(limit)
+    policy_notes = [
+        "Discovery results are candidates only; downloader handoff requires a reviewed acquisition step.",
+        "Do not use acquisition providers for works you are not authorized to download or process.",
+    ]
+    if effective_limit <= 0:
+        if normalized_provider is not None:
+            _providers_for(normalized_kind, normalized_provider, config)
+        return AcquisitionDiscoveryResult(
+            candidates=(),
+            policy_notes=tuple(policy_notes),
+            providers_queried=(),
+        )
+
     providers = _providers_for(normalized_kind, normalized_provider, config)
     is_default_provider_fanout = normalized_provider is None
     normalized_source_ids = (
@@ -97,16 +110,6 @@ def discover_acquisition_candidates(
 
     candidates: list[AcquisitionCandidate] = []
     queried: list[str] = []
-    policy_notes = [
-        "Discovery results are candidates only; downloader handoff requires a reviewed acquisition step.",
-        "Do not use acquisition providers for works you are not authorized to download or process.",
-    ]
-    if effective_limit <= 0:
-        return AcquisitionDiscoveryResult(
-            candidates=(),
-            policy_notes=tuple(policy_notes),
-            providers_queried=(),
-        )
     for provider_id in providers:
         try:
             if not is_default_provider_fanout and len(candidates) >= effective_limit:

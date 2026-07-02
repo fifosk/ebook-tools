@@ -746,7 +746,11 @@ Current Apple UI partially exposes:
   `modules/services/acquisition/source_candidates.py` with focused coverage,
   keeping source-relative paths, display-title derivation, zero-byte EPUB
   filtering, and bounded newest-first source candidate ordering shared for
-  Web/Apple book and video pickers. Backend acquisition value coercion and
+  Web/Apple book and video pickers. Backend acquisition discovery now returns
+  empty zero-limit requests before resolving default providers or source roots,
+  while still validating explicit provider/media-kind compatibility, so Web and
+  Apple Create readiness probes can use bounded/no-result discovery without
+  unnecessary NAS or provider fanout work. Backend acquisition value coercion and
   identifier sanitization now live in
   `modules/services/acquisition/discovery_values.py` with focused coverage,
   keeping string/sequence/int parsing and token-safe ids shared across public

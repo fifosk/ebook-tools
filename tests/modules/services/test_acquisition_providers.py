@@ -1033,11 +1033,22 @@ def test_discovery_router_has_handler_for_every_registered_provider() -> None:
     assert acquisition_discovery.discovery_media_kinds_for is provider_catalog.discovery_media_kinds_for
 
 
-def test_discover_zero_limit_skips_provider_scan(tmp_path: Path, monkeypatch) -> None:
+def test_discover_zero_limit_skips_default_provider_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def _fail_scan(*args, **kwargs):
         raise AssertionError("zero-limit discovery should not scan provider roots")
 
+    def _fail_default_resolution(*args, **kwargs):
+        raise AssertionError("zero-limit default discovery should not resolve providers")
+
     monkeypatch.setattr(acquisition_discovery, "_discover_local_epubs", _fail_scan)
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "default_discovery_provider_ids",
+        _fail_default_resolution,
+    )
 
     result = discover_acquisition_candidates(
         media_kind="book",
@@ -1048,6 +1059,15 @@ def test_discover_zero_limit_skips_provider_scan(tmp_path: Path, monkeypatch) ->
 
     assert result.candidates == ()
     assert result.providers_queried == ()
+
+    with pytest.raises(ValueError, match="local_epub"):
+        discover_acquisition_candidates(
+            media_kind="video",
+            provider="local_epub",
+            query="",
+            limit=0,
+            config={"ebooks_dir": str(tmp_path)},
+        )
 
 
 def test_discover_service_caps_oversized_limits(tmp_path: Path) -> None:
