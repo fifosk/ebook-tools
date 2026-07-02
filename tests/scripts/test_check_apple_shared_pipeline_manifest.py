@@ -242,7 +242,13 @@ def _write_manifest(
                     "test-backend-offline-export",
                     "test-backend-youtube-dubbing-service",
                 )
-            ]
+            ],
+            "generatedPaths": [
+                ".pytest_cache",
+            ],
+            "generatedDirectoryNames": [
+                "__pycache__",
+            ],
         },
         "webChecks": web_checks
         if web_checks is not None
@@ -265,7 +271,11 @@ def _write_manifest(
                     "test-web-full",
                     "build-web-production",
                 )
-            ]
+            ],
+            "generatedPaths": [
+                "web/dist",
+                "web/export-dist",
+            ],
         },
         "contractChecks": contract_checks
         if contract_checks is not None
@@ -510,6 +520,25 @@ def test_validate_manifest_requires_exact_simulator_and_device_profile_contracts
         "deviceProfiles.cinema.buildRoot='/tmp/cinema' must end with "
         "/ebook-tools/build-device-cinema-appletvos"
     ) in errors
+
+
+def test_validate_manifest_requires_generated_artifact_contracts(
+    tmp_path: Path,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["backendTestChecks"]["generatedPaths"] = []
+    del payload["backendTestChecks"]["generatedDirectoryNames"]
+    payload["webChecks"]["generatedPaths"] = ["web/dist"]
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    errors = module.validate_manifest(path)
+
+    assert "backendTestChecks.generatedPaths missing: .pytest_cache" in errors
+    assert (
+        "backendTestChecks.generatedDirectoryNames must be a string list"
+    ) in errors
+    assert "webChecks.generatedPaths missing: web/export-dist" in errors
 
 
 def test_validate_manifest_reports_missing_token_env_keys(tmp_path: Path) -> None:

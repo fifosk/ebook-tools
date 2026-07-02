@@ -190,6 +190,8 @@ REQUIRED_BACKEND_TARGETS = (
     "test-backend-offline-export",
     "test-backend-youtube-dubbing-service",
 )
+REQUIRED_BACKEND_GENERATED_PATHS = (".pytest_cache",)
+REQUIRED_BACKEND_GENERATED_DIRECTORY_NAMES = ("__pycache__",)
 REQUIRED_WEB_TARGETS = (
     "test-web-auth-focused",
     "test-web-admin-focused",
@@ -206,6 +208,7 @@ REQUIRED_WEB_TARGETS = (
     "test-web-full",
     "build-web-production",
 )
+REQUIRED_WEB_GENERATED_PATHS = ("web/dist", "web/export-dist")
 REQUIRED_APPLE_CONTRACT_TARGETS = (
     "test-apple-language-catalogs",
     "test-apple-create-readiness-contract",
@@ -306,11 +309,27 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
         )
     )
     errors.extend(
+        _validate_generated_artifact_section(
+            payload,
+            section_name="backendTestChecks",
+            required_paths=REQUIRED_BACKEND_GENERATED_PATHS,
+            required_directory_names=REQUIRED_BACKEND_GENERATED_DIRECTORY_NAMES,
+        )
+    )
+    errors.extend(
         _validate_command_section(
             payload,
             section_name="webChecks",
             required_targets=REQUIRED_WEB_TARGETS,
             make_targets=make_targets,
+        )
+    )
+    errors.extend(
+        _validate_generated_artifact_section(
+            payload,
+            section_name="webChecks",
+            required_paths=REQUIRED_WEB_GENERATED_PATHS,
+            required_directory_names=(),
         )
     )
     errors.extend(
@@ -520,6 +539,52 @@ def _validate_command_section(
         errors.append(
             f"{section_name}.commands missing make targets: {', '.join(missing)}"
         )
+    return errors
+
+
+def _validate_generated_artifact_section(
+    payload: dict[str, Any],
+    *,
+    section_name: str,
+    required_paths: tuple[str, ...],
+    required_directory_names: tuple[str, ...],
+) -> list[str]:
+    section = payload.get(section_name)
+    if not isinstance(section, dict):
+        return []
+
+    errors: list[str] = []
+    generated_paths = section.get("generatedPaths")
+    if not isinstance(generated_paths, list) or not all(
+        isinstance(path, str) for path in generated_paths
+    ):
+        errors.append(f"{section_name}.generatedPaths must be a string list")
+    else:
+        missing_paths = [path for path in required_paths if path not in generated_paths]
+        if missing_paths:
+            errors.append(
+                f"{section_name}.generatedPaths missing: {', '.join(missing_paths)}"
+            )
+
+    if required_directory_names:
+        generated_directory_names = section.get("generatedDirectoryNames")
+        if not isinstance(generated_directory_names, list) or not all(
+            isinstance(name, str) for name in generated_directory_names
+        ):
+            errors.append(
+                f"{section_name}.generatedDirectoryNames must be a string list"
+            )
+        else:
+            missing_names = [
+                name
+                for name in required_directory_names
+                if name not in generated_directory_names
+            ]
+            if missing_names:
+                errors.append(
+                    f"{section_name}.generatedDirectoryNames missing: "
+                    + ", ".join(missing_names)
+                )
     return errors
 
 

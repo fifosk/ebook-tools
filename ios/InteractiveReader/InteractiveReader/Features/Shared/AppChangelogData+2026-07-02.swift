@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-generated-artifacts-guard",
+                    title: "Pipeline pins cleanup outputs",
+                    detail: "The reusable Apple pipeline manifest checker now validates backend cache and Web build-output declarations so shared cleanup and test runners keep generated artifacts predictable."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-runtime-drift-diagnosis",
                     title: "Pipeline explains runtime drift",
                     detail: "The shared backend checker now labels any public runtime descriptor mismatch as stale deployed backend evidence before simulator or device debugging, not only acquisition route drift."
