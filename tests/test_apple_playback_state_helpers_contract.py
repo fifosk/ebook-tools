@@ -557,6 +557,7 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     source = _source("AudioModeManager.swift")
     selection = _source("InteractivePlayerViewModel+Selection.swift")
     playback = _source("InteractivePlayerViewModel+Playback.swift")
+    audio_management = _source("InteractivePlayerView+AudioManagement.swift")
 
     assert "enum ResolvedAudioInstruction: CustomStringConvertible" in source
     assert "case sequence(combinedOption: InteractiveChunk.AudioOption)" in source
@@ -615,6 +616,27 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     assert "if requestedSingleTrackMode() != nil" in combined_queue_body
     assert "return false" in combined_queue_body
     assert "track.kind == .combined && track.streamURLs.count > 1" in combined_queue_body
+    selected_audio_kind_body = _function_body(
+        audio_management,
+        "func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind?",
+    )
+    assert "case .sequence:" in selected_audio_kind_body
+    assert "chunk.audioOptions.contains(where: { $0.kind == .combined })" in selected_audio_kind_body
+    assert "chunkSupportsAudioTrack(.original, in: chunk) && chunkSupportsAudioTrack(.translation, in: chunk)" in selected_audio_kind_body
+    playback_duration_body = _function_body(playback, "func playbackDuration(for chunk: InteractiveChunk) -> Double?")
+    assert "if isSequenceModeActive && selectedChunkID == chunk.id" in playback_duration_body
+    assert "if let duration = sequencePlanDuration(), duration > 0" in playback_duration_body
+    assert playback_duration_body.index("if isSequenceModeActive && selectedChunkID == chunk.id") < playback_duration_body.index(
+        "if track.streamURLs.count == 1"
+    )
+    combined_duration_body = _function_body(playback, "func combinedPlaybackDuration(for chunk: InteractiveChunk) -> Double?")
+    assert "if isSequenceModeActive && selectedChunkID == chunk.id" in combined_duration_body
+    assert "let originalDuration = combinedTrackDuration(kind: .original, in: chunk)" in combined_duration_body
+    assert "let translationDuration = combinedTrackDuration(kind: .translation, in: chunk)" in combined_duration_body
+    assert combined_duration_body.index("let originalDuration = combinedTrackDuration") < combined_duration_body.index(
+        "guard track.kind == .combined"
+    )
+    assert "private func sequencePlanDuration() -> Double?" in playback
     active_timing_body = _function_body(playback, "func activeTimingTrack(for chunk: InteractiveChunk) -> TextPlayerTimingTrack")
     assert "if let track = requestedSingleTrackMode()" in active_timing_body
     assert active_timing_body.index("if let track = requestedSingleTrackMode()") < active_timing_body.index(

@@ -161,7 +161,8 @@ extension InteractivePlayerView {
                 return .translation
             }
         case .sequence:
-            if chunk.audioOptions.contains(where: { $0.kind == .combined }) {
+            if chunk.audioOptions.contains(where: { $0.kind == .combined })
+                || (chunkSupportsAudioTrack(.original, in: chunk) && chunkSupportsAudioTrack(.translation, in: chunk)) {
                 return .combined
             }
         }

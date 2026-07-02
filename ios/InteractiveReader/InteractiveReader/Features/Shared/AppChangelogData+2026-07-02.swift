@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-dedicated-pair-progress-duration",
+                    title: "Dedicated pairs count both lanes",
+                    detail: "Apple reader progress and remaining-time helpers now treat separate Original and Translation files as one sequence when both roles are active, so the header timing pill no longer undercounts jobs that lack a combined audio option."
+                ),
+                AppChangelogEntry(
                     id: "apple-dedicated-pair-role-sequence",
                     title: "Dedicated pairs stay sequenced",
                     detail: "Apple reader header/menu role selection now resolves Original + Translation intent to sequence playback before choosing a fallback dedicated audio file, so jobs without a combined option do not start Original-only and stop after the first sentence."

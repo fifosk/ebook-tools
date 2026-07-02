@@ -96,14 +96,12 @@ extension InteractivePlayerViewModel {
             return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
         }
 
-        // In sequence mode, return total duration of all segments in the plan
-        if isSequenceModeActive && track.kind == .combined {
-            let plan = sequenceController.plan
-            if !plan.isEmpty {
-                let totalDuration = plan.reduce(0.0) { $0 + $1.duration }
-                if totalDuration > 0 {
-                    return totalDuration
-                }
+        // In sequence mode, return total duration of all segments in the plan.
+        // This also covers chunks represented as separate Original and
+        // Translation audio options without a synthetic combined option.
+        if isSequenceModeActive && selectedChunkID == chunk.id {
+            if let duration = sequencePlanDuration(), duration > 0 {
+                return duration
             }
             // Fallback to combined track durations
             let originalDuration = combinedTrackDuration(kind: .original, in: chunk)
@@ -154,16 +152,22 @@ extension InteractivePlayerViewModel {
     }
 
     func combinedPlaybackDuration(for chunk: InteractiveChunk) -> Double? {
-        guard let track = selectedAudioOption(for: chunk) else {
-            return playbackDuration(for: chunk)
+        if isSequenceModeActive && selectedChunkID == chunk.id,
+           let duration = sequencePlanDuration(),
+           duration > 0 {
+            return duration
         }
-        guard track.kind == .combined, track.streamURLs.count > 1 else {
+
+        guard let track = selectedAudioOption(for: chunk) else {
             return playbackDuration(for: chunk)
         }
         let originalDuration = combinedTrackDuration(kind: .original, in: chunk)
         let translationDuration = combinedTrackDuration(kind: .translation, in: chunk)
         if let originalDuration, let translationDuration {
             return originalDuration + translationDuration
+        }
+        guard track.kind == .combined, track.streamURLs.count > 1 else {
+            return playbackDuration(for: chunk)
         }
         if let duration = track.duration, duration > 0 {
             return duration
@@ -183,6 +187,13 @@ extension InteractivePlayerViewModel {
             return fallback
         }
         return total > 0 ? total : nil
+    }
+
+    private func sequencePlanDuration() -> Double? {
+        let plan = sequenceController.plan
+        guard !plan.isEmpty else { return nil }
+        let totalDuration = plan.reduce(0.0) { $0 + $1.duration }
+        return totalDuration > 0 ? totalDuration : nil
     }
 
     func combinedQueuePlaybackTime(for chunk: InteractiveChunk) -> Double {

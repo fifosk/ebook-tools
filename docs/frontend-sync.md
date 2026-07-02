@@ -234,7 +234,10 @@ Follow the suggested remediations to restore parity:
   instead of alternating sentence tracks. Role-set selection from the Apple
   header or menus must resolve Original + Translation to sequence mode before
   selecting a fallback dedicated audio option, because an Original option id is
-  not itself Original-only intent when both roles are active. Resume restores must apply the saved
+  not itself Original-only intent when both roles are active. Header progress
+  and remaining-time helpers must use that same sequence identity, summing the
+  active sequence plan or dedicated Original/Translation durations instead of
+  undercounting only the fallback selected file. Resume restores must apply the saved
   single-track mode before
   `jumpToTime` / `jumpToSentence`, and `InteractivePlayerView` must consume the
   pending resume track before defaulting visible tracks back to All; sequence
