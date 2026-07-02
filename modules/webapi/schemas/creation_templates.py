@@ -28,11 +28,11 @@ class CreationTemplateEntryPayload(BaseModel):
     mode: CreationTemplateMode
     created_at: float
     updated_at: float
-    payload: dict[str, Any] = Field(default_factory=dict)
+    payload: dict[str, Any]
 
 
 class CreationTemplateListResponse(BaseModel):
-    templates: list[CreationTemplateEntryPayload] = Field(default_factory=list)
+    templates: list[CreationTemplateEntryPayload]
 
 
 class CreationTemplateDeleteResponse(BaseModel):

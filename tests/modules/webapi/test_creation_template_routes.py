@@ -100,6 +100,27 @@ class _StubCreationTemplateService:
         return True
 
 
+def test_creation_template_openapi_marks_cross_surface_response_fields_required() -> None:
+    app = create_app()
+    schemas = app.openapi()["components"]["schemas"]
+
+    entry_required = set(schemas["CreationTemplateEntryPayload"]["required"])
+    assert {
+        "id",
+        "name",
+        "mode",
+        "created_at",
+        "updated_at",
+        "payload",
+    } <= entry_required
+
+    list_required = set(schemas["CreationTemplateListResponse"]["required"])
+    assert {"templates"} <= list_required
+
+    delete_required = set(schemas["CreationTemplateDeleteResponse"]["required"])
+    assert {"deleted", "template_id"} <= delete_required
+
+
 def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -> None:
     app = create_app()
     service = CreationTemplateService(
