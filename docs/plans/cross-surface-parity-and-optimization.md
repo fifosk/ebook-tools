@@ -745,7 +745,7 @@ Current Apple UI partially exposes:
   depending on provider payload assembly. Backend local/manual/NAS source candidate helpers now live in
   `modules/services/acquisition/source_candidates.py` with focused coverage,
   keeping source-relative paths, display-title derivation, zero-byte EPUB
-  filtering, and bounded newest-first manual source ordering shared for
+  filtering, and bounded newest-first source candidate ordering shared for
   Web/Apple book and video pickers. Backend acquisition value coercion and
   identifier sanitization now live in
   `modules/services/acquisition/discovery_values.py` with focused coverage,

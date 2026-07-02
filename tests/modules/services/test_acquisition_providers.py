@@ -230,6 +230,38 @@ def test_acquisition_source_candidate_helpers_normalize_paths_and_newest_order(
 
     assert [path for _, _, path in matches] == [alpha.as_posix()]
 
+    candidate_matches: list[acquisition_models.AcquisitionCandidate] = []
+    source_candidates.append_bounded_newest_candidate(
+        candidate_matches,
+        acquisition_models.AcquisitionCandidate(
+            candidate_id="manual_downloads:video:older",
+            provider="manual_downloads",
+            media_kind="video",
+            title="Older",
+            rights="user_provided",
+            capabilities=("metadata",),
+            candidate_token=_candidate_token({"provider": "manual_downloads", "path": "older"}),
+            modified_at=datetime(2026, 6, 30, tzinfo=timezone.utc),
+        ),
+        limit=1,
+    )
+    source_candidates.append_bounded_newest_candidate(
+        candidate_matches,
+        acquisition_models.AcquisitionCandidate(
+            candidate_id="manual_downloads:video:newer",
+            provider="manual_downloads",
+            media_kind="video",
+            title="Newer",
+            rights="user_provided",
+            capabilities=("metadata",),
+            candidate_token=_candidate_token({"provider": "manual_downloads", "path": "newer"}),
+            modified_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        ),
+        limit=1,
+    )
+
+    assert [candidate.title for candidate in candidate_matches] == ["Newer"]
+
 
 def test_acquisition_file_source_candidate_helpers_build_stable_metadata(
     tmp_path: Path,

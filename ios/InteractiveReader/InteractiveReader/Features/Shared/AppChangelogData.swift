@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.004",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-tv-header-single-track-role-tap",
+                    title: "TV track pills select directly",
+                    detail: "Apple reader header language pills now use the same durable single-track selection path as slider, jump, and batch handoffs, so choosing Translation stamps the audio lane before tvOS playback is reconfigured."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-live-lane-resume-clock",
                     title: "Track switching and resume recover",
                     detail: "Apple reader Original/Translation pills now let the live single-track toggle override stale loaded-lane memory, and Job/Library resume recording shares a track-local player clock so pause or relaunch can continue nearer the last spoken word."

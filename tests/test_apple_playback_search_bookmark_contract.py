@@ -587,8 +587,9 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "return .translation" in selected_kind_body
     assert "case .sequence:" in selected_kind_body
     assert "return .combined" in selected_kind_body
-    assert "roles.formUnion([.original, .translation])" in available_roles_body
-    assert ".combined && !$0.streamURLs.isEmpty" in available_roles_body
+    assert "chunkSupportsAudioTrack(.original, in: chunk)" in available_roles_body
+    assert "chunkSupportsAudioTrack(.translation, in: chunk)" in available_roles_body
+    assert "roles.formUnion([.original, .translation])" not in available_roles_body
     assert "if roles.isEmpty, kinds.contains(.combined)" not in available_roles_body
     assert "switch audioModeManager.currentMode" in active_roles_body
     assert "case .singleTrack(.translation):" in active_roles_body
@@ -598,6 +599,10 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "audioModeManager.setTracks(" in header_toggle_body
     assert "original: shouldSelectRoleOnly ? role == .original : availableRoles.contains(.original)" in header_toggle_body
     assert "translation: shouldSelectRoleOnly ? role == .translation : availableRoles.contains(.translation)" in header_toggle_body
+    assert "let selectedTrack: SequenceTrack = role == .original ? .original : .translation" in header_toggle_body
+    assert "viewModel.applySingleTrackSelection(selectedTrack, for: chunk)" in header_toggle_body
+    assert "viewModel.rememberAudioModePreference(audioModeManager.currentMode)" in header_toggle_body
+    assert "viewModel.synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)" in header_toggle_body
     assert "audioModeManager.toggle(" not in header_toggle_body
 
     playback = _source(INTERACTIVE / "InteractivePlayerViewModel+Playback.swift")

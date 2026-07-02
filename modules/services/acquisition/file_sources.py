@@ -21,6 +21,7 @@ from .provider_roots import (
     resolve_video_root,
 )
 from .source_candidates import (
+    append_bounded_newest_candidate,
     append_bounded_newest_manual_entry,
     is_usable_epub_entry,
     relative_path,
@@ -327,22 +328,6 @@ def manual_download_video_candidate(
             "source_root": root.as_posix(),
         },
     )
-
-
-def append_bounded_newest_candidate(
-    matches: list[AcquisitionCandidate],
-    candidate: AcquisitionCandidate,
-    limit: int,
-) -> None:
-    matches.append(candidate)
-    matches.sort(
-        key=lambda item: (
-            -item.modified_at.timestamp() if item.modified_at else 0,
-            item.title.casefold(),
-        ),
-    )
-    if len(matches) > limit:
-        del matches[limit:]
 
 
 def _search_blob(*values: str) -> str:

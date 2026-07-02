@@ -452,10 +452,12 @@ available_audio_roles_body = function_body(
     audio_management_source,
     "func availableAudioRoles(for chunk: InteractiveChunk) -> Set<LanguageFlagRole>",
 )
-if "roles.formUnion([.original, .translation])" not in available_audio_roles_body:
-    fail("combined audio options must expose both Original and Translation header roles")
-if ".combined && !$0.streamURLs.isEmpty" not in available_audio_roles_body:
-    fail("combined-backed role availability must require a playable stream list")
+if "chunkSupportsAudioTrack(.original, in: chunk)" not in available_audio_roles_body:
+    fail("Original header role availability must use the shared audio-support helper")
+if "chunkSupportsAudioTrack(.translation, in: chunk)" not in available_audio_roles_body:
+    fail("Translation header role availability must use the shared audio-support helper")
+if "roles.formUnion([.original, .translation])" in available_audio_roles_body:
+    fail("header role availability must not blindly expose both roles from a combined option")
 if "if roles.isEmpty, kinds.contains(.combined)" in available_audio_roles_body:
     fail("combined-backed Translation must not disappear when a dedicated Original option also exists")
 active_audio_roles_body = function_body(

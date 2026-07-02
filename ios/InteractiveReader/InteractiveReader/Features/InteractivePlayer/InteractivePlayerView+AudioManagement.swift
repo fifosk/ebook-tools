@@ -185,16 +185,12 @@ extension InteractivePlayerView {
     }
 
     func availableAudioRoles(for chunk: InteractiveChunk) -> Set<LanguageFlagRole> {
-        let kinds = Set(chunk.audioOptions.map(\.kind))
         var roles: Set<LanguageFlagRole> = []
-        if kinds.contains(.original) {
+        if chunkSupportsAudioTrack(.original, in: chunk) {
             roles.insert(.original)
         }
-        if kinds.contains(.translation) {
+        if chunkSupportsAudioTrack(.translation, in: chunk) {
             roles.insert(.translation)
-        }
-        if chunk.audioOptions.contains(where: { $0.kind == .combined && !$0.streamURLs.isEmpty }) {
-            roles.formUnion([.original, .translation])
         }
         return roles
     }
@@ -251,6 +247,14 @@ extension InteractivePlayerView {
             translation: shouldSelectRoleOnly ? role == .translation : availableRoles.contains(.translation),
             preservingPosition: currentSentenceIndex
         )
+        if shouldSelectRoleOnly {
+            let selectedTrack: SequenceTrack = role == .original ? .original : .translation
+            viewModel.applySingleTrackSelection(selectedTrack, for: chunk)
+        } else {
+            viewModel.rememberAudioModePreference(audioModeManager.currentMode)
+            viewModel.sequenceController.audioMode = audioModeManager.currentMode
+            viewModel.synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)
+        }
         alignVisibleTracksWithCurrentAudioMode(for: chunk, expandSequenceMode: true)
 
         // Reconfigure playback with position preservation
