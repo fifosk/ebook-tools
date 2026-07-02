@@ -157,6 +157,9 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert str(MODE_SWITCH_SWIFT_CHECK.relative_to(ROOT)) in check_script
     assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/AudioModeManager.swift" in check_script
     assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift" in check_script
+    assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/TextPlayerTimelineTypes.swift" in check_script
+    assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/TextPlayerTimeline+Helpers.swift" in check_script
+    assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/TextPlayerTimeline.swift" in check_script
     assert "manager.toggle(.original, preservingPosition: sequenceProvider.index)" in swift_check
     assert "manager.toggle(.translation, preservingPosition: transcriptProvider.index)" in swift_check
     assert "SentencePositionProvider.targetSentenceIndex(" in swift_check
@@ -185,6 +188,9 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Unloaded next-batch setup should preserve translation-only mode when text tracks temporarily fall back to original" in swift_check
     assert "Header/menu translation-only selection should keep all renderable transcript tracks visible" in swift_check
     assert "Hydrated batch bridge should preserve all renderable transcript tracks while audio stays on Translation" in swift_check
+    assert "Translation-only render timing should ignore stale original URL and sequence track" in swift_check
+    assert "Translation-only render timing should select the translated sentence at the translation gate" in swift_check
+    assert "Translation-only render timing should expose the translated sentence tokens" in swift_check
     assert "synchronizeSelectedAudioTrackWithCurrentMode(" in swift_check
     assert "Chunk handoff should switch the selected audio option before immediate playback can load the next batch" in swift_check
     assert "Chunk handoff should record translation-only as the durable lane before batch autoplay starts" in swift_check

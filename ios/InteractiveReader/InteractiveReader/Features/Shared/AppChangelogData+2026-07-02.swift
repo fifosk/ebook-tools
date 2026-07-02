@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-single-track-render-sync-contract",
+                    title: "Single-track render sync is guarded",
+                    detail: "The Apple playback-mode regression harness now composes audio-mode and timeline logic to prove translation-only playback renders from translation gates even when stale original URL or sequence state is still present."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-render-all-contract",
                     title: "Single-track audio keeps all text",
                     detail: "The Apple playback-mode regression harness now matches the reader behavior that original, translation, and transliteration text can remain visible while narration plays only the selected audio track."

@@ -6,18 +6,6 @@ enum SequenceTrack: String {
     case translation
 }
 
-enum TextPlayerTimingTrack: Equatable {
-    case mix
-    case translation
-    case original
-}
-
-enum TextPlayerVariantKind: String, Hashable {
-    case original
-    case translation
-    case transliteration
-}
-
 enum LanguageFlagRole: String, Hashable {
     case original
     case translation
@@ -38,19 +26,61 @@ struct InteractiveChunk: Identifiable {
     struct Sentence: Identifiable {
         let id: Int
         let displayIndex: Int?
+        let originalText: String
+        let translationText: String
+        let transliterationText: String?
+        let originalTokens: [String]
+        let translationTokens: [String]
+        let transliterationTokens: [String]
+        let imagePath: String?
+        let timingTokens: [WordTimingToken]
+        let originalTimingTokens: [WordTimingToken]
+        let timeline: [ChunkSentenceTimelineEvent]
+        let totalDuration: Double?
+        let phaseDurations: ChunkSentencePhaseDurations?
         let startGate: Double?
+        let endGate: Double?
         let originalStartGate: Double?
+        let originalEndGate: Double?
 
         init(
             id: Int,
             displayIndex: Int?,
+            originalText: String = "",
+            translationText: String = "",
+            transliterationText: String? = nil,
+            originalTokens: [String] = [],
+            translationTokens: [String] = [],
+            transliterationTokens: [String] = [],
+            imagePath: String? = nil,
+            timingTokens: [WordTimingToken] = [],
+            originalTimingTokens: [WordTimingToken] = [],
+            timeline: [ChunkSentenceTimelineEvent] = [],
+            totalDuration: Double? = nil,
+            phaseDurations: ChunkSentencePhaseDurations? = nil,
             startGate: Double? = nil,
-            originalStartGate: Double? = nil
+            endGate: Double? = nil,
+            originalStartGate: Double? = nil,
+            originalEndGate: Double? = nil
         ) {
             self.id = id
             self.displayIndex = displayIndex
+            self.originalText = originalText
+            self.translationText = translationText
+            self.transliterationText = transliterationText
+            self.originalTokens = originalTokens
+            self.translationTokens = translationTokens
+            self.transliterationTokens = transliterationTokens
+            self.imagePath = imagePath
+            self.timingTokens = timingTokens
+            self.originalTimingTokens = originalTimingTokens
+            self.timeline = timeline
+            self.totalDuration = totalDuration
+            self.phaseDurations = phaseDurations
             self.startGate = startGate
+            self.endGate = endGate
             self.originalStartGate = originalStartGate
+            self.originalEndGate = originalEndGate
         }
     }
 
@@ -79,6 +109,29 @@ struct InteractiveChunk: Identifiable {
     let startSentence: Int?
     let sentences: [Sentence]
     let audioOptions: [AudioOption]
+}
+
+struct WordTimingToken: Identifiable {
+    let id: String
+    let text: String
+    let sentenceIndex: Int?
+    let startTime: Double
+    let endTime: Double
+    let fileIndex: Int?
+}
+
+struct ChunkSentenceTimelineEvent {
+    let duration: Double
+    let originalIndex: Int
+    let translationIndex: Int
+    let transliterationIndex: Int
+}
+
+struct ChunkSentencePhaseDurations {
+    let original: Double?
+    let translation: Double?
+    let gap: Double?
+    let tail: Double?
 }
 
 struct PendingSentenceJump {
@@ -2639,6 +2692,78 @@ private func runChecks() {
         )?.id,
         "translation-next",
         "Translation-only rendering helpers should ignore stale original selections after a batch handoff"
+    )
+    let renderSyncChunk = InteractiveChunk(
+        id: "chapter-render-sync",
+        startSentence: 300,
+        sentences: [
+            .init(
+                id: 0,
+                displayIndex: 300,
+                originalText: "Original first.",
+                translationText: "Translated first.",
+                originalTokens: ["Original", "first"],
+                translationTokens: ["Translated", "first"],
+                startGate: 0.0,
+                endGate: 2.0,
+                originalStartGate: 0.0,
+                originalEndGate: 10.0
+            ),
+            .init(
+                id: 1,
+                displayIndex: 301,
+                originalText: "Original second.",
+                translationText: "Translated second.",
+                originalTokens: ["Original", "second"],
+                translationTokens: ["Translated", "second"],
+                startGate: 3.0,
+                endGate: 5.0,
+                originalStartGate: 10.0,
+                originalEndGate: 20.0
+            )
+        ],
+        audioOptions: [
+            audioOption("combined-render", kind: .combined, urls: [originalURL, translationURL]),
+            audioOption("translation-render", kind: .translation, urls: [translationURL])
+        ]
+    )
+    let renderSyncManager = AudioModeManager()
+    renderSyncManager.setTracks(original: false, translation: true)
+    let renderTimingTrack = renderSyncManager.resolveTimingTrack(
+        for: renderSyncChunk,
+        selectedTrackID: "combined-render",
+        sequenceTrack: .original,
+        sequenceEnabled: true,
+        activeURL: originalURL
+    )
+    requireEqual(
+        renderTimingTrack,
+        .translation,
+        "Translation-only render timing should ignore stale original URL and sequence track"
+    )
+    guard let renderTimeline = TextPlayerTimeline.buildTimelineSentences(
+        sentences: renderSyncChunk.sentences,
+        activeTimingTrack: renderTimingTrack,
+        audioDuration: 6.0,
+        useCombinedPhases: false
+    ) else {
+        fail("Translation-only render timing should build a timeline")
+    }
+    guard let activeRenderRuntime = TextPlayerTimeline.resolveActiveRuntime(
+        timelineSentences: renderTimeline,
+        effectiveTime: 3.2
+    ) else {
+        fail("Translation-only render timing should resolve an active timeline sentence")
+    }
+    requireEqual(
+        activeRenderRuntime.index,
+        1,
+        "Translation-only render timing should select the translated sentence at the translation gate"
+    )
+    requireEqual(
+        activeRenderRuntime.variants[.translation]?.tokens,
+        ["Translated", "second"],
+        "Translation-only render timing should expose the translated sentence tokens"
     )
     var headerVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
     var headerHasCustomTrackSelection = false

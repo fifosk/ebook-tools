@@ -6,6 +6,9 @@ TMP_DIR="$(mktemp -d /tmp/ebook-tools-apple-mode-switch.XXXXXX)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
 swiftc \
+  "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/TextPlayerTimelineTypes.swift" \
+  "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/TextPlayerTimeline+Helpers.swift" \
+  "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/TextPlayerTimeline.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/AudioModeManager.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift" \
   "${ROOT_DIR}/scripts/tests/check_playback_mode_switch_integration.swift" \
