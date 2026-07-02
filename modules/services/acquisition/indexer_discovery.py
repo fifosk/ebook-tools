@@ -10,6 +10,134 @@ from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+import requests
+
+from .discovery_values import safe_identifier
+from .models import AcquisitionCandidate, AcquisitionProviderDiscoveryError
+from .references import store_acquisition_reference
+from .tokens import encode_acquisition_token
+
+
+def discover_newznab_torznab(
+    config: Mapping[str, Any],
+    query: str,
+    limit: int,
+    *,
+    session: requests.Session | None,
+) -> list[AcquisitionCandidate]:
+    endpoint = indexer_endpoint(config)
+    if not endpoint or not query:
+        return []
+
+    client = session or requests.Session()
+    params: dict[str, str | int] = {
+        "t": "search",
+        "q": query,
+        "limit": max(1, min(limit, 100)),
+    }
+    api_key = indexer_api_key(config)
+    if api_key:
+        params["apikey"] = api_key
+    category = indexer_category(config)
+    if category:
+        params["cat"] = category
+
+    response = client.get(newznab_api_url(endpoint), params=params, timeout=15)
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        raise indexer_provider_error(exc) from exc
+
+    try:
+        root = ET.fromstring(response.text)
+    except ET.ParseError as exc:
+        raise AcquisitionProviderDiscoveryError(
+            provider="newznab_torznab",
+            reason="invalid_xml",
+            message="Indexer search returned an unreadable feed. Check the configured Newznab/Torznab endpoint.",
+        ) from exc
+
+    candidates: list[AcquisitionCandidate] = []
+    for item in root.findall(".//item"):
+        title = xml_child_text(item, "title") or "Indexer result"
+        guid = xml_child_text(item, "guid") or xml_child_text(item, "link") or title
+        attrs = torznab_attrs(item)
+        size_bytes = int_value(attrs.get("size")) or enclosure_length(item)
+        published_at = xml_child_text(item, "pubDate")
+        published_dt = parse_rfc2822_datetime(published_at)
+        indexer = xml_child_text(item, "author") or string_value(config.get("indexer_label"))
+        categories = tuple(
+            category
+            for category in (
+                xml_child_text(element, None)
+                for element in item.findall("./category")
+            )
+            if category
+        )
+        safe_guid = safe_identifier(guid)
+        source_uri = xml_child_text(item, "link") or enclosure_url(item)
+        source_ref = (
+            store_acquisition_reference(
+                provider="newznab_torznab",
+                media_kind="video",
+                source_uri=source_uri,
+                config=config,
+                metadata={"guid": safe_guid, "title": title},
+            )
+            if source_uri
+            else None
+        )
+        handoff_provider = "download_station" if source_ref else None
+        token = _candidate_token(
+            {
+                "provider": "newznab_torznab",
+                "media_kind": "video",
+                "guid": safe_guid,
+                "source_ref": source_ref,
+                "title": title,
+            }
+        )
+        seeders = int_value(attrs.get("seeders"))
+        peers = int_value(attrs.get("peers"))
+        candidates.append(
+            AcquisitionCandidate(
+                candidate_id=f"newznab_torznab:{safe_guid}",
+                provider="newznab_torznab",
+                media_kind="video",
+                title=title,
+                rights="unknown",
+                capabilities=(
+                    ("search", "metadata", "acquire")
+                    if handoff_provider
+                    else ("search", "metadata")
+                ),
+                candidate_token=token,
+                contributors=tuple(value for value in (indexer,) if value),
+                published_at=published_dt.isoformat() if published_dt else published_at,
+                size_bytes=size_bytes,
+                requires_confirmation=True,
+                policy_notes=(
+                    "Indexer result is metadata only; confirm lawful access before any downloader handoff.",
+                    "Raw NZB, torrent, magnet, and API-key URLs stay server-side and are not returned to clients.",
+                ),
+                metadata={
+                    "source_kind": "newznab_torznab",
+                    "indexer": indexer,
+                    "guid": safe_guid,
+                    "categories": list(categories),
+                    "seeders": seeders,
+                    "peers": peers,
+                    "grabs": int_value(attrs.get("grabs")),
+                    "has_download_url": bool(source_ref),
+                    "handoff_provider": handoff_provider,
+                    "handoff_action": "confirm_acquisition" if handoff_provider else None,
+                },
+            )
+        )
+        if len(candidates) >= limit:
+            break
+    return candidates
+
 
 def indexer_endpoint(config: Mapping[str, Any]) -> str | None:
     for key in ("prowlarr_url", "torznab_url", "newznab_url", "indexer_url"):
@@ -133,3 +261,27 @@ def string_value(value: Any) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def indexer_provider_error(exc: requests.HTTPError) -> AcquisitionProviderDiscoveryError:
+    response = exc.response
+    status_code = response.status_code if response is not None else None
+    if status_code in {401, 403}:
+        message = "Indexer search is not authorized. Check the backend Newznab/Torznab API key."
+        reason = "unauthorized"
+    elif status_code == 429:
+        message = "Indexer search is rate limited. Wait and try again later."
+        reason = "rate_limited"
+    else:
+        suffix = f" HTTP {status_code}" if status_code else ""
+        message = f"Indexer search failed{suffix}. Try again later."
+        reason = f"http_{status_code or 'unknown'}"
+    return AcquisitionProviderDiscoveryError(
+        provider="newznab_torznab",
+        reason=reason,
+        message=message,
+    )
+
+
+def _candidate_token(payload: Mapping[str, Any]) -> str:
+    return encode_acquisition_token(payload)

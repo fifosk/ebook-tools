@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Backend Newznab/Torznab acquisition discovery now lives with the focused indexer helper module, keeping review-only metadata candidate construction, source-reference storage, and token-safe indexer error handling out of the shared provider fanout.
 - Backend YouTube URL/search acquisition discovery now lives with the focused YouTube helper module, keeping metadata candidate construction and token-safe API error handling out of the shared provider fanout while preserving Web and Apple Create contracts.
 - Apple reader resume and visible-track restore paths now reapply the full original-only/translation-only audio selection instead of only assigning a matching option id, keeping the durable loaded lane intact when sentence batches end or resume opens in single-track mode.
 - Backend local EPUB, manual download, and NAS video discovery now share a focused file-backed provider helper module, keeping filesystem scanning and candidate shaping out of the large acquisition fanout while preserving Web and Apple Create source picker behavior.

@@ -2367,6 +2367,7 @@ def test_discover_youtube_search_maps_quota_errors_without_secret() -> None:
 
 
 def test_indexer_discovery_helpers_normalize_config_urls_and_xml(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("PROWLARR_URL", " https://env-indexer.example.invalid ")
@@ -2407,6 +2408,38 @@ def test_indexer_discovery_helpers_normalize_config_urls_and_xml(
     )
     assert parsed_date is not None
     assert parsed_date.isoformat() == "2026-06-25T12:05:00+00:00"
+
+    class _FakeResponse:
+        text = """
+        <rss>
+          <channel>
+            <item>
+              <title>Readable History S01E01 1080p</title>
+              <guid>readable-history-s01e01</guid>
+            </item>
+          </channel>
+        </rss>
+        """
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class _FakeSession:
+        def get(self, url, *, params, timeout):
+            return _FakeResponse()
+
+    candidates = indexer_discovery.discover_newznab_torznab(
+        {
+            "newznab_url": "https://indexer.example.invalid/root",
+            "acquisition_reference_root": str(tmp_path / "acquisition_refs"),
+        },
+        "readable history",
+        1,
+        session=_FakeSession(),
+    )
+    assert candidates[0].provider == "newznab_torznab"
+    assert candidates[0].candidate_id == "newznab_torznab:readable-history-s01e01"
+    assert candidates[0].capabilities == ("search", "metadata")
 
 
 def test_discover_newznab_torznab_normalizes_review_only_metadata_without_secret(

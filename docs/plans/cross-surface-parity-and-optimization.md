@@ -1344,7 +1344,8 @@ Optimization candidates:
   parsing, API-key lookup, detail fetches, and token-safe API error mapping now live in
   `modules/services/acquisition/youtube_discovery.py` with focused acquisition
   coverage, keeping Web and Apple video discovery behavior easier to evolve
-  without reopening the full acquisition service. Newznab/Torznab endpoint,
+  without reopening the full acquisition service. Newznab/Torznab search,
+  review-only metadata candidate construction, source-reference storage, endpoint,
   key, category, sanitized API URL, XML feed, and published-date helpers now
   live in `modules/services/acquisition/indexer_discovery.py` with the same
   focused acquisition coverage, keeping reviewed indexer source pickers aligned

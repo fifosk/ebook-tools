@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-indexer-discovery-helper-module",
+                    title: "Indexer discovery is leaner",
+                    detail: "Backend Newznab and Torznab acquisition discovery now lives with the focused indexer helper module, keeping review-only metadata candidate construction, source-reference storage, and token-safe indexer error handling out of the shared provider fanout."
+                ),
+                AppChangelogEntry(
                     id: "backend-youtube-discovery-helper-module",
                     title: "YouTube discovery is leaner",
                     detail: "Backend YouTube URL and search acquisition discovery now lives with the focused YouTube helper module, keeping metadata candidate construction and token-safe API error handling out of the shared provider fanout while preserving Web and Apple Create contracts."
