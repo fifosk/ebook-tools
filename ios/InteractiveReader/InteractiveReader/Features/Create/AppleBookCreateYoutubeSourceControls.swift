@@ -98,7 +98,26 @@ struct AppleBookCreateYoutubeSourceControls: View {
             progressIdentifier: "createYoutubeNasVideosProgress",
             action: onRefreshYoutubeLibrary
         )
-        videoDiscoveryControls
+        AppleBookCreateYoutubeDiscoveryControls(
+            videoDiscoveryQuery: $videoDiscoveryQuery,
+            videoDiscoveryProvider: videoDiscoveryProviderBinding,
+            downloadStationSourceURI: $downloadStationSourceURI,
+            downloadStationCandidate: $downloadStationCandidate,
+            videoDiscoveryProviderOptions: videoDiscoveryProviderOptions,
+            videoDiscoveryQueryPlaceholder: videoDiscoveryQueryPlaceholder,
+            videoDiscoveryCandidates: videoDiscoveryCandidates,
+            videoDiscoveryPolicyNotes: videoDiscoveryPolicyNotes,
+            isLoadingAcquisitionDiscovery: isLoadingAcquisitionDiscovery,
+            isPreparingAcquisitionCandidate: isPreparingAcquisitionCandidate,
+            isSelectedVideoDiscoveryProviderAvailable: isSelectedVideoDiscoveryProviderAvailable,
+            acquisitionDiscoveryErrorMessage: acquisitionDiscoveryErrorMessage,
+            acquisitionProvidersErrorMessage: acquisitionProvidersErrorMessage,
+            selectedVideoDiscoveryProviderUnavailableMessage: selectedVideoDiscoveryProviderUnavailableMessage,
+            shouldShowNoVideoDiscoveryCandidatesMessage: shouldShowNoVideoDiscoveryCandidatesMessage,
+            noVideoDiscoveryCandidatesMessage: noVideoDiscoveryCandidatesMessage,
+            onSearchYoutubeAcquisitionDiscovery: onSearchYoutubeAcquisitionDiscovery,
+            onSelectYoutubeAcquisitionCandidate: onSelectYoutubeAcquisitionCandidate
+        )
         AppleBookCreateYoutubeDownloadStationControls(
             downloadStationJob: downloadStationJob,
             downloadStationMessage: downloadStationMessage,
@@ -153,89 +172,6 @@ struct AppleBookCreateYoutubeSourceControls: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createYoutubeSubtitlePathField")
-    }
-
-    @ViewBuilder
-    private var videoDiscoveryControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Discover Video Sources", systemImage: "sparkle.magnifyingglass")
-                .accessibilityIdentifier("createYoutubeDiscoveryLabel")
-            Picker("Discovery source", selection: videoDiscoveryProviderBinding) {
-                ForEach(videoDiscoveryProviderOptions) { option in
-                    Text(option.label).tag(option.id)
-                }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("createYoutubeDiscoveryProviderPicker")
-            TextField(videoDiscoveryQueryPlaceholder, text: $videoDiscoveryQuery)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .accessibilityIdentifier("createYoutubeDiscoveryQueryField")
-            Button {
-                onSearchYoutubeAcquisitionDiscovery(videoDiscoveryQuery, videoDiscoveryProvider)
-            } label: {
-                Label(
-                    isLoadingAcquisitionDiscovery ? "Searching Sources" : "Search Sources",
-                    systemImage: "magnifyingglass"
-                )
-            }
-            .disabled(isLoadingAcquisitionDiscovery || !isSelectedVideoDiscoveryProviderAvailable)
-            .accessibilityIdentifier("createYoutubeDiscoverySearchButton")
-            if isLoadingAcquisitionDiscovery {
-                ProgressView()
-                    .accessibilityIdentifier("createYoutubeDiscoveryProgress")
-            } else if isPreparingAcquisitionCandidate {
-                ProgressView()
-                    .accessibilityIdentifier("createYoutubeDiscoveryPrepareProgress")
-            }
-            if let acquisitionDiscoveryErrorMessage {
-                Text(acquisitionDiscoveryErrorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("createYoutubeDiscoveryMessage")
-            } else if let acquisitionProvidersErrorMessage {
-                Text(acquisitionProvidersErrorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("createYoutubeDiscoveryMessage")
-            } else if let selectedVideoDiscoveryProviderUnavailableMessage {
-                Text(selectedVideoDiscoveryProviderUnavailableMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("createYoutubeDiscoveryMessage")
-            } else if shouldShowNoVideoDiscoveryCandidatesMessage {
-                Text(noVideoDiscoveryCandidatesMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("createYoutubeDiscoveryMessage")
-            }
-            ForEach(videoDiscoveryPolicyNotes, id: \.self) { note in
-                Text(note)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("createYoutubeDiscoveryPolicyNote")
-            }
-            ForEach(videoDiscoveryCandidates) { candidate in
-                Button {
-                    if AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate) {
-                        downloadStationCandidate = candidate
-                        downloadStationSourceURI = ""
-                    }
-                    onSelectYoutubeAcquisitionCandidate(candidate, videoDiscoveryQuery, videoDiscoveryProvider)
-                } label: {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(candidate.title)
-                            .font(.body)
-                        Text(AppleBookCreatePresentation.videoDiscoveryCandidateDetail(candidate))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .accessibilityIdentifier("createYoutubeDiscoveryCandidate.\(candidate.id)")
-                .disabled(isPreparingAcquisitionCandidate)
-            }
-        }
-        .accessibilityIdentifier("createYoutubeDiscoveryControls")
     }
 
     private var youtubeVideos: [YoutubeNasVideoEntry] {
