@@ -687,8 +687,9 @@ Current Apple UI partially exposes:
   metadata-only candidate construction and media-metadata lookup payload shaping
   now live in `modules/services/acquisition/openlibrary_discovery.py` with focused
   coverage, keeping book handoff helpers small for Web Narrate Ebook and Apple
-  Create. Backend Internet Archive discovery query construction,
-  EPUB eligibility, download URL, metadata fetch, and rights helpers now live in
+  Create. Backend Internet Archive discovery query construction, search/source-id
+  provider calls, EPUB candidate construction, download URL shaping, metadata
+  fetch, and rights helpers now live in
   `modules/services/acquisition/internet_archive_discovery.py` with focused
   coverage, keeping public-catalog EPUB acquisition rules small and reusable for
   Web/Apple book discovery. Backend Project Gutenberg discovery search-parameter,

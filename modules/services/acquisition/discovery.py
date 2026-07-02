@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from typing import Any
-from urllib.parse import quote
 
 import requests
 
@@ -12,19 +11,11 @@ from .provider_registry import (
     default_discovery_provider_ids,
     discovery_media_kinds_for,
 )
-from .tokens import encode_acquisition_token
-from .discovery_values import (
-    int_value as _int_value,
-    safe_identifier as _safe_identifier,
-    string_sequence as _string_sequence,
-    string_value as _string_value,
-)
 from .discovery_planning import (
     order_default_discovery_candidates,
     provider_query_limit,
 )
 from .discovery_normalization import (
-    normalize_language_code as _normalize_language_code,
     normalize_limit as _normalize_limit,
     normalize_media_kind as _normalize_media_kind,
     normalize_provider as _normalize_provider,
@@ -43,12 +34,7 @@ from .gutenberg_discovery import (
     discover_gutenberg as _discover_gutenberg,
 )
 from .internet_archive_discovery import (
-    fetch_internet_archive_metadata,
-    internet_archive_download_url,
-    internet_archive_epub_file,
-    internet_archive_query,
-    internet_archive_rights,
-    mapping_value,
+    discover_internet_archive as _discover_internet_archive,
     normalize_internet_archive_source_ids as _normalize_source_ids,
 )
 from .openlibrary_discovery import (
@@ -63,10 +49,6 @@ from .youtube_discovery import (
     discover_youtube_search as _discover_youtube_search,
     discover_youtube_url as _discover_youtube_url,
 )
-
-
-_INTERNET_ARCHIVE_ADVANCED_SEARCH_URL = "https://archive.org/advancedsearch.php"
-_INTERNET_ARCHIVE_METADATA_URL = "https://archive.org/metadata"
 
 
 def discover_acquisition_candidates(
@@ -226,168 +208,3 @@ def _providers_for(
             )
         return (provider,)
     return default_discovery_provider_ids(media_kind, config)
-
-
-def _discover_internet_archive(
-    query: str,
-    limit: int,
-    *,
-    language: str | None,
-    source_ids: Sequence[str] = (),
-    session: requests.Session | None,
-) -> list[AcquisitionCandidate]:
-    if source_ids:
-        return _discover_internet_archive_source_ids(source_ids, limit, session=session)
-    if not query:
-        return []
-
-    client = session or requests.Session()
-    normalized_language = _normalize_language_code(language)
-    params: dict[str, Any] = {
-        "q": internet_archive_query(query, normalized_language),
-        "output": "json",
-        "rows": max(1, min(limit, 25)),
-        "page": 1,
-        "fl[]": [
-            "identifier",
-            "title",
-            "creator",
-            "date",
-            "language",
-            "licenseurl",
-            "rights",
-            "downloads",
-        ],
-    }
-    response = client.get(_INTERNET_ARCHIVE_ADVANCED_SEARCH_URL, params=params, timeout=10)
-    response.raise_for_status()
-    payload = response.json()
-    docs = ((payload.get("response") or {}).get("docs")) if isinstance(payload, Mapping) else None
-    if not isinstance(docs, Sequence):
-        return []
-
-    candidates: list[AcquisitionCandidate] = []
-    for item in docs:
-        if not isinstance(item, Mapping):
-            continue
-        identifier = _string_value(item.get("identifier"))
-        if not identifier:
-            continue
-        metadata = fetch_internet_archive_metadata(
-            client,
-            _INTERNET_ARCHIVE_METADATA_URL,
-            identifier,
-        )
-        candidate = _internet_archive_candidate_from_metadata(
-            identifier=identifier,
-            metadata=metadata,
-            search_item=item,
-        )
-        if not candidate:
-            continue
-        candidates.append(candidate)
-        if len(candidates) >= limit:
-            break
-    return candidates
-
-
-def _discover_internet_archive_source_ids(
-    source_ids: Sequence[str],
-    limit: int,
-    *,
-    session: requests.Session | None,
-) -> list[AcquisitionCandidate]:
-    client = session or requests.Session()
-    candidates: list[AcquisitionCandidate] = []
-    for identifier in source_ids:
-        metadata = fetch_internet_archive_metadata(
-            client,
-            _INTERNET_ARCHIVE_METADATA_URL,
-            identifier,
-        )
-        candidate = _internet_archive_candidate_from_metadata(
-            identifier=identifier,
-            metadata=metadata,
-            search_item={},
-        )
-        if not candidate:
-            continue
-        candidates.append(candidate)
-        if len(candidates) >= limit:
-            break
-    return candidates
-
-
-def _internet_archive_candidate_from_metadata(
-    *,
-    identifier: str,
-    metadata: Mapping[str, Any],
-    search_item: Mapping[str, Any],
-) -> AcquisitionCandidate | None:
-    metadata_object = mapping_value(metadata.get("metadata"))
-    epub_file = internet_archive_epub_file(metadata)
-    if not epub_file:
-        return None
-    epub_name = _string_value(epub_file.get("name"))
-    if not epub_name:
-        return None
-    epub_url = internet_archive_download_url(identifier, epub_name)
-    title = (
-        _string_value(search_item.get("title"))
-        or _string_value(metadata_object.get("title"))
-        or identifier
-    )
-    creators = _string_sequence(search_item.get("creator")) or _string_sequence(
-        metadata_object.get("creator")
-    )
-    languages = _string_sequence(search_item.get("language")) or _string_sequence(
-        metadata_object.get("language")
-    )
-    date_value = _string_value(search_item.get("date")) or _string_value(
-        metadata_object.get("date")
-    )
-    year = _int_value(date_value[:4]) if date_value else None
-    rights = internet_archive_rights(search_item, metadata)
-    token = _candidate_token(
-        {
-            "provider": "internet_archive",
-            "media_kind": "book",
-            "identifier": identifier,
-            "epub_url": epub_url,
-        }
-    )
-    return AcquisitionCandidate(
-        candidate_id=f"internet_archive:{identifier}",
-        provider="internet_archive",
-        media_kind="book",
-        title=title,
-        rights=rights,
-        capabilities=("search", "metadata", "acquire"),
-        candidate_token=token,
-        contributors=creators,
-        language=languages[0] if languages else None,
-        year=year,
-        source_url=f"https://archive.org/details/{quote(identifier, safe='')}",
-        cover_url=f"https://archive.org/services/img/{quote(identifier, safe='')}",
-        size_bytes=_int_value(epub_file.get("size")),
-        requires_confirmation=True,
-        policy_notes=(
-            "Internet Archive result; confirm public, open, or otherwise authorized access before acquisition.",
-        ),
-        metadata={
-            "source_kind": "internet_archive",
-            "identifier": identifier,
-            "epub_file": epub_name,
-            "epub_url": epub_url,
-            "downloads": _int_value(search_item.get("downloads")),
-            "licenseurl": _string_value(search_item.get("licenseurl"))
-            or _string_value(metadata_object.get("licenseurl")),
-            "rights": _string_value(search_item.get("rights"))
-            or _string_value(metadata_object.get("rights")),
-            "languages": list(languages),
-        },
-    )
-
-
-def _candidate_token(payload: Mapping[str, Any]) -> str:
-    return encode_acquisition_token(payload)

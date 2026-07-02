@@ -1432,6 +1432,52 @@ def test_discover_internet_archive_source_ids_reject_unsafe_identifiers() -> Non
 
 
 def test_internet_archive_discovery_helpers_filter_epubs_and_rights() -> None:
+    class _FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return self._payload
+
+    class _FakeSession:
+        def get(self, url, **kwargs):
+            if url.endswith("/advancedsearch.php"):
+                return _FakeResponse(
+                    {
+                        "response": {
+                            "docs": [
+                                {
+                                    "identifier": "demo_public_book",
+                                    "title": "Demo Public Book",
+                                    "creator": ["Archive Author"],
+                                    "language": ["eng"],
+                                    "licenseurl": "https://creativecommons.org/publicdomain/mark/1.0/",
+                                    "downloads": "42",
+                                }
+                            ]
+                        }
+                    }
+                )
+            return _FakeResponse(
+                {
+                    "metadata": {"title": "Demo Public Book"},
+                    "files": [{"name": "demo_public_book.epub", "size": "4567"}],
+                }
+            )
+
+    direct_candidates = internet_archive_discovery.discover_internet_archive(
+        "demo public",
+        1,
+        language="English",
+        session=_FakeSession(),
+    )
+    assert direct_candidates[0].provider == "internet_archive"
+    assert direct_candidates[0].candidate_id == "internet_archive:demo_public_book"
+    assert direct_candidates[0].metadata["downloads"] == 42
+
     assert (
         internet_archive_discovery.internet_archive_query("demo public", "en")
         == "(demo public) AND mediatype:texts AND -access-restricted-item:true AND language:en"
