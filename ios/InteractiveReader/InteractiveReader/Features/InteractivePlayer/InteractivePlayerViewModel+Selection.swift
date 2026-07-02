@@ -33,6 +33,7 @@ extension InteractivePlayerViewModel {
             if clearSingleTrackOnSequence {
                 preferredSingleTrackMode = nil
                 loadedSingleTrackPlaybackMode = nil
+                selectedTimingSingleTrackMode = nil
             }
         }
     }
@@ -228,6 +229,7 @@ extension InteractivePlayerViewModel {
         case .combined:
             preferredSingleTrackMode = nil
             loadedSingleTrackPlaybackMode = nil
+            selectedTimingSingleTrackMode = nil
             if let audioModeManager {
                 audioModeManager.enableSequenceMode()
                 sequenceController.audioMode = audioModeManager.currentMode
@@ -584,6 +586,7 @@ extension InteractivePlayerViewModel {
         targetSentenceIndex: Int?
     ) {
         loadedSingleTrackPlaybackMode = nil
+        selectedTimingSingleTrackMode = nil
         let effectiveTargetIndex = resolvedSequenceTargetIndex(for: chunk, targetSentenceIndex: targetSentenceIndex)
         interactiveSelectionLogger.debug(
             "Prepare audio: taking sequence path effectiveTargetIndex=\(effectiveTargetIndex ?? -1, privacy: .public)"
@@ -659,6 +662,7 @@ extension InteractivePlayerViewModel {
             sequenceController.reset()
         }
         loadedSingleTrackPlaybackMode = reassertSingleTrackPlaybackLane(for: chunk)
+        selectedTimingSingleTrackMode = loadedSingleTrackPlaybackMode
         selectedTimingURL = timingURL
         if let targetIndex = targetSentenceIndex,
            targetIndex >= 0,
@@ -686,6 +690,7 @@ extension InteractivePlayerViewModel {
     ) {
         sequenceController.reset()
         loadedSingleTrackPlaybackMode = reassertSingleTrackPlaybackLane(for: chunk)
+        selectedTimingSingleTrackMode = loadedSingleTrackPlaybackMode
         let needsSeek = targetSentenceIndex != nil && targetSentenceIndex! >= 0 && targetSentenceIndex! < chunk.sentences.count
         audioCoordinator.load(
             urls: urls,
@@ -821,10 +826,14 @@ extension InteractivePlayerViewModel {
 
     private func selectedTimingSingleTrackMode(in chunk: InteractiveChunk) -> SequenceTrack? {
         guard !sequenceController.isEnabled,
-              let selectedTimingURL else {
+              let selectedTimingURL,
+              let selectedTimingSingleTrackMode else {
             return nil
         }
-        return singleTrackMode(forAudioURL: selectedTimingURL, in: chunk)
+        guard singleTrackMode(forAudioURL: selectedTimingURL, in: chunk) == selectedTimingSingleTrackMode else {
+            return nil
+        }
+        return selectedTimingSingleTrackMode
     }
 
     private func playbackEndedURLBelongsToCurrentChunk(

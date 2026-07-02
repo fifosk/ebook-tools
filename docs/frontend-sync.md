@@ -102,8 +102,10 @@ Follow the suggested remediations to restore parity:
   picker or manager state, otherwise a stale hidden-track completion can advance
   the reader as combined and desync the next rendered batch from narration.
   If AVPlayer has already cleared or rewritten active queue state by the time
-  the EOF callback arrives, the selected timing URL is durable single-track lane
-  evidence and should still pin Original-only or Translation-only handoff state.
+  the EOF callback arrives, a selected timing URL stamped by the single-track
+  loader is durable lane evidence and should still pin Original-only or
+  Translation-only handoff state. A timing URL from combined/sequence fallback
+  must not be treated as single-track intent on its own.
   If the user has explicitly hidden Original or Translation, chunk lifecycle
   setup must restore that visible single-track selection into `AudioModeManager`
   before any default selection can expand the reader back to All. Resume and

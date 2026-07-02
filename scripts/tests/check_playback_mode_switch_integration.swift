@@ -968,7 +968,8 @@ private func singleTrackModeForCompletedPlayback(
     sequenceAudioMode: AudioMode,
     preferredSingleTrackMode: SequenceTrack?,
     preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
-    selectedTimingURL: URL? = nil
+    selectedTimingURL: URL? = nil,
+    selectedTimingSingleTrackMode: SequenceTrack? = nil
 ) -> SequenceTrack? {
     if let track = requestedSingleTrackMode(
         manager: manager,
@@ -980,7 +981,8 @@ private func singleTrackModeForCompletedPlayback(
     }
     guard !sequenceEnabled else { return nil }
     if let selectedTimingURL,
-       let selectedTimingSingleTrack = singleTrackModeForAudioURL(selectedTimingURL, in: chunk) {
+       let selectedTimingSingleTrack = selectedTimingSingleTrackMode,
+       singleTrackModeForAudioURL(selectedTimingURL, in: chunk) == selectedTimingSingleTrack {
         if let endedURL {
             let combinedURLs = chunk.audioOptions.first(where: { $0.kind == .combined })?.streamURLs
                 ?? [selectedTimingURL]
@@ -1037,10 +1039,12 @@ private func playbackEndedURLBelongsToCurrentChunk(
     sequenceAudioMode: AudioMode,
     preferredSingleTrackMode: SequenceTrack?,
     preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
-    selectedTimingURL: URL? = nil
+    selectedTimingURL: URL? = nil,
+    selectedTimingSingleTrackMode: SequenceTrack? = nil
 ) -> Bool {
     if let selectedTimingURL,
-       let selectedTimingSingleTrack = singleTrackModeForAudioURL(selectedTimingURL, in: chunk) {
+       let selectedTimingSingleTrack = selectedTimingSingleTrackMode,
+       singleTrackModeForAudioURL(selectedTimingURL, in: chunk) == selectedTimingSingleTrack {
         return PlaybackEndedURLPolicy.endedURL(
             endedURL,
             belongsTo: selectedOption,
@@ -1056,7 +1060,8 @@ private func playbackEndedURLBelongsToCurrentChunk(
         sequenceAudioMode: sequenceAudioMode,
         preferredSingleTrackMode: preferredSingleTrackMode,
         preferredAudioKind: preferredAudioKind,
-        selectedTimingURL: selectedTimingURL
+        selectedTimingURL: selectedTimingURL,
+        selectedTimingSingleTrackMode: selectedTimingSingleTrackMode
     )
     return PlaybackEndedURLPolicy.endedURL(
         endedURL,
@@ -2113,10 +2118,28 @@ private func runChecks() {
             sequenceAudioMode: .sequence,
             preferredSingleTrackMode: nil,
             preferredAudioKind: .combined,
-            selectedTimingURL: translationURL
+            selectedTimingURL: translationURL,
+            selectedTimingSingleTrackMode: .translation
         ),
         false,
         "Selected translation timing URL should reject stale hidden original EOF after AVPlayer clears active state"
+    )
+    requireEqual(
+        playbackEndedURLBelongsToCurrentChunk(
+            translationURL,
+            selectedOption: combinedOnlyOption,
+            chunk: combinedOnlyNextBatch,
+            activeURLs: [originalURL, translationURL],
+            sequenceEnabled: false,
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined,
+            selectedTimingURL: originalURL,
+            selectedTimingSingleTrackMode: nil
+        ),
+        true,
+        "Combined fallback queues should not treat the first selected timing URL as single-track evidence"
     )
     requireEqual(
         playbackEndedURLBelongsToCurrentChunk(
@@ -2143,7 +2166,8 @@ private func runChecks() {
             sequenceAudioMode: .sequence,
             preferredSingleTrackMode: nil,
             preferredAudioKind: .combined,
-            selectedTimingURL: translationURL
+            selectedTimingURL: translationURL,
+            selectedTimingSingleTrackMode: .translation
         ),
         .translation,
         "Selected translation timing URL should preserve the lane when EOF active URLs are empty"

@@ -41,6 +41,8 @@ extension InteractivePlayerViewModel {
         selectedTimingURL = nil
         preferredAudioKind = nil
         preferredSingleTrackMode = nil
+        loadedSingleTrackPlaybackMode = nil
+        selectedTimingSingleTrackMode = nil
         audioDurationByURL = [:]
         chunkMetadataLoaded = []
         chunkMetadataLoading = []

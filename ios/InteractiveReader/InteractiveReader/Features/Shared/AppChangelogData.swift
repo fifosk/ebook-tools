@@ -8,7 +8,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-single-track-selected-timing-eof",
                     title: "Single-track batch ends stay pinned",
-                    detail: "Apple reader original-only and translation-only playback now treats the selected timing URL as durable lane evidence at sentence-batch EOF, preventing AVPlayer queue cleanup from resetting rendering back to combined while narration advances."
+                    detail: "Apple reader original-only and translation-only playback now treats the selected timing URL stamped by single-track loading as durable lane evidence at sentence-batch EOF, preventing AVPlayer queue cleanup from resetting rendering back to combined while narration advances."
                 ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-watchdog-reader-recovery",
