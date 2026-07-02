@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "web-youtube-video-utils-helper",
+                    title: "YouTube helper is focused",
+                    detail: "Web YouTube video search/download helper logic now lives in a focused tested module covering subtitle defaults, quality labels, source badges, provider lookup, and discovery metadata summaries, trimming the page shell for Apple YouTube Dub parity work."
+                ),
+                AppChangelogEntry(
                     id: "apple-track-pill-real-lane-support",
                     title: "Track pills match real lanes",
                     detail: "Apple reader track pills now treat one-file combined audio as a mixed fallback rather than an independently selectable Translation lane, while two-stream combined audio and dedicated Original/Translation tracks still support single-track and both-track playback."

@@ -117,8 +117,13 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/video-dubbing/useVideoDubbingDiscoverySearch.ts`, while
   `web/src/pages/video-dubbing/useVideoDubbingDiscoveryController.ts` owns
   the page-level provider/default-source coordination so Video Dubbing and
-  Apple YouTube Dub keep the same backend-owned default semantics. Both hooks
-  have focused coverage. Download Station handoff source/candidate state,
+  Apple YouTube Dub keep the same backend-owned default semantics. The Web
+  YouTube video source page now keeps subtitle-default selection, format/source
+  labels, provider lookup, and discovery metadata summaries in
+  `web/src/pages/youtube-video/youtubeVideoPageUtils.ts` with focused
+  coverage, making the direct YouTube search/download page easier to compare
+  with Apple YouTube Dub behavior. Both hooks have focused coverage. Download
+  Station handoff source/candidate state,
   confirmation validation, submit, and poll lifecycle now live in
   `web/src/pages/video-dubbing/useVideoDubbingDownloadStation.ts` with focused
   hook coverage, and completed-task NAS refresh plus safe completed-file

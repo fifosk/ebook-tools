@@ -500,6 +500,16 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "test-web-full",
         "build-web-production",
     ]
+    assert select_targets(["web/src/pages/youtube-video/youtubeVideoPageUtils.ts"]) == [
+        "test-web-video-dubbing-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/pages/__tests__/youtubeVideoPageUtils.test.ts"]) == [
+        "test-web-video-dubbing-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
     assert select_targets(["web/src/pages/__tests__/VideoDubbingFeedbackPanel.test.tsx"]) == [
         "test-web-video-dubbing-focused",
         "test-web-full",
