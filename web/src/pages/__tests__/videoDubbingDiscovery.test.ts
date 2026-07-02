@@ -188,7 +188,7 @@ describe('videoDubbingDiscovery', () => {
     })).toBe('nas_video');
   });
 
-  it('falls back to legacy explicit-only filtering when backend eligibility is absent', () => {
+  it('treats missing backend video default eligibility as non-defaultable after inventory loads', () => {
     const providers = [
       provider({
         id: 'youtube_url',
@@ -342,7 +342,8 @@ describe('videoDubbingDiscovery', () => {
       candidate({ provider: 'newznab_torznab', requires_confirmation: true }),
       candidate({ provider: 'newznab_torznab', requires_confirmation: false }),
       candidate({ provider: 'manual_downloads', local_path: '/downloads/movie.mkv' }),
-      candidate({ provider: 'manual_downloads', local_path: null })
+      candidate({ provider: 'manual_downloads', local_path: null }),
+      candidate({ provider: 'partner_video', local_path: '/partner/movie.mkv' })
     ]);
 
     const youtubeUrls = filterDiscoveredVideoCandidates(response, 'youtube_search').map((entry) => {
@@ -359,9 +360,29 @@ describe('videoDubbingDiscovery', () => {
       filterDiscoveredVideoCandidates(
         {
           ...response,
-          providers_queried: ['nas_video', 'newznab_torznab', 'youtube_url']
+          providers_queried: ['nas_video', 'newznab_torznab', 'youtube_url', 'partner_video']
         },
-        DEFAULT_VIDEO_DISCOVERY_PROVIDER
+        DEFAULT_VIDEO_DISCOVERY_PROVIDER,
+        [
+          provider({
+            id: 'nas_video',
+            capabilities: ['import_local'],
+            default_eligible_media_kinds: ['video']
+          }),
+          provider({
+            id: 'newznab_torznab',
+            label: 'Indexer backend',
+            capabilities: ['search'],
+            default_eligible_media_kinds: ['video']
+          }),
+          provider({
+            id: 'youtube_url',
+            label: 'YouTube URL backend',
+            capabilities: ['metadata'],
+            discovery_media_kinds: ['video'],
+            default_eligible_media_kinds: []
+          })
+        ]
       ).map((entry) => entry.provider)
     ).toEqual(['newznab_torznab']);
     expect(filterDiscoveredVideoCandidates(response, 'manual_downloads').map((entry) => entry.local_path)).toEqual([

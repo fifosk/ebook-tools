@@ -258,12 +258,14 @@ function defaultableVideoProviderIds(
   providers: AcquisitionProvider[] = []
 ): string[] {
   const providersById = new Map(providers.map((provider) => [provider.id, provider]));
+  const hasProviderInventory = providers.length > 0;
   return providerIds.filter((providerId) => {
-    const defaultEligibleMediaKinds = providersById.get(providerId)?.default_eligible_media_kinds;
-    if (Array.isArray(defaultEligibleMediaKinds)) {
-      return defaultEligibleMediaKinds.includes('video');
+    const provider = providersById.get(providerId);
+    if (!provider) {
+      return !hasProviderInventory && !EXPLICIT_ONLY_DEFAULT_VIDEO_DISCOVERY_PROVIDERS.has(providerId);
     }
-    return !EXPLICIT_ONLY_DEFAULT_VIDEO_DISCOVERY_PROVIDERS.has(providerId);
+    return Array.isArray(provider.default_eligible_media_kinds)
+      && provider.default_eligible_media_kinds.includes('video');
   });
 }
 

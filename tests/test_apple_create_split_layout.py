@@ -3457,8 +3457,10 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "availableDefaults.count >= 2" in book_default_body
     assert "return defaultBookDiscoveryProvider" in book_default_body
     defaultable_body = _swift_function_body(discovery_source, "static func defaultableProviderIDs(")
-    assert "providersByID[$0]?.defaultEligibleMediaKinds" in defaultable_body
-    assert "return defaultEligibleMediaKinds.contains(mediaKind)" in defaultable_body
+    assert "let hasProviderInventory = !providers.isEmpty" in defaultable_body
+    assert "guard let provider = providersByID[$0]" in defaultable_body
+    assert "if hasProviderInventory" in defaultable_body
+    assert "return provider.defaultEligibleMediaKinds.contains(mediaKind)" in defaultable_body
     assert 'guard mediaKind == "video" else' in defaultable_body
     assert "ForEach(discoveryProviderOptions)" in controls_source
     assert "Text(option.label).tag(option.id)" in controls_source

@@ -215,6 +215,28 @@ describe('bookNarrationDiscoveryProviders', () => {
     })).toBe('local_epub');
   });
 
+  it('treats missing backend book default eligibility as non-defaultable after inventory loads', () => {
+    const providers = [
+      provider({
+        id: 'partner_catalog',
+        label: 'Partner Catalog',
+        capabilities: ['search', 'metadata'],
+        discovery_media_kinds: ['book'],
+        default_eligible_media_kinds: undefined as unknown as AcquisitionProvider['default_eligible_media_kinds']
+      }),
+      provider({ id: 'local_epub', capabilities: ['import_local'], default_eligible_media_kinds: ['book'] })
+    ];
+
+    expect(buildBookNarrationDiscoveryProviderOptions(providers, {
+      book: ['partner_catalog', 'local_epub']
+    }).map((entry) => entry.id)).toEqual(['local_epub', 'partner_catalog']);
+    expect(resolveDefaultBookDiscoveryProvider({
+      defaultProviderIds: { book: ['partner_catalog', 'local_epub'] },
+      providers,
+      fallback: 'local_epub'
+    })).toBe('local_epub');
+  });
+
   it('uses default sources when multiple non-disabled book defaults remain available', () => {
     const providers = [
       provider({ id: 'local_epub', capabilities: ['import_local'], status: 'not_configured', available: false }),
@@ -271,8 +293,9 @@ describe('bookNarrationDiscoveryProviders', () => {
         candidate({ candidate_id: 'local', provider: 'local_epub' }),
         candidate({ candidate_id: 'manual', provider: 'manual_downloads', local_path: '/manual/book.epub' }),
         candidate({ candidate_id: 'archive', provider: 'internet_archive', capabilities: ['acquire'], local_path: null }),
+        candidate({ candidate_id: 'missing', provider: 'partner_catalog', capabilities: ['metadata'], local_path: null }),
         candidate({ candidate_id: 'video', provider: 'manual_downloads', media_kind: 'video' })
-      ], ['local_epub', 'manual_downloads']),
+      ], ['local_epub', 'manual_downloads', 'partner_catalog']),
       DEFAULT_BOOK_DISCOVERY_PROVIDER,
       providers
     ).map((entry) => entry.candidate_id)).toEqual(['local', 'manual']);

@@ -233,11 +233,13 @@ function defaultableBookProviderIds(
   providers: AcquisitionProvider[] = []
 ): string[] {
   const providersById = new Map(providers.map((provider) => [provider.id, provider]));
+  const hasProviderInventory = providers.length > 0;
   return providerIds.filter((providerId) => {
-    const defaultEligibleMediaKinds = providersById.get(providerId)?.default_eligible_media_kinds;
-    if (Array.isArray(defaultEligibleMediaKinds)) {
-      return defaultEligibleMediaKinds.includes('book');
+    const provider = providersById.get(providerId);
+    if (!provider) {
+      return !hasProviderInventory;
     }
-    return true;
+    return Array.isArray(provider.default_eligible_media_kinds)
+      && provider.default_eligible_media_kinds.includes('book');
   });
 }

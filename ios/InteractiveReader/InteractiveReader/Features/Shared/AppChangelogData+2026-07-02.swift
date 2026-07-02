@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "acquisition-default-sources-require-inventory",
+                    title: "Default sources trust inventory",
+                    detail: "Web and Apple Create now ignore backend Default sources provider ids that are not present in the loaded acquisition provider inventory, keeping book and video discovery aligned with readiness checks and required default-eligibility fields."
+                ),
+                AppChangelogEntry(
                     id: "apple-dedicated-lane-sequence-startup",
                     title: "Sequence starts without combined audio",
                     detail: "Apple reader sequence playback now enters the same sentence-plan path when a chunk exposes separate Original and Translation audio lanes but no combined option, preventing first-sentence startup from playing only Original and stopping."

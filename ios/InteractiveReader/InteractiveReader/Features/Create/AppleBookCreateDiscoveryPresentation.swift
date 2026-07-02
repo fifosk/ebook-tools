@@ -403,14 +403,18 @@ extension AppleBookCreatePresentation {
         providers: [AcquisitionProviderEntry] = []
     ) -> [String] {
         let providersByID = Dictionary(uniqueKeysWithValues: providers.map { ($0.id, $0) })
+        let hasProviderInventory = !providers.isEmpty
         return providerIDs.filter {
-            if let defaultEligibleMediaKinds = providersByID[$0]?.defaultEligibleMediaKinds {
-                return defaultEligibleMediaKinds.contains(mediaKind)
+            guard let provider = providersByID[$0] else {
+                if hasProviderInventory {
+                    return false
+                }
+                guard mediaKind == "video" else {
+                    return true
+                }
+                return !explicitOnlyDefaultVideoDiscoveryProviderIDs.contains($0)
             }
-            guard mediaKind == "video" else {
-                return true
-            }
-            return !explicitOnlyDefaultVideoDiscoveryProviderIDs.contains($0)
+            return provider.defaultEligibleMediaKinds.contains(mediaKind)
         }
     }
 
