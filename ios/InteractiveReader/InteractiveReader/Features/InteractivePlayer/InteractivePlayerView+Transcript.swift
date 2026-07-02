@@ -301,7 +301,8 @@ extension InteractivePlayerView {
             activeTimingTrack: activeTimingTrack,
             chunkTime: playbackTime,
             audioDuration: durationValue,
-            useCombinedPhases: useCombinedPhases
+            useCombinedPhases: useCombinedPhases,
+            timingVersion: chunk.timingVersion
         ) {
             return [activeSentence]
         }

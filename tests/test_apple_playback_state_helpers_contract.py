@@ -338,9 +338,10 @@ def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> No
     active_display = _source("TextPlayerTimeline+ActiveDisplay.swift")
     active_sentence_body = _function_body(
         active_display,
-        "static func buildActiveSentenceDisplay(\n        sentences: [InteractiveChunk.Sentence],\n        activeTimingTrack: TextPlayerTimingTrack,\n        chunkTime: Double,\n        audioDuration: Double?,\n        useCombinedPhases: Bool\n    ) -> TextPlayerSentenceDisplay?",
+        "static func buildActiveSentenceDisplay(\n        sentences: [InteractiveChunk.Sentence],\n        activeTimingTrack: TextPlayerTimingTrack,\n        chunkTime: Double,\n        audioDuration: Double?,\n        useCombinedPhases: Bool,\n        timingVersion: String? = nil\n    ) -> TextPlayerSentenceDisplay?",
     )
     assert "buildTimelineSentences(" in active_sentence_body
+    assert "timingVersion: timingVersion" in active_sentence_body
     assert "buildActiveSentenceDisplay(\n               timelineSentences: timelineSentences" in active_sentence_body
     assert "Empty static display should remain empty" in swift_check
 

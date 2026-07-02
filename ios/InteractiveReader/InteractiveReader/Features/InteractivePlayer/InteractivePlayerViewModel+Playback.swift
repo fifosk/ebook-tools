@@ -448,7 +448,8 @@ extension InteractivePlayerViewModel {
             activeTimingTrack: activeTimingTrack(for: chunk),
             chunkTime: time,
             audioDuration: playbackDuration,
-            useCombinedPhases: useCombinedPhases(for: chunk)
+            useCombinedPhases: useCombinedPhases(for: chunk),
+            timingVersion: chunk.timingVersion
         ),
         chunk.sentences.indices.contains(activeIndex) {
             return chunk.sentences[activeIndex]
@@ -598,7 +599,8 @@ extension InteractivePlayerViewModel {
             activeTimingTrack: activeTimingTrack,
             chunkTime: time,
             audioDuration: playbackDuration,
-            useCombinedPhases: useCombinedPhases
+            useCombinedPhases: useCombinedPhases,
+            timingVersion: chunk.timingVersion
         ),
         chunk.sentences.indices.contains(activeIndex) {
             return activeIndex

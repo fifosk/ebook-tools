@@ -642,6 +642,7 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "TextPlayerTimeline.resolveActiveIndex(\n            sentences: chunk.sentences" in active_index_body
     assert "activeTimingTrack: activeTimingTrack" in active_index_body
     assert "useCombinedPhases: useCombinedPhases" in active_index_body
+    assert "timingVersion: chunk.timingVersion" in active_index_body
     assert active_index_body.index("sentences: chunk.sentences") < active_index_body.index(
         "timelineSentences: timelineSentences"
     )

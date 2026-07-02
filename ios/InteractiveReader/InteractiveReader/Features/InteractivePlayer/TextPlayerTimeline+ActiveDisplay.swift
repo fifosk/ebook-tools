@@ -192,7 +192,8 @@ extension TextPlayerTimeline {
         activeTimingTrack: TextPlayerTimingTrack,
         chunkTime: Double,
         audioDuration: Double?,
-        useCombinedPhases: Bool
+        useCombinedPhases: Bool,
+        timingVersion: String? = nil
     ) -> TextPlayerSentenceDisplay? {
         let usesAbsoluteTimeline = usesAbsoluteTiming(
             sentences: sentences,
@@ -202,7 +203,8 @@ extension TextPlayerTimeline {
             sentences: sentences,
             activeTimingTrack: activeTimingTrack,
             audioDuration: audioDuration,
-            useCombinedPhases: useCombinedPhases
+            useCombinedPhases: useCombinedPhases,
+            timingVersion: timingVersion
         ),
            let display = buildActiveSentenceDisplay(
                timelineSentences: timelineSentences,
@@ -434,9 +436,29 @@ extension TextPlayerTimeline {
         activeTimingTrack: TextPlayerTimingTrack,
         chunkTime: Double,
         audioDuration: Double?,
-        useCombinedPhases: Bool
+        useCombinedPhases: Bool,
+        timingVersion: String? = nil
     ) -> Int? {
-        resolveActiveSentenceResolution(
+        let usesAbsoluteTimeline = usesAbsoluteTiming(
+            sentences: sentences,
+            activeTimingTrack: activeTimingTrack
+        )
+        if let timelineSentences = buildTimelineSentences(
+            sentences: sentences,
+            activeTimingTrack: activeTimingTrack,
+            audioDuration: audioDuration,
+            useCombinedPhases: useCombinedPhases,
+            timingVersion: timingVersion
+        ),
+           let activeIndex = resolveActiveIndex(
+               timelineSentences: timelineSentences,
+               chunkTime: chunkTime,
+               audioDuration: audioDuration,
+               usesAbsoluteTiming: usesAbsoluteTimeline
+           ) {
+            return activeIndex
+        }
+        return resolveActiveSentenceResolution(
             sentences: sentences,
             activeTimingTrack: activeTimingTrack,
             chunkTime: chunkTime,
