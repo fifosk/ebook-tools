@@ -641,6 +641,26 @@ def test_pipeline_intake_status_returns_editor_queue_snapshot(
     )
 
 
+def test_create_readiness_openapi_marks_cross_surface_response_fields_required() -> None:
+    app = create_app()
+    schemas = app.openapi()["components"]["schemas"]
+
+    intake_required = set(schemas["PipelineIntakeStatusResponse"]["required"])
+    assert {
+        "acceptingJobs",
+        "isUnderPressure",
+        "queueDepth",
+        "activeCount",
+        "delayCount",
+    } <= intake_required
+
+    node_required = set(schemas["ImageNodeAvailabilityEntry"]["required"])
+    assert {"base_url", "available"} <= node_required
+
+    availability_required = set(schemas["ImageNodeAvailabilityResponse"]["required"])
+    assert {"nodes", "available", "unavailable"} <= availability_required
+
+
 def test_pipeline_intake_status_rejects_viewer(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,

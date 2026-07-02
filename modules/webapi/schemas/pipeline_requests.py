@@ -63,13 +63,13 @@ class PipelineDefaultsResponse(BaseModel):
 class PipelineIntakeStatusResponse(BaseModel):
     """Token-safe queue/backpressure snapshot for job creation surfaces."""
 
-    acceptingJobs: bool = Field(True, description="Whether new jobs are below the hard queue limit")
-    isUnderPressure: bool = Field(False, description="Whether pending jobs have reached the soft limit")
-    queueDepth: int = Field(0, description="Pending queue depth used for backpressure")
-    activeCount: int = Field(0, description="Currently running jobs")
+    acceptingJobs: bool = Field(description="Whether new jobs are below the hard queue limit")
+    isUnderPressure: bool = Field(description="Whether pending jobs have reached the soft limit")
+    queueDepth: int = Field(description="Pending queue depth used for backpressure")
+    activeCount: int = Field(description="Currently running jobs")
     softLimit: Optional[int] = Field(None, description="Pending depth where delays begin")
     hardLimit: Optional[int] = Field(None, description="Pending depth where submissions are rejected")
-    delayCount: int = Field(0, description="Cumulative backpressure delays")
+    delayCount: int = Field(description="Cumulative backpressure delays")
 
 
 class BookContentIndexResponse(BaseModel):
@@ -95,9 +95,9 @@ class ImageNodeAvailabilityEntry(BaseModel):
 class ImageNodeAvailabilityResponse(BaseModel):
     """Response payload for image node availability checks."""
 
-    nodes: List[ImageNodeAvailabilityEntry] = Field(default_factory=list)
-    available: List[str] = Field(default_factory=list)
-    unavailable: List[str] = Field(default_factory=list)
+    nodes: List[ImageNodeAvailabilityEntry]
+    available: List[str]
+    unavailable: List[str]
 
 
 class PipelineFileDeleteRequest(BaseModel):

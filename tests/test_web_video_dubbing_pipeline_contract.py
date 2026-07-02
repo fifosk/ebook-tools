@@ -200,6 +200,12 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "assertPipelineFileEntry(payload)" in api_client
     assert "throw new Error(`Invalid pipeline file browser response: missing ${key}.`)" in api_client
     assert "assertPipelineFileStringField(payload, 'type', 'file entry')" in api_client
+    assert "assertPipelineIntakeStatusResponse(payload)" in api_client
+    assert "assertReadinessBooleanField(payload, 'acceptingJobs', 'intake status')" in api_client
+    assert "assertReadinessNumberField(payload, 'queueDepth', 'intake status')" in api_client
+    assert "assertImageNodeAvailabilityResponse(responsePayload)" in api_client
+    assert "assertReadinessStringArray(payload.available, 'available', 'image node availability')" in api_client
+    assert "assertReadinessBooleanField(node, 'available', 'image node availability')" in api_client
     assert "resolveDefaultBookDiscoveryProvider(" in discovery_hook
     assert "defaultProviderIds?.book" in discovery_providers
     assert "hasUserSelectedDiscoveryProvider.current" in discovery_hook

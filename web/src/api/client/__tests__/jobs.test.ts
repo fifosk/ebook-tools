@@ -168,6 +168,28 @@ function pipelineFileBrowserResponse(overrides: Record<string, unknown> = {}): R
   };
 }
 
+function pipelineIntakeStatusResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    acceptingJobs: true,
+    isUnderPressure: false,
+    queueDepth: 0,
+    activeCount: 0,
+    softLimit: null,
+    hardLimit: null,
+    delayCount: 0,
+    ...overrides
+  };
+}
+
+function imageNodeAvailabilityResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    nodes: [{ base_url: 'http://127.0.0.1:7860', available: true }],
+    available: ['http://127.0.0.1:7860'],
+    unavailable: [],
+    ...overrides
+  };
+}
+
 describe('jobs API client', () => {
   const originalFetch = globalThis.fetch;
 
@@ -391,15 +413,9 @@ describe('jobs API client', () => {
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
       .mockResolvedValueOnce(jsonResponse(pipelineFileBrowserResponse()))
       .mockResolvedValueOnce(jsonResponse({ config: {} }))
-      .mockResolvedValueOnce(jsonResponse({
-        acceptingJobs: true,
-        isUnderPressure: false,
-        queueDepth: 0,
-        activeCount: 0,
-        delayCount: 0
-      }))
+      .mockResolvedValueOnce(jsonResponse(pipelineIntakeStatusResponse()))
       .mockResolvedValueOnce(jsonResponse({ book: {}, chapters: [] }))
-      .mockResolvedValueOnce(jsonResponse({ nodes: [], available: [], unavailable: [] }))
+      .mockResolvedValueOnce(jsonResponse(imageNodeAvailabilityResponse()))
       .mockResolvedValueOnce(jsonResponse(pipelineFileEntry({ name: 'upload.epub', path: '/books/upload.epub' })))
       .mockResolvedValueOnce(jsonResponse({ ok: true }))
       .mockResolvedValueOnce(jsonResponse({ models: ['model-a'] }))
@@ -487,6 +503,38 @@ describe('jobs API client', () => {
     );
     await expect(uploadCoverFile(new File(['cover'], 'cover.jpg'))).rejects.toThrow(
       'Invalid pipeline file entry response: invalid size_bytes.'
+    );
+  });
+
+  it('rejects malformed create readiness payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse(pipelineIntakeStatusResponse({ acceptingJobs: undefined })))
+      .mockResolvedValueOnce(jsonResponse(pipelineIntakeStatusResponse({ queueDepth: '0' })))
+      .mockResolvedValueOnce(jsonResponse(pipelineIntakeStatusResponse({ softLimit: '2' })))
+      .mockResolvedValueOnce(jsonResponse(imageNodeAvailabilityResponse({ nodes: undefined })))
+      .mockResolvedValueOnce(jsonResponse(imageNodeAvailabilityResponse({ available: [42] })))
+      .mockResolvedValueOnce(jsonResponse(imageNodeAvailabilityResponse({
+        nodes: [{ base_url: 'http://127.0.0.1:7860', available: 'yes' }]
+      })));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchPipelineIntakeStatus()).rejects.toThrow(
+      'Invalid intake status response: missing acceptingJobs.'
+    );
+    await expect(fetchPipelineIntakeStatus()).rejects.toThrow(
+      'Invalid intake status response: missing queueDepth.'
+    );
+    await expect(fetchPipelineIntakeStatus()).rejects.toThrow(
+      'Invalid intake status response: invalid softLimit.'
+    );
+    await expect(checkImageNodeAvailability({ base_urls: [] })).rejects.toThrow(
+      'Invalid image node availability response: missing nodes.'
+    );
+    await expect(checkImageNodeAvailability({ base_urls: [] })).rejects.toThrow(
+      'Invalid image node availability response: missing available.'
+    );
+    await expect(checkImageNodeAvailability({ base_urls: [] })).rejects.toThrow(
+      'Invalid image node availability response: missing available.'
     );
   });
 

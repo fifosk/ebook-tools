@@ -684,7 +684,24 @@ export async function fetchPipelineIntakeStatus(): Promise<PipelineIntakeStatusR
   if (response.status === 401 || response.status === 403) {
     return null;
   }
-  return handleResponse<PipelineIntakeStatusResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertPipelineIntakeStatusResponse(payload);
+  return payload;
+}
+
+function assertPipelineIntakeStatusResponse(
+  payload: unknown
+): asserts payload is PipelineIntakeStatusResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid pipeline intake status response.');
+  }
+  assertReadinessBooleanField(payload, 'acceptingJobs', 'intake status');
+  assertReadinessBooleanField(payload, 'isUnderPressure', 'intake status');
+  assertReadinessNumberField(payload, 'queueDepth', 'intake status');
+  assertReadinessNumberField(payload, 'activeCount', 'intake status');
+  assertReadinessOptionalNumberField(payload.softLimit, 'softLimit', 'intake status');
+  assertReadinessOptionalNumberField(payload.hardLimit, 'hardLimit', 'intake status');
+  assertReadinessNumberField(payload, 'delayCount', 'intake status');
 }
 
 export async function fetchBookContentIndex(inputFile: string): Promise<BookContentIndexResponse> {
@@ -706,7 +723,75 @@ export async function checkImageNodeAvailability(
     },
     body: JSON.stringify(payload)
   });
-  return handleResponse<ImageNodeAvailabilityResponse>(response);
+  const responsePayload = await handleResponse<unknown>(response);
+  assertImageNodeAvailabilityResponse(responsePayload);
+  return responsePayload;
+}
+
+function assertImageNodeAvailabilityResponse(
+  payload: unknown
+): asserts payload is ImageNodeAvailabilityResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid image node availability response.');
+  }
+  if (!Array.isArray(payload.nodes)) {
+    throw new Error('Invalid image node availability response: missing nodes.');
+  }
+  assertReadinessStringArray(payload.available, 'available', 'image node availability');
+  assertReadinessStringArray(payload.unavailable, 'unavailable', 'image node availability');
+  for (const node of payload.nodes) {
+    if (!isRecord(node)) {
+      throw new Error('Invalid image node availability response: missing node entry.');
+    }
+    assertReadinessStringField(node, 'base_url', 'image node availability');
+    assertReadinessBooleanField(node, 'available', 'image node availability');
+  }
+}
+
+function assertReadinessStringField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertReadinessBooleanField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'boolean') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertReadinessNumberField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'number') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertReadinessOptionalNumberField(
+  value: unknown,
+  key: string,
+  responseKind: string
+): void {
+  if (value !== undefined && value !== null && typeof value !== 'number') {
+    throw new Error(`Invalid ${responseKind} response: invalid ${key}.`);
+  }
+}
+
+function assertReadinessStringArray(value: unknown, key: string, responseKind: string): void {
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
 }
 
 export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {
