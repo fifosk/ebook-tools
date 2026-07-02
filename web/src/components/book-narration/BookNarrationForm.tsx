@@ -27,9 +27,8 @@ import { useBookNarrationNormalizedState } from './useBookNarrationNormalizedSta
 import { useBookNarrationSubmitFlow } from './useBookNarrationSubmitFlow';
 import { useBookNarrationWorkflowRefs } from './useBookNarrationWorkflowRefs';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
-import { BookNarrationStepBar } from './BookNarrationStepBar';
-import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
 import { BookNarrationFormDialogs } from './BookNarrationFormDialogs';
+import { BookNarrationFormShell } from './BookNarrationFormShell';
 import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
 import type {
   BookNarrationFormProps,
@@ -408,34 +407,24 @@ export function BookNarrationForm({
   const canBrowseFiles = Boolean(fileOptions);
   return (
     <div className="pipeline-settings">
-      {showInfoHeader ? (
-        <>
-          <h2>{submitPresentation.headerTitle}</h2>
-          <p>{submitPresentation.headerDescription}</p>
-        </>
-      ) : null}
-      <form className="pipeline-form" onSubmit={handleSubmitAndRefreshIntake} noValidate>
-        <BookNarrationStepBar
-          tabSections={tabSections}
-          sectionMeta={sectionMeta}
-          activeTab={activeTab}
-          onSectionChange={handleSectionChange}
-          isSubmitDisabled={submitPresentation.isSubmitDisabled}
-          isSubmitting={isSubmitting}
-          submitText={submitPresentation.submitText}
-          isSavingTemplate={isSavingTemplate}
-          onSaveTemplate={handleSaveTemplate}
-        />
-        <BookNarrationSubmitStatus
-          intakeStatus={intakeStatus}
-          isLoadingIntakeStatus={isLoadingIntakeStatus}
-          hasMissingRequirements={submitPresentation.hasMissingRequirements}
-          missingRequirementText={submitPresentation.missingRequirementText}
-          error={error}
-          externalError={externalError}
-          templateStatus={effectiveTemplateStatus}
-          templateError={effectiveTemplateError}
-        />
+      <BookNarrationFormShell
+        showInfoHeader={showInfoHeader}
+        submitPresentation={submitPresentation}
+        onSubmit={handleSubmitAndRefreshIntake}
+        tabSections={tabSections}
+        sectionMeta={sectionMeta}
+        activeTab={activeTab}
+        onSectionChange={handleSectionChange}
+        isSubmitting={isSubmitting}
+        isSavingTemplate={isSavingTemplate}
+        onSaveTemplate={handleSaveTemplate}
+        intakeStatus={intakeStatus}
+        isLoadingIntakeStatus={isLoadingIntakeStatus}
+        error={error}
+        externalError={externalError}
+        templateStatus={effectiveTemplateStatus}
+        templateError={effectiveTemplateError}
+      >
         <div className="pipeline-section-panel">
           <BookNarrationFormSections
             section={activeTab}
@@ -506,7 +495,7 @@ export function BookNarrationForm({
             sentenceSplitterOptions={sentenceSplitterOptions}
           />
         </div>
-      </form>
+      </BookNarrationFormShell>
       <BookNarrationFormDialogs
         activeFileDialog={activeFileDialog}
         fileOptions={fileOptions}

@@ -268,6 +268,7 @@ test-web-create-intake-focused:
 		src/components/__tests__/useBookNarrationWorkflowRefs.test.tsx \
 		src/components/__tests__/useBookNarrationSectionState.test.tsx \
 		src/utils/__tests__/voiceOptions.test.ts \
+		src/components/__tests__/BookNarrationFormShell.test.tsx \
 		src/components/__tests__/BookNarrationStepBar.test.tsx \
 		src/components/__tests__/BookNarrationSubmitStatus.test.tsx \
 		src/components/__tests__/BookNarrationFileDialog.test.tsx \

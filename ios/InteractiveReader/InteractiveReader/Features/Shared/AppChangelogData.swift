@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.02.012",
             entries: [
                 AppChangelogEntry(
+                    id: "web-book-narration-form-shell",
+                    title: "Narrate Ebook shell is focused",
+                    detail: "Web Narrate Ebook form chrome now lives in a focused shell component covering header, step tabs, submit status, template save, and submit routing while the form coordinator stays centered on Create state orchestration."
+                ),
+                AppChangelogEntry(
+                    id: "apple-header-pill-visible-role-toggle",
+                    title: "Track pills keep both modes",
+                    detail: "Apple reader header pill taps now apply the exact role set shown in the header, so both-track playback can be restored by enabling the inactive companion pill while Original-only and Translation-only stay stable single-track modes."
+                ),
+                AppChangelogEntry(
                     id: "web-live-media-normalise-helper",
                     title: "Web playback snapshots are shared",
                     detail: "Web live-media snapshot normalization, storage URL resolution, chunk assembly, and progress-generated file parsing now live in a focused helper shared by online playback, Library media, and offline export playback."

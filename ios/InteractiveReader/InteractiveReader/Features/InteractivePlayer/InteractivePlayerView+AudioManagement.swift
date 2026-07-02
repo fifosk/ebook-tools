@@ -235,16 +235,21 @@ extension InteractivePlayerView {
     func toggleHeaderAudioRole(
         _ role: LanguageFlagRole,
         for chunk: InteractiveChunk,
+        activeRoles: Set<LanguageFlagRole>,
         availableRoles: Set<LanguageFlagRole>
     ) {
         guard availableRoles.contains(role) else { return }
 
         // Capture current sentence position BEFORE changing mode
         let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
-        let track: SequenceTrack = role == .original ? .original : .translation
-        audioModeManager.toggle(
-            track,
-            availableTracks: availableRoles.sequenceTracks,
+        let desiredRoles = desiredHeaderAudioRoles(
+            toggling: role,
+            activeRoles: activeRoles,
+            availableRoles: availableRoles
+        )
+        audioModeManager.setTracks(
+            original: desiredRoles.contains(.original),
+            translation: desiredRoles.contains(.translation),
             preservingPosition: currentSentenceIndex
         )
 
@@ -387,18 +392,5 @@ extension InteractivePlayerView {
             return maxEnd
         }
         return jobEnd
-    }
-}
-
-private extension Set where Element == LanguageFlagRole {
-    var sequenceTracks: [SequenceTrack] {
-        var tracks: [SequenceTrack] = []
-        if contains(.original) {
-            tracks.append(.original)
-        }
-        if contains(.translation) {
-            tracks.append(.translation)
-        }
-        return tracks
     }
 }

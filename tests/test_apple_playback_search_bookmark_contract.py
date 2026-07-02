@@ -595,9 +595,12 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "case .singleTrack(.translation):" in active_roles_body
     assert "return [.translation]" in active_roles_body
     assert "guard availableRoles.contains(role) else { return }" in header_toggle_body
-    assert "let track: SequenceTrack = role == .original ? .original : .translation" in header_toggle_body
-    assert "audioModeManager.toggle(" in header_toggle_body
-    assert "availableTracks: availableRoles.sequenceTracks" in header_toggle_body
+    assert "activeRoles: Set<LanguageFlagRole>" in header_toggle_body
+    assert "let desiredRoles = desiredHeaderAudioRoles(" in header_toggle_body
+    assert "activeRoles: activeRoles" in header_toggle_body
+    assert "audioModeManager.setTracks(" in header_toggle_body
+    assert "original: desiredRoles.contains(.original)" in header_toggle_body
+    assert "translation: desiredRoles.contains(.translation)" in header_toggle_body
     assert "switch audioModeManager.currentMode" in header_toggle_body
     assert "case .singleTrack(let selectedTrack):" in header_toggle_body
     assert "case .sequence:" in header_toggle_body
@@ -614,8 +617,7 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "desiredRoles.count > 1 || !desiredRoles.contains(role)" in desired_roles_body
     assert "desiredRoles.remove(role)" in desired_roles_body
     assert "desiredRoles.insert(role)" in desired_roles_body
-    assert "private extension Set where Element == LanguageFlagRole" in audio_management
-    assert "var sequenceTracks: [SequenceTrack]" in audio_management
+    assert "private extension Set where Element == LanguageFlagRole" not in audio_management
 
     playback = _source(INTERACTIVE / "InteractivePlayerViewModel+Playback.swift")
     combined_phase_body = playback.split(

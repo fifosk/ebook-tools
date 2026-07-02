@@ -266,7 +266,12 @@ extension InteractivePlayerView {
             activeRoles: activeRoles,
             availableRoles: availableRoles,
             onToggleRole: { role in
-                handleHeaderLanguageRoleToggle(role, for: chunk, availableRoles: availableRoles)
+                handleHeaderLanguageRoleToggle(
+                    role,
+                    for: chunk,
+                    activeRoles: activeRoles,
+                    availableRoles: availableRoles
+                )
             },
             showConnector: showConnector
         )
@@ -426,9 +431,15 @@ extension InteractivePlayerView {
     private func handleHeaderLanguageRoleToggle(
         _ role: LanguageFlagRole,
         for chunk: InteractiveChunk,
+        activeRoles: Set<LanguageFlagRole>,
         availableRoles: Set<LanguageFlagRole>
     ) {
-        toggleHeaderAudioRole(role, for: chunk, availableRoles: availableRoles)
+        toggleHeaderAudioRole(
+            role,
+            for: chunk,
+            activeRoles: activeRoles,
+            availableRoles: availableRoles
+        )
     }
 
     func slideIndicatorView(label: String) -> some View {

@@ -406,7 +406,7 @@ Large Web UI hotspots to split before redesign work:
   coverage. The repo-owned `test-web-sidebar-focused` target now runs the root
   Sidebar, player entry, creation links, job overview/row, and sidebar utility
   tests so the reusable Web pipeline covers the split navigation shell directly.
-- `web/src/components/book-narration/BookNarrationForm.tsx` - 540 lines.
+- `web/src/components/book-narration/BookNarrationForm.tsx` - 529 lines.
   Status: server EPUB discovery, generated-source skips, latest-book default
   selection, upload validation, and history-derived start defaults now have
   focused hook coverage through `useBookNarrationFiles.ts`, and the repo-owned
@@ -463,7 +463,11 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/book-narration/BookNarrationStepBar.tsx` with focused
   rendered coverage. Intake, missing-requirement, and submit-error messaging now
   live in `web/src/components/book-narration/BookNarrationSubmitStatus.tsx`
-  with focused rendered coverage. Ebook/output file selection dialog routing now
+  with focused rendered coverage. The form header, step chrome, submit/status
+  stack, template save action, and submit wrapper now live in
+  `web/src/components/book-narration/BookNarrationFormShell.tsx` with focused
+  rendered coverage, leaving the form coordinator centered on Create state
+  orchestration. Ebook/output file selection dialog routing now
   lives in `web/src/components/book-narration/BookNarrationFileDialog.tsx` with
   focused rendered coverage. Book discovery template state construction now
   lives in `web/src/components/book-narration/bookNarrationTemplates.ts`, keeping
@@ -1055,7 +1059,9 @@ Current Apple UI partially exposes:
   duration back into rendering; header active-role pills now trust the live
   `AudioModeManager` state before stale remembered single-track state so
   restoring both tracks stays visibly active instead of being greyed by old
-  resume memory. Adjacent-batch prefetch now also treats that durable lane as
+  resume memory, and header pill taps apply the role set currently shown in the
+  header so single-track and both-track states toggle symmetrically instead of
+  recomputing from a transient mode snapshot. Adjacent-batch prefetch now also treats that durable lane as
   authoritative and warms the requested stream inside combined-only chunks
   instead of the hidden first/original stream. The
   audio coordinator now keeps reader playback intent alive
