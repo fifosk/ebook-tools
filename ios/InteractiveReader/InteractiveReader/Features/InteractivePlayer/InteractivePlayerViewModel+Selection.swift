@@ -391,6 +391,10 @@ extension InteractivePlayerViewModel {
         if let preferredSingleTrackMode {
             return preferredSingleTrackMode
         }
+        if let chunk = selectedChunk,
+           let selectedTimingSingleTrack = selectedTimingSingleTrackMode(in: chunk) {
+            return selectedTimingSingleTrack
+        }
         if let audioModeManager,
            case .singleTrack(let track) = audioModeManager.currentMode {
             return track
@@ -826,14 +830,27 @@ extension InteractivePlayerViewModel {
 
     private func selectedTimingSingleTrackMode(in chunk: InteractiveChunk) -> SequenceTrack? {
         guard !sequenceController.isEnabled,
-              let selectedTimingURL,
               let selectedTimingSingleTrackMode else {
             return nil
         }
-        guard singleTrackMode(forAudioURL: selectedTimingURL, in: chunk) == selectedTimingSingleTrackMode else {
+        if let selectedTimingURL,
+           singleTrackMode(forAudioURL: selectedTimingURL, in: chunk) == selectedTimingSingleTrackMode {
+            return selectedTimingSingleTrackMode
+        }
+        guard chunkSupportsSingleTrack(selectedTimingSingleTrackMode, in: chunk) else {
             return nil
         }
         return selectedTimingSingleTrackMode
+    }
+
+    private func chunkSupportsSingleTrack(_ track: SequenceTrack, in chunk: InteractiveChunk) -> Bool {
+        let dedicatedKind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
+        if chunk.audioOptions.contains(where: { $0.kind == dedicatedKind }) {
+            return true
+        }
+        return chunk.audioOptions.contains { option in
+            option.kind == .combined && !option.streamURLs.isEmpty
+        }
     }
 
     private func playbackEndedURLBelongsToCurrentChunk(

@@ -688,13 +688,26 @@ private func requestedSingleTrackMode(
     sequenceAudioMode: AudioMode,
     preferredSingleTrackMode: SequenceTrack?,
     preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
-    loadedSingleTrackPlaybackMode: SequenceTrack? = nil
+    loadedSingleTrackPlaybackMode: SequenceTrack? = nil,
+    chunk: InteractiveChunk? = nil,
+    selectedTimingURL: URL? = nil,
+    selectedTimingSingleTrackMode: SequenceTrack? = nil
 ) -> SequenceTrack? {
     if let loadedSingleTrackPlaybackMode {
         return loadedSingleTrackPlaybackMode
     }
     if let preferredSingleTrackMode {
         return preferredSingleTrackMode
+    }
+    if let chunk,
+       let selectedTimingSingleTrackMode {
+        if let selectedTimingURL,
+           singleTrackModeForAudioURL(selectedTimingURL, in: chunk) == selectedTimingSingleTrackMode {
+            return selectedTimingSingleTrackMode
+        }
+        if chunkSupportsAudioTrack(selectedTimingSingleTrackMode, in: chunk) {
+            return selectedTimingSingleTrackMode
+        }
     }
     if let manager {
         if case .singleTrack(let track) = manager.currentMode {
@@ -751,7 +764,8 @@ private func requestedSingleTrackMode(
         sequenceAudioMode: sequenceAudioMode,
         preferredSingleTrackMode: preferredSingleTrackMode,
         preferredAudioKind: preferredAudioKind,
-        loadedSingleTrackPlaybackMode: loadedSingleTrackPlaybackMode
+        loadedSingleTrackPlaybackMode: loadedSingleTrackPlaybackMode,
+        chunk: chunk
     ) {
         return requested
     }
@@ -1961,6 +1975,32 @@ private func runChecks() {
         "iPad audio picker selection should persist translation-only as the durable batch lane"
     )
     let staleViewManager = AudioModeManager()
+    requireEqual(
+        requestedSingleTrackMode(
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined,
+            chunk: nextBatch,
+            selectedTimingURL: translationURL,
+            selectedTimingSingleTrackMode: .translation
+        ),
+        .translation,
+        "Selected translation timing lane should survive a stale combined reset before batch rendering refreshes"
+    )
+    requireEqual(
+        requestedSingleTrackMode(
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined,
+            chunk: nextBatch,
+            selectedTimingURL: nil,
+            selectedTimingSingleTrackMode: .translation
+        ),
+        .translation,
+        "Selected translation timing lane should survive no-URL EOF recovery at a batch boundary"
+    )
     requireEqual(
         isSequenceModeActive(
             manager: staleViewManager,

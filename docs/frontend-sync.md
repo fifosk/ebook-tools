@@ -105,7 +105,11 @@ Follow the suggested remediations to restore parity:
   the EOF callback arrives, a selected timing URL stamped by the single-track
   loader is durable lane evidence and should still pin Original-only or
   Translation-only handoff state. A timing URL from combined/sequence fallback
-  must not be treated as single-track intent on its own.
+  must not be treated as single-track intent on its own. The selected timing
+  lane is also render-authoritative before transient audio-manager or picker
+  state; if no URL is available during EOF/stall recovery, the stored
+  `selectedTimingSingleTrackMode` may still pin rendering when the current
+  batch supports that lane.
   If the user has explicitly hidden Original or Translation, chunk lifecycle
   setup must restore that visible single-track selection into `AudioModeManager`
   before any default selection can expand the reader back to All. Resume and

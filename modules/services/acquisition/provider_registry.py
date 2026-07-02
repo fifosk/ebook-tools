@@ -14,6 +14,7 @@ from modules.services.youtube_dubbing import DEFAULT_YOUTUBE_VIDEO_ROOT
 
 from .provider_defaults import (
     default_discovery_provider_ids_from_readiness as _default_discovery_provider_ids_from_readiness,
+    is_download_station_configured,
     is_indexer_search_configured,
     is_youtube_search_configured,
 )
@@ -172,44 +173,7 @@ def list_acquisition_providers(
     books_root_readable = _is_readable_dir(books_root)
     video_root_readable = _is_readable_dir(video_root)
     youtube_api_configured = is_youtube_search_configured(config)
-    download_station_endpoint_configured = _truthy_env(
-        "SYNOLOGY_DOWNLOAD_STATION_URL",
-        "SYNOLOGY_DOWNLOAD_STATION_HOST",
-        "EBOOK_DOWNLOAD_STATION_URL",
-        "EBOOK_DOWNLOAD_STATION_HOST",
-    ) or _truthy_config(
-        config,
-        "download_station_url",
-        "synology_download_station_url",
-        "download_station_host",
-        "synology_download_station_host",
-    )
-    download_station_credentials_configured = (
-        _truthy_env(
-            "SYNOLOGY_DOWNLOAD_STATION_ACCOUNT",
-            "SYNOLOGY_DOWNLOAD_STATION_USERNAME",
-            "EBOOK_DOWNLOAD_STATION_USERNAME",
-        )
-        or _truthy_config(
-            config,
-            "download_station_account",
-            "download_station_username",
-            "synology_download_station_username",
-        )
-    ) and (
-        _truthy_env(
-            "SYNOLOGY_DOWNLOAD_STATION_PASSWORD",
-            "EBOOK_DOWNLOAD_STATION_PASSWORD",
-        )
-        or _truthy_config(
-            config,
-            "download_station_password",
-            "synology_download_station_password",
-        )
-    )
-    download_station_configured = (
-        download_station_endpoint_configured and download_station_credentials_configured
-    )
+    download_station_configured = is_download_station_configured(config)
     indexer_configured = is_indexer_search_configured(config)
     default_provider_ids = {
         "book": _default_discovery_provider_ids_from_readiness(
@@ -550,20 +514,6 @@ def _resolve_display_path(path_value: object) -> Path:
 def _is_readable_dir(path: Path) -> bool:
     path_stat = safe_stat(path)
     return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
-
-
-def _truthy_env(*keys: str) -> bool:
-    return any(bool(os.environ.get(key, "").strip()) for key in keys)
-
-
-def _truthy_config(config: Mapping[str, Any], *keys: str) -> bool:
-    for key in keys:
-        value = config.get(key)
-        if isinstance(value, str) and value.strip():
-            return True
-        if value is not None and not isinstance(value, str):
-            return True
-    return False
 
 
 def _split_path_values(value: object) -> tuple[str, ...]:

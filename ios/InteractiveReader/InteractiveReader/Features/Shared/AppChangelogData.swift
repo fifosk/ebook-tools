@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-selected-timing-lane-render-sync",
+                    title: "Single-track rendering stays pinned",
+                    detail: "Apple reader original-only and translation-only rendering now treats the selected timing lane as durable single-track evidence before transient audio-manager or picker state, so no-URL EOF recovery and batch refreshes cannot reset rendering back to combined while narration stays on the selected lane."
+                ),
+                AppChangelogEntry(
                     id: "backend-manual-root-readiness-helper",
                     title: "Default sources stay cleaner",
                     detail: "Backend acquisition provider readiness now resolves manual download roots through one helper that keeps NAS video roots discoverable while excluding them from explicit manual-download default fallback policy, preserving Web and Apple Create default-source semantics."

@@ -360,10 +360,10 @@ kinds, capabilities, attended Z-Library policy, and token-safe `source_label`
 values expected by the Web and Apple discovery pickers. It checks both
 explicit-provider discovery routes and the no-provider Default sources fan-out
 used by Web and Apple pickers, while keeping `youtube_url` explicit-only. It
-also derives a token-safe Download Station handoff readiness check from the
-same registry, requiring searchable Newznab/Torznab metadata plus Download
-Station acquire/poll capabilities before Apple/Web video discovery can treat
-indexer results as server-side downloader handoff candidates. It also validates
+also exercises the shared token-safe Download Station readiness helper used by
+provider registry payloads, requiring endpoint, account, and password evidence
+before Apple/Web video discovery can treat indexer results as server-side
+downloader handoff candidates. It also validates
 that `/api/pipelines/intake/status`
 returns the queue/backpressure shape consumed by Web and Apple Create. It checks
 both the live subtitle model route and the shared pipeline LLM model route plus
@@ -700,7 +700,9 @@ active single-track mode before immediate next-batch playback can load,
 including combined-only chunk fallbacks. The playback mode switch harness now
 also covers the shared adjacent-batch helper used by next/previous and
 end-of-batch advances, so stale combined selections cannot bypass the
-translation-only lane before autoplay. The run did not boot
+translation-only lane before autoplay. It also pins selected timing-lane
+rendering when transient manager or picker state falls back to combined at a
+batch boundary. The run did not boot
 simulators, load remote secrets for credential-free validation, or touch
 physical devices.
 

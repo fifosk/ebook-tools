@@ -32,6 +32,42 @@ def is_indexer_search_configured(config: Mapping[str, Any]) -> bool:
     )
 
 
+def is_download_station_configured(config: Mapping[str, Any]) -> bool:
+    """Return whether Download Station handoff can be advertised as available."""
+
+    endpoint_configured = _truthy_env(
+        "SYNOLOGY_DOWNLOAD_STATION_URL",
+        "SYNOLOGY_DOWNLOAD_STATION_HOST",
+        "EBOOK_DOWNLOAD_STATION_URL",
+        "EBOOK_DOWNLOAD_STATION_HOST",
+    ) or _truthy_config(
+        config,
+        "download_station_url",
+        "synology_download_station_url",
+        "download_station_host",
+        "synology_download_station_host",
+    )
+    account_configured = _truthy_env(
+        "SYNOLOGY_DOWNLOAD_STATION_ACCOUNT",
+        "SYNOLOGY_DOWNLOAD_STATION_USERNAME",
+        "EBOOK_DOWNLOAD_STATION_USERNAME",
+    ) or _truthy_config(
+        config,
+        "download_station_account",
+        "download_station_username",
+        "synology_download_station_username",
+    )
+    password_configured = _truthy_env(
+        "SYNOLOGY_DOWNLOAD_STATION_PASSWORD",
+        "EBOOK_DOWNLOAD_STATION_PASSWORD",
+    ) or _truthy_config(
+        config,
+        "download_station_password",
+        "synology_download_station_password",
+    )
+    return endpoint_configured and account_configured and password_configured
+
+
 def default_discovery_provider_ids_from_readiness(
     media_kind: str,
     *,

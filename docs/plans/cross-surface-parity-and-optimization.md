@@ -939,7 +939,11 @@ Current Apple UI partially exposes:
   handoffs, preventing the next chunk from resetting rendering away from the
   selected track, and passive lifecycle observation no longer clears the remembered
   lane when it sees a sequence-mode/default refresh during selected-chunk or
-  track-availability setup. Passive hydrated-batch text/audio synchronization
+  track-availability setup. The selected timing lane is now consulted by the
+  requested single-track resolver before transient manager or picker state, so
+  no-URL EOF/stall recovery or a hydrated-batch refresh cannot make rendering
+  follow combined audio while narration remains on the selected stream. Passive
+  hydrated-batch text/audio synchronization
   now also refuses to broaden a remembered original-only/translation-only lane
   back to combined merely because the freshly loaded batch exposes both text
   tracks; only explicit text-track toggles may expand back to sequence. Stale

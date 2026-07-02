@@ -800,8 +800,18 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     requested_body = _function_body(selection, "func requestedSingleTrackMode() -> SequenceTrack?")
     assert "loadedSingleURLTrackMode()" in requested_body
     assert "loadedSingleTrackPlaybackMode" in requested_body
+    assert "selectedTimingSingleTrackMode(in: chunk)" in requested_body
     assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let preferredSingleTrackMode")
+    assert requested_body.index("if let preferredSingleTrackMode") < requested_body.index(
+        "selectedTimingSingleTrackMode(in: chunk)"
+    )
     assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let audioModeManager")
+    selected_timing_body = _function_body(
+        selection,
+        "private func selectedTimingSingleTrackMode(in chunk: InteractiveChunk) -> SequenceTrack?",
+    )
+    assert "singleTrackMode(forAudioURL: selectedTimingURL, in: chunk) == selectedTimingSingleTrackMode" in selected_timing_body
+    assert "chunkSupportsSingleTrack(selectedTimingSingleTrackMode, in: chunk)" in selected_timing_body
     loaded_url_body = _function_body(selection, "private func loadedSingleURLTrackMode() -> SequenceTrack?")
     assert "guard !sequenceController.isEnabled" in loaded_url_body
     assert "audioCoordinator.activeURLs.count == 1" in loaded_url_body

@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Apple reader original-only/translation-only rendering now treats the selected timing lane as durable single-track evidence before transient audio-manager or picker state, so no-URL EOF recovery and batch refreshes cannot reset rendering back to combined while narration stays on the selected lane.
 - Backend acquisition provider readiness now resolves manual download roots through one helper that keeps NAS video roots discoverable while excluding them from explicit manual-download default fallback policy, preserving Web and Apple Create default-source semantics.
 - Apple reader original-only/translation-only playback now treats the selected timing URL stamped by single-track loading as durable lane evidence at sentence-batch EOF, preventing AVPlayer queue cleanup from resetting rendering back to combined while narration advances.
 - Apple TV Music-bed watchdogs now recover reader starts that still have a pending interactive autoplay sentence but no reader player, and restore narration volume if reader audio is playing/requested but remains muted outside a sentence transition.

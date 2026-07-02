@@ -138,6 +138,49 @@ def test_acquisition_discovery_planning_orders_default_sources_and_limits() -> N
     ) == 3
 
 
+def test_download_station_readiness_requires_endpoint_account_and_password(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for key in (
+        "SYNOLOGY_DOWNLOAD_STATION_URL",
+        "SYNOLOGY_DOWNLOAD_STATION_HOST",
+        "EBOOK_DOWNLOAD_STATION_URL",
+        "EBOOK_DOWNLOAD_STATION_HOST",
+        "SYNOLOGY_DOWNLOAD_STATION_ACCOUNT",
+        "SYNOLOGY_DOWNLOAD_STATION_USERNAME",
+        "EBOOK_DOWNLOAD_STATION_USERNAME",
+        "SYNOLOGY_DOWNLOAD_STATION_PASSWORD",
+        "EBOOK_DOWNLOAD_STATION_PASSWORD",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    assert provider_defaults.is_download_station_configured(
+        {
+            "download_station_host": "nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+        }
+    )
+    assert provider_defaults.is_download_station_configured(
+        {
+            "synology_download_station_url": "https://nas.example.invalid",
+            "download_station_account": "nas-user",
+            "synology_download_station_password": "nas-secret",
+        }
+    )
+    assert not provider_defaults.is_download_station_configured(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+        }
+    )
+
+    monkeypatch.setenv("SYNOLOGY_DOWNLOAD_STATION_HOST", "nas.example.invalid")
+    monkeypatch.setenv("SYNOLOGY_DOWNLOAD_STATION_USERNAME", "nas-user")
+    monkeypatch.setenv("SYNOLOGY_DOWNLOAD_STATION_PASSWORD", "nas-secret")
+    assert provider_defaults.is_download_station_configured({})
+
+
 def test_acquisition_source_candidate_helpers_normalize_paths_and_newest_order(
     tmp_path: Path,
 ) -> None:
