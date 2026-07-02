@@ -51,6 +51,7 @@ import LibraryDetailTabs, { type LibraryDetailTab } from './library/LibraryDetai
 import LibraryEntriesPanel from './library/LibraryEntriesPanel';
 import LibraryMetadataTab from './library/LibraryMetadataTab';
 import LibraryOverviewTab from './library/LibraryOverviewTab';
+import LibraryPaginationControls from './library/LibraryPaginationControls';
 import LibraryPermissionsTab from './library/LibraryPermissionsTab';
 import styles from './LibraryPage.module.css';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
@@ -691,19 +692,12 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
           mutating={mutating}
           resumeEntries={resumeEntries}
         />
-        <div className={styles.pagination}>
-          <button type="button" onClick={() => setPage((previous) => Math.max(1, previous - 1))} disabled={page <= 1}>
-            Previous
-          </button>
-          <span>{rangeLabel}</span>
-          <button
-            type="button"
-            onClick={() => setPage((previous) => Math.min(totalPages, previous + 1))}
-            disabled={page >= totalPages}
-          >
-            Next
-          </button>
-        </div>
+        <LibraryPaginationControls
+          page={page}
+          totalPages={totalPages}
+          rangeLabel={rangeLabel}
+          onPageChange={setPage}
+        />
         <aside className={styles.detailsCard} aria-live="polite">
           {selectedItem ? (
             <>
