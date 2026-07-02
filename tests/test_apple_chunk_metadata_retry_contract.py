@@ -49,15 +49,17 @@ def test_selected_single_track_metadata_hydration_reprepares_even_when_selection
                 )""" in loading
     reprepare_body = """func reprepareSingleTrackAudioAfterContextRebuildIfNeeded(autoPlay: Bool) {
         guard let updatedChunk = selectedChunk,
-              requestedSingleTrackMode() != nil else {
+              let track = requestedSingleTrackMode() else {
             return
         }
-        guard let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedChunk) else {
-            return
+        applySingleTrackSelection(track, for: updatedChunk)
+        let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedChunk)
+        if let targetIndex {
+            rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: targetIndex)
         }
-        rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: targetIndex)
         prepareAudio("""
     assert reprepare_body in selection
+    assert "guard let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedChunk)" not in selection
     assert "let didReassertAudioSelection = reassertSelectedAudioTrackAfterContextRebuild()" not in loading
     assert "if didReassertAudioSelection," not in loading
 

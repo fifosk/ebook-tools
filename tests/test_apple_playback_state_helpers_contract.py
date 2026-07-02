@@ -1070,10 +1070,14 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
         "func reprepareSingleTrackAudioAfterContextRebuildIfNeeded(autoPlay: Bool)",
     )
     assert "guard let updatedChunk = selectedChunk" in reprepare_body
-    assert "requestedSingleTrackMode() != nil" in reprepare_body
-    assert "guard let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedChunk)" in reprepare_body
+    assert "let track = requestedSingleTrackMode()" in reprepare_body
+    assert "applySingleTrackSelection(track, for: updatedChunk)" in reprepare_body
+    assert "let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedChunk)" in reprepare_body
+    assert "guard let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedChunk)" not in reprepare_body
+    assert "if let targetIndex" in reprepare_body
     assert "rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: targetIndex)" in reprepare_body
     assert "prepareAudio(" in reprepare_body
+    assert "targetSentenceIndex: targetIndex" in reprepare_body
 
     handoff_body = _function_body(
         selection,

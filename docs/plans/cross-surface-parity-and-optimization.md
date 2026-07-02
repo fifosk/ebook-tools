@@ -988,9 +988,10 @@ Current Apple UI partially exposes:
   URL when transient manager or selected-track state has reset to combined, so
   the next sentence batch stays on the selected original/translation lane. Single-track
   audio preparation also reasserts the active lane and timing URL before same-URL
-  reuse or URL reload paths can seek/play, keeping end-of-batch rendering on the
-  narration lane even if the selected chunk was rebuilt around an already-loaded
-  player item. Single-track playback time now also uses the durable requested
+  reuse or URL reload paths can seek/play, and context rebuilds no longer require
+  a hydrated recent anchor before they reprepare the selected lane, keeping
+  end-of-batch rendering on the narration lane even if the selected chunk was
+  rebuilt around an already-loaded player item. Single-track playback time now also uses the durable requested
   original/translation lane before considering multi-file queue offsets, so a
   transient sequence-mode bridge at a batch boundary cannot add the hidden track
   duration back into rendering; header active-role pills now use the same

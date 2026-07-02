@@ -428,6 +428,11 @@ enum AppChangelogData {
                     detail: "Web Narrate Ebook saved-template save status, errors, and busy state now live in a focused tested hook while preserving the shared template payload rules."
                 ),
                 AppChangelogEntry(
+                    id: "apple-single-track-anchorless-reprepare",
+                    title: "Single-track batches stay locked",
+                    detail: "Apple reader original-only and translation-only context rebuilds now reprepare the selected lane even before the next batch's sentence anchor hydrates, preventing stale combined audio from desyncing rendering at batch boundaries."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-durable-batch-lane",
                     title: "Single-track batch handoffs hold",
                     detail: "Apple reader original-only and translation-only playback now records the active single-track lane as durable view-model state whenever the audio manager is single-track, preventing batch-ending races from resetting playback to combined audio before rendering catches up."

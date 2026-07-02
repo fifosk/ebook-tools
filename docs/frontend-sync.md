@@ -225,10 +225,10 @@ Follow the suggested remediations to restore parity:
   lifecycle refresh cannot prepare the next batch from a stale combined/default
   selection. Live-media and chunk-metadata context rebuilds that keep the same
   selected chunk must re-resolve the selected option from the active mode too;
-  in single-track mode, prepare audio again for the same recent anchor even when
-  the selected option id was already stable, so fresh chunk objects cannot
-  inherit old batch option ids or timing while the audio clock continues on the
-  selected single track.
+  in single-track mode, prepare audio again for the same recent anchor when one
+  is known, and still reprepare the selected lane when the anchor has not
+  hydrated yet, so fresh chunk objects cannot inherit old batch option ids or
+  timing while the audio clock continues on the selected single track.
   Transcript timing must follow the same rule: once a durable Original-only or
   Translation-only lane exists, `useCombinedPhases` must stay false even if the
   refreshed chunk's selected audio option is still a one-file `combined` option.
