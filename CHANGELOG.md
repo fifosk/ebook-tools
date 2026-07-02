@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Apple reader live-media and chunk-metadata context rebuilds now reprepare Original-only or Translation-only audio at the recent sentence anchor, so a sentence-batch refresh cannot keep stale timing/audio URLs while rendering moves to the next batch.
 - Apple reader Original-only and Translation-only playback now keeps the user-selected lane as durable view-model state across sentence-batch EOF handoffs and metadata refreshes, so track selection survives batch boundaries and rendering stays synced to the playing audio.
 - Web Video Dubbing source discovery provider buttons, query/search status, remote candidate rendering, and Download Station handoff chrome now live in a focused `VideoDiscoveryPanel` component with rendered coverage and changed-test routing.
 - Web Video Dubbing TVMaze metadata preview, artwork, editable job/show/episode fields, and raw payload rendering now live in a focused `VideoTvMetadataPreview` component with rendered coverage and changed-test routing, trimming the metadata panel while preserving Apple Create parity behavior.

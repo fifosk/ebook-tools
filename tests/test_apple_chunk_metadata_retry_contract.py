@@ -40,15 +40,24 @@ def test_selected_chunk_metadata_retry_prepares_audio_after_success() -> None:
 
 def test_selected_single_track_metadata_hydration_reprepares_even_when_selection_id_is_stable() -> None:
     loading = _source(INTERACTIVE / "InteractivePlayerViewModel+Loading.swift")
+    selection = _source(INTERACTIVE / "InteractivePlayerViewModel+Selection.swift")
 
-    hydration_block = """if selectedChunkID == chunkID {
+    assert """if selectedChunkID == chunkID {
                 reassertSelectedAudioTrackAfterContextRebuild()
-                if let updatedContextChunk,
-                   requestedSingleTrackMode() != nil {
-                    let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedContextChunk)
-                    prepareAudio("""
-
-    assert hydration_block in loading
+                reprepareSingleTrackAudioAfterContextRebuildIfNeeded(
+                    autoPlay: audioCoordinator.isPlaybackRequested
+                )""" in loading
+    reprepare_body = """func reprepareSingleTrackAudioAfterContextRebuildIfNeeded(autoPlay: Bool) {
+        guard let updatedChunk = selectedChunk,
+              requestedSingleTrackMode() != nil else {
+            return
+        }
+        guard let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedChunk) else {
+            return
+        }
+        rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: targetIndex)
+        prepareAudio("""
+    assert reprepare_body in selection
     assert "let didReassertAudioSelection = reassertSelectedAudioTrackAfterContextRebuild()" not in loading
     assert "if didReassertAudioSelection," not in loading
 

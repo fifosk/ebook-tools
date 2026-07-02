@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-context-rebuild-reprepare",
+                    title: "Single-track refreshes stay synced",
+                    detail: "Apple reader live-media and chunk-metadata context rebuilds now reprepare Original-only or Translation-only audio at the recent sentence anchor, so batch refreshes cannot keep stale timing or audio URLs while rendering advances."
+                ),
+                AppChangelogEntry(
                     id: "apple-durable-single-track-eof-lane",
                     title: "Single-track batches stay selected",
                     detail: "Apple reader Original-only and Translation-only playback now keeps the selected lane as durable view-model state across sentence-batch endings and metadata refreshes, so rendering stays synced to the playing audio."

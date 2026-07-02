@@ -1065,6 +1065,16 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "applySingleTrackSelection(track, for: chunk)" in reassert_body
     assert "return track" in reassert_body
 
+    reprepare_body = _function_body(
+        selection,
+        "func reprepareSingleTrackAudioAfterContextRebuildIfNeeded(autoPlay: Bool)",
+    )
+    assert "guard let updatedChunk = selectedChunk" in reprepare_body
+    assert "requestedSingleTrackMode() != nil" in reprepare_body
+    assert "guard let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedChunk)" in reprepare_body
+    assert "rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: targetIndex)" in reprepare_body
+    assert "prepareAudio(" in reprepare_body
+
     handoff_body = _function_body(
         selection,
         "func synchronizeSelectedAudioTrackForChunkHandoff(for chunk: InteractiveChunk)",
@@ -1075,6 +1085,9 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
         "synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)"
     )
     loading = _source("InteractivePlayerViewModel+Loading.swift")
+    refresh_body = _function_body(loading, "func refreshLiveMedia() async")
+    assert "reassertSelectedAudioTrackAfterContextRebuild()" in refresh_body
+    assert "reprepareSingleTrackAudioAfterContextRebuildIfNeeded(" in refresh_body
     retry_body = _function_body(loading, "func retrySelectedChunkMetadataLoad(autoPlay: Bool = false)")
     assert "self.synchronizeSelectedAudioTrackForChunkHandoff(for: updatedChunk)" in retry_body
     assert "let targetIndex = self.recentSingleTrackSentenceAnchorIndex(in: updatedChunk)" in retry_body

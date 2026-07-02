@@ -497,6 +497,22 @@ extension InteractivePlayerViewModel {
         return changed
     }
 
+    func reprepareSingleTrackAudioAfterContextRebuildIfNeeded(autoPlay: Bool) {
+        guard let updatedChunk = selectedChunk,
+              requestedSingleTrackMode() != nil else {
+            return
+        }
+        guard let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedChunk) else {
+            return
+        }
+        rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: targetIndex)
+        prepareAudio(
+            for: updatedChunk,
+            autoPlay: autoPlay,
+            targetSentenceIndex: targetIndex
+        )
+    }
+
     func applySingleTrackSelection(_ track: SequenceTrack, for chunk: InteractiveChunk) {
         preferredSingleTrackMode = track
         durableSingleTrackPlaybackMode = track

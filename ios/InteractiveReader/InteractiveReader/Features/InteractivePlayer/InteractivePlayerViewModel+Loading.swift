@@ -196,6 +196,9 @@ extension InteractivePlayerViewModel {
             jobContext = context
             if let selectedChunkID, context.chunk(withID: selectedChunkID) != nil {
                 reassertSelectedAudioTrackAfterContextRebuild()
+                reprepareSingleTrackAudioAfterContextRebuildIfNeeded(
+                    autoPlay: audioCoordinator.isPlaybackRequested
+                )
                 return
             }
             configureDefaultSelections()
@@ -472,15 +475,9 @@ extension InteractivePlayerViewModel {
             let updatedContextChunk = context.chunk(withID: chunkID)
             if selectedChunkID == chunkID {
                 reassertSelectedAudioTrackAfterContextRebuild()
-                if let updatedContextChunk,
-                   requestedSingleTrackMode() != nil {
-                    let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedContextChunk)
-                    prepareAudio(
-                        for: updatedContextChunk,
-                        autoPlay: audioCoordinator.isPlaybackRequested,
-                        targetSentenceIndex: targetIndex
-                    )
-                }
+                reprepareSingleTrackAudioAfterContextRebuildIfNeeded(
+                    autoPlay: audioCoordinator.isPlaybackRequested
+                )
             }
             if let updatedChunk = updatedContextChunk {
                 attemptPendingSentenceJump(in: updatedChunk)
