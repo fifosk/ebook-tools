@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-runtime-drift-diagnosis",
+                    title: "Pipeline explains runtime drift",
+                    detail: "The shared backend checker now labels any public runtime descriptor mismatch as stale deployed backend evidence before simulator or device debugging, not only acquisition route drift."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-device-profile-guard",
                     title: "Pipeline pins device profiles",
                     detail: "The reusable Apple pipeline manifest checker now validates exact iPhone, iPad, Living Room TV, and Cinema TV profile identity, bundle IDs, build roots, simulator smoke mapping, and iOS extension/capability requirements."

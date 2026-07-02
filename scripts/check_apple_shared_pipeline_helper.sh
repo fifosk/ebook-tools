@@ -187,9 +187,10 @@ python3 "${ROOT_DIR}/scripts/check_apple_shared_pipeline_manifest.py"
 if [[ -f "${PIPELINE_BACKEND_CHECKER}" ]]; then
   backend_checker="$(<"${PIPELINE_BACKEND_CHECKER}")"
   assert_contains "${backend_checker}" "runtime_descriptor_mismatch_message" "shared backend checker should keep a dedicated runtime mismatch formatter"
-  assert_contains "${backend_checker}" "Acquisition runtime contract drift" "shared backend checker should explain acquisition runtime drift"
-  assert_contains "${backend_checker}" "deployed backend is older than the app manifest" "shared backend checker should guide stale backend remediation"
-  assert_contains "${backend_checker}" "before debugging Apple client or device behavior" "shared backend checker should keep acquisition drift from looking like an Apple/device bug"
+  assert_contains "${backend_checker}" "Runtime contract drift" "shared backend checker should explain runtime descriptor drift"
+  assert_contains "${backend_checker}" "deployed backend " "shared backend checker should identify stale deployed backend runtime"
+  assert_contains "${backend_checker}" "is older than the app manifest" "shared backend checker should guide stale backend remediation"
+  assert_contains "${backend_checker}" "before debugging Apple client or device behavior" "shared backend checker should keep runtime drift from looking like an Apple/device bug"
 fi
 
 echo "apple shared pipeline helper checks passed"
