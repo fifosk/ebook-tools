@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-single-track-render-all-contract",
+                    title: "Single-track audio keeps all text",
+                    detail: "The Apple playback-mode regression harness now matches the reader behavior that original, translation, and transliteration text can remain visible while narration plays only the selected audio track."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-readiness-derived-runtime",
                     title: "Readiness follows Create runtime",
                     detail: "Apple Create readiness now derives its endpoint and picker-limit expectations from the public backend runtime descriptor so newly shared Web/Apple Create routes cannot drift behind copied preflight constants."

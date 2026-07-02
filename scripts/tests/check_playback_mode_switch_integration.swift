@@ -471,7 +471,9 @@ private func applyPendingResumeSingleTrackIfNeeded(
     let desiredTextTrack: TextPlayerVariantKind = resumeTrack == .original ? .original : .translation
     guard availableTracks.contains(desiredTextTrack) || chunkSupportsAudioTrack(resumeTrack, in: chunk) else { return false }
 
-    visibleTracks = [desiredTextTrack]
+    if !availableTracks.isEmpty {
+        visibleTracks = availableTracks
+    }
     manager.setTracks(
         original: resumeTrack == .original,
         translation: resumeTrack == .translation
@@ -494,8 +496,10 @@ private func preserveSingleTrackModeIfNeeded(
     let desiredTextTrack: TextPlayerVariantKind = track == .original ? .original : .translation
     guard availableTracks.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk) else { return false }
 
-    visibleTracks = [desiredTextTrack]
-    hasCustomTrackSelection = true
+    if !availableTracks.isEmpty {
+        visibleTracks = availableTracks
+        hasCustomTrackSelection = false
+    }
     manager.setTracks(
         original: track == .original,
         translation: track == .translation
@@ -534,8 +538,10 @@ private func restoreSingleTrackModeFromViewModelPreferenceIfNeeded(
         return false
     }
 
-    visibleTracks = [desiredTextTrack]
-    hasCustomTrackSelection = true
+    if !availableTracks.isEmpty {
+        visibleTracks = availableTracks
+        hasCustomTrackSelection = false
+    }
     manager.setTracks(
         original: requestedTrack == .original,
         translation: requestedTrack == .translation
@@ -625,9 +631,10 @@ private func alignVisibleTracksWithCurrentAudioMode(
     case .singleTrack(let track):
         let desiredTextTrack: TextPlayerVariantKind = track == .original ? .original : .translation
         guard availableTracks.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk) else { return false }
-        guard visibleTracks != [desiredTextTrack] || !hasCustomTrackSelection else { return false }
-        visibleTracks = [desiredTextTrack]
-        hasCustomTrackSelection = true
+        if !availableTracks.isEmpty {
+            visibleTracks = availableTracks
+            hasCustomTrackSelection = false
+        }
         selectedAudioTrackID = manager.resolvePreferredTrackID(for: chunk)
         return true
 
@@ -670,8 +677,10 @@ private func synchronizeAudioModeWithVisibleTextTracks(
             preferredSingleTrackMode: preferredSingleTrackMode,
             preferredAudioKind: preferredAudioKind
        ) {
-        visibleTracks = [durableSingleTrack == .original ? .original : .translation]
-        hasCustomTrackSelection = true
+        if !availableTracks.isEmpty {
+            visibleTracks = availableTracks
+            hasCustomTrackSelection = false
+        }
         applySingleTrackSelection(
             durableSingleTrack,
             for: chunk,
@@ -1718,8 +1727,8 @@ private func runChecks() {
     )
     requireEqual(
         resumeVisibleTracks,
-        [.translation],
-        "View restore should keep translation-only visible instead of defaulting back to all tracks"
+        [.original, .translation, .transliteration],
+        "View restore should keep all renderable text tracks visible while audio resumes on Translation"
     )
     requireEqual(
         resumeSelectedTrackID,
@@ -1748,13 +1757,13 @@ private func runChecks() {
     )
     requireEqual(
         batchVisibleTracks,
-        [.translation],
-        "Cross-batch setup should keep the transcript aligned to the translation-only audio track"
+        [.original, .translation, .transliteration],
+        "Cross-batch setup should keep all renderable transcript tracks visible while audio stays translation-only"
     )
     requireEqual(
         batchHasCustomTrackSelection,
-        true,
-        "Cross-batch single-track preservation should mark the selection custom so later lifecycle passes do not reset it"
+        false,
+        "Cross-batch single-track preservation should not hide companion text tracks"
     )
     requireEqual(
         batchSelectedTrackID,
@@ -1778,8 +1787,8 @@ private func runChecks() {
     )
     requireEqual(
         unloadedBatchVisibleTracks,
-        [.translation],
-        "Unloaded next-batch setup should keep translation visible until metadata hydrates"
+        [.original],
+        "Unloaded next-batch setup should keep currently renderable text tracks visible until metadata hydrates"
     )
     requireEqual(
         unloadedBatchSelectedTrackID,
@@ -2646,12 +2655,12 @@ private func runChecks() {
             selectedAudioTrackID: &headerSelectedTrackID
         ),
         true,
-        "Header/menu translation-only audio changes should immediately pin the visible text track before batch handoff"
+        "Header/menu translation-only audio changes should immediately repair selected audio before batch handoff"
     )
     requireEqual(
         headerVisibleTracks,
-        [.translation],
-        "Header/menu translation-only selection should not leave all transcript tracks visible until a later lifecycle pass"
+        [.original, .translation, .transliteration],
+        "Header/menu translation-only selection should keep all renderable transcript tracks visible"
     )
     requireEqual(
         headerSelectedTrackID,
@@ -2669,8 +2678,8 @@ private func runChecks() {
             selectedAudioTrackID: &headerSelectedTrackID,
             expandSequenceMode: true
         ),
-        true,
-        "Combined audio selection should expand transcript tracks instead of leaving stale translation-only rendering"
+        false,
+        "Combined audio selection should not rewrite transcript visibility when all tracks are already visible"
     )
     requireEqual(
         headerVisibleTracks,
@@ -2719,8 +2728,8 @@ private func runChecks() {
     )
     requireEqual(
         placeholderBridgeVisibleTracks,
-        [.translation],
-        "Placeholder batch bridge should keep the transcript pinned to the selected single track"
+        [.original, .translation, .transliteration],
+        "Placeholder batch bridge should preserve existing text visibility until metadata hydrates"
     )
     requireEqual(
         placeholderBridgeSelectedTrackID,
@@ -2755,8 +2764,8 @@ private func runChecks() {
     )
     requireEqual(
         hydratedBatchBridgeVisibleTracks,
-        [.translation],
-        "Hydrated batch bridge should preserve the selected transcript lane instead of showing all tracks"
+        [.original, .translation, .transliteration],
+        "Hydrated batch bridge should preserve all renderable transcript tracks while audio stays on Translation"
     )
     requireEqual(
         hydratedBatchBridgeSelectedTrackID,
@@ -2797,8 +2806,8 @@ private func runChecks() {
     )
     requireEqual(
         durableOnlyBatchBridgeVisibleTracks,
-        [.translation],
-        "Durable-only batch bridge should keep rendered text on the selected translation lane"
+        [.original, .translation, .transliteration],
+        "Durable-only batch bridge should keep all renderable text visible while audio stays on Translation"
     )
     requireEqual(
         durableOnlyBatchBridgeSelectedTrackID,
@@ -2829,8 +2838,8 @@ private func runChecks() {
     )
     requireEqual(
         passiveHydratedVisibleTracks,
-        [.translation],
-        "Passive hydrated-batch sync should keep rendered tracks pinned to the selected translation lane"
+        [.original, .translation, .transliteration],
+        "Passive hydrated-batch sync should keep all renderable tracks visible while audio stays on Translation"
     )
     requireEqual(
         passiveHydratedSelectedTrackID,

@@ -177,11 +177,14 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "prepareResumeSingleTrack(" in swift_check
     assert "applyPendingResumeSingleTrackIfNeeded(" in swift_check
     assert "Translation-only resume should restore single-track mode before seeking" in swift_check
-    assert "View restore should keep translation-only visible instead of defaulting back to all tracks" in swift_check
+    assert "View restore should keep all renderable text tracks visible while audio resumes on Translation" in swift_check
     assert "preserveSingleTrackModeIfNeeded(" in swift_check
     assert "Cross-batch setup should preserve an existing translation-only audio mode instead of defaulting to all tracks" in swift_check
-    assert "Cross-batch setup should keep the transcript aligned to the translation-only audio track" in swift_check
+    assert "Cross-batch setup should keep all renderable transcript tracks visible while audio stays translation-only" in swift_check
+    assert "Cross-batch single-track preservation should not hide companion text tracks" in swift_check
     assert "Unloaded next-batch setup should preserve translation-only mode when text tracks temporarily fall back to original" in swift_check
+    assert "Header/menu translation-only selection should keep all renderable transcript tracks visible" in swift_check
+    assert "Hydrated batch bridge should preserve all renderable transcript tracks while audio stays on Translation" in swift_check
     assert "synchronizeSelectedAudioTrackWithCurrentMode(" in swift_check
     assert "Chunk handoff should switch the selected audio option before immediate playback can load the next batch" in swift_check
     assert "Chunk handoff should record translation-only as the durable lane before batch autoplay starts" in swift_check
