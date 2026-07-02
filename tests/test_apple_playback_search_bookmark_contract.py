@@ -591,6 +591,9 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "chunkSupportsAudioTrack(.translation, in: chunk)" in available_roles_body
     assert "roles.formUnion([.original, .translation])" not in available_roles_body
     assert "if roles.isEmpty, kinds.contains(.combined)" not in available_roles_body
+    assert "func headerAvailableAudioRoles(" in available_roles_body
+    assert "info?.languageFlags.forEach" in available_roles_body
+    assert "roles.insert(flag.role)" in available_roles_body
     assert "switch audioModeManager.currentMode" in active_roles_body
     assert "case .singleTrack(.translation):" in active_roles_body
     assert "return [.translation]" in active_roles_body
@@ -604,7 +607,8 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "case .singleTrack(let selectedTrack):" in header_toggle_body
     assert "case .sequence:" in header_toggle_body
     assert "viewModel.applySingleTrackSelection(selectedTrack, for: chunk)" in header_toggle_body
-    assert "viewModel.rememberAudioModePreference(audioModeManager.currentMode)" in header_toggle_body
+    assert "viewModel.rememberAudioModePreference(" in header_toggle_body
+    assert "clearSingleTrackOnSequence: true" in header_toggle_body
     assert "viewModel.synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)" in header_toggle_body
     assert "desiredHeaderAudioRoles" not in audio_management
     assert "private extension Set where Element == LanguageFlagRole" not in audio_management

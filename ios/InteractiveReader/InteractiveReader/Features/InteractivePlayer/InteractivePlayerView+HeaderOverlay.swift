@@ -18,7 +18,7 @@ extension InteractivePlayerView {
         let label = rawLabel.isEmpty ? "Job" : rawLabel
         let progressLabel = headerProgressSummaryLabel(for: chunk)
         let showHeaderContent = !isHeaderCollapsed
-        let availableRoles = availableAudioRoles(for: chunk)
+        let availableRoles = headerAvailableAudioRoles(info: headerInfo, for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
 
         let styledHeaderView = playerInfoHeaderContent(
@@ -316,7 +316,7 @@ extension InteractivePlayerView {
         label: String,
         progressLabel: String?
     ) -> some View {
-        let availableRoles = availableAudioRoles(for: chunk)
+        let availableRoles = headerAvailableAudioRoles(info: info, for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
         return InteractivePlayerHeaderIdentityBanner(
             info: info,

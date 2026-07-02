@@ -476,6 +476,20 @@ def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
     assert "chunkSupportsAudioTrack(.translation, in: chunk)" in available_audio_roles_body
     assert "!$0.translationTokens.isEmpty" in available_audio_roles_body
 
+    header_available_roles_body = _function_body(
+        audio_management,
+        "func headerAvailableAudioRoles(\n        info: InteractivePlayerHeaderInfo?,\n        for chunk: InteractiveChunk\n    ) -> Set<LanguageFlagRole>",
+    )
+    assert "var roles = availableAudioRoles(for: chunk)" in header_available_roles_body
+    assert "info?.languageFlags.forEach" in header_available_roles_body
+    assert "roles.insert(flag.role)" in header_available_roles_body
+    assert "if visibleTracks.contains(.original)" in header_available_roles_body
+    assert "if visibleTracks.contains(.translation)" in header_available_roles_body
+
+    header_overlay = _source("InteractivePlayerView+HeaderOverlay.swift")
+    assert "headerAvailableAudioRoles(info: headerInfo, for: chunk)" in header_overlay
+    assert "headerAvailableAudioRoles(info: info, for: chunk)" in header_overlay
+
     header_toggle_body = _function_body(
         audio_management,
         "func toggleHeaderAudioRole(\n        _ role: LanguageFlagRole,\n        for chunk: InteractiveChunk,\n        availableRoles: Set<LanguageFlagRole>\n    )",
@@ -490,7 +504,8 @@ def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
     assert "case .singleTrack(let selectedTrack):" in header_toggle_body
     assert "case .sequence:" in header_toggle_body
     assert "viewModel.applySingleTrackSelection(selectedTrack, for: chunk)" in header_toggle_body
-    assert "viewModel.rememberAudioModePreference(audioModeManager.currentMode)" in header_toggle_body
+    assert "viewModel.rememberAudioModePreference(" in header_toggle_body
+    assert "clearSingleTrackOnSequence: true" in header_toggle_body
     assert "viewModel.synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)" in header_toggle_body
     assert "desiredHeaderAudioRoles" not in audio_management
     assert "private extension Set where Element == LanguageFlagRole" not in audio_management

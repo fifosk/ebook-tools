@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-header-language-pills-restore-from-metadata",
+                    title: "Language pills re-enable",
+                    detail: "Apple reader header language pills now keep known book language roles selectable while chunks hydrate or single-track audio is active, so disabling Original or Translation can be reversed without stale single-track memory forcing the pill grey."
+                ),
+                AppChangelogEntry(
                     id: "apple-youtube-source-support-controls",
                     title: "YouTube sources are focused",
                     detail: "Apple YouTube Dub Create controls now keep video discovery, Download Station handoff, and embedded-subtitle extraction in focused SwiftUI files while preserving NAS/video source selection across iPad, iPhone, Apple TV, and Mac iPad-style builds."

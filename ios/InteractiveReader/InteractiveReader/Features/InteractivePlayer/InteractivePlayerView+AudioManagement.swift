@@ -199,6 +199,23 @@ extension InteractivePlayerView {
         return roles
     }
 
+    func headerAvailableAudioRoles(
+        info: InteractivePlayerHeaderInfo?,
+        for chunk: InteractiveChunk
+    ) -> Set<LanguageFlagRole> {
+        var roles = availableAudioRoles(for: chunk)
+        info?.languageFlags.forEach { flag in
+            roles.insert(flag.role)
+        }
+        if visibleTracks.contains(.original) {
+            roles.insert(.original)
+        }
+        if visibleTracks.contains(.translation) {
+            roles.insert(.translation)
+        }
+        return roles
+    }
+
     func activeAudioRoles(
         for chunk: InteractiveChunk,
         availableRoles: Set<LanguageFlagRole>
@@ -254,7 +271,10 @@ extension InteractivePlayerView {
         case .singleTrack(let selectedTrack):
             viewModel.applySingleTrackSelection(selectedTrack, for: chunk)
         case .sequence:
-            viewModel.rememberAudioModePreference(audioModeManager.currentMode)
+            viewModel.rememberAudioModePreference(
+                audioModeManager.currentMode,
+                clearSingleTrackOnSequence: true
+            )
             viewModel.sequenceController.audioMode = audioModeManager.currentMode
             viewModel.synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)
         }
