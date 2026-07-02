@@ -280,6 +280,14 @@ def test_serialize_media_entries_loader_manifest_uses_safe_stat(
             loaded = dict(chunk)
             loaded["sentences"] = [{"sentence_number": 1, "text": "Loaded"}]
             loaded["sentence_count"] = 1
+            loaded["audioTracks"] = {
+                "translation": {"path": "media/audio.mp3", "duration": 1.2}
+            }
+            loaded["timingTracks"] = {
+                "translation": [
+                    {"text": "Loaded", "sentenceIdx": 1, "start": 0.0, "end": 0.5}
+                ]
+            }
             return loaded
 
     def guarded_exists(path: Path, *args, **kwargs) -> bool:
@@ -310,6 +318,18 @@ def test_serialize_media_entries_loader_manifest_uses_safe_stat(
 
     assert loader_calls == [job_root]
     assert chunk_records[0]["sentences"] == [{"sentence_number": 1, "text": "Loaded"}]
+    assert chunk_records[0]["audio_tracks"] == {
+        "translation": {
+            "path": "media/audio.mp3",
+            "url": "/api/library/media/job-1/file/media/audio.mp3",
+            "duration": 1.2,
+        }
+    }
+    assert chunk_records[0]["timing_tracks"] == {
+        "translation": [
+            {"text": "Loaded", "sentenceIdx": 1, "start": 0.0, "end": 0.5}
+        ]
+    }
 
 
 def test_contains_media_files_uses_safe_stat_for_media_root(

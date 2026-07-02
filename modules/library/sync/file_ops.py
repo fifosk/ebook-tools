@@ -1007,6 +1007,34 @@ def serialize_media_entries(
                 if normalized_tracks:
                     chunk_record["audio_tracks"] = normalized_tracks
 
+            timing_tracks_raw: Optional[Mapping[str, Any]] = None
+            candidate_timing_tracks = summary.get("timing_tracks") or summary.get("timingTracks")
+            if isinstance(candidate_timing_tracks, Mapping):
+                timing_tracks_raw = candidate_timing_tracks
+            else:
+                chunk_timing_tracks = chunk.get("timing_tracks")
+                if isinstance(chunk_timing_tracks, Mapping):
+                    timing_tracks_raw = chunk_timing_tracks
+                else:
+                    chunk_timing_tracks = chunk.get("timingTracks")
+                    if isinstance(chunk_timing_tracks, Mapping):
+                        timing_tracks_raw = chunk_timing_tracks
+
+            if timing_tracks_raw:
+                normalized_timing_tracks: Dict[str, List[Dict[str, Any]]] = {}
+                for key, value in timing_tracks_raw.items():
+                    if not isinstance(key, str) or not isinstance(value, list):
+                        continue
+                    entries = [
+                        copy.deepcopy(entry)
+                        for entry in value
+                        if isinstance(entry, Mapping)
+                    ]
+                    if entries:
+                        normalized_timing_tracks[key] = entries
+                if normalized_timing_tracks:
+                    chunk_record["timing_tracks"] = normalized_timing_tracks
+
             if isinstance(metadata_path, str) and metadata_path.strip():
                 chunk_record["metadata_path"] = metadata_path
                 chunk_record["metadata_url"] = build_library_media_url(job_id, metadata_path)

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
-            version: "2026.07.02.004",
+            version: "2026.07.02.005",
             entries: [
+                AppChangelogEntry(
+                    id: "library-media-translation-track-evidence",
+                    title: "Library Translation stays available",
+                    detail: "Library media responses now preserve chunk audio and timing track evidence for Apple playback, so Apple TV, iPad, and iPhone keep the Translation pill selectable while sentence text loads lazily."
+                ),
                 AppChangelogEntry(
                     id: "apple-audio-backed-text-track-availability",
                     title: "Translation stays selectable while loading",

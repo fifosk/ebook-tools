@@ -1037,6 +1037,9 @@ Current Apple UI partially exposes:
   rows. The executable playback mode-switch harness covers both dedicated-audio
   and combined-audio lazy chunk shapes so Apple TV cannot regress to a grey
   Translation pill in that placeholder state.
+  Library media responses now preserve chunk `audioTracks` and `timingTracks`
+  through `/api/library/media/{job_id}` as well, keeping Library-launched Apple
+  playback on the same availability contract as direct pipeline media.
   Destination language pills prefer authoritative target-language request/config
   fields instead of broad nested metadata scans. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.

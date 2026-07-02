@@ -117,6 +117,10 @@ Follow the suggested remediations to restore parity:
   placeholder state: dedicated translation audio or a combined stream with a
   translation lane keeps the Translation pill/selectable row alive until the
   chunk metadata fetch fills real tokens.
+  Library playback uses `/api/library/media/{job_id}` for the same contract:
+  the route must preserve chunk `audioTracks` and `timingTracks` even when
+  `sentences` are omitted or loaded lazily, otherwise Apple TV can show a grey
+  Translation pill despite playable translation media being present.
   If the manager and selected picker id both briefly reset to sequence/combined
   at a batch boundary, the single audio lane that was actually loaded is still
   authoritative for Original-only or Translation-only playback while the sequence

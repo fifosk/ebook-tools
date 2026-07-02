@@ -7,6 +7,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, Literal, Mapping, Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Response, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
@@ -60,6 +61,14 @@ LOGGER = logging_manager.get_logger().getChild("webapi.library")
 mimetypes.add_type("text/vtt", ".vtt")
 mimetypes.add_type("text/x-srt", ".srt")
 mimetypes.add_type("text/plain", ".ass")
+
+
+def _library_media_file_url(job_id: str, relative_path: str) -> str:
+    normalized = relative_path.strip().replace("\\", "/").lstrip("/")
+    return (
+        f"/api/library/media/{quote(str(job_id), safe='')}/file/"
+        f"{quote(normalized, safe='/')}"
+    )
 
 
 def _log_library_route_result(
@@ -1254,18 +1263,43 @@ async def get_library_media(
         serialized_chunks: list[PipelineMediaChunk] = []
         for chunk in chunk_records:
             files = [PipelineMediaFile.model_validate(entry) for entry in chunk.get("files", [])]
-            raw_tracks = chunk.get("audio_tracks") or {}
+            raw_tracks = chunk.get("audio_tracks") or chunk.get("audioTracks") or {}
             audio_tracks: Dict[str, Any] = {}
             if isinstance(raw_tracks, Mapping):
                 for track_key, track_value in raw_tracks.items():
                     if not isinstance(track_key, str):
                         continue
                     if isinstance(track_value, Mapping):
-                        audio_tracks[track_key] = dict(track_value)
+                        entry = dict(track_value)
+                        raw_path = entry.get("path")
+                        raw_url = entry.get("url")
+                        if (
+                            isinstance(raw_path, str)
+                            and raw_path.strip()
+                            and not (isinstance(raw_url, str) and raw_url.strip())
+                        ):
+                            entry["url"] = _library_media_file_url(job_id, raw_path)
+                        audio_tracks[track_key] = entry
                     elif isinstance(track_value, str):
                         trimmed = track_value.strip()
                         if trimmed:
                             audio_tracks[track_key] = {"path": trimmed}
+            raw_timing_tracks = chunk.get("timing_tracks") or chunk.get("timingTracks")
+            timing_tracks: Optional[Dict[str, list[Dict[str, Any]]]] = None
+            if isinstance(raw_timing_tracks, Mapping):
+                normalized_timing_tracks: Dict[str, list[Dict[str, Any]]] = {}
+                for track_key, track_entries in raw_timing_tracks.items():
+                    if not isinstance(track_key, str) or not isinstance(track_entries, list):
+                        continue
+                    entries = [
+                        dict(entry)
+                        for entry in track_entries
+                        if isinstance(entry, Mapping)
+                    ]
+                    if entries:
+                        normalized_timing_tracks[track_key] = entries
+                if normalized_timing_tracks:
+                    timing_tracks = normalized_timing_tracks
             serialized_chunks.append(
                 PipelineMediaChunk(
                     chunk_id=chunk.get("chunk_id"),
@@ -1278,6 +1312,7 @@ async def get_library_media(
                     metadata_url=chunk.get("metadata_url"),
                     sentence_count=chunk.get("sentence_count"),
                     audio_tracks=audio_tracks,
+                    timing_tracks=timing_tracks,
                 )
             )
         response_payload = PipelineMediaResponse(

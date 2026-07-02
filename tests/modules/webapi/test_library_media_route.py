@@ -142,6 +142,58 @@ def test_get_library_media_includes_sentence_metadata() -> None:
     assert sentence["timeline"][0]["duration"] == 1.0
 
 
+def test_get_library_media_preserves_audio_and_timing_tracks() -> None:
+    chunk_records = [
+        {
+            "chunk_id": "chunk-001",
+            "range_fragment": "1-1",
+            "start_sentence": 1,
+            "end_sentence": 1,
+            "files": [],
+            "sentences": [],
+            "sentence_count": 1,
+            "audio_tracks": {
+                "translation": {
+                    "path": "media/chunk-001/translation.mp3",
+                    "duration": 1.2,
+                },
+            },
+            "timing_tracks": {
+                "translation": [
+                    {
+                        "text": "Hallo",
+                        "sentenceIdx": 1,
+                        "start": 0.0,
+                        "end": 0.6,
+                    }
+                ]
+            },
+        }
+    ]
+    payload = ({}, chunk_records, True)
+
+    app = create_app()
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync(payload)
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="test", user_role="admin"
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/library/media/library-job")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    chunk = response.json()["chunks"][0]
+    assert set(chunk["audioTracks"]) == {"translation"}
+    assert chunk["audioTracks"]["translation"]["url"].endswith(
+        "/api/library/media/library-job/file/media/chunk-001/translation.mp3"
+    )
+    assert set(chunk["timingTracks"]) == {"translation"}
+    assert chunk["timingTracks"]["translation"][0]["text"] == "Hallo"
+
+
 def test_get_library_media_records_token_safe_timing(monkeypatch: pytest.MonkeyPatch) -> None:
     job_id = "sensitive-library-job"
     user_id = "sensitive-user-id"
