@@ -116,6 +116,8 @@
 		CREATESRCSUPCTRL001A0002 /* AppleBookCreateSourceSupportControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATESRCSUPCTRL002A0001 /* AppleBookCreateSourceSupportControls.swift */; };
 		CREATEYTBSRC001A0001 /* AppleBookCreateYoutubeSourceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEYTBSRC002A0001 /* AppleBookCreateYoutubeSourceControls.swift */; };
 		CREATEYTBSRC001A0002 /* AppleBookCreateYoutubeSourceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEYTBSRC002A0001 /* AppleBookCreateYoutubeSourceControls.swift */; };
+		CREATEYTBDISC001A0001 /* AppleBookCreateYoutubeDiscoveryControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEYTBDISC002A0001 /* AppleBookCreateYoutubeDiscoveryControls.swift */; };
+		CREATEYTBDISC001A0002 /* AppleBookCreateYoutubeDiscoveryControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEYTBDISC002A0001 /* AppleBookCreateYoutubeDiscoveryControls.swift */; };
 		CREATEYTBSRCSUP001A0001 /* AppleBookCreateYoutubeSourceSupportControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEYTBSRCSUP002A0001 /* AppleBookCreateYoutubeSourceSupportControls.swift */; };
 		CREATEYTBSRCSUP001A0002 /* AppleBookCreateYoutubeSourceSupportControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEYTBSRCSUP002A0001 /* AppleBookCreateYoutubeSourceSupportControls.swift */; };
 		CREATEBASIC001A0001 /* AppleBookCreateBasicSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEBASIC002A0001 /* AppleBookCreateBasicSections.swift */; };
@@ -820,6 +822,7 @@
 		CREATESRCCTRL002A0001 /* AppleBookCreateSourceControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateSourceControls.swift; sourceTree = "<group>"; };
 		CREATESRCSUPCTRL002A0001 /* AppleBookCreateSourceSupportControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateSourceSupportControls.swift; sourceTree = "<group>"; };
 		CREATEYTBSRC002A0001 /* AppleBookCreateYoutubeSourceControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateYoutubeSourceControls.swift; sourceTree = "<group>"; };
+		CREATEYTBDISC002A0001 /* AppleBookCreateYoutubeDiscoveryControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateYoutubeDiscoveryControls.swift; sourceTree = "<group>"; };
 		CREATEYTBSRCSUP002A0001 /* AppleBookCreateYoutubeSourceSupportControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateYoutubeSourceSupportControls.swift; sourceTree = "<group>"; };
 		CREATEBASIC002A0001 /* AppleBookCreateBasicSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateBasicSections.swift; sourceTree = "<group>"; };
 		CREATEOUT002A0001 /* AppleBookCreateOutputSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateOutputSection.swift; sourceTree = "<group>"; };
@@ -1073,6 +1076,7 @@
 				CREATESRCCTRL002A0001 /* AppleBookCreateSourceControls.swift */,
 				CREATESRCSUPCTRL002A0001 /* AppleBookCreateSourceSupportControls.swift */,
 				CREATEYTBSRC002A0001 /* AppleBookCreateYoutubeSourceControls.swift */,
+				CREATEYTBDISC002A0001 /* AppleBookCreateYoutubeDiscoveryControls.swift */,
 				CREATEYTBSRCSUP002A0001 /* AppleBookCreateYoutubeSourceSupportControls.swift */,
 				CREATEBASIC002A0001 /* AppleBookCreateBasicSections.swift */,
 				CREATEOUT002A0001 /* AppleBookCreateOutputSection.swift */,
@@ -2004,6 +2008,7 @@
 				CREATESRCCTRL001A0001 /* AppleBookCreateSourceControls.swift in Sources */,
 				CREATESRCSUPCTRL001A0001 /* AppleBookCreateSourceSupportControls.swift in Sources */,
 				CREATEYTBSRC001A0001 /* AppleBookCreateYoutubeSourceControls.swift in Sources */,
+				CREATEYTBDISC001A0001 /* AppleBookCreateYoutubeDiscoveryControls.swift in Sources */,
 				CREATEYTBSRCSUP001A0001 /* AppleBookCreateYoutubeSourceSupportControls.swift in Sources */,
 				CREATEBASIC001A0001 /* AppleBookCreateBasicSections.swift in Sources */,
 				CREATEOUT001A0001 /* AppleBookCreateOutputSection.swift in Sources */,
@@ -2313,6 +2318,7 @@
 				CREATESRCCTRL001A0002 /* AppleBookCreateSourceControls.swift in Sources */,
 				CREATESRCSUPCTRL001A0002 /* AppleBookCreateSourceSupportControls.swift in Sources */,
 				CREATEYTBSRC001A0002 /* AppleBookCreateYoutubeSourceControls.swift in Sources */,
+				CREATEYTBDISC001A0002 /* AppleBookCreateYoutubeDiscoveryControls.swift in Sources */,
 				CREATEYTBSRCSUP001A0002 /* AppleBookCreateYoutubeSourceSupportControls.swift in Sources */,
 				CREATEBASIC001A0002 /* AppleBookCreateBasicSections.swift in Sources */,
 				CREATEOUT001A0002 /* AppleBookCreateOutputSection.swift in Sources */,

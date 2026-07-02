@@ -668,8 +668,9 @@ Current Apple UI partially exposes:
   selection lives in `AppleBookCreateSourceControls.swift`, shared EPUB/subtitle
   support controls live in `AppleBookCreateSourceSupportControls.swift`, NAS
   YouTube video/subtitle selection lives in
-  `AppleBookCreateYoutubeSourceControls.swift`, and video discovery rendering,
-  Download Station, plus embedded subtitle extraction controls live in
+  `AppleBookCreateYoutubeSourceControls.swift`, video discovery rendering lives
+  in `AppleBookCreateYoutubeDiscoveryControls.swift`, and Download Station plus
+  embedded subtitle extraction controls live in
   `AppleBookCreateYoutubeSourceSupportControls.swift`. Reusable default source selection
   decisions, including NAS YouTube scope refreshes, live in
   `AppleBookCreateSourceSelection.swift`, while source refresh, delete,

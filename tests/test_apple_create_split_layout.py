@@ -564,6 +564,15 @@ CREATE_YOUTUBE_SOURCE_CONTROLS = (
     / "Create"
     / "AppleBookCreateYoutubeSourceControls.swift"
 )
+CREATE_YOUTUBE_DISCOVERY_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateYoutubeDiscoveryControls.swift"
+)
 CREATE_YOUTUBE_SOURCE_SUPPORT_CONTROLS = (
     ROOT
     / "ios"
@@ -3189,6 +3198,7 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     support_controls_source = _source(CREATE_SOURCE_SUPPORT_CONTROLS)
     youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
+    youtube_discovery_source = _source(CREATE_YOUTUBE_DISCOVERY_CONTROLS)
     youtube_support_source = _source(CREATE_YOUTUBE_SOURCE_SUPPORT_CONTROLS)
     narration_source = _source(CREATE_NARRATION_SECTION)
     project = _source(XCODE_PROJECT)
@@ -3197,7 +3207,7 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "struct AppleBookCreateNarrateSourceControls: View" in controls_source
     assert "struct AppleBookCreateSubtitleSourceControls: View" in support_controls_source
     assert "struct AppleBookCreateYoutubeSourceControls: View" in youtube_source
-    assert "struct AppleBookCreateYoutubeDiscoveryControls: View" in youtube_support_source
+    assert "struct AppleBookCreateYoutubeDiscoveryControls: View" in youtube_discovery_source
     assert "struct AppleBookCreateYoutubeDownloadStationControls: View" in youtube_support_source
     assert "struct AppleBookCreateYoutubeEmbeddedSubtitleControls: View" in youtube_support_source
     assert "struct AppleBookCreateFileImportControl: View" in support_controls_source
@@ -3242,6 +3252,8 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert project.count("AppleBookCreateSourceSupportControls.swift in Sources") == 4
     assert "AppleBookCreateYoutubeSourceControls.swift in Sources" in project
     assert project.count("AppleBookCreateYoutubeSourceControls.swift in Sources") == 4
+    assert "AppleBookCreateYoutubeDiscoveryControls.swift in Sources" in project
+    assert project.count("AppleBookCreateYoutubeDiscoveryControls.swift in Sources") == 4
     assert "AppleBookCreateYoutubeSourceSupportControls.swift in Sources" in project
     assert project.count("AppleBookCreateYoutubeSourceSupportControls.swift in Sources") == 4
     assert "AppleBookCreateNarrationSection.swift in Sources" in project
@@ -3627,6 +3639,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     source_actions = _source(CREATE_SOURCE_ACTIONS)
     source = _source(CREATE_SOURCE_SECTION)
     youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
+    youtube_discovery_source = _source(CREATE_YOUTUBE_DISCOVERY_CONTROLS)
     youtube_support_source = _source(CREATE_YOUTUBE_SOURCE_SUPPORT_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
     view_model_sources = _source(CREATE_VIEW_MODEL_SOURCES)
@@ -3683,7 +3696,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "client.prepareAcquisitionArtifact(" in view_model_sources
     assert "downloadStationCandidate?.candidateToken" in youtube_support_source
     assert 'accessibilityIdentifier("createYoutubeDownloadStationCandidate")' in youtube_support_source
-    assert "AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate)" in youtube_support_source
+    assert "AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate)" in youtube_discovery_source
     assert "let discovery = await viewModel.loadVideoDiscovery(" in source_actions
     assert "static func downloadStationCompletedFiles(from job: AcquisitionJobStatusResponse?) -> [String]" in download_station_source
     assert "static func downloadStationCompletedCandidate(" in download_station_source
@@ -3703,7 +3716,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "private static func downloadStationNameKeys(for value: String) -> [String]" in download_station_source
     assert "private static func downloadStationLastPathComponent(_ value: String) -> String" in download_station_source
     assert "private static func downloadStationFileStem(_ filename: String) -> String" in download_station_source
-    assert "onSelectYoutubeAcquisitionCandidate(candidate, videoDiscoveryQuery, videoDiscoveryProvider)" in youtube_support_source
+    assert "onSelectYoutubeAcquisitionCandidate(candidate, videoDiscoveryQuery, videoDiscoveryProvider)" in youtube_discovery_source
     assert "private var youtubeSearchProvider" not in view_source
     assert "private var downloadStationProvider" not in view_source
     assert "loadAcquisitionProviders(using: appState" in view_source
@@ -3769,7 +3782,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true)' in video_discovery_source
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)' in video_discovery_source
     assert 'label: "Default sources"' in video_discovery_source
-    assert "ForEach(videoDiscoveryProviderOptions)" in youtube_support_source
+    assert "ForEach(videoDiscoveryProviderOptions)" in youtube_discovery_source
     assert "AppleBookCreatePresentation.videoDiscoveryProviderOptions(" in youtube_source
     assert "from: acquisitionProviders" in youtube_source
     assert "defaultProviderIds: acquisitionDefaultProviderIds" in youtube_source
@@ -3825,19 +3838,19 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "static func videoDiscoveryProviderUnavailableMessage(" in video_discovery_source
     assert 'if provider.id == "youtube_search"' in video_discovery_source
     assert 'if provider.id == "newznab_torznab"' in video_discovery_source
-    assert "|| !isSelectedVideoDiscoveryProviderAvailable" in youtube_support_source
+    assert "|| !isSelectedVideoDiscoveryProviderAvailable" in youtube_discovery_source
     assert "AppleBookCreatePresentation.videoDiscoveryCandidates(" in youtube_source
     assert "providers: acquisitionProviders" in youtube_source
     assert "AppleBookCreatePresentation.discoveryPolicyNotes(from: acquisitionDiscovery)" in youtube_source
-    assert 'accessibilityIdentifier("createYoutubeDiscoveryPolicyNote")' in youtube_support_source
+    assert 'accessibilityIdentifier("createYoutubeDiscoveryPolicyNote")' in youtube_discovery_source
     assert "AppleBookCreatePresentation.videoDiscoveryQueryPlaceholder(providerID: videoDiscoveryProvider)" in youtube_source
     assert "AppleBookCreatePresentation.noVideoDiscoveryCandidatesMessage(providerID: videoDiscoveryProvider)" in youtube_source
     assert "AppleBookCreatePresentation.youtubeVideoLabel(video)" in youtube_source
     assert "AppleBookCreatePresentation.youtubeSubtitleLabel(subtitle)" in youtube_source
     assert "AppleBookCreatePresentation.filenameFromPath" in youtube_support_source
-    assert "AppleBookCreatePresentation.videoDiscoveryCandidateDetail(candidate)" in youtube_support_source
-    assert 'accessibilityIdentifier("createYoutubeDiscoveryPrepareProgress")' in youtube_support_source
-    assert ".disabled(isPreparingAcquisitionCandidate)" in youtube_support_source
+    assert "AppleBookCreatePresentation.videoDiscoveryCandidateDetail(candidate)" in youtube_discovery_source
+    assert 'accessibilityIdentifier("createYoutubeDiscoveryPrepareProgress")' in youtube_discovery_source
+    assert ".disabled(isPreparingAcquisitionCandidate)" in youtube_discovery_source
     assert "static func videoDiscoveryCandidates(" in video_discovery_source
     assert "static func videoDiscoveryCandidates(" not in discovery_source
     video_candidates_body = video_discovery_source.split("static func videoDiscoveryCandidates(", 1)[1].split(
@@ -3878,7 +3891,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
         "createYoutubeDiscoveryMessage",
         "createYoutubeDiscoveryCandidate.",
     ]:
-        assert identifier in youtube_support_source
+        assert identifier in youtube_discovery_source
 
 
 def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
