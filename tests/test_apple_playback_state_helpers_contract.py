@@ -790,6 +790,7 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     completed_lane_body = _function_body(selection, "private func singleTrackModeForCompletedPlayback(")
     assert "if let track = requestedSingleTrackMode()" in completed_lane_body
     assert "guard !sequenceController.isEnabled else { return nil }" in completed_lane_body
+    assert "guard sequenceController.plan.isEmpty else" in completed_lane_body
     assert "let completedURL: URL?" in completed_lane_body
     assert "activeURLs.count != 1 || activeURLs.first != endedURL" in completed_lane_body
     assert "guard activeURLs.count == 1 else { return nil }" in completed_lane_body
@@ -815,6 +816,7 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert "chunkSupportsSingleTrack(selectedTimingSingleTrackMode, in: chunk)" in selected_timing_body
     loaded_url_body = _function_body(selection, "private func loadedSingleURLTrackMode() -> SequenceTrack?")
     assert "guard !sequenceController.isEnabled" in loaded_url_body
+    assert "sequenceController.plan.isEmpty" in loaded_url_body
     assert "audioCoordinator.activeURLs.count == 1" in loaded_url_body
     assert "singleTrackMode(forAudioURL: activeURL, in: chunk)" in loaded_url_body
 

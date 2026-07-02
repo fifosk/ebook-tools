@@ -430,6 +430,7 @@ extension InteractivePlayerViewModel {
 
     private func loadedSingleURLTrackMode() -> SequenceTrack? {
         guard !sequenceController.isEnabled,
+              sequenceController.plan.isEmpty,
               let chunk = selectedChunk,
               audioCoordinator.activeURLs.count == 1,
               let activeURL = audioCoordinator.activeURLs.first else {
@@ -769,6 +770,9 @@ extension InteractivePlayerViewModel {
             } else {
                 return selectedTimingSingleTrack
             }
+        }
+        guard sequenceController.plan.isEmpty else {
+            return nil
         }
         let activeURLs = audioCoordinator.activeURLs
         let completedURL: URL? = {

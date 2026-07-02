@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Apple reader combined/sequence batch endings no longer infer Original-only or Translation-only mode from the final segment URL after the sequence plan has ended, preventing all-track playback from resetting the next batch to the last spoken track and drifting rendering out of sync.
 - Backend acquisition provider discoverability now lives in a focused `provider_catalog` module shared by discovery routing and the provider registry, reducing the chance that Web and Apple Create expose a provider the backend handler map cannot actually route.
 - Backend acquisition file discovery, artifact preparation, and Download Station handoff now import source-root resolution from `provider_roots` directly, keeping provider payload assembly out of reusable Web/Apple Create source handling paths.
 - Backend acquisition provider root resolution now lives in a focused `provider_roots` helper module, keeping books, NAS video, manual-download, environment, and safe-stat readability logic reusable for Web and Apple Create without bloating the provider registry payload builder.

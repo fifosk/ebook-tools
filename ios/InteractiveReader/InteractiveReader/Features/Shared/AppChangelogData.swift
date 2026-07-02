@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-sequence-eof-no-single-track-inference",
+                    title: "Batch endings keep all tracks",
+                    detail: "Apple reader combined and sequence batch endings no longer infer Original-only or Translation-only mode from the final segment URL after the sequence plan has ended, preventing the next batch from resetting to the last spoken track."
+                ),
+                AppChangelogEntry(
                     id: "backend-provider-catalog-helper",
                     title: "Provider routing is cleaner",
                     detail: "Backend acquisition provider discoverability now lives in a focused catalog shared by discovery routing and the provider registry, reducing the chance that Web and Apple Create expose a provider the backend handler map cannot route."

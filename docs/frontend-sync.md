@@ -237,7 +237,9 @@ Follow the suggested remediations to restore parity:
   rendering is already locked to the translation-only or original-only lane.
   If AVPlayer loses the ended URL before the handoff reaches the view model,
   the reader may infer the single-track lane only when exactly one active URL is
-  still loaded; multi-file combined queues must not be guessed into a lane.
+  still loaded and the sequence controller has no installed plan; multi-file
+  combined queues and just-finished sequence batches must not be guessed into a
+  lane from their final spoken URL.
   For combined-only audio options, URL membership must be checked against the
   selected lane inside the combined stream list; translation-only playback must
   reject the original stream's EOF even though that URL belongs to the combined
