@@ -9,6 +9,7 @@ export const WEB_AUTH_RUNTIME_CONTRACT = {
   logoutPath: '/api/auth/logout',
   passwordPath: '/api/auth/password',
   registerPath: '/api/auth/register',
+  tokenTransport: 'Authorization: Bearer',
 } as const;
 
 export const WEB_PLAYBACK_STATE_RUNTIME_CONTRACT = {
