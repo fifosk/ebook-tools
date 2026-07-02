@@ -500,6 +500,41 @@ def test_validate_manifest_requires_backend_pipeline_job_runtime_expectations(
     ) in errors
 
 
+def test_validate_manifest_requires_backend_shared_surface_runtime_expectations(
+    tmp_path: Path,
+) -> None:
+    runtime_expected = dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+    del runtime_expected["auth.logoutPath"]
+    runtime_expected["clientConfig.sessionTokenStorage"] = "userdefaults"
+    del runtime_expected["applePipeline.deviceProfiles"]
+    runtime_expected["linguist.audioSynthesisPath"] = "/api/old-audio"
+    del runtime_expected["notifications.testPath"]
+    path = _write_manifest(tmp_path, backend_runtime_expected=runtime_expected)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "backend.runtimeExpected.auth.logoutPath=None "
+        "expected '/api/auth/logout'"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.clientConfig.sessionTokenStorage='userdefaults' "
+        "expected 'device-keychain'"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.applePipeline.deviceProfiles=None "
+        "expected ['iphone', 'ipad', 'appletv', 'cinema']"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.linguist.audioSynthesisPath='/api/old-audio' "
+        "expected '/api/audio'"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.notifications.testPath=None "
+        "expected '/api/notifications/test'"
+    ) in errors
+
+
 def test_validate_manifest_rejects_missing_aggregate_journey_profile(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -104,6 +104,18 @@ REQUIRED_APPLE_CONTRACT_TARGETS = (
 )
 REQUIRED_BACKEND_RUNTIME_EXPECTED = {
     **{
+        f"auth.{key}": value
+        for key, value in _runtime_descriptor.AUTH_DESCRIPTOR.items()
+    },
+    **{
+        f"clientConfig.{key}": list(value) if isinstance(value, tuple) else value
+        for key, value in _runtime_descriptor.CLIENT_CONFIG_DESCRIPTOR.items()
+    },
+    **{
+        f"applePipeline.{key}": list(value) if isinstance(value, tuple) else value
+        for key, value in _runtime_descriptor.APPLE_PIPELINE_DESCRIPTOR.items()
+    },
+    **{
         f"pipelineJobs.{key}": value
         for key, value in _runtime_descriptor.PIPELINE_JOBS_DESCRIPTOR.items()
     },
@@ -131,6 +143,14 @@ REQUIRED_BACKEND_RUNTIME_EXPECTED = {
     **{
         f"acquisition.{key}": list(value) if isinstance(value, tuple) else value
         for key, value in _runtime_descriptor.ACQUISITION_DESCRIPTOR.items()
+    },
+    **{
+        f"linguist.{key}": value
+        for key, value in _runtime_descriptor.LINGUIST_DESCRIPTOR.items()
+    },
+    **{
+        f"notifications.{key}": value
+        for key, value in _runtime_descriptor.NOTIFICATIONS_DESCRIPTOR.items()
     },
 }
 
