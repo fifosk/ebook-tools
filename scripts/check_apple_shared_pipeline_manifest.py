@@ -104,6 +104,10 @@ REQUIRED_APPLE_CONTRACT_TARGETS = (
 )
 REQUIRED_BACKEND_RUNTIME_EXPECTED = {
     **{
+        f"playbackState.{key}": value
+        for key, value in _runtime_descriptor.PLAYBACK_STATE_DESCRIPTOR.items()
+    },
+    **{
         f"offlineExports.{key}": list(value) if isinstance(value, tuple) else value
         for key, value in _runtime_descriptor.OFFLINE_EXPORTS_DESCRIPTOR.items()
     },
