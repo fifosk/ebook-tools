@@ -287,6 +287,7 @@ test-web-library-focused:
 	npm --prefix web test -- --run \
 		src/api/client/__tests__/resume.test.ts \
 		src/pages/__tests__/libraryPageMetadata.test.ts \
+		src/pages/__tests__/useLibrarySelectedPresentation.test.tsx \
 		src/pages/__tests__/LibraryDetailsPanel.test.tsx \
 		src/pages/__tests__/LibraryEntriesPanel.test.tsx \
 		src/pages/__tests__/LibraryPaginationControls.test.tsx \

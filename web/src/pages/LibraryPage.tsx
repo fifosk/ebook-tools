@@ -26,22 +26,15 @@ import {
   buildLibraryMetadataUpdatePlan,
   clearLibraryItemMutating,
   clearSelectedLibraryItem,
-  extractTvMediaMetadata,
-  extractYoutubeVideoMetadata,
   formatLibraryRangeLabel,
   libraryResumeJobIds,
   markLibraryItemMutating,
   mergeIsbnMetadataIntoEditValues,
   reconcileSelectedLibraryItem,
   replaceLibraryItem,
-  resolveAuthor,
-  resolveGenre,
   resolveIsbnPreviewCoverCandidate,
   resolveItemType,
   resolveLibraryTotalPages,
-  resolveTitle,
-  resolveTvImage,
-  resolveYoutubeThumbnail,
   selectActiveLibraryItems,
   type LibraryEditValues,
   type LibraryItemType
@@ -51,12 +44,11 @@ import type { LibraryDetailTab } from './library/LibraryDetailTabs';
 import LibraryDetailsPanel from './library/LibraryDetailsPanel';
 import LibraryEntriesPanel from './library/LibraryEntriesPanel';
 import LibraryPaginationControls from './library/LibraryPaginationControls';
+import { useLibrarySelectedPresentation } from './library/useLibrarySelectedPresentation';
 import styles from './LibraryPage.module.css';
-import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
 import { downloadWithSaveAs } from '../utils/downloads';
 import { canAccessPolicy, normalizeRole } from '../utils/accessControl';
 import type { LibraryOpenInput, LibraryOpenRequest } from '../types/player';
-import { extractJobType, getJobTypeGlyph, isTvSeriesMetadata } from '../utils/jobGlyphs';
 import { useAuth } from '../components/AuthProvider';
 
 const PAGE_SIZE = 25;
@@ -589,16 +581,8 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     });
   }, [items.length, page, total]);
 
-  const selectedItemType = useMemo(() => resolveItemType(selectedItem), [selectedItem]);
-  const selectedTitle = useMemo(() => resolveTitle(selectedItem), [selectedItem]);
-  const selectedAuthor = useMemo(() => resolveAuthor(selectedItem), [selectedItem]);
-  const selectedGenre = useMemo(() => resolveGenre(selectedItem), [selectedItem]);
-  const selectedJobType = useMemo(() => extractJobType(selectedItem?.metadata) ?? null, [selectedItem]);
-  const tvMetadata = useMemo(() => extractTvMediaMetadata(selectedItem), [selectedItem]);
-  const youtubeMetadata = useMemo(() => extractYoutubeVideoMetadata(tvMetadata), [tvMetadata]);
-  const selectedJobGlyph = useMemo(
-    () => getJobTypeGlyph(selectedJobType, { isTvSeries: isTvSeriesMetadata(tvMetadata) }),
-    [selectedJobType, tvMetadata]
+  const selectedPresentation = useLibrarySelectedPresentation(
+    { selectedItem, isEditing, previewCoverUrl }
   );
   const selectedPermissions = useMemo(
     () => (selectedItem ? resolveItemPermissions(selectedItem) : null),
@@ -611,44 +595,6 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     () => selectActiveLibraryItems(itemBuckets, activeTab),
     [activeTab, itemBuckets]
   );
-
-  const selectedBookMetadata = useMemo(
-    () => extractLibraryBookMetadata(selectedItem),
-    [selectedItem]
-  );
-
-  const coverUrl = useMemo(() => {
-    if (!selectedItem) {
-      return null;
-    }
-    return resolveLibraryCoverUrl(selectedItem, selectedBookMetadata);
-  }, [selectedBookMetadata, selectedItem]);
-
-  const tvPoster = useMemo(() => {
-    if (!selectedItem) {
-      return null;
-    }
-    return resolveTvImage(selectedItem.jobId, tvMetadata, 'show');
-  }, [selectedItem, tvMetadata]);
-  const tvStill = useMemo(() => {
-    if (!selectedItem) {
-      return null;
-    }
-    return resolveTvImage(selectedItem.jobId, tvMetadata, 'episode');
-  }, [selectedItem, tvMetadata]);
-  const youtubeThumbnail = useMemo(() => {
-    if (!selectedItem) {
-      return null;
-    }
-    return resolveYoutubeThumbnail(selectedItem.jobId, youtubeMetadata);
-  }, [selectedItem, youtubeMetadata]);
-
-  const displayedCoverUrl = useMemo(() => {
-    if (isEditing && previewCoverUrl) {
-      return previewCoverUrl;
-    }
-    return coverUrl;
-  }, [coverUrl, isEditing, previewCoverUrl]);
 
   const handlePlay = useCallback(() => {
     if (!selectedItem || !onPlay) {
@@ -697,19 +643,19 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         />
         <LibraryDetailsPanel
           item={selectedItem}
-          itemType={selectedItemType}
-          title={selectedTitle}
-          author={selectedAuthor}
-          genre={selectedGenre}
-          jobGlyph={selectedJobGlyph}
-          jobType={selectedJobType}
+          itemType={selectedPresentation.itemType}
+          title={selectedPresentation.title}
+          author={selectedPresentation.author}
+          genre={selectedPresentation.genre}
+          jobGlyph={selectedPresentation.jobGlyph}
+          jobType={selectedPresentation.jobType}
           detailTab={detailTab}
           onDetailTabChange={setDetailTab}
-          displayedCoverUrl={displayedCoverUrl}
-          tvPoster={tvPoster}
-          tvStill={tvStill}
-          youtubeThumbnail={youtubeThumbnail}
-          youtubeMetadata={youtubeMetadata}
+          displayedCoverUrl={selectedPresentation.displayedCoverUrl}
+          tvPoster={selectedPresentation.tvPoster}
+          tvStill={selectedPresentation.tvStill}
+          youtubeThumbnail={selectedPresentation.youtubeThumbnail}
+          youtubeMetadata={selectedPresentation.youtubeMetadata}
           permissions={selectedPermissions}
           mutating={Boolean(selectedItem ? mutating[selectedItem.jobId] : false)}
           isSaving={isSaving}
