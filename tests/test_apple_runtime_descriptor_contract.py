@@ -224,6 +224,21 @@ RUNTIME_DESCRIPTOR_SWIFT_CONSTANT_SECTIONS = {
         {},
     ),
 }
+WEB_RUNTIME_CONTRACT_SECTIONS = {
+    "auth": ("WEB_AUTH_RUNTIME_CONTRACT", AUTH_DESCRIPTOR, {"tokenTransport"}),
+    "creation": ("WEB_CREATE_RUNTIME_CONTRACT", CREATION_DESCRIPTOR, set()),
+    "acquisition": ("WEB_ACQUISITION_RUNTIME_CONTRACT", ACQUISITION_DESCRIPTOR, set()),
+    "offlineExports": ("WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT", OFFLINE_EXPORTS_DESCRIPTOR, set()),
+    "pipelineJobs": ("WEB_PIPELINE_JOBS_RUNTIME_CONTRACT", PIPELINE_JOBS_DESCRIPTOR, set()),
+    "pipelineMedia": ("WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT", PIPELINE_MEDIA_DESCRIPTOR, set()),
+    "linguist": ("WEB_LINGUIST_RUNTIME_CONTRACT", LINGUIST_DESCRIPTOR, set()),
+    "libraryActions": ("WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT", LIBRARY_ACTIONS_DESCRIPTOR, set()),
+    "playbackState": (
+        "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT",
+        PLAYBACK_STATE_DESCRIPTOR,
+        set(),
+    ),
+}
 
 
 def _assert_compact_source_contains(source: str, snippet: str) -> None:
@@ -287,6 +302,41 @@ def _swift_enum_static_lets(source: str, enum_name: str) -> dict[str, object]:
 
 def _runtime_descriptor_expected_constant_value(value: object) -> object:
     return list(value) if isinstance(value, tuple) else value
+
+
+def _typescript_const_object_body(source: str, const_name: str) -> str:
+    match = re.search(
+        rf"export const {re.escape(const_name)} = \{{(?P<body>.*?)\n\}} as const;",
+        source,
+        re.S,
+    )
+    assert match is not None, const_name
+    return match.group("body")
+
+
+def _typescript_const_object_keys(source: str, const_name: str) -> set[str]:
+    body = _typescript_const_object_body(source, const_name)
+    return set(re.findall(r"^\s*(?P<key>[A-Za-z0-9_]+):", body, re.M))
+
+
+def _typescript_const_object_value(
+    source: str,
+    const_name: str,
+    key: str,
+) -> object:
+    body = _typescript_const_object_body(source, const_name)
+    match = re.search(
+        rf"^\s*{re.escape(key)}: (?P<value>'[^']*'|\d+|\[[^\]]*?\]),",
+        body,
+        re.M | re.S,
+    )
+    assert match is not None, f"{const_name}.{key}"
+    raw_value = match.group("value").strip()
+    if raw_value.startswith("'"):
+        return raw_value.strip("'")
+    if raw_value.startswith("["):
+        return re.findall(r"'([^']*)'", raw_value)
+    return int(raw_value)
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -526,6 +576,27 @@ def test_apple_runtime_contract_constants_match_backend_sections() -> None:
             assert constants[constant_name] == _runtime_descriptor_expected_constant_value(
                 value
             ), f"{section}.{key}"
+
+
+def test_web_runtime_contract_constants_match_backend_sections() -> None:
+    source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
+
+    for section, (
+        const_name,
+        descriptor,
+        omitted_keys,
+    ) in WEB_RUNTIME_CONTRACT_SECTIONS.items():
+        expected_keys = set(descriptor) - omitted_keys
+        actual_keys = _typescript_const_object_keys(source, const_name)
+        assert actual_keys == expected_keys, section
+        for key, value in descriptor.items():
+            if key in omitted_keys:
+                continue
+            assert _typescript_const_object_value(
+                source,
+                const_name,
+                key,
+            ) == _runtime_descriptor_expected_constant_value(value), f"{section}.{key}"
 
 
 def test_settings_surfaces_create_contract_runtime_status() -> None:

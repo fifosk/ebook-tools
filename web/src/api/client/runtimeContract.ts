@@ -42,6 +42,7 @@ export const WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT = {
   sentenceImageBatchPathTemplate: '/api/pipelines/jobs/{job_id}/media/images/sentences/batch',
   sentenceImageRegeneratePathTemplate: '/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}/regenerate',
   sentenceImageBatchQuery: 'sentence_numbers',
+  chunkOrdering: 'sentenceRange',
 } as const;
 
 export const WEB_PIPELINE_JOBS_RUNTIME_CONTRACT = {
