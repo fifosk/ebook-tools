@@ -39,7 +39,6 @@ const EBOOK_DISCOVERY_PROVIDER_ORDER = EBOOK_DISCOVERY_PROVIDERS.map((entry) => 
 const EBOOK_DISCOVERY_PROVIDER_LABELS = new Map(
   EBOOK_DISCOVERY_PROVIDERS.map((entry) => [entry.id, entry.label])
 );
-const EBOOK_DISCOVERY_CAPABILITIES = new Set(['search', 'metadata', 'acquire', 'import_local']);
 
 export function buildBookNarrationDiscoveryProviderOptions(
   providers: AcquisitionProvider[],
@@ -146,13 +145,7 @@ export function resolveDefaultBookDiscoveryProvider({
 }
 
 export function isBookDiscoveryProvider(provider: AcquisitionProvider) {
-  if (Array.isArray(provider.discovery_media_kinds)) {
-    return provider.discovery_media_kinds.includes('book');
-  }
-  return (
-    provider.media_kinds.includes('book') &&
-    provider.capabilities.some((capability) => EBOOK_DISCOVERY_CAPABILITIES.has(capability))
-  );
+  return provider.discovery_media_kinds.includes('book');
 }
 
 export function filterBookNarrationDiscoveryCandidates(

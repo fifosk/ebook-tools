@@ -182,7 +182,8 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "default_eligible_media_kinds" in discovery_providers
     assert "provider === DEFAULT_BOOK_DISCOVERY_PROVIDER ? null : provider" in discovery_hook
     assert "providers.length > 0" in discovery_providers
-    assert "Array.isArray(provider.discovery_media_kinds)" in discovery_providers
+    assert "return provider.discovery_media_kinds.includes('book')" in discovery_providers
+    assert "EBOOK_DISCOVERY_CAPABILITIES" not in discovery_providers
     assert "is unavailable on this backend. Choose another discovery source." in discovery_providers
     assert "ZLIBRARY_ATTENDED_IMPORT_MESSAGE" in discovery_providers
     assert "Direct Z-Library automation is intentionally disabled" in discovery_providers
@@ -556,7 +557,8 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "filterDiscoveredVideoCandidates(" in discovery_helper
     assert "defaultableVideoProviderIds([candidate.provider], providers)" in discovery_helper
     assert "isVideoDiscoveryProvider" in discovery_helper
-    assert "Array.isArray(provider.discovery_media_kinds)" in discovery_helper
+    assert "return provider.discovery_media_kinds.includes('video')" in discovery_helper
+    assert "VIDEO_DISCOVERY_CAPABILITIES" not in discovery_helper
     assert "videoDiscoveryProviderOptions" in page
     assert "isYoutubeSearchAvailable" in page
     assert "isDownloadStationHandoffCandidate" not in page

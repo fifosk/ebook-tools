@@ -46,7 +46,6 @@ const VIDEO_DISCOVERY_PROVIDER_ORDER = VIDEO_DISCOVERY_PROVIDERS.map((entry) => 
 const VIDEO_DISCOVERY_PROVIDER_LABELS = new Map(
   VIDEO_DISCOVERY_PROVIDERS.map((entry) => [entry.id, entry.label])
 );
-const VIDEO_DISCOVERY_CAPABILITIES = new Set(['search', 'import_local']);
 const YOUTUBE_METADATA_VIDEO_DISCOVERY_PROVIDERS = new Set(['youtube_url', 'youtube_search']);
 const EXPLICIT_ONLY_DEFAULT_VIDEO_DISCOVERY_PROVIDERS = new Set(['youtube_url']);
 
@@ -244,13 +243,7 @@ export function filterDiscoveredVideoCandidates(
 }
 
 function isVideoDiscoveryProvider(provider: AcquisitionProvider) {
-  if (Array.isArray(provider.discovery_media_kinds)) {
-    return provider.discovery_media_kinds.includes('video');
-  }
-  return (
-    provider.media_kinds.includes('video') &&
-    provider.capabilities.some((capability) => VIDEO_DISCOVERY_CAPABILITIES.has(capability))
-  );
+  return provider.discovery_media_kinds.includes('video');
 }
 
 function defaultableVideoProviderIds(
