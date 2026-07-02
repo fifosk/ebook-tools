@@ -664,11 +664,13 @@ Current Apple UI partially exposes:
   `AppleBookCreateNarrationSection.swift`, and the
   iOS/iPad searchable full-language selector lives in
   `AppleBookCreateLanguageSelector.swift`. Source section routing lives in
-  `AppleBookCreateSourceSection.swift`, while Narrate EPUB server-source,
-  subtitle source, local-import, and chapter-range controls live in
-  `AppleBookCreateSourceControls.swift`, and NAS YouTube video/subtitle plus
+  `AppleBookCreateSourceSection.swift`, while Narrate EPUB source-mode/provider
+  selection lives in `AppleBookCreateSourceControls.swift`, shared EPUB/subtitle
+  support controls live in `AppleBookCreateSourceSupportControls.swift`, NAS
+  YouTube video/subtitle selection lives in
+  `AppleBookCreateYoutubeSourceControls.swift`, and Download Station plus
   embedded subtitle extraction controls live in
-  `AppleBookCreateYoutubeSourceControls.swift`. Reusable default source selection
+  `AppleBookCreateYoutubeSourceSupportControls.swift`. Reusable default source selection
   decisions, including NAS YouTube scope refreshes, live in
   `AppleBookCreateSourceSelection.swift`, while source refresh, delete,
   discovery-application, Download Station, and chapter-load side effects now

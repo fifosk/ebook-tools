@@ -564,6 +564,15 @@ CREATE_YOUTUBE_SOURCE_CONTROLS = (
     / "Create"
     / "AppleBookCreateYoutubeSourceControls.swift"
 )
+CREATE_YOUTUBE_SOURCE_SUPPORT_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateYoutubeSourceSupportControls.swift"
+)
 CREATE_BASIC_SECTIONS = (
     ROOT
     / "ios"
@@ -3180,6 +3189,7 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     support_controls_source = _source(CREATE_SOURCE_SUPPORT_CONTROLS)
     youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
+    youtube_support_source = _source(CREATE_YOUTUBE_SOURCE_SUPPORT_CONTROLS)
     narration_source = _source(CREATE_NARRATION_SECTION)
     project = _source(XCODE_PROJECT)
 
@@ -3187,6 +3197,8 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "struct AppleBookCreateNarrateSourceControls: View" in controls_source
     assert "struct AppleBookCreateSubtitleSourceControls: View" in support_controls_source
     assert "struct AppleBookCreateYoutubeSourceControls: View" in youtube_source
+    assert "struct AppleBookCreateYoutubeDownloadStationControls: View" in youtube_support_source
+    assert "struct AppleBookCreateYoutubeEmbeddedSubtitleControls: View" in youtube_support_source
     assert "struct AppleBookCreateFileImportControl: View" in support_controls_source
     assert "struct AppleBookCreateSourceActionRow: View" in support_controls_source
     assert "AppleBookCreateBusyActionButton(" in support_controls_source
@@ -3215,8 +3227,9 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "AppleBookCreatePresentation.playableYoutubeSubtitles(for:" in youtube_source
     assert controls_source.count("AppleBookCreateSourceActionRow(") == 1
     assert support_controls_source.count("AppleBookCreateSourceActionRow(") == 1
-    assert youtube_source.count("AppleBookCreateSourceActionRow(") == 3
-    assert 'buttonIdentifier: "createYoutubeInspectEmbeddedSubtitlesButton"' in youtube_source
+    assert youtube_source.count("AppleBookCreateSourceActionRow(") == 1
+    assert youtube_support_source.count("AppleBookCreateSourceActionRow(") == 2
+    assert 'buttonIdentifier: "createYoutubeInspectEmbeddedSubtitlesButton"' in youtube_support_source
     assert "struct AppleBookCreateSourceSection: View" not in narration_source
     assert "AppleBookCreateSourceSection.swift in Sources" in project
     assert project.count("AppleBookCreateSourceSection.swift in Sources") == 4
@@ -3228,6 +3241,8 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert project.count("AppleBookCreateSourceSupportControls.swift in Sources") == 4
     assert "AppleBookCreateYoutubeSourceControls.swift in Sources" in project
     assert project.count("AppleBookCreateYoutubeSourceControls.swift in Sources") == 4
+    assert "AppleBookCreateYoutubeSourceSupportControls.swift in Sources" in project
+    assert project.count("AppleBookCreateYoutubeSourceSupportControls.swift in Sources") == 4
     assert "AppleBookCreateNarrationSection.swift in Sources" in project
     assert project.count("AppleBookCreateNarrationSection.swift in Sources") == 4
     assert "AppleBookCreateSections.swift" not in project
@@ -3611,6 +3626,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     source_actions = _source(CREATE_SOURCE_ACTIONS)
     source = _source(CREATE_SOURCE_SECTION)
     youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
+    youtube_support_source = _source(CREATE_YOUTUBE_SOURCE_SUPPORT_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
     view_model_sources = _source(CREATE_VIEW_MODEL_SOURCES)
 
@@ -3664,8 +3680,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "func prepareVideoDiscoveryCandidate(" in view_model_sources
     assert "isPreparingYoutubeAcquisitionCandidate = true" in view_model_sources
     assert "client.prepareAcquisitionArtifact(" in view_model_sources
-    assert "downloadStationCandidate?.candidateToken" in youtube_source
-    assert 'accessibilityIdentifier("createYoutubeDownloadStationCandidate")' in youtube_source
+    assert "downloadStationCandidate?.candidateToken" in youtube_support_source
+    assert 'accessibilityIdentifier("createYoutubeDownloadStationCandidate")' in youtube_support_source
     assert "AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate)" in youtube_source
     assert "let discovery = await viewModel.loadVideoDiscovery(" in source_actions
     assert "static func downloadStationCompletedFiles(from job: AcquisitionJobStatusResponse?) -> [String]" in download_station_source
@@ -3679,7 +3695,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "static func downloadStationCompletedCandidate(" not in discovery_source
     assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: job)" in view_model_sources
     assert "Completed: \\(completedFiles.joined(separator: \", \"))." in view_model_sources
-    assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: downloadStationJob)" in youtube_source
+    assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: downloadStationJob)" in youtube_support_source
     assert "AppleBookCreatePresentation.downloadStationCompletedCandidate(" in source_actions
     assert "private func downloadStationCompletedCandidate(" not in view_source
     assert "private static func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String>" in download_station_source
@@ -3817,7 +3833,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "AppleBookCreatePresentation.noVideoDiscoveryCandidatesMessage(providerID: videoDiscoveryProvider)" in youtube_source
     assert "AppleBookCreatePresentation.youtubeVideoLabel(video)" in youtube_source
     assert "AppleBookCreatePresentation.youtubeSubtitleLabel(subtitle)" in youtube_source
-    assert "AppleBookCreatePresentation.filenameFromPath" in youtube_source
+    assert "AppleBookCreatePresentation.filenameFromPath" in youtube_support_source
     assert "AppleBookCreatePresentation.videoDiscoveryCandidateDetail(candidate)" in youtube_source
     assert 'accessibilityIdentifier("createYoutubeDiscoveryPrepareProgress")' in youtube_source
     assert ".disabled(isPreparingAcquisitionCandidate)" in youtube_source
@@ -4270,14 +4286,15 @@ def test_tvos_create_metadata_json_editor_avoids_text_editor() -> None:
 
 def test_youtube_create_exposes_inline_subtitle_extraction_controls() -> None:
     youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
+    youtube_support_source = _source(CREATE_YOUTUBE_SOURCE_SUPPORT_CONTROLS)
     source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
 
-    assert "embeddedYoutubeSubtitleControls" in youtube_source
-    assert 'buttonIdentifier: "createYoutubeInspectEmbeddedSubtitlesButton"' in youtube_source
-    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitleLanguagesField")' in youtube_source
-    assert 'buttonIdentifier: "createYoutubeExtractEmbeddedSubtitlesButton"' in youtube_source
-    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesMessage")' in youtube_source
-    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesError")' in youtube_source
+    assert "AppleBookCreateYoutubeEmbeddedSubtitleControls(" in youtube_source
+    assert 'buttonIdentifier: "createYoutubeInspectEmbeddedSubtitlesButton"' in youtube_support_source
+    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitleLanguagesField")' in youtube_support_source
+    assert 'buttonIdentifier: "createYoutubeExtractEmbeddedSubtitlesButton"' in youtube_support_source
+    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesMessage")' in youtube_support_source
+    assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesError")' in youtube_support_source
     assert "youtubeInlineSubtitleStreams: viewModel.youtubeInlineSubtitleStreams" in source_factory_source
     assert "onInspectYoutubeSubtitles: inspectYoutubeSubtitles" in source_factory_source
     assert "onExtractYoutubeSubtitles: extractYoutubeSubtitles" in source_factory_source

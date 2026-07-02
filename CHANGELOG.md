@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.012
 
+- Apple YouTube Dub Create controls now keep Download Station handoff and embedded-subtitle extraction in a focused SwiftUI support file while preserving NAS/video source selection across iPad, iPhone, Apple TV, and Mac iPad-style builds.
 - Apple Create source support controls for chapter ranges, subtitle sources, file imports, and busy source-action rows now live in a focused SwiftUI file while preserving source-picker behavior across iPad, iPhone, Apple TV, and Mac iPad-style builds.
 - Apple reader single-track audio selection now keeps all renderable text tracks visible and lets inactive Original/Translation pills be re-enabled from transcript-backed lanes, so Original-only or Translation-only playback changes the narrated lane without hiding the companion transcript lane.
 - Web Video Dubbing presentation helpers for source badges, subtitle labels, stream labels, byte/date/count formatting, output paths, and job labels now live in a focused module while preserving existing imports, keeping source display behavior easier to compare with Apple YouTube Dub.

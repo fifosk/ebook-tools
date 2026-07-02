@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-youtube-source-support-controls",
+                    title: "YouTube sources are focused",
+                    detail: "Apple YouTube Dub Create controls now keep Download Station handoff and embedded-subtitle extraction in a focused SwiftUI support file while preserving NAS/video source selection across iPad, iPhone, Apple TV, and Mac iPad-style builds."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-source-support-controls",
                     title: "Create sources are focused",
                     detail: "Apple Create source support controls for chapter ranges, subtitle sources, file imports, and busy source-action rows now live in a focused SwiftUI file while preserving source-picker behavior across iPad, iPhone, Apple TV, and Mac iPad-style builds."
