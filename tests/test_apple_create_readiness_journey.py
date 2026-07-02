@@ -882,7 +882,7 @@ def test_create_readiness_journey_checks_generated_book_defaults_before_media_mo
     } in generated_steps
 
 
-def test_create_readiness_journey_checks_narrate_discovery_policy_provider() -> None:
+def test_create_readiness_journey_checks_narrate_discovery_backend_sources() -> None:
     journey = json.loads(CREATE_READINESS_JOURNEY.read_text(encoding="utf-8"))
     steps = journey["steps"]
 
@@ -919,17 +919,15 @@ def test_create_readiness_journey_checks_narrate_discovery_policy_provider() -> 
         "timeout": 15,
     } in narrate_steps
     assert {
-        "action": "select_option",
-        "selector": "createNarrateDiscoveryProviderPicker",
-        "text": "Z-Library import",
+        "action": "assert_visible",
+        "selector": "createNarrateDiscoveryQueryField",
         "timeout": 15,
     } in narrate_steps
     assert {
-        "action": "assert_value_contains",
-        "selector": "createNarrateDiscoveryMessage",
-        "text": "Direct Z-Library automation is intentionally disabled",
+        "action": "assert_visible",
+        "selector": "createNarrateDiscoverySearchButton",
         "timeout": 15,
-        "screenshot": "narrate_discovery_attended_import",
+        "screenshot": "narrate_discovery_backend_sources",
     } in narrate_steps
 
 

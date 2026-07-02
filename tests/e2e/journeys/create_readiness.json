@@ -414,17 +414,15 @@
       "timeout": 15
     },
     {
-      "action": "select_option",
-      "selector": "createNarrateDiscoveryProviderPicker",
-      "text": "Z-Library import",
+      "action": "assert_visible",
+      "selector": "createNarrateDiscoveryQueryField",
       "timeout": 15
     },
     {
-      "action": "assert_value_contains",
-      "selector": "createNarrateDiscoveryMessage",
-      "text": "Direct Z-Library automation is intentionally disabled",
+      "action": "assert_visible",
+      "selector": "createNarrateDiscoverySearchButton",
       "timeout": 15,
-      "screenshot": "narrate_discovery_attended_import"
+      "screenshot": "narrate_discovery_backend_sources"
     },
     {
       "action": "select_option",

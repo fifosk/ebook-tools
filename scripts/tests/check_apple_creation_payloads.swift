@@ -643,11 +643,12 @@ struct AppleCreationPayloadCheck {
                 id: "zlibrary_attended",
                 label: "Z-Library",
                 mediaKinds: ["book"],
-                capabilities: ["search"],
+                capabilities: ["import_local"],
                 status: "policy_disabled",
                 configured: false,
                 available: false,
-                discoveryMediaKinds: ["book"],
+                discoveryMediaKinds: [],
+                defaultEligibleMediaKinds: [],
                 policyNotes: ["Use attended browser downloads, then import the EPUB."]
             ),
             acquisitionProvider(
@@ -692,9 +693,8 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: discoveryProviders).map(\.id) == [
                 "manual_downloads",
                 "openlibrary",
-                "zlibrary_attended",
             ],
-            "Apple book discovery provider options should keep Web-aligned ordering and filter non-book providers"
+            "Apple book discovery provider options should keep Web-aligned ordering and filter non-discoverable providers"
         )
         require(
             AppleBookCreatePresentation.bookDiscoveryProviderOptions(
@@ -704,7 +704,6 @@ struct AppleCreationPayloadCheck {
                 AppleBookCreatePresentation.defaultBookDiscoveryProviderID,
                 "manual_downloads",
                 "openlibrary",
-                "zlibrary_attended",
             ],
             "Apple book discovery provider options should expose backend default sources when multiple defaults are available"
         )

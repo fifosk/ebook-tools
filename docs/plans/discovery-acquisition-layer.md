@@ -430,9 +430,12 @@ Acquisition task fields:
      with a source-root configuration message instead of returning an
      unexplained empty candidate list.
    - Status: Apple Narrate EPUB book discovery options now carry availability
-     like video discovery options; the attended Z-Library placeholder stays
-     selectable only to show the explicit disabled-policy message, while its
-     Search action remains disabled when the backend registry is missing.
+     like video discovery options; the fallback attended Z-Library placeholder
+     is only used when the backend provider registry is missing. When the
+     registry is present, `zlibrary_attended` stays registered for policy
+     messaging but is filtered out of picker/default discovery because the
+     backend advertises empty `discovery_media_kinds` and
+     `default_eligible_media_kinds`.
    - Status: Web Narrate Ebook renders ebook discovery choices from a single
      provider descriptor list, and Apple Narrate EPUB uses a menu picker so the
      growing public-catalog provider set remains readable on compact surfaces.
