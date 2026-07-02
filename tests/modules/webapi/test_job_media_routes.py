@@ -401,6 +401,81 @@ def test_get_job_media_sorts_chunks_by_sentence_range(api_app) -> None:
     assert [chunk["startSentence"] for chunk in payload["chunks"]] == [2210, 2220, 2230]
 
 
+def test_get_job_media_canonicalizes_audio_track_aliases(api_app) -> None:
+    app, file_locator = api_app
+    job_id = "job-audio-aliases"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    metadata_path = file_locator.resolve_path(job_id, "metadata/chunk_aliases.json")
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata_path.write_text(
+        """
+        {
+          "sentences": [
+            {
+              "sentence_number": 1,
+              "original": {"text": "Hello", "tokens": ["Hello"]},
+              "translation": {"text": "Hallo", "tokens": ["Hallo"]}
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    job.generated_files = {
+        "complete": True,
+        "chunks": [
+            {
+                "chunk_id": "chunk-aliases",
+                "range_fragment": "00001-00001",
+                "start_sentence": 1,
+                "end_sentence": 2,
+                "metadata_path": "metadata/chunk_aliases.json",
+                "files": [
+                    {
+                        "type": "audio",
+                        "name": "translated.mp3",
+                        "url": "https://cdn.example.invalid/translated.mp3",
+                    }
+                ],
+                "audioTracks": {
+                    "OriginalAudio": {
+                        "url": "https://cdn.example.invalid/original.mp3",
+                        "duration": 0.8,
+                    },
+                    "translated_audio": {
+                        "url": "https://cdn.example.invalid/translated.mp3",
+                        "duration": 1.1,
+                    },
+                    "mix": "media/chunk-aliases/mix.mp3",
+                },
+            }
+        ],
+    }
+    service = _StubPipelineService(job)
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    with TestClient(app) as client:
+        media_response = client.get(f"/pipelines/jobs/{job_id}/media")
+        chunk_response = client.get(f"/pipelines/jobs/{job_id}/media/chunks/chunk-aliases")
+
+    assert media_response.status_code == 200
+    chunk = media_response.json()["chunks"][0]
+    assert set(chunk["audioTracks"]) == {"orig", "translation", "orig_trans"}
+    assert chunk["audioTracks"]["orig"]["url"].endswith("/original.mp3")
+    assert chunk["audioTracks"]["translation"]["url"].endswith("/translated.mp3")
+    assert chunk["audioTracks"]["orig_trans"]["path"] == "media/chunk-aliases/mix.mp3"
+    assert "OriginalAudio" not in chunk["audioTracks"]
+    assert "translated_audio" not in chunk["audioTracks"]
+    assert "mix" not in chunk["audioTracks"]
+
+    assert chunk_response.status_code == 200
+    assert set(chunk_response.json()["audioTracks"]) == {"orig", "translation", "orig_trans"}
+
+
 def test_get_job_media_records_safe_timing(
     api_app,
     monkeypatch: pytest.MonkeyPatch,
