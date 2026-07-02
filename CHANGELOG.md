@@ -14,6 +14,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web playback viewer renderability, fullscreen preference, document/chrome state, and wake-lock activation now live in a focused PlayerPanel hook with coverage in the playback gate.
 - Web live-media snapshot normalization, storage URL resolution, chunk assembly, and progress-generated file parsing now live in a focused helper shared by online playback, Library media, and offline export playback.
 - Web Narrate Ebook form chrome now lives in a focused shell component covering header, step tabs, submit status, template save, and submit routing while the form coordinator stays centered on Create state orchestration.
+- Web Narrate Ebook base form state now lives in a focused hook covering shared language defaults, generated-source mode, image defaults, and prefilled image flags before Apple Create parity comparisons.
 - Web Library external focus and debounced search state now live in a focused hook with coverage for cross-surface jump-to-library requests, trimming more state wiring from the page shell.
 - Web playback shortcut registration, MyLinguist font-scale wiring, and the shortcut-help overlay now live in a focused PlayerPanel hook with coverage for help toggling and feature-disabled MyLinguist shortcuts.
 - Web playback lifecycle effects for autoplay handoff, shell playback/fullscreen callbacks, and per-job pending-reader cleanup now live in a focused PlayerPanel hook with direct coverage.

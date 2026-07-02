@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.012",
             entries: [
                 AppChangelogEntry(
+                    id: "web-book-narration-base-state-hook",
+                    title: "Narrate Ebook defaults are focused",
+                    detail: "Web Narrate Ebook base form state now lives in a focused hook covering shared language defaults, generated-source mode, image defaults, and prefilled image flags before Apple Create parity comparisons."
+                ),
+                AppChangelogEntry(
                     id: "web-book-narration-form-shell",
                     title: "Narrate Ebook shell is focused",
                     detail: "Web Narrate Ebook form chrome now lives in a focused shell component covering header, step tabs, submit status, template save, and submit routing while the form coordinator stays centered on Create state orchestration."

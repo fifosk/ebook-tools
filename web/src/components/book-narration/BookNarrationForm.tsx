@@ -5,12 +5,12 @@ import {
   VOICE_OPTIONS,
   WRITTEN_MODE_OPTIONS
 } from '../../constants/menuOptions';
-import { useLanguagePreferences } from '../../context/LanguageProvider';
 import { useBookNarrationVoices } from './useBookNarrationVoices';
 import { useBookNarrationMetadata } from './useBookNarrationMetadata';
 import { useBookNarrationFiles } from './useBookNarrationFiles';
 import { BookNarrationFormSections } from './BookNarrationFormSections';
 import type { BookNarrationSourcePanel } from './BookNarrationSourceSection';
+import { useBookNarrationBaseState } from './useBookNarrationBaseState';
 import { useBookNarrationChapters } from './useBookNarrationChapters';
 import { useBookNarrationLlmModels } from './useBookNarrationLlmModels';
 import { useBookNarrationDefaults } from './useBookNarrationDefaults';
@@ -31,15 +31,8 @@ import { BookNarrationFormDialogs } from './BookNarrationFormDialogs';
 import { BookNarrationFormShell } from './BookNarrationFormShell';
 import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
 import type {
-  BookNarrationFormProps,
-  FormState
+  BookNarrationFormProps
 } from './bookNarrationFormTypes';
-import {
-  DEFAULT_FORM_STATE
-} from './bookNarrationFormDefaults';
-import {
-  buildBookNarrationInitialFormState,
-} from './bookNarrationFormUtils';
 
 export type { BookNarrationFormSection } from './bookNarrationFormTypes';
 
@@ -70,23 +63,23 @@ export function BookNarrationForm({
   sentenceSplitterOptions = null,
   templatePayloadExtras = null
 }: BookNarrationFormProps) {
-  const isGeneratedSource = sourceMode === 'generated';
-  const imageDefaults = defaultImageSettings ?? null;
   const {
-    inputLanguage: sharedInputLanguage,
-    setInputLanguage: setSharedInputLanguage,
-    targetLanguages: sharedTargetLanguages,
-    setTargetLanguages: setSharedTargetLanguages,
-    enableLookupCache: sharedEnableLookupCache,
-    setEnableLookupCache: setSharedEnableLookupCache
-  } = useLanguagePreferences();
-  const hasPrefillAddImages = typeof prefillParameters?.add_images === 'boolean';
-  const [formState, setFormState] = useState<FormState>(() => buildBookNarrationInitialFormState({
-    forcedBaseOutputFile,
+    formState,
+    hasPrefillAddImages,
+    imageDefaults,
+    isGeneratedSource,
+    setFormState,
+    setSharedEnableLookupCache,
+    setSharedInputLanguage,
+    setSharedTargetLanguages,
     sharedInputLanguage,
     sharedTargetLanguages,
-    sharedEnableLookupCache,
-  }));
+  } = useBookNarrationBaseState({
+    defaultImageSettings,
+    forcedBaseOutputFile,
+    prefillParameters,
+    sourceMode,
+  });
   const {
     intakeStatus,
     isLoadingIntakeStatus,
