@@ -471,16 +471,15 @@ The cached transport verifier is intentionally narrower than the launch-console
 checker: it proves reader transport accepted pause/resume and rejects the legacy
 hardware echo resume sources before explicit reader play, without requiring
 Now Playing or MusicKit OSLog breadcrumbs.
-It still checks the first pause episode strictly: a MusicKit reader-pause
-adoption, foreground/broker Play/Pause, forced pause, pause acceptance, or
-Apple-Music-pause mirroring starts the episode, and the verifier requires
-sentence-narration pause evidence before the next transport command. That
-evidence must show active reader state such as `requested=true` or
+It checks every pause episode strictly: a MusicKit reader-pause adoption, forced
+pause, pause acceptance, or Apple-Music-pause mirroring starts the episode, and
+the verifier requires sentence-narration pause evidence plus settled
+`requested=false playing=false` confirmation before the next transport command.
+That evidence must show active reader state such as `requested=true` or
 `playing=true`; a lone `readerPause=true` flag is not enough because the old
 regression could mark the pause after Music stopped while sentence audio kept
-playing. If the first press only pauses Music and a later press stops the track,
-validation fails with `first pause episode did not reach narration before the
-next transport command`.
+playing. If any press only pauses Music and a later press stops the track,
+validation fails with a numbered `pause episode N did not ...` diagnostic.
 For pause/resume captures, the same fallback verifier also rejects consecutive
 `brokerPause` decisions from the same Job/Library surface when no accepted
 reader play or narration-restore breadcrumb appears between them. That failure

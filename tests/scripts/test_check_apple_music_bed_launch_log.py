@@ -31,6 +31,7 @@ InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog sta
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
 InteractiveReaderTV[101] Library reader transport forced pause source=foreground requested=true playing=true musicPlaying=false systemMusicPlaying=false
 InteractiveReaderTV[101] Apple Music reader transport pause adopted source=reader transport reason=readerTransportPause
+InteractiveReaderTV[101] Library reader transport confirmed pause source=pauseCommand requested=false playing=false musicPlaying=false
 InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=readerTransportPause
 """
 )
@@ -81,7 +82,9 @@ InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=observedNonPlaying
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
 InteractiveReaderTV[101] Apple Music reader transport pause adopted source=observed non-playing reason=observedNonPlaying
+InteractiveReaderTV[101] Library playback mirroring adopted Apple Music pause to narration requested=true playing=true musicPlaying=false
 InteractiveReaderTV[101] Library playback accepted Apple Music pause as reader transport source=musicAdoption
+InteractiveReaderTV[101] Library reader transport confirmed pause source=musicAdoption requested=false playing=false musicPlaying=false
 InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=observedNonPlaying
 """
 )
@@ -187,7 +190,10 @@ InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface
 
     missing = module.validate_log(log, mode="pause-release")
 
-    assert missing == ["reader-owned Music pause was observed"]
+    assert missing == [
+        "reader-owned Music pause was observed",
+        "pause episode 1 did not confirm narration stopped before the next transport command",
+    ]
 
 
 def test_pause_release_requires_narration_pause_after_observed_music_pause(tmp_path: Path) -> None:
@@ -207,7 +213,55 @@ InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface
 
     missing = module.validate_log(log, mode="pause-release")
 
-    assert missing == ["sentence narration mirrored the reader-owned Music pause"]
+    assert missing == [
+        "sentence narration mirrored the reader-owned Music pause",
+        "pause episode 1 did not reach narration before the next transport command",
+    ]
+
+
+def test_pause_release_requires_settled_reader_pause(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        STARTUP_LOG
+        + """
+InteractiveReaderTV[101] tvOS remote playPause forwarded to player broker
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=readerTransportPause
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=readerTransportPause
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
+InteractiveReaderTV[101] Library reader transport forced pause source=foreground requested=true playing=true musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Apple Music reader transport pause adopted source=reader transport reason=readerTransportPause
+InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=readerTransportPause
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert missing == [
+        "pause episode 1 did not confirm narration stopped before the next transport command"
+    ]
+
+
+def test_pause_resume_rejects_later_unsettled_pause_episode(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        PAUSE_RESUME_LOG
+        + """
+InteractiveReaderTV[101] Library broker tvOS Play/Pause command
+InteractiveReaderTV[101] Library reader transport forced pause source=brokerPause requested=true playing=true musicPlaying=true systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport pause command requested=true playing=true musicPlaying=true
+InteractiveReaderTV[101] Library reader transport forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport play command requested=true playing=true musicPlaying=false
+InteractiveReaderTV[101] Apple Music playback surface changed reason=resume revision=10
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert missing == [
+        "pause episode 2 did not confirm narration stopped before the next transport command"
+    ]
 
 
 def test_guarded_play_requires_reader_pause_guard_evidence(tmp_path: Path) -> None:

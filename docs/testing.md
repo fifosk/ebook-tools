@@ -1164,14 +1164,13 @@ intervening `brokerResume`, narration-restore, or accepted reader play
 breadcrumb. That is the token-safe signature of the Cinema two-click regression:
 Music or stale state made the next remote press resolve as another pause instead
 of a reader resume.
-For pause-only captures, the pulled playback-log checker evaluates the first
-Music/app pause handoff as the first pause episode. If that episode does not
-contain narration-pause evidence before the next
-Play/Pause or play command, it fails with
-`first pause episode did not reach narration before the next transport command`.
-That keeps the old "first click pauses Music, second click pauses track"
-regression from passing just because a later command eventually stopped
-narration.
+For pause-only captures, the pulled playback-log checker evaluates every
+Music/app pause handoff as a numbered pause episode. If any episode does not
+contain active narration-pause evidence and settled
+`requested=false playing=false` confirmation before the next Play/Pause or play
+command, it fails with a `pause episode N did not ...` diagnostic. That keeps
+the old "first click pauses Music, second click pauses track" regression from
+passing just because a later command eventually stopped narration.
 Pause-release and pause-resume validation also reject the legacy hardware echo
 resume breadcrumbs `foregroundHardwareResume` and `brokerHardwareResume` before
 an explicit reader play command; Living Room device logs showed that delayed

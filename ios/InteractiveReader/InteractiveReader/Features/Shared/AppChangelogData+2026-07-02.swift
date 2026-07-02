@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-launch-log-all-pause-episodes",
+                    title: "Launch logs check every pause",
+                    detail: "The Apple Music-bed launch-console verifier now checks every pause episode for active narration evidence and settled reader-pause confirmation, matching the pulled playback-transport log guard."
+                ),
+                AppChangelogEntry(
                     id: "apple-device-playback-log-all-pause-episodes",
                     title: "Device pause logs check every press",
                     detail: "The physical Apple playback transport verifier now requires every pause episode in a captured log to reach active narration and settle stopped before the next transport command, catching later Music-only pause regressions."

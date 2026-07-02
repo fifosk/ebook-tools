@@ -160,6 +160,42 @@ NOW_PLAYING_TRANSPORT_RE = re.compile(
 )
 
 
+PAUSE_EPISODE_START_RE = re.compile(
+    r"(?:"
+    r"Apple Music reader transport pause adopted|"
+    r"(?:Job|Library) reader transport forced pause source=|"
+    r"(?:Job|Library) reader transport pause command requested=|"
+    r"(?:Job|Library) playback accepted Apple Music pause as reader transport source=|"
+    r"(?:Job|Library) playback mirroring adopted Apple Music pause to narration"
+    r")"
+)
+
+
+NEXT_TRANSPORT_RE = re.compile(
+    r"(?:"
+    r"(?:Job|Library) (?:foreground|broker) tvOS Play/Pause command|"
+    r"(?:Job|Library) reader transport forced play source=|"
+    r"(?:Job|Library) reader transport play command requested="
+    r")"
+)
+
+
+NARRATION_PAUSE_EVIDENCE_RE = re.compile(
+    r"(?:"
+    r"(?:Job|Library) reader transport forced pause source=.*(?:requested=true|playing=true)|"
+    r"(?:Job|Library) reader transport pause command requested=true|"
+    r"(?:Job|Library) playback mirroring adopted Apple Music pause to narration requested=.*(?:requested=true|playing=true)"
+    r")",
+    flags=re.MULTILINE,
+)
+
+
+NARRATION_PAUSE_SETTLED_RE = re.compile(
+    r"(?:Job|Library) reader transport confirmed pause source=.*requested=false playing=false",
+    flags=re.MULTILINE,
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -212,6 +248,35 @@ def _pause_guard_violations(text: str) -> list[str]:
     if any(re.search(pattern, guarded_window, flags=re.MULTILINE) for pattern in forbidden_patterns):
         return ["reader transport pause was followed by a system-driven resume before explicit reader play"]
     return []
+
+
+def _pause_episode_violations(text: str) -> list[str]:
+    lines = text.splitlines()
+    violations: list[str] = []
+    episode_number = 0
+    index = 0
+    while index < len(lines):
+        if not PAUSE_EPISODE_START_RE.search(lines[index]):
+            index += 1
+            continue
+        episode_number += 1
+        end_index = len(lines)
+        for candidate in range(index + 1, len(lines)):
+            if NEXT_TRANSPORT_RE.search(lines[candidate]):
+                end_index = candidate
+                break
+
+        episode = "\n".join(lines[index:end_index])
+        if not NARRATION_PAUSE_EVIDENCE_RE.search(episode):
+            violations.append(
+                f"pause episode {episode_number} did not reach narration before the next transport command"
+            )
+        elif not NARRATION_PAUSE_SETTLED_RE.search(episode):
+            violations.append(
+                f"pause episode {episode_number} did not confirm narration stopped before the next transport command"
+            )
+        index = max(end_index, index + 1)
+    return violations
 
 
 def _reader_progress_violations(text: str) -> list[str]:
@@ -279,6 +344,7 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
         missing.extend(_reader_progress_violations(text))
     if mode in {"pause-release", "guarded-play", "pause-resume"}:
         missing.extend(_pause_guard_violations(text))
+        missing.extend(_pause_episode_violations(text))
     return missing
 
 
