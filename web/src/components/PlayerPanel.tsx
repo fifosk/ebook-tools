@@ -48,6 +48,7 @@ import {
 } from './player-panel/playerPanelChromeState';
 import { usePlayerPanelNavigationChrome } from './player-panel/usePlayerPanelNavigationChrome';
 import { usePlayerPanelShortcutControls } from './player-panel/usePlayerPanelShortcutControls';
+import { usePlayerPanelLifecycleEffects } from './player-panel/usePlayerPanelLifecycleEffects';
 
 type ReadingBedOverride = {
   id: string;
@@ -285,13 +286,6 @@ export default function PlayerPanel({
     removeBookmark,
   });
 
-  useEffect(() => {
-    onVideoPlaybackStateChange?.(false);
-  }, [onVideoPlaybackStateChange]);
-
-  useEffect(() => {
-    onPlaybackStateChange?.(isInlineAudioPlaying);
-  }, [isInlineAudioPlaying, onPlaybackStateChange]);
   const selectedItemId = selectedItemIds.text;
   const textPlaybackPosition = getPosition(selectedItemIds.text);
   const allowTextPreview =
@@ -538,23 +532,20 @@ export default function PlayerPanel({
     rememberPosition,
   });
 
-  useEffect(() => {
-    if (!selectionRequest?.autoPlay) {
-      return;
-    }
-    requestAutoPlay();
-  }, [requestAutoPlay, selectionRequest?.autoPlay, selectionRequest?.token]);
-
-  useEffect(() => {
-    resetInteractiveFullscreen();
-    setPendingSelection(null);
-    setPendingChunkSelection(null);
-    setPendingTextScrollRatio(null);
-  }, [normalisedJobId, resetInteractiveFullscreen]);
-
-  useEffect(() => {
-    onFullscreenChange?.(isInteractiveFullscreen);
-  }, [isInteractiveFullscreen, onFullscreenChange]);
+  usePlayerPanelLifecycleEffects({
+    normalisedJobId,
+    selectionRequest,
+    isInlineAudioPlaying,
+    isInteractiveFullscreen,
+    onVideoPlaybackStateChange,
+    onPlaybackStateChange,
+    onFullscreenChange,
+    requestAutoPlay,
+    resetInteractiveFullscreen,
+    setPendingSelection,
+    setPendingChunkSelection,
+    setPendingTextScrollRatio,
+  });
 
   const handleResetInteractiveLayout = useCallback(() => {
     resetMyLinguistFontScale();

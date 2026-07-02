@@ -322,7 +322,7 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/library-list/LibraryFlatTable.tsx`, with language labels
   shared through `LibraryLanguageLabel.tsx` and rendered coverage in the
   library-focused Web gate.
-- `web/src/components/PlayerPanel.tsx` - 760 lines. Status: selected text
+- `web/src/components/PlayerPanel.tsx` - 751 lines. Status: selected text
   item, selected chunk, and active text chunk resolution now live in
   `web/src/components/player-panel/utils.ts` with focused Vitest coverage.
   Browser storage reads/writes used by PlayerPanel, interactive text, reading
@@ -369,6 +369,9 @@ Large Web UI hotspots to split before redesign work:
   focused hook coverage. Shortcut registration, MyLinguist font-scale controls,
   and the shortcut-help overlay now live in
   `web/src/components/player-panel/usePlayerPanelShortcutControls.tsx` with
+  focused hook coverage. Autoplay handoff, shell playback/fullscreen callbacks,
+  and per-job pending-reader cleanup now live in
+  `web/src/components/player-panel/usePlayerPanelLifecycleEffects.ts` with
   focused hook coverage. The repo-owned `test-web-playback-focused`
   target now covers live-media state/timing, PlayerPanel helper/rendering
   splits, shared video and YouTube Dub sleep-timer behavior, subtitle overlay
