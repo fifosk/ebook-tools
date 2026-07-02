@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.012
 
+- Backend generated-book option/default construction now lives in a focused router support module, keeping `/api/books/options` easier to compare across Web Narrate Ebook and Apple Create while preserving the same response contract.
 - Apple in-app changelog entries for June 30 now live in a dated shard too, keeping the root changelog source focused on the day index as device-visible history grows.
 - `make test-changed` now treats dated Apple in-app changelog shards as release metadata, so shard-only edits still run release-version and Apple contract gates without unnecessary simulator builds.
 - Apple reader language/audio pills now keep inactive lanes visually inactive during transient loading states while still allowing Original + Translation, Original-only, and Translation-only playback modes.

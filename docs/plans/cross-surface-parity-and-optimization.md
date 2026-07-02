@@ -842,6 +842,10 @@ Current Apple UI partially exposes:
   and applying a saved template restores that provider/query in the native
   source picker, keeping Apple-saved video templates aligned with Web Video
   Dubbing handoffs.
+  Backend generated-book option/default construction now lives in
+  `modules/webapi/routers/create_book_options.py`, keeping `/api/books/options`
+  language, voice, subtitle, YouTube Dub, image, and sentence-splitter defaults
+  focused and easier to compare across Web Narrate Ebook and Apple Create.
   `scripts/generate_language_catalogs.py`
   now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the

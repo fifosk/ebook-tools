@@ -122,6 +122,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
             "modules/webapi/routers/create_book.py",
+            "modules/webapi/routers/create_book_options.py",
             "modules/webapi/schemas/create_book.py",
             "tests/test_create_book.py",
         ),

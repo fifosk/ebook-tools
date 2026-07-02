@@ -298,7 +298,7 @@ Discovery/acquisition plan, provider, schema, and route changes route to
 `test-backend-acquisition`, keeping Web and Apple Create source discovery,
 prepared-artifact handoff, and token-safe provider serialization covered by the
 dedicated backend slice before simulator journeys consume those contracts.
-Generated-book backend route/schema edits route to `test-backend-create-book`,
+Generated-book backend route/schema/support edits route to `test-backend-create-book`,
 EPUB picker route/schema edits route to `test-backend-pipeline-sources`, and
 subtitle picker/router edits route to `test-backend-subtitle-router`, so the
 Apple Create source dialogs keep their focused backend contracts when shared

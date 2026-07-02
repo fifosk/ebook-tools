@@ -634,6 +634,10 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
         "test-backend-create-book",
         "test-webapi",
     ]
+    assert select_targets(["modules/webapi/routers/create_book_options.py"]) == [
+        "test-backend-create-book",
+        "test-webapi",
+    ]
     assert select_targets(["modules/webapi/schemas/create_book.py"]) == [
         "test-backend-create-book",
         "test-webapi",

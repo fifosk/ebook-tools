@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "backend-create-book-options-helper",
+                    title: "Create defaults are focused",
+                    detail: "Backend generated-book option/default construction now lives in a focused router support module, keeping /api/books/options easier to compare across Web Narrate Ebook and Apple Create while preserving the same response contract."
+                ),
+                AppChangelogEntry(
                     id: "apple-changelog-june30-shard",
                     title: "June history is slimmer",
                     detail: "Apple in-app changelog entries for June 30 now live in a dated shard too, keeping the root changelog source focused on the day index as device-visible history grows."
