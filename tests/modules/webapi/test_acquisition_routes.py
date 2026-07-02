@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
+from pydantic import ValidationError
 
 import modules.services.acquisition.discovery_normalization as discovery_normalization
 from modules.webapi.application import create_app
@@ -23,6 +24,7 @@ from modules.webapi.routers.acquisition import (
     _normalize_source_id_filters,
     _public_metadata,
 )
+from modules.webapi.schemas.acquisition import AcquisitionProviderListResponse
 
 
 pytestmark = pytest.mark.webapi
@@ -348,6 +350,20 @@ def test_acquisition_openapi_marks_cross_surface_fields_required() -> None:
         "next_actions",
         "metadata",
     } <= job_required
+
+
+def test_acquisition_provider_schema_rejects_unknown_default_provider_media_kind() -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        AcquisitionProviderListResponse(
+            providers=[],
+            policy_notes=[],
+            paths={},
+            default_provider_ids={"audio": ["secret-provider-id"]},
+        )
+
+    rendered = str(exc_info.value)
+    assert "Input should be 'book' or 'video'" in rendered
+    assert "secret-provider-id" not in rendered
 
 
 def test_acquisition_provider_route_failure_uses_generic_detail_and_token_safe_telemetry(

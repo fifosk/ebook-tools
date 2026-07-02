@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "acquisition-default-provider-key-schema",
+                    title: "Default source keys stay typed",
+                    detail: "The backend acquisition provider response schema now rejects unknown Default sources media-kind keys before Web or Apple Create can see them, matching the shared source-discovery contract."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-values-cross-surface-drift-gate",
                     title: "Discovery values stay aligned",
                     detail: "Backend acquisition schema values now come from the shared provider contract, with tests comparing the Web and Apple validators against that source so source-discovery value changes move across surfaces together."

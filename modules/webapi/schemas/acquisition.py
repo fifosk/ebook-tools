@@ -46,7 +46,7 @@ class AcquisitionProviderListResponse(BaseModel):
     providers: List[AcquisitionProviderPayload]
     policy_notes: List[str]
     paths: Dict[str, str]
-    default_provider_ids: Dict[str, List[str]]
+    default_provider_ids: Dict[AcquisitionMediaKind, List[str]]
 
 
 class AcquisitionSubtitleHintPayload(BaseModel):
