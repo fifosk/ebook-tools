@@ -687,8 +687,12 @@ private func requestedSingleTrackMode(
     manager: AudioModeManager?,
     sequenceAudioMode: AudioMode,
     preferredSingleTrackMode: SequenceTrack?,
-    preferredAudioKind: InteractiveChunk.AudioOption.Kind?
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
+    loadedSingleTrackPlaybackMode: SequenceTrack? = nil
 ) -> SequenceTrack? {
+    if let loadedSingleTrackPlaybackMode {
+        return loadedSingleTrackPlaybackMode
+    }
     if let preferredSingleTrackMode {
         return preferredSingleTrackMode
     }
@@ -739,13 +743,15 @@ private func requestedSingleTrackMode(
     preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
     chunk: InteractiveChunk,
     sequenceEnabled: Bool,
-    activeURLs: [URL]
+    activeURLs: [URL],
+    loadedSingleTrackPlaybackMode: SequenceTrack? = nil
 ) -> SequenceTrack? {
     if let requested = requestedSingleTrackMode(
         manager: manager,
         sequenceAudioMode: sequenceAudioMode,
         preferredSingleTrackMode: preferredSingleTrackMode,
-        preferredAudioKind: preferredAudioKind
+        preferredAudioKind: preferredAudioKind,
+        loadedSingleTrackPlaybackMode: loadedSingleTrackPlaybackMode
     ) {
         return requested
     }
@@ -1620,6 +1626,17 @@ private func runChecks() {
         optionID: "translation-next",
         timing: .translation,
         "Prepare audio reapplication should keep next-batch rendering and narration on translation"
+    )
+    requireEqual(
+        requestedSingleTrackMode(
+            manager: nil,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: .original,
+            preferredAudioKind: .combined,
+            loadedSingleTrackPlaybackMode: .translation
+        ),
+        .translation,
+        "Loaded translation-only lane should beat stale preferred state at batch EOF"
     )
     var adjacentSelectedTrackID: String? = "combined-next"
     var adjacentPreferredKind: InteractiveChunk.AudioOption.Kind? = .combined

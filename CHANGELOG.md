@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Apple reader original-only/translation-only playback now lets the single audio lane that was actually loaded beat stale preferred state at sentence-batch EOF, so end-of-batch handoffs cannot reset rendering away from the selected track.
 - Backend acquisition Default sources readiness now lives in a focused provider-defaults helper with direct coverage, keeping Web and Apple Create default book/video source fanout policy reusable outside the provider registry payload builder.
 - Backend acquisition discovery now dispatches providers through a registry-aligned routing table with direct coverage, so Web and Apple Create provider metadata cannot drift from the backend discovery handlers.
 - Backend Internet Archive acquisition discovery now lives with the focused Archive helper module, keeping Archive search, source-id bridge lookups, EPUB candidate construction, and token-safe handoff metadata out of the shared provider fanout while preserving Web and Apple Create contracts.

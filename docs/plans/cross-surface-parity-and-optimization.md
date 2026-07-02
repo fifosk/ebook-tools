@@ -930,7 +930,10 @@ Current Apple UI partially exposes:
   manager briefly reports sequence mode during a batch handoff. Manager-backed
   single-track resolution now refreshes that durable lane immediately too, so an
   end-of-batch callback cannot prepare combined audio before SwiftUI rendering
-  catches up, and passive lifecycle observation no longer clears the remembered
+  catches up. The requested single-track resolver now lets the single lane that
+  was actually loaded beat stale preferred state before sentence-batch EOF
+  handoffs, preventing the next chunk from resetting rendering away from the
+  selected track, and passive lifecycle observation no longer clears the remembered
   lane when it sees a sequence-mode/default refresh during selected-chunk or
   track-availability setup. Passive hydrated-batch text/audio synchronization
   now also refuses to broaden a remembered original-only/translation-only lane

@@ -383,11 +383,11 @@ extension InteractivePlayerViewModel {
     }
 
     func requestedSingleTrackMode() -> SequenceTrack? {
-        if let preferredSingleTrackMode {
-            return preferredSingleTrackMode
-        }
         if let loadedSingleTrackPlaybackMode {
             return loadedSingleTrackPlaybackMode
+        }
+        if let preferredSingleTrackMode {
+            return preferredSingleTrackMode
         }
         if let audioModeManager,
            case .singleTrack(let track) = audioModeManager.currentMode {

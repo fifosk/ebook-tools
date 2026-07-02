@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-loaded-lane-priority-eof",
+                    title: "Single-track batch ends hold",
+                    detail: "Apple reader original-only and translation-only playback now lets the single audio lane that was actually loaded beat stale preferred state at sentence-batch EOF, so end-of-batch handoffs cannot reset rendering away from the selected track."
+                ),
+                AppChangelogEntry(
                     id: "backend-provider-defaults-helper",
                     title: "Default sources are leaner",
                     detail: "Backend acquisition Default sources readiness now lives in a focused provider-defaults helper with direct coverage, keeping Web and Apple Create default book and video source fanout policy reusable outside the provider registry payload builder."

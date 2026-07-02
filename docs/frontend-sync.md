@@ -92,8 +92,8 @@ Follow the suggested remediations to restore parity:
   If the manager and selected picker id both briefly reset to sequence/combined
   at a batch boundary, the single audio lane that was actually loaded is still
   authoritative for Original-only or Translation-only playback while the sequence
-  controller is inactive. That loaded lane should beat transient manager state
-  until the user explicitly changes to combined mode, and render-active checks
+  controller is inactive. That loaded lane should beat stale preferred state and
+  transient manager state until the user explicitly changes to combined mode, and render-active checks
   should test whether the live URL belongs to that lane anywhere in the chunk,
   not just inside the momentary selected option. EOF callbacks must be checked
   against the selected lane before they can stamp durable state, so hidden

@@ -188,6 +188,7 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Single-track EOF handoff should preserve translation from the active URL when the ended callback lost its URL" in swift_check
     assert "Missing EOF URL should not guess a lane from a multi-file active queue" in swift_check
     assert "Prepare audio should reapply translation-only selection before resolving a stale batch option" in swift_check
+    assert "Loaded translation-only lane should beat stale preferred state at batch EOF" in swift_check
     assert "requestedSingleTrackMode(" in swift_check
     assert "End-of-batch handoff should preserve translation-only selection even if the view manager bridge is unavailable" in swift_check
     assert "Bridgeless end-of-batch handoff should select translation audio instead of falling back to combined" in swift_check
@@ -799,6 +800,7 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     requested_body = _function_body(selection, "func requestedSingleTrackMode() -> SequenceTrack?")
     assert "loadedSingleURLTrackMode()" in requested_body
     assert "loadedSingleTrackPlaybackMode" in requested_body
+    assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let preferredSingleTrackMode")
     assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let audioModeManager")
     loaded_url_body = _function_body(selection, "private func loadedSingleURLTrackMode() -> SequenceTrack?")
     assert "guard !sequenceController.isEnabled" in loaded_url_body
@@ -1023,6 +1025,7 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     )
 
     requested_body = _function_body(selection, "func requestedSingleTrackMode() -> SequenceTrack?")
+    assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let preferredSingleTrackMode")
     assert "case .singleTrack(let track) = audioModeManager.currentMode" in requested_body
     assert "case .singleTrack(let track) = sequenceController.audioMode" in requested_body
     assert requested_body.index("audioModeManager.currentMode") < requested_body.index("sequenceController.audioMode")
