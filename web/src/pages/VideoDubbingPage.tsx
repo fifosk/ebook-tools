@@ -9,9 +9,9 @@ import VideoDubbingJobsPanel from './video-dubbing/VideoDubbingJobsPanel';
 import VideoMetadataPanel from './video-dubbing/VideoMetadataPanel';
 import VideoDubbingOptionsPanel from './video-dubbing/VideoDubbingOptionsPanel';
 import VideoSourcePanel from './video-dubbing/VideoSourcePanel';
+import VideoDubbingFeedbackPanel from './video-dubbing/VideoDubbingFeedbackPanel';
 import VideoDubbingTabs from './video-dubbing/VideoDubbingTabs';
 import VideoDubbingTuningPanel from './video-dubbing/VideoDubbingTuningPanel';
-import { CreateIntakeStatusCallout } from '../components/create-intake/CreateIntakeStatusCallout';
 import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
 import type { VideoDubbingTab } from './video-dubbing/videoDubbingTypes';
 import { useVideoDubbingSelectionState } from './video-dubbing/useVideoDubbingSelectionState';
@@ -421,14 +421,16 @@ export default function VideoDubbingPage({
         onSaveTemplate={() => void handleSaveTemplate()}
       />
 
-      {statusMessage ? <p className={styles.success}>{statusMessage}</p> : null}
-      {generateError ? <p className={styles.error}>{generateError}</p> : null}
-      {isLoadingCreationTemplate ? <p className={styles.success}>Loading saved template...</p> : null}
-      {templateStatus ? <p className={styles.success}>{templateStatus}</p> : null}
-      {creationTemplateError ?? templateError ? (
-        <p className={styles.error}>{creationTemplateError ?? templateError}</p>
-      ) : null}
-      <CreateIntakeStatusCallout status={intakeStatus} isLoading={isLoadingIntakeStatus} />
+      <VideoDubbingFeedbackPanel
+        statusMessage={statusMessage}
+        generateError={generateError}
+        isLoadingCreationTemplate={isLoadingCreationTemplate}
+        templateStatus={templateStatus}
+        creationTemplateError={creationTemplateError}
+        templateError={templateError}
+        intakeStatus={intakeStatus}
+        isLoadingIntakeStatus={isLoadingIntakeStatus}
+      />
 
       {activeTab === 'videos' ? (
         <VideoSourcePanel

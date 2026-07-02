@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-video-dubbing-feedback-panel",
+                    title: "Video feedback is focused",
+                    detail: "Web Video Dubbing page feedback, template status, template errors, and intake callout rendering now live in a focused panel with rendered coverage and changed-test routing, trimming the page coordinator without changing the cross-surface Create workflow."
+                ),
+                AppChangelogEntry(
                     id: "apple-selected-timing-lane-render-sync",
                     title: "Single-track rendering stays pinned",
                     detail: "Apple reader original-only and translation-only rendering now treats the selected timing lane as durable single-track evidence before transient audio-manager or picker state, so no-URL EOF recovery and batch refreshes cannot reset rendering back to combined while narration stays on the selected lane."
