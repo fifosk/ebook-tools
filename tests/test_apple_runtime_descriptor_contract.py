@@ -79,6 +79,7 @@ API_CLIENT_PLAYBACK_STATE = (
     / "APIClient+PlaybackState.swift"
 )
 APPLE_SERVICES = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Services"
+APPLE_MODELS = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Models"
 APPLE_RUNTIME_DESCRIPTOR_PAYLOAD_CHECK = (
     ROOT / "scripts" / "tests" / "check_apple_runtime_descriptor_payload.swift"
 )
@@ -1376,6 +1377,27 @@ def test_apple_linguist_client_uses_runtime_contract_constants() -> None:
         assert inline_path not in source
     assert 'sendJSONRequest(path: "/api/assistant/lookup"' not in source
     assert 'path: "/api/audio",' not in source
+
+
+def test_apple_lookup_cache_models_match_backend_payload_shape() -> None:
+    source = (APPLE_MODELS / "LookupCacheApiModels.swift").read_text(encoding="utf-8")
+
+    assert "wordNormalized = try container.decode(String.self, forKey: .wordNormalized)" in source
+    assert "cached = try container.decode(Bool.self, forKey: .cached)" in source
+    assert "audioReferences = try container.decode([LookupCacheAudioRef].self, forKey: .audioReferences)" in source
+    assert "let results: [String: LookupCacheEntryResponse?]" in source
+    assert "let cacheHits: Int" in source
+    assert "let cacheMisses: Int" in source
+    assert "results = try container.decode([String: LookupCacheEntryResponse?].self, forKey: .results)" in source
+    assert "cacheHits = try container.decode(Int.self, forKey: .cacheHits)" in source
+    assert "cacheMisses = try container.decode(Int.self, forKey: .cacheMisses)" in source
+    assert "let available: Bool" in source
+    assert "let wordCount: Int" in source
+    assert "let llmCalls: Int" in source
+    assert "let skippedStopwords: Int" in source
+    assert "let buildTimeSeconds: Double" in source
+    assert "totalEntries" not in source
+    assert "let entries: [LookupCacheEntryResponse]" not in source
 
 
 def test_apple_notification_client_uses_runtime_contract_constants() -> None:

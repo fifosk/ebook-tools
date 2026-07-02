@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "lookup-cache-contract-aligned",
+                    title: "Lookup cache speaks one shape",
+                    detail: "Backend, Web, and Apple lookup-cache responses now share the same bulk result, summary, and audio-reference contract, so cached word bubbles can trust existing narration seek points instead of falling back from stale empty shapes."
+                ),
+                AppChangelogEntry(
                     id: "media-search-contract-strict",
                     title: "Search jumps trust shaped results",
                     detail: "Backend, Web, and Apple media search now require result lists, source labels, occurrence counts, snippets, and media buckets before playback jumps use them, turning malformed search payloads into clear errors instead of empty or stale results."

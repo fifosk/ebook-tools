@@ -41,7 +41,14 @@ class _ListLogger:
 
 class _AudioRef:
     def to_dict(self) -> dict[str, object]:
-        return {"path": "/private/audio/secretword.mp3", "t0": 1.25, "t1": 1.55}
+        return {
+            "chunk_id": "chunk_0001",
+            "sentence_idx": 0,
+            "token_idx": 3,
+            "track": "translation",
+            "t0": 1.25,
+            "t1": 1.55,
+        }
 
 
 class _CacheEntry:
@@ -96,6 +103,42 @@ def _build_client(monkeypatch: pytest.MonkeyPatch, capture_logger: _ListLogger) 
     app.dependency_overrides[get_file_locator] = lambda: object()
     app.dependency_overrides[get_library_repository] = lambda: object()
     return TestClient(app)
+
+
+def test_lookup_cache_openapi_marks_cross_surface_fields_required() -> None:
+    schemas = create_app().openapi()["components"]["schemas"]
+
+    entry_required = set(schemas["LookupCacheEntryResponse"]["required"])
+    audio_ref_required = set(schemas["LookupCacheAudioRefResponse"]["required"])
+    bulk_required = set(schemas["LookupCacheBulkResponse"]["required"])
+    summary_required = set(schemas["LookupCacheSummaryResponse"]["required"])
+    full_required = set(schemas["LookupCacheFullResponse"]["required"])
+
+    assert {
+        "word",
+        "word_normalized",
+        "cached",
+        "audio_references",
+    } <= entry_required
+    assert {
+        "chunk_id",
+        "sentence_idx",
+        "token_idx",
+        "track",
+        "t0",
+        "t1",
+    } <= audio_ref_required
+    assert {"results", "cache_hits", "cache_misses"} <= bulk_required
+    assert {
+        "available",
+        "word_count",
+        "input_language",
+        "definition_language",
+        "llm_calls",
+        "skipped_stopwords",
+        "build_time_seconds",
+    } <= summary_required
+    assert {"version", "input_language", "definition_language", "entries"} <= full_required
 
 
 def test_lookup_cache_resolution_preserves_forbidden(monkeypatch) -> None:
@@ -157,8 +200,19 @@ def test_lookup_cache_routes_record_token_safe_metrics_and_logs(
     assert summary_response.json()["available"] is True
     assert hit_response.status_code == 200
     assert hit_response.json()["cached"] is True
+    assert hit_response.json()["audio_references"] == [
+        {
+            "chunk_id": "chunk_0001",
+            "sentence_idx": 0,
+            "token_idx": 3,
+            "track": "translation",
+            "t0": 1.25,
+            "t1": 1.55,
+        }
+    ]
     assert miss_response.status_code == 200
     assert miss_response.json()["cached"] is False
+    assert miss_response.json()["audio_references"] == []
     assert bulk_response.status_code == 200
     assert bulk_response.json()["cache_hits"] == 1
     assert bulk_response.json()["cache_misses"] == 1
@@ -230,7 +284,15 @@ def test_lookup_cache_routes_record_unavailable_not_found_and_forbidden(
 
     assert full_missing.status_code == 404
     assert summary_missing.status_code == 200
-    assert summary_missing.json()["available"] is False
+    assert summary_missing.json() == {
+        "available": False,
+        "word_count": 0,
+        "input_language": "",
+        "definition_language": "",
+        "llm_calls": 0,
+        "skipped_stopwords": 0,
+        "build_time_seconds": 0.0,
+    }
     assert word_missing.status_code == 200
     assert word_missing.json()["cached"] is False
     assert bulk_missing.status_code == 200

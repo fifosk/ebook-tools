@@ -29,6 +29,17 @@ router = APIRouter()
 logger = log_mgr.get_logger().getChild("webapi.routes.lookup_cache")
 
 
+class LookupCacheAudioRefResponse(BaseModel):
+    """Reference to a cached word occurrence in generated narration audio."""
+
+    chunk_id: str
+    sentence_idx: int
+    token_idx: int
+    track: str
+    t0: float
+    t1: float
+
+
 class LookupCacheEntryResponse(BaseModel):
     """Response for a single cached word lookup."""
 
@@ -36,7 +47,7 @@ class LookupCacheEntryResponse(BaseModel):
     word_normalized: str
     cached: bool
     lookup_result: Optional[Dict[str, Any]] = None
-    audio_references: List[Dict[str, Any]] = Field(default_factory=list)
+    audio_references: List[LookupCacheAudioRefResponse]
 
 
 class LookupCacheBulkRequest(BaseModel):
@@ -57,18 +68,18 @@ class LookupCacheSummaryResponse(BaseModel):
     """Summary information about the lookup cache."""
 
     available: bool
-    word_count: int = 0
-    input_language: str = ""
-    definition_language: str = ""
-    llm_calls: int = 0
-    skipped_stopwords: int = 0
-    build_time_seconds: float = 0.0
+    word_count: int
+    input_language: str
+    definition_language: str
+    llm_calls: int
+    skipped_stopwords: int
+    build_time_seconds: float
 
 
 class LookupCacheFullResponse(BaseModel):
     """Full lookup cache for offline download."""
 
-    version: str = "1"
+    version: str
     input_language: str
     definition_language: str
     entries: Dict[str, LookupCacheEntryResponse]
@@ -245,7 +256,15 @@ async def get_lookup_cache_summary(
             started_at=started_at,
             available=False,
         )
-        return LookupCacheSummaryResponse(available=False)
+        return LookupCacheSummaryResponse(
+            available=False,
+            word_count=0,
+            input_language="",
+            definition_language="",
+            llm_calls=0,
+            skipped_stopwords=0,
+            build_time_seconds=0.0,
+        )
 
     _log_lookup_cache_route_result(
         operation="summary",
@@ -312,6 +331,8 @@ async def get_cached_lookup(
             word=word,
             word_normalized=normalized,
             cached=False,
+            lookup_result=None,
+            audio_references=[],
         )
 
     entry = cache.get(word)
@@ -329,6 +350,8 @@ async def get_cached_lookup(
             word=word,
             word_normalized=normalized,
             cached=False,
+            lookup_result=None,
+            audio_references=[],
         )
 
     _log_lookup_cache_route_result(

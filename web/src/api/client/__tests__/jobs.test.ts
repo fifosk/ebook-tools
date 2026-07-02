@@ -570,13 +570,41 @@ describe('jobs API client', () => {
 
   it('uses shared pipeline job, timing, and lookup-cache routes', async () => {
     const jobList = [pipelineJobStatus({ job_id: 'job/with?parts' })];
+    const lookupEntry = {
+      word: 'Merhaba',
+      word_normalized: 'merhaba',
+      cached: true,
+      lookup_result: { definition: 'Hello' },
+      audio_references: [
+        {
+          chunk_id: 'chunk_0001',
+          sentence_idx: 0,
+          token_idx: 1,
+          track: 'translation',
+          t0: 1.2,
+          t1: 1.4
+        }
+      ]
+    };
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
       .mockResolvedValueOnce(jsonResponse({ job_id: 'new-job' }))
       .mockResolvedValueOnce(jsonResponse({ jobs: jobList }))
       .mockResolvedValueOnce(jsonResponse({ entries: [] }))
-      .mockResolvedValueOnce(jsonResponse({ word: 'Merhaba', cached: true }))
-      .mockResolvedValueOnce(jsonResponse({ entries: [] }))
-      .mockResolvedValueOnce(jsonResponse({ cachedCount: 1 }));
+      .mockResolvedValueOnce(jsonResponse(lookupEntry))
+      .mockResolvedValueOnce(jsonResponse({
+        results: { 'günaydın': lookupEntry, missing: null },
+        cache_hits: 1,
+        cache_misses: 1
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        available: true,
+        word_count: 1,
+        input_language: 'Turkish',
+        definition_language: 'English',
+        llm_calls: 1,
+        skipped_stopwords: 0,
+        build_time_seconds: 0.5
+      }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const payload: PipelineRequestPayload = {
@@ -626,6 +654,31 @@ describe('jobs API client', () => {
     );
     expect(new URL(String(fetchMock.mock.calls[5][0])).pathname).toBe(
       '/api/pipelines/jobs/job%2Fwith%3Fparts/lookup-cache/summary'
+    );
+  });
+
+  it('rejects malformed lookup-cache responses before cached lookup UI uses them', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ word: 'Merhaba', cached: true, audio_references: [] }))
+      .mockResolvedValueOnce(jsonResponse({ results: {}, cache_hits: 0 }))
+      .mockResolvedValueOnce(jsonResponse({
+        available: true,
+        word_count: 1,
+        input_language: 'Turkish',
+        definition_language: 'English',
+        llm_calls: 1,
+        skipped_stopwords: 0
+      }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchCachedLookup('job-1', 'Merhaba')).rejects.toThrow(
+      'Invalid lookup cache entry response: missing word_normalized.'
+    );
+    await expect(fetchCachedLookupsBulk('job-1', ['Merhaba'])).rejects.toThrow(
+      'Invalid lookup cache bulk response: missing cache_misses.'
+    );
+    await expect(fetchLookupCacheSummary('job-1')).rejects.toThrow(
+      'Invalid lookup cache summary response: missing build_time_seconds.'
     );
   });
 

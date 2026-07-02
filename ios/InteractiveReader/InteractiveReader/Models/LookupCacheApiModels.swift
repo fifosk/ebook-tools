@@ -43,44 +43,48 @@ struct LookupCacheEntryResponse: Decodable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         word = try container.decode(String.self, forKey: .word)
-        wordNormalized = (try? container.decode(String.self, forKey: .wordNormalized)) ?? word
-        cached = (try? container.decode(Bool.self, forKey: .cached)) ?? false
-        audioReferences = (try? container.decode([LookupCacheAudioRef].self, forKey: .audioReferences)) ?? []
-        lookupResult = try? container.decode(LinguistLookupResult.self, forKey: .lookupResult)
+        wordNormalized = try container.decode(String.self, forKey: .wordNormalized)
+        cached = try container.decode(Bool.self, forKey: .cached)
+        audioReferences = try container.decode([LookupCacheAudioRef].self, forKey: .audioReferences)
+        lookupResult = try container.decodeIfPresent(LinguistLookupResult.self, forKey: .lookupResult)
     }
 }
 
 struct LookupCacheBulkResponse: Decodable {
-    let jobId: String
-    let words: [String]
-    let entries: [LookupCacheEntryResponse]
+    let results: [String: LookupCacheEntryResponse?]
+    let cacheHits: Int
+    let cacheMisses: Int
 
     enum CodingKeys: String, CodingKey {
-        case jobId
-        case words
-        case entries
+        case results
+        case cacheHits
+        case cacheMisses
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        jobId = try container.decode(String.self, forKey: .jobId)
-        words = (try? container.decode([String].self, forKey: .words)) ?? []
-        entries = (try? container.decode([LookupCacheEntryResponse].self, forKey: .entries)) ?? []
+        results = try container.decode([String: LookupCacheEntryResponse?].self, forKey: .results)
+        cacheHits = try container.decode(Int.self, forKey: .cacheHits)
+        cacheMisses = try container.decode(Int.self, forKey: .cacheMisses)
     }
 }
 
 struct LookupCacheSummaryResponse: Decodable {
-    let jobId: String
-    let totalEntries: Int
+    let available: Bool
+    let wordCount: Int
     let inputLanguage: String?
     let definitionLanguage: String?
-    let cacheVersion: String?
+    let llmCalls: Int
+    let skippedStopwords: Int
+    let buildTimeSeconds: Double
 
     enum CodingKeys: String, CodingKey {
-        case jobId
-        case totalEntries
+        case available
+        case wordCount
         case inputLanguage
         case definitionLanguage
-        case cacheVersion
+        case llmCalls
+        case skippedStopwords
+        case buildTimeSeconds
     }
 }

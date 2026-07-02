@@ -1018,8 +1018,9 @@ export async function fetchCachedLookup(
   jobId: string,
   word: string
 ): Promise<LookupCacheEntryResponse | null> {
+  let response: Response;
   try {
-    const response = await apiFetch(
+    response = await apiFetch(
       replaceRuntimePathParameters(WEB_LINGUIST_RUNTIME_CONTRACT.lookupCacheWordPathTemplate, {
         job_id: jobId,
         word
@@ -1027,21 +1028,24 @@ export async function fetchCachedLookup(
       {},
       { suppressUnauthorized: true }
     );
-    if (response.status === 404) {
-      return null;
-    }
-    return handleResponse<LookupCacheEntryResponse>(response);
   } catch {
     return null;
   }
+  if (response.status === 401 || response.status === 403 || response.status === 404) {
+    return null;
+  }
+  const payload = await handleResponse<unknown>(response);
+  assertLookupCacheEntryResponse(payload);
+  return payload;
 }
 
 export async function fetchCachedLookupsBulk(
   jobId: string,
   words: string[]
 ): Promise<LookupCacheBulkResponse | null> {
+  let response: Response;
   try {
-    const response = await apiFetch(
+    response = await apiFetch(
       replaceRuntimePathParameter(
         WEB_LINGUIST_RUNTIME_CONTRACT.lookupCacheBulkPathTemplate,
         'job_id',
@@ -1054,20 +1058,23 @@ export async function fetchCachedLookupsBulk(
       },
       { suppressUnauthorized: true }
     );
-    if (response.status === 404) {
-      return null;
-    }
-    return handleResponse<LookupCacheBulkResponse>(response);
   } catch {
     return null;
   }
+  if (response.status === 401 || response.status === 403 || response.status === 404) {
+    return null;
+  }
+  const payload = await handleResponse<unknown>(response);
+  assertLookupCacheBulkResponse(payload);
+  return payload;
 }
 
 export async function fetchLookupCacheSummary(
   jobId: string
 ): Promise<LookupCacheSummaryResponse | null> {
+  let response: Response;
   try {
-    const response = await apiFetch(
+    response = await apiFetch(
       replaceRuntimePathParameter(
         WEB_LINGUIST_RUNTIME_CONTRACT.lookupCacheSummaryPathTemplate,
         'job_id',
@@ -1076,11 +1083,80 @@ export async function fetchLookupCacheSummary(
       {},
       { suppressUnauthorized: true }
     );
-    if (response.status === 404) {
-      return null;
-    }
-    return handleResponse<LookupCacheSummaryResponse>(response);
   } catch {
     return null;
   }
+  if (response.status === 401 || response.status === 403 || response.status === 404) {
+    return null;
+  }
+  const payload = await handleResponse<unknown>(response);
+  assertLookupCacheSummaryResponse(payload);
+  return payload;
+}
+
+function assertLookupCacheEntryResponse(
+  payload: unknown
+): asserts payload is LookupCacheEntryResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid lookup cache entry response.');
+  }
+  assertReadinessStringField(payload, 'word', 'lookup cache entry');
+  assertReadinessStringField(payload, 'word_normalized', 'lookup cache entry');
+  assertReadinessBooleanField(payload, 'cached', 'lookup cache entry');
+  if (!Array.isArray(payload.audio_references)) {
+    throw new Error('Invalid lookup cache entry response: missing audio_references.');
+  }
+  payload.audio_references.forEach(assertLookupCacheAudioRef);
+  if (
+    payload.lookup_result !== undefined &&
+    payload.lookup_result !== null &&
+    !isRecord(payload.lookup_result)
+  ) {
+    throw new Error('Invalid lookup cache entry response: invalid lookup_result.');
+  }
+}
+
+function assertLookupCacheAudioRef(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid lookup cache audio reference response.');
+  }
+  assertReadinessStringField(payload, 'chunk_id', 'lookup cache audio reference');
+  assertReadinessNumberField(payload, 'sentence_idx', 'lookup cache audio reference');
+  assertReadinessNumberField(payload, 'token_idx', 'lookup cache audio reference');
+  assertReadinessStringField(payload, 'track', 'lookup cache audio reference');
+  assertReadinessNumberField(payload, 't0', 'lookup cache audio reference');
+  assertReadinessNumberField(payload, 't1', 'lookup cache audio reference');
+}
+
+function assertLookupCacheBulkResponse(
+  payload: unknown
+): asserts payload is LookupCacheBulkResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid lookup cache bulk response.');
+  }
+  if (!isRecord(payload.results)) {
+    throw new Error('Invalid lookup cache bulk response: missing results.');
+  }
+  Object.values(payload.results).forEach((entry) => {
+    if (entry !== null) {
+      assertLookupCacheEntryResponse(entry);
+    }
+  });
+  assertReadinessNumberField(payload, 'cache_hits', 'lookup cache bulk');
+  assertReadinessNumberField(payload, 'cache_misses', 'lookup cache bulk');
+}
+
+function assertLookupCacheSummaryResponse(
+  payload: unknown
+): asserts payload is LookupCacheSummaryResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid lookup cache summary response.');
+  }
+  assertReadinessBooleanField(payload, 'available', 'lookup cache summary');
+  assertReadinessNumberField(payload, 'word_count', 'lookup cache summary');
+  assertReadinessStringField(payload, 'input_language', 'lookup cache summary');
+  assertReadinessStringField(payload, 'definition_language', 'lookup cache summary');
+  assertReadinessNumberField(payload, 'llm_calls', 'lookup cache summary');
+  assertReadinessNumberField(payload, 'skipped_stopwords', 'lookup cache summary');
+  assertReadinessNumberField(payload, 'build_time_seconds', 'lookup cache summary');
 }
