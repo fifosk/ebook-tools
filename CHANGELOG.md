@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.004
 
+- Shared job-list pagination now sorts visible jobs newest-first before slicing and keeps the route from reshuffling service-provided pages, so Web and Apple Jobs views keep stable ordering across page boundaries.
 - Apple timing decode now accepts target, translated, and dubbed timing-track aliases and tolerates translation-only timing responses without a mix track, keeping Translation selectable for live, archived, and offline media.
 - Backend media manifests now canonicalize chunk timing-track aliases through the same Original, Translation, and Mix role mapping as audio tracks, so Web and Apple diagnostics agree on translation availability.
 - Apple reader header language pills now select the tapped lane directly, so tapping Translation from Original-only mode activates Translation-only playback instead of expanding back to both tracks; tapping the already-selected lane restores all available tracks.

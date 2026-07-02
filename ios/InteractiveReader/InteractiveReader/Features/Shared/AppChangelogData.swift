@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.004",
             entries: [
                 AppChangelogEntry(
+                    id: "shared-jobs-pagination-stable-order",
+                    title: "Jobs stay ordered across pages",
+                    detail: "Shared backend job listing now sorts visible jobs newest-first before slicing and leaves service-provided pages in that order, keeping Web and Apple Jobs views stable across paginated refreshes."
+                ),
+                AppChangelogEntry(
                     id: "apple-timing-track-alias-resilience",
                     title: "Translation timing survives aliases",
                     detail: "Apple reader timing decode now accepts target, translated, and dubbed timing-track aliases and tolerates translation-only timing payloads without a mix track, keeping Translation selectable across live, archived, and offline media."
