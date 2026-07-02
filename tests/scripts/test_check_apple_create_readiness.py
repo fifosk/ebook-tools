@@ -671,6 +671,59 @@ def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entr
     ]
 
 
+def test_acquisition_provider_inventory_reports_unsupported_provider_values() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        entry = {
+            "id": provider_id,
+            "label": provider_id.replace("_", " ").title(),
+            "media_kinds": sorted(requirements["media_kinds"]),
+            "capabilities": sorted(requirements["capabilities"]),
+            "status": "planned" if provider_id == "zlibrary_attended" else "available",
+            "configured": provider_id != "zlibrary_attended",
+            "available": provider_id != "zlibrary_attended",
+            "rights": ["unknown"],
+            "policy_notes": (
+                [
+                    "Direct Z-Library automation is intentionally disabled.",
+                    "Use an attended browser/download workflow only.",
+                ]
+                if provider_id == "zlibrary_attended"
+                else ["Token-safe provider."]
+            ),
+            "discovery_media_kinds": sorted(
+                module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, [])
+            ),
+        }
+        providers.append(add_source_label(entry, provider_id))
+
+    local_epub = next(provider for provider in providers if provider["id"] == "local_epub")
+    local_epub["status"] = "retired"
+    local_epub["media_kinds"] = ["book", "audio"]
+    local_epub["capabilities"] = ["import_local", "metadata", "scrape_browser"]
+    local_epub["rights"] = ["unknown", "subscription"]
+    local_epub["discovery_media_kinds"] = ["book", "audio"]
+    local_epub["default_eligible_media_kinds"] = ["book", "audio"]
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["local_epub"],
+            "video": ["nas_video"],
+        },
+    })
+
+    assert inventory["acquisition_providers_ready"] is False
+    assert inventory["invalid_acquisition_providers"] == [
+        "local_epub.capabilities:scrape_browser",
+        "local_epub.default_eligible_media_kinds:audio",
+        "local_epub.discovery_media_kinds:audio",
+        "local_epub.media_kinds:audio",
+        "local_epub.rights:subscription",
+        "local_epub.status:retired",
+    ]
+
+
 def test_acquisition_provider_inventory_rejects_zlibrary_discovery_or_defaulting() -> None:
     providers = []
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():

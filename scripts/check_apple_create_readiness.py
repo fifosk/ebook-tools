@@ -223,6 +223,7 @@ ACQUISITION_DISCOVERY_RIGHTS = {
     "unknown",
     "restricted",
 }
+ACQUISITION_PROVIDER_STATUSES = {"available", "not_configured", "planned"}
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -623,6 +624,18 @@ def _string_set(values: Any) -> set[str]:
     }
 
 
+def _unsupported_string_values(values: Any, allowed_values: set[str]) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    return sorted(
+        {
+            str(value)
+            for value in values
+            if not isinstance(value, str) or value not in allowed_values
+        }
+    )
+
+
 def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return {
@@ -668,6 +681,19 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
         provider = indexed.get(provider_id)
         if provider is None:
             continue
+        status = provider.get("status")
+        if isinstance(status, str) and status not in ACQUISITION_PROVIDER_STATUSES:
+            invalid.append(f"{provider_id}.status:{status}")
+        for field, allowed_values in (
+            ("media_kinds", ACQUISITION_DISCOVERY_MEDIA_KINDS),
+            ("capabilities", ACQUISITION_DISCOVERY_CAPABILITIES),
+            ("rights", ACQUISITION_DISCOVERY_RIGHTS),
+            ("discovery_media_kinds", ACQUISITION_DISCOVERY_MEDIA_KINDS),
+            ("default_eligible_media_kinds", ACQUISITION_DISCOVERY_MEDIA_KINDS),
+        ):
+            unsupported_values = _unsupported_string_values(provider.get(field), allowed_values)
+            if unsupported_values:
+                invalid.append(f"{provider_id}.{field}:{','.join(unsupported_values)}")
         media_kinds = _string_set(provider.get("media_kinds"))
         capabilities = _string_set(provider.get("capabilities"))
         raw_discovery_media_kinds = provider.get("discovery_media_kinds")

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-create-readiness-provider-value-gate",
+                    title: "Readiness validates provider values",
+                    detail: "Apple Create readiness preflight now rejects acquisition provider inventory entries with unsupported status, media kind, rights, or capability values before unattended simulator or device checks."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-readiness-discovery-value-gate",
                     title: "Readiness validates discovery values",
                     detail: "Apple Create readiness preflight now rejects acquisition discovery candidates with unsupported media kinds, rights, or capabilities, matching backend, Web, and Apple validation before device deploys."

@@ -65,6 +65,7 @@ APPLE_PIPELINE_CREATION_API_MODELS = (
     / "Models"
     / "PipelineCreationApiModels.swift"
 )
+APPLE_CREATE_READINESS_SCRIPT = ROOT / "scripts" / "check_apple_create_readiness.py"
 
 
 def _provider_by_id(payload, provider_id: str):
@@ -654,9 +655,10 @@ def test_acquisition_contract_values_are_shared_with_openapi_schema() -> None:
     )
 
 
-def test_acquisition_contract_values_stay_aligned_across_web_and_apple() -> None:
+def test_acquisition_contract_values_stay_aligned_across_web_apple_and_readiness() -> None:
     web_source = WEB_JOBS_API_CLIENT.read_text()
     apple_source = APPLE_PIPELINE_CREATION_API_MODELS.read_text()
+    readiness_source = APPLE_CREATE_READINESS_SCRIPT.read_text()
 
     assert _quoted_values_from_assignment(
         web_source,
@@ -706,6 +708,31 @@ def test_acquisition_contract_values_stay_aligned_across_web_and_apple() -> None
         "static let providerStatuses: Set<String> = [",
         quote='"',
         suffix="]",
+    ) == discovery_values.ACQUISITION_PROVIDER_STATUSES
+
+    assert _quoted_values_from_assignment(
+        readiness_source,
+        "\nACQUISITION_DISCOVERY_MEDIA_KINDS = {",
+        quote='"',
+        suffix="}",
+    ) == discovery_values.ACQUISITION_MEDIA_KINDS
+    assert _quoted_values_from_assignment(
+        readiness_source,
+        "\nACQUISITION_DISCOVERY_CAPABILITIES = {",
+        quote='"',
+        suffix="}",
+    ) == discovery_values.ACQUISITION_CAPABILITIES
+    assert _quoted_values_from_assignment(
+        readiness_source,
+        "\nACQUISITION_DISCOVERY_RIGHTS = {",
+        quote='"',
+        suffix="}",
+    ) == discovery_values.ACQUISITION_RIGHTS
+    assert _quoted_values_from_assignment(
+        readiness_source,
+        "\nACQUISITION_PROVIDER_STATUSES = {",
+        quote='"',
+        suffix="}",
     ) == discovery_values.ACQUISITION_PROVIDER_STATUSES
 
 
