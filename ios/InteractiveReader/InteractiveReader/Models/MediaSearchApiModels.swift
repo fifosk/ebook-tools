@@ -1,7 +1,4 @@
 import Foundation
-import OSLog
-
-private let mediaSearchApiModelsLogger = Logger(subsystem: "InteractiveReader", category: "MediaSearchApiModels")
 
 enum MediaSearchSource: String, Decodable {
     case pipeline
@@ -36,7 +33,7 @@ struct MediaSearchResult: Decodable, Identifiable {
     let approximateTimeSeconds: Double?
     let cueStartSeconds: Double?
     let cueEndSeconds: Double?
-    let media: [String: [PipelineMediaFile]]?
+    let media: [String: [PipelineMediaFile]]
     let source: MediaSearchSource
     let libraryAuthor: String?
     let libraryGenre: String?
@@ -79,30 +76,30 @@ struct MediaSearchResult: Decodable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         jobId = try container.decode(String.self, forKey: .jobId)
-        jobLabel = try? container.decode(String.self, forKey: .jobLabel)
-        baseId = try? container.decode(String.self, forKey: .baseId)
-        chunkId = try? container.decode(String.self, forKey: .chunkId)
-        chunkIndex = try? container.decode(Int.self, forKey: .chunkIndex)
-        chunkTotal = try? container.decode(Int.self, forKey: .chunkTotal)
-        rangeFragment = try? container.decode(String.self, forKey: .rangeFragment)
-        startSentence = try? container.decode(Int.self, forKey: .startSentence)
-        endSentence = try? container.decode(Int.self, forKey: .endSentence)
-        snippet = (try? container.decode(String.self, forKey: .snippet)) ?? ""
-        occurrenceCount = (try? container.decode(Int.self, forKey: .occurrenceCount)) ?? 1
-        matchStart = try? container.decode(Int.self, forKey: .matchStart)
-        matchEnd = try? container.decode(Int.self, forKey: .matchEnd)
-        textLength = try? container.decode(Int.self, forKey: .textLength)
-        offsetRatio = try? container.decode(Double.self, forKey: .offsetRatio)
-        approximateTimeSeconds = try? container.decode(Double.self, forKey: .approximateTimeSeconds)
-        cueStartSeconds = try? container.decode(Double.self, forKey: .cueStartSeconds)
-        cueEndSeconds = try? container.decode(Double.self, forKey: .cueEndSeconds)
-        media = try? container.decode([String: [PipelineMediaFile]].self, forKey: .media)
-        source = (try? container.decode(MediaSearchSource.self, forKey: .source)) ?? .pipeline
-        libraryAuthor = try? container.decode(String.self, forKey: .libraryAuthor)
-        libraryGenre = try? container.decode(String.self, forKey: .libraryGenre)
-        libraryLanguage = try? container.decode(String.self, forKey: .libraryLanguage)
-        coverPath = try? container.decode(String.self, forKey: .coverPath)
-        libraryPath = try? container.decode(String.self, forKey: .libraryPath)
+        jobLabel = try container.decodeIfPresent(String.self, forKey: .jobLabel)
+        baseId = try container.decodeIfPresent(String.self, forKey: .baseId)
+        chunkId = try container.decodeIfPresent(String.self, forKey: .chunkId)
+        chunkIndex = try container.decodeIfPresent(Int.self, forKey: .chunkIndex)
+        chunkTotal = try container.decodeIfPresent(Int.self, forKey: .chunkTotal)
+        rangeFragment = try container.decodeIfPresent(String.self, forKey: .rangeFragment)
+        startSentence = try container.decodeIfPresent(Int.self, forKey: .startSentence)
+        endSentence = try container.decodeIfPresent(Int.self, forKey: .endSentence)
+        snippet = try container.decode(String.self, forKey: .snippet)
+        occurrenceCount = try container.decode(Int.self, forKey: .occurrenceCount)
+        matchStart = try container.decodeIfPresent(Int.self, forKey: .matchStart)
+        matchEnd = try container.decodeIfPresent(Int.self, forKey: .matchEnd)
+        textLength = try container.decodeIfPresent(Int.self, forKey: .textLength)
+        offsetRatio = try container.decodeIfPresent(Double.self, forKey: .offsetRatio)
+        approximateTimeSeconds = try container.decodeIfPresent(Double.self, forKey: .approximateTimeSeconds)
+        cueStartSeconds = try container.decodeIfPresent(Double.self, forKey: .cueStartSeconds)
+        cueEndSeconds = try container.decodeIfPresent(Double.self, forKey: .cueEndSeconds)
+        media = try container.decode([String: [PipelineMediaFile]].self, forKey: .media)
+        source = try container.decode(MediaSearchSource.self, forKey: .source)
+        libraryAuthor = try container.decodeIfPresent(String.self, forKey: .libraryAuthor)
+        libraryGenre = try container.decodeIfPresent(String.self, forKey: .libraryGenre)
+        libraryLanguage = try container.decodeIfPresent(String.self, forKey: .libraryLanguage)
+        coverPath = try container.decodeIfPresent(String.self, forKey: .coverPath)
+        libraryPath = try container.decodeIfPresent(String.self, forKey: .libraryPath)
     }
 }
 
@@ -121,17 +118,10 @@ struct MediaSearchResponse: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        query = (try? container.decode(String.self, forKey: .query)) ?? ""
-        limit = (try? container.decode(Int.self, forKey: .limit)) ?? 25
-        count = (try? container.decode(Int.self, forKey: .count)) ?? 0
-        // Try to decode results, fall back to empty array if it fails.
-        // This helps detect decode issues when count > 0 but results is empty.
-        do {
-            results = try container.decode([MediaSearchResult].self, forKey: .results)
-        } catch {
-            mediaSearchApiModelsLogger.error("MediaSearchResponse failed to decode results: \(String(describing: error), privacy: .private)")
-            results = []
-        }
+        query = try container.decode(String.self, forKey: .query)
+        limit = try container.decode(Int.self, forKey: .limit)
+        count = try container.decode(Int.self, forKey: .count)
+        results = try container.decode([MediaSearchResult].self, forKey: .results)
     }
 
     init(query: String, limit: Int, count: Int, results: [MediaSearchResult]) {

@@ -109,9 +109,34 @@ describe('media API client', () => {
   });
 
   it('uses shared audio synthesis and pipeline search routes', async () => {
+    const searchPayload = {
+      query: 'origin',
+      limit: 3,
+      count: 1,
+      results: [
+        {
+          job_id: 'job/with?parts',
+          job_label: 'Origin Book',
+          base_id: 'chunk-1',
+          chunk_id: 'chunk-1',
+          range_fragment: '1-50',
+          start_sentence: 1,
+          end_sentence: 50,
+          snippet: 'The origin sentence.',
+          occurrence_count: 1,
+          match_start: 4,
+          match_end: 10,
+          text_length: 20,
+          offset_ratio: 0.2,
+          approximate_time_seconds: 12,
+          media: { text: [{ name: 'Text', source: 'completed' }] },
+          source: 'pipeline'
+        }
+      ]
+    };
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
       .mockResolvedValueOnce(new Response(new Blob(['audio'], { type: 'audio/mpeg' })))
-      .mockResolvedValueOnce(jsonResponse({ query: 'origin', limit: 3, count: 0, results: [] }));
+      .mockResolvedValueOnce(jsonResponse(searchPayload));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await synthesizeVoicePreview({
@@ -120,7 +145,7 @@ describe('media API client', () => {
       voice: 'tr-voice',
       speed: 1.1,
     });
-    await searchMedia('job/with?parts', ' origin ', 3);
+    await expect(searchMedia('job/with?parts', ' origin ', 3)).resolves.toEqual(searchPayload);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe('/api/audio');
@@ -130,6 +155,66 @@ describe('media API client', () => {
     expect(searchUrl.searchParams.get('job_id')).toBe('job/with?parts');
     expect(searchUrl.searchParams.get('query')).toBe('origin');
     expect(searchUrl.searchParams.get('limit')).toBe('3');
+  });
+
+  it('rejects malformed media search response payloads before playback jumps use them', async () => {
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ query: 'origin', limit: 3, count: 0 }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          query: 'origin',
+          limit: 3,
+          count: 2,
+          results: []
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          query: 'origin',
+          limit: 3,
+          count: 1,
+          results: [
+            {
+              job_id: 'job-1',
+              snippet: 'Origin',
+              occurrence_count: 1,
+              media: {},
+              source: 'unknown'
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          query: 'origin',
+          limit: 3,
+          count: 1,
+          results: [
+            {
+              job_id: 'job-1',
+              snippet: 'Origin',
+              occurrence_count: 1,
+              media: null,
+              source: 'pipeline'
+            }
+          ]
+        })
+      );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(searchMedia('job-1', 'origin', 3)).rejects.toThrow(
+      'Invalid media search response: missing results.'
+    );
+    await expect(searchMedia('job-1', 'origin', 3)).rejects.toThrow(
+      'Invalid media search response: count does not match results.'
+    );
+    await expect(searchMedia('job-1', 'origin', 3)).rejects.toThrow(
+      'Invalid media search result response: missing source.'
+    );
+    await expect(searchMedia('job-1', 'origin', 3)).rejects.toThrow(
+      'Invalid media search result response: missing media.'
+    );
   });
 
   it('uses shared offline export routes for create and download URLs', async () => {

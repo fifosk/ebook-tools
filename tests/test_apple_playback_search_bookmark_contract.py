@@ -12,6 +12,7 @@ SHARED = APPLE / "Features" / "Shared"
 INTERACTIVE = APPLE / "Features" / "InteractivePlayer"
 PLAYBACK = APPLE / "Features" / "Playback"
 SERVICES = APPLE / "Services"
+MODELS = APPLE / "Models"
 
 
 def _source(path: Path) -> str:
@@ -58,6 +59,21 @@ def test_media_search_normalizes_job_id_before_backend_lookup() -> None:
     assert "guard !trimmedJobId.isEmpty else" in api_client
     assert "URLQueryItem(name: \"job_id\", value: trimmedJobId)" in api_client
     assert "URLQueryItem(name: \"job_id\", value: jobId)" not in api_client
+
+
+def test_apple_media_search_decoder_requires_backend_result_shape() -> None:
+    api_models = _source(MODELS / "MediaSearchApiModels.swift")
+
+    assert "snippet = try container.decode(String.self, forKey: .snippet)" in api_models
+    assert "occurrenceCount = try container.decode(Int.self, forKey: .occurrenceCount)" in api_models
+    assert "media = try container.decode([String: [PipelineMediaFile]].self, forKey: .media)" in api_models
+    assert "source = try container.decode(MediaSearchSource.self, forKey: .source)" in api_models
+    assert "query = try container.decode(String.self, forKey: .query)" in api_models
+    assert "limit = try container.decode(Int.self, forKey: .limit)" in api_models
+    assert "count = try container.decode(Int.self, forKey: .count)" in api_models
+    assert "results = try container.decode([MediaSearchResult].self, forKey: .results)" in api_models
+    assert "results = []" not in api_models
+    assert "MediaSearchResponse failed to decode results" not in api_models
 
 
 def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:

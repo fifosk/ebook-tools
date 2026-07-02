@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "media-search-contract-strict",
+                    title: "Search jumps trust shaped results",
+                    detail: "Backend, Web, and Apple media search now require result lists, source labels, occurrence counts, snippets, and media buckets before playback jumps use them, turning malformed search payloads into clear errors instead of empty or stale results."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-default-sources-require-inventory",
                     title: "Default sources trust inventory",
                     detail: "Web and Apple Create now ignore backend Default sources provider ids that are not present in the loaded acquisition provider inventory, keeping book and video discovery aligned with readiness checks and required default-eligibility fields."

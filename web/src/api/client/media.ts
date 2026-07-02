@@ -635,7 +635,49 @@ export async function searchMedia(jobId: string | null | undefined, query: strin
   const response = await apiFetch(
     `${WEB_CREATE_RUNTIME_CONTRACT.pipelineSearchPath}?${params.toString()}`,
   );
-  return handleResponse<MediaSearchResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertMediaSearchResponse(payload);
+  return payload;
+}
+
+function assertMediaSearchResponse(payload: unknown): asserts payload is MediaSearchResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid media search response.');
+  }
+  assertPlaybackStateStringField(payload, 'query', 'media search');
+  assertPlaybackStateNumberField(payload, 'limit', 'media search');
+  assertPlaybackStateNumberField(payload, 'count', 'media search');
+  if (!Array.isArray(payload.results)) {
+    throw new Error('Invalid media search response: missing results.');
+  }
+  if (payload.count !== payload.results.length) {
+    throw new Error('Invalid media search response: count does not match results.');
+  }
+  payload.results.forEach(assertMediaSearchResult);
+}
+
+function assertMediaSearchResult(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid media search response: missing result entry.');
+  }
+  assertPlaybackStateStringField(payload, 'job_id', 'media search result');
+  assertPlaybackStateStringField(payload, 'snippet', 'media search result');
+  assertPlaybackStateNumberField(payload, 'occurrence_count', 'media search result');
+  assertMediaSearchSource(payload.source);
+  if (!isRecord(payload.media)) {
+    throw new Error('Invalid media search result response: missing media.');
+  }
+  Object.values(payload.media).forEach((entries) => {
+    if (!Array.isArray(entries) || entries.some((entry) => !isRecord(entry))) {
+      throw new Error('Invalid media search result response: invalid media.');
+    }
+  });
+}
+
+function assertMediaSearchSource(value: unknown): void {
+  if (value !== 'pipeline' && value !== 'library') {
+    throw new Error('Invalid media search result response: missing source.');
+  }
 }
 
 // Storage URL utilities

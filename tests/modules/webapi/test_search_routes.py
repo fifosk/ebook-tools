@@ -108,6 +108,22 @@ def api_app(tmp_path):
     app.dependency_overrides.clear()
 
 
+def test_media_search_openapi_marks_cross_surface_fields_required() -> None:
+    schemas = create_app().openapi()["components"]["schemas"]
+
+    response_required = set(schemas["MediaSearchResponse"]["required"])
+    hit_required = set(schemas["MediaSearchHit"]["required"])
+
+    assert {"query", "limit", "count", "results"} <= response_required
+    assert {
+        "job_id",
+        "snippet",
+        "occurrence_count",
+        "media",
+        "source",
+    } <= hit_required
+
+
 def test_search_returns_matching_snippet(api_app) -> None:
     app, file_locator = api_app
     job_id = "search-job"

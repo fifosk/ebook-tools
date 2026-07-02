@@ -149,7 +149,7 @@ class MediaSearchHit(BaseModel):
     start_sentence: Optional[int] = None
     end_sentence: Optional[int] = None
     snippet: str
-    occurrence_count: int = Field(default=0, ge=0)
+    occurrence_count: int = Field(ge=0)
     match_start: Optional[int] = None
     match_end: Optional[int] = None
     text_length: Optional[int] = None
@@ -157,8 +157,8 @@ class MediaSearchHit(BaseModel):
     approximate_time_seconds: Optional[float] = None
     cue_start_seconds: Optional[float] = None
     cue_end_seconds: Optional[float] = None
-    media: Dict[str, List[PipelineMediaFile]] = Field(default_factory=dict)
-    source: Literal["pipeline", "library"] = Field(default="pipeline")
+    media: Dict[str, List[PipelineMediaFile]]
+    source: Literal["pipeline", "library"]
     library_author: Optional[str] = Field(default=None, alias="libraryAuthor")
     library_genre: Optional[str] = Field(default=None, alias="libraryGenre")
     library_language: Optional[str] = Field(default=None, alias="libraryLanguage")
@@ -172,4 +172,4 @@ class MediaSearchResponse(BaseModel):
     query: str
     limit: int
     count: int
-    results: List[MediaSearchHit] = Field(default_factory=list)
+    results: List[MediaSearchHit]
