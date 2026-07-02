@@ -406,6 +406,23 @@ def test_validate_manifest_requires_backend_acquisition_runtime_expectations(
     ) in errors
 
 
+def test_validate_manifest_requires_backend_offline_export_runtime_expectations(
+    tmp_path: Path,
+) -> None:
+    runtime_expected = dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+    del runtime_expected["offlineExports.createPath"]
+    runtime_expected["offlineExports.playerTypes"] = ["interactive-video"]
+    path = _write_manifest(tmp_path, backend_runtime_expected=runtime_expected)
+
+    errors = module.validate_manifest(path)
+
+    assert "backend.runtimeExpected.offlineExports.createPath=None expected '/api/exports'" in errors
+    assert (
+        "backend.runtimeExpected.offlineExports.playerTypes=['interactive-video'] "
+        "expected ['interactive-text']"
+    ) in errors
+
+
 def test_validate_manifest_rejects_missing_aggregate_journey_profile(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

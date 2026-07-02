@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-offline-export-runtime-expected",
+                    title: "Pipeline pins export runtime",
+                    detail: "The reusable Apple pipeline manifest checker now derives required offline export runtime expectations from the backend descriptor, matching the source-discovery guard for stale backend checks."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-backend-diagnosis-guard",
                     title: "Pipeline guards source diagnosis",
                     detail: "The repo-owned shared pipeline helper now checks the local pipeline backend checker for the acquisition stale-runtime diagnosis so future pipeline edits do not blur backend drift with Apple client bugs."
