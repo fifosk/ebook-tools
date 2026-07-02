@@ -14,6 +14,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web Library pagination now lives in a focused controls component with rendered boundary coverage, keeping the Library page shell slimmer for the cross-surface redesign work.
 - Web Library selected-entry details now render through a focused details panel with overview, metadata, permissions, and empty-state coverage, further trimming the page shell before redesign.
 - Web Library selected-entry presentation now lives in a focused hook with direct coverage for book cover previews and TV/YouTube artwork metadata, trimming the page shell while preserving Library detail behavior.
+- Web Library permission resolution now lives in a focused hook with coverage for admin, owner, public, private, and grant-backed access, keeping row actions and details aligned while slimming the page shell.
 - Advanced visible Apple app versioning to `v2026.07.02.012`.
 
 ### 2026.07.02.011

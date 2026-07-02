@@ -44,10 +44,10 @@ import type { LibraryDetailTab } from './library/LibraryDetailTabs';
 import LibraryDetailsPanel from './library/LibraryDetailsPanel';
 import LibraryEntriesPanel from './library/LibraryEntriesPanel';
 import LibraryPaginationControls from './library/LibraryPaginationControls';
+import { useLibraryItemPermissions } from './library/useLibraryItemPermissions';
 import { useLibrarySelectedPresentation } from './library/useLibrarySelectedPresentation';
 import styles from './LibraryPage.module.css';
 import { downloadWithSaveAs } from '../utils/downloads';
-import { canAccessPolicy, normalizeRole } from '../utils/accessControl';
 import type { LibraryOpenInput, LibraryOpenRequest } from '../types/player';
 import { useAuth } from '../components/AuthProvider';
 
@@ -63,8 +63,6 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   const { session } = useAuth();
   const sessionUser = session?.user ?? null;
   const userId = sessionUser?.username ?? null;
-  const normalizedRole = normalizeRole(sessionUser?.role ?? null);
-  const isAdmin = normalizedRole === 'admin';
   const [query, setQuery] = useState('');
   const [effectiveQuery, setEffectiveQuery] = useState('');
   const [view, setView] = useState<LibraryViewMode>('flat');
@@ -106,28 +104,15 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   const [detailTab, setDetailTab] = useState<LibraryDetailTab>('overview');
   const [resumeEntries, setResumeEntries] = useState<ResumePositionEntry[]>([]);
 
-  const resolveItemPermissions = useCallback(
-    (item: LibraryItem) => {
-      const ownerId = item.ownerId ?? null;
-      const defaultVisibility = 'public';
-      const canView = canAccessPolicy(item.access ?? null, {
-        ownerId,
-        userId,
-        userRole: normalizedRole,
-        permission: 'view',
-        defaultVisibility
-      });
-      const canEdit = canAccessPolicy(item.access ?? null, {
-        ownerId,
-        userId,
-        userRole: normalizedRole,
-        permission: 'edit',
-        defaultVisibility
-      });
-      return { canView, canEdit, canExport: canView };
-    },
-    [normalizedRole, userId]
-  );
+  const {
+    isAdmin,
+    selectedPermissions,
+    resolveItemPermissions,
+  } = useLibraryItemPermissions({
+    selectedItem,
+    userId,
+    userRole: sessionUser?.role ?? null,
+  });
 
   const handleQueryChange = useCallback(
     (value: string) => {
@@ -583,10 +568,6 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
 
   const selectedPresentation = useLibrarySelectedPresentation(
     { selectedItem, isEditing, previewCoverUrl }
-  );
-  const selectedPermissions = useMemo(
-    () => (selectedItem ? resolveItemPermissions(selectedItem) : null),
-    [resolveItemPermissions, selectedItem]
   );
 
   const itemBuckets = useMemo(() => buildLibraryItemBuckets(items), [items]);
