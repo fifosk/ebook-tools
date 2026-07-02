@@ -38,6 +38,18 @@ class _ListLogger:
         self.messages.append(message % args if args else message)
 
 
+def test_bookmark_openapi_marks_playback_state_fields_required() -> None:
+    schema = create_app().openapi()["components"]["schemas"]
+
+    list_required = set(schema["PlaybackBookmarkListResponse"]["required"])
+    entry_required = set(schema["PlaybackBookmarkEntry"]["required"])
+    delete_required = set(schema["PlaybackBookmarkDeleteResponse"]["required"])
+
+    assert {"job_id", "bookmarks"} <= list_required
+    assert {"id", "job_id", "kind", "created_at", "label"} <= entry_required
+    assert {"deleted", "bookmark_id"} <= delete_required
+
+
 def _has_bookmark_metric_count(
     metrics_text: str,
     *,

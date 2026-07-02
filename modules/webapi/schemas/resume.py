@@ -35,7 +35,7 @@ class ResumePositionEntry(BaseModel):
 
 class ResumePositionResponse(BaseModel):
     job_id: str
-    entry: ResumePositionEntry | None = None
+    entry: ResumePositionEntry | None
 
 
 class ResumePositionListResponse(BaseModel):

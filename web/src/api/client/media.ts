@@ -163,7 +163,9 @@ export async function fetchPlaybackBookmarks(jobId: string): Promise<PlaybackBoo
       jobId
     )
   );
-  return handleResponse<PlaybackBookmarkListResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertPlaybackBookmarkListResponse(payload);
+  return payload;
 }
 
 export async function createPlaybackBookmark(
@@ -182,7 +184,9 @@ export async function createPlaybackBookmark(
       body: JSON.stringify(payload)
     }
   );
-  return handleResponse<PlaybackBookmarkEntry>(response);
+  const responsePayload = await handleResponse<unknown>(response);
+  assertPlaybackBookmarkEntry(responsePayload, 'bookmark create');
+  return responsePayload;
 }
 
 export async function deletePlaybackBookmark(
@@ -198,7 +202,48 @@ export async function deletePlaybackBookmark(
       method: 'DELETE'
     }
   );
-  return handleResponse<PlaybackBookmarkDeleteResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertPlaybackBookmarkDeleteResponse(payload);
+  return payload;
+}
+
+function assertPlaybackBookmarkListResponse(
+  payload: unknown
+): asserts payload is PlaybackBookmarkListResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid playback bookmark list response.');
+  }
+  assertPlaybackStateStringField(payload, 'job_id', 'playback bookmark list');
+  if (!Array.isArray(payload.bookmarks)) {
+    throw new Error('Invalid playback bookmark list response: missing bookmarks.');
+  }
+  payload.bookmarks.forEach((bookmark) => {
+    assertPlaybackBookmarkEntry(bookmark, 'playback bookmark list');
+  });
+}
+
+function assertPlaybackBookmarkEntry(
+  payload: unknown,
+  responseKind: string
+): asserts payload is PlaybackBookmarkEntry {
+  if (!isRecord(payload)) {
+    throw new Error(`Invalid ${responseKind} response: missing bookmark entry.`);
+  }
+  assertPlaybackStateStringField(payload, 'id', responseKind);
+  assertPlaybackStateStringField(payload, 'job_id', responseKind);
+  assertPlaybackStateBookmarkKind(payload.kind, responseKind);
+  assertPlaybackStateNumberField(payload, 'created_at', responseKind);
+  assertPlaybackStateStringField(payload, 'label', responseKind);
+}
+
+function assertPlaybackBookmarkDeleteResponse(
+  payload: unknown
+): asserts payload is PlaybackBookmarkDeleteResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid playback bookmark delete response.');
+  }
+  assertPlaybackStateBooleanField(payload, 'deleted', 'playback bookmark delete');
+  assertPlaybackStateStringField(payload, 'bookmark_id', 'playback bookmark delete');
 }
 
 // Export
@@ -211,6 +256,46 @@ export async function createExport(payload: ExportRequestPayload): Promise<Expor
     body: JSON.stringify(payload)
   });
   return handleResponse<ExportResponse>(response);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertPlaybackStateStringField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertPlaybackStateNumberField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'number' || !Number.isFinite(record[key])) {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertPlaybackStateBooleanField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'boolean') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertPlaybackStateBookmarkKind(value: unknown, responseKind: string): void {
+  if (value !== 'time' && value !== 'sentence') {
+    throw new Error(`Invalid ${responseKind} response: missing kind.`);
+  }
 }
 
 export function resolveExportDownloadUrl(response: ExportResponse): string {

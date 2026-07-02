@@ -4,6 +4,7 @@
 
 import type {
   ResumePositionDeleteResponse,
+  ResumePositionEntry,
   ResumePositionListResponse,
   ResumePositionPayload,
   ResumePositionResponse,
@@ -34,7 +35,9 @@ export async function fetchResumePositions(jobIds?: string[]): Promise<ResumePos
   const response = await apiFetch(
     `${WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumeListPath}${query ? `?${query}` : ''}`
   );
-  return handleResponse<ResumePositionListResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertResumePositionListResponse(payload);
+  return payload;
 }
 
 export async function fetchResumePosition(jobId: string): Promise<ResumePositionResponse> {
@@ -45,7 +48,9 @@ export async function fetchResumePosition(jobId: string): Promise<ResumePosition
       jobId
     )
   );
-  return handleResponse<ResumePositionResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertResumePositionResponse(payload);
+  return payload;
 }
 
 export async function saveResumePosition(
@@ -64,7 +69,9 @@ export async function saveResumePosition(
       body: JSON.stringify(payload),
     }
   );
-  return handleResponse<ResumePositionResponse>(response);
+  const responsePayload = await handleResponse<unknown>(response);
+  assertResumePositionResponse(responsePayload);
+  return responsePayload;
 }
 
 export async function clearResumePosition(jobId: string): Promise<ResumePositionDeleteResponse> {
@@ -78,5 +85,87 @@ export async function clearResumePosition(jobId: string): Promise<ResumePosition
       method: 'DELETE',
     }
   );
-  return handleResponse<ResumePositionDeleteResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertResumePositionDeleteResponse(payload);
+  return payload;
+}
+
+function assertResumePositionListResponse(
+  payload: unknown
+): asserts payload is ResumePositionListResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid resume position list response.');
+  }
+  if (!Array.isArray(payload.entries)) {
+    throw new Error('Invalid resume position list response: missing entries.');
+  }
+  payload.entries.forEach(assertResumePositionEntry);
+}
+
+function assertResumePositionResponse(payload: unknown): asserts payload is ResumePositionResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid resume position response.');
+  }
+  assertResumeStringField(payload, 'job_id', 'resume position');
+  if (payload.entry !== null) {
+    assertResumePositionEntry(payload.entry);
+  }
+}
+
+function assertResumePositionEntry(payload: unknown): asserts payload is ResumePositionEntry {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid resume position response: missing entry.');
+  }
+  assertResumeStringField(payload, 'job_id', 'resume position');
+  assertResumeKind(payload.kind);
+  assertResumeNumberField(payload, 'updated_at', 'resume position');
+}
+
+function assertResumePositionDeleteResponse(
+  payload: unknown
+): asserts payload is ResumePositionDeleteResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid resume position delete response.');
+  }
+  assertResumeBooleanField(payload, 'deleted', 'resume position delete');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertResumeStringField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertResumeNumberField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'number' || !Number.isFinite(record[key])) {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertResumeBooleanField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'boolean') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertResumeKind(value: unknown): void {
+  if (value !== 'time' && value !== 'sentence') {
+    throw new Error('Invalid resume position response: missing kind.');
+  }
 }

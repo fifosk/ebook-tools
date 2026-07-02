@@ -33,6 +33,20 @@ class _ListLogger:
         self.messages.append(message % args if args else message)
 
 
+def test_resume_openapi_marks_playback_state_fields_required() -> None:
+    schema = create_app().openapi()["components"]["schemas"]
+
+    list_required = set(schema["ResumePositionListResponse"]["required"])
+    response_required = set(schema["ResumePositionResponse"]["required"])
+    entry_required = set(schema["ResumePositionEntry"]["required"])
+    delete_required = set(schema["ResumePositionDeleteResponse"]["required"])
+
+    assert {"entries"} <= list_required
+    assert {"job_id", "entry"} <= response_required
+    assert {"job_id", "kind", "updated_at"} <= entry_required
+    assert {"deleted"} <= delete_required
+
+
 class _StubResumeService:
     def __init__(
         self,

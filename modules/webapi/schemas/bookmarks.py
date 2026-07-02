@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 BookmarkKind = Literal["time", "sentence"]
@@ -44,7 +44,7 @@ class PlaybackBookmarkEntry(BaseModel):
 
 class PlaybackBookmarkListResponse(BaseModel):
     job_id: str
-    bookmarks: list[PlaybackBookmarkEntry] = Field(default_factory=list)
+    bookmarks: list[PlaybackBookmarkEntry]
 
 
 class PlaybackBookmarkDeleteResponse(BaseModel):

@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  createPlaybackBookmark,
   createExport,
+  deletePlaybackBookmark,
   fetchJobMedia,
   fetchLiveJobMedia,
+  fetchPlaybackBookmarks,
   fetchSentenceImageInfo,
   fetchSentenceImageInfoBatch,
   fetchVoiceInventory,
@@ -140,6 +143,64 @@ describe('media API client', () => {
     expect(batchUrl.searchParams.get('sentence_numbers')).toBe('40,41,42');
     expect(String(fetchMock.mock.calls[2][0])).toContain(
       '/api/pipelines/jobs/job%2Fwith%3Fparts/media/images/sentences/42/regenerate'
+    );
+  });
+
+  it('validates playback bookmark response payloads', async () => {
+    const bookmark = {
+      id: 'bookmark-1',
+      job_id: 'job/with?parts',
+      kind: 'sentence',
+      created_at: 1_800_000_000,
+      label: 'Chapter turn',
+      sentence: 42,
+    };
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ job_id: 'job/with?parts', bookmarks: [bookmark] }))
+      .mockResolvedValueOnce(jsonResponse(bookmark))
+      .mockResolvedValueOnce(jsonResponse({ deleted: true, bookmark_id: 'bookmark-1' }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchPlaybackBookmarks('job/with?parts')).resolves.toEqual({
+      job_id: 'job/with?parts',
+      bookmarks: [bookmark],
+    });
+    await expect(
+      createPlaybackBookmark('job/with?parts', { label: 'Chapter turn', sentence: 42 })
+    ).resolves.toEqual(bookmark);
+    await expect(deletePlaybackBookmark('job/with?parts', 'bookmark-1')).resolves.toEqual({
+      deleted: true,
+      bookmark_id: 'bookmark-1',
+    });
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/bookmarks/job%2Fwith%3Fparts');
+    expect(String(fetchMock.mock.calls[2][0])).toContain(
+      '/api/bookmarks/job%2Fwith%3Fparts/bookmark-1'
+    );
+  });
+
+  it('rejects malformed playback bookmark response payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ job_id: 'job-1' }));
+    await expect(fetchPlaybackBookmarks('job-1')).rejects.toThrow(
+      'Invalid playback bookmark list response: missing bookmarks.'
+    );
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      id: 'bookmark-1',
+      job_id: 'job-1',
+      kind: 'sentence',
+      label: 'Missing timestamp',
+    }));
+    await expect(
+      createPlaybackBookmark('job-1', { label: 'Missing timestamp' })
+    ).rejects.toThrow('Invalid bookmark create response: missing created_at.');
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ deleted: true }));
+    await expect(deletePlaybackBookmark('job-1', 'bookmark-1')).rejects.toThrow(
+      'Invalid playback bookmark delete response: missing bookmark_id.'
     );
   });
 });
