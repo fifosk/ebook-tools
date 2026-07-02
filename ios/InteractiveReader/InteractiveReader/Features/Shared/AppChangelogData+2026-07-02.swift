@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-track-pill-real-lane-support",
+                    title: "Track pills match real lanes",
+                    detail: "Apple reader track pills now treat one-file combined audio as a mixed fallback rather than an independently selectable Translation lane, while two-stream combined audio and dedicated Original/Translation tracks still support single-track and both-track playback."
+                ),
+                AppChangelogEntry(
                     id: "backend-create-book-options-helper",
                     title: "Create defaults are focused",
                     detail: "Backend generated-book option/default construction now lives in a focused router support module, keeping /api/books/options easier to compare across Web Narrate Ebook and Apple Create while preserving the same response contract."

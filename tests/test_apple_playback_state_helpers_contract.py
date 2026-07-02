@@ -1119,15 +1119,29 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "viewModel.applySingleTrackSelection(resumeTrack, for: chunk)" in resume_track_body
     assert "viewModel.selectedAudioTrackID = targetID" not in resume_track_body
 
+    selection = _source("InteractivePlayerViewModel+Selection.swift")
     audio_support_body = _function_body(
         tracks,
         "func chunkSupportsAudioTrack(_ track: SequenceTrack, in chunk: InteractiveChunk) -> Bool",
     )
     assert "let dedicatedKind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation" in audio_support_body
     assert "option.kind == .combined" in audio_support_body
+    assert "case .original:" in audio_support_body
     assert "return !option.streamURLs.isEmpty" in audio_support_body
+    assert "case .translation:" in audio_support_body
+    assert "return option.streamURLs.count > 1" in audio_support_body
 
-    selection = _source("InteractivePlayerViewModel+Selection.swift")
+    selection_support_body = _function_body(
+        selection,
+        "private func chunkSupportsSingleTrack(_ track: SequenceTrack, in chunk: InteractiveChunk) -> Bool",
+    )
+    assert "let dedicatedKind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation" in selection_support_body
+    assert "option.kind == .combined" in selection_support_body
+    assert "case .original:" in selection_support_body
+    assert "return !option.streamURLs.isEmpty" in selection_support_body
+    assert "case .translation:" in selection_support_body
+    assert "return option.streamURLs.count > 1" in selection_support_body
+
     select_chunk_body = _function_body(
         selection,
         "func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil)",

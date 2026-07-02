@@ -456,7 +456,12 @@ extension InteractivePlayerView {
         }
         return chunk.audioOptions.contains { option in
             guard option.kind == .combined else { return false }
-            return !option.streamURLs.isEmpty
+            switch track {
+            case .original:
+                return !option.streamURLs.isEmpty
+            case .translation:
+                return option.streamURLs.count > 1
+            }
         }
     }
 

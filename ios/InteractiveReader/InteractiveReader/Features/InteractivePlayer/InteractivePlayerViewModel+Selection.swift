@@ -907,7 +907,13 @@ extension InteractivePlayerViewModel {
             return true
         }
         return chunk.audioOptions.contains { option in
-            option.kind == .combined && !option.streamURLs.isEmpty
+            guard option.kind == .combined else { return false }
+            switch track {
+            case .original:
+                return !option.streamURLs.isEmpty
+            case .translation:
+                return option.streamURLs.count > 1
+            }
         }
     }
 
