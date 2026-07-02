@@ -238,6 +238,8 @@ struct JobPlaybackView: View {
             isActive: viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying,
             reason: "jobAudioState"
         )
+        recoverPendingInteractiveAutoplayIfNeeded(reason: "jobAudioState")
+        recoverMutedAppleMusicBedNarrationIfNeeded(reason: "jobAudioState")
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()
     }
@@ -270,6 +272,42 @@ struct JobPlaybackView: View {
             true,
             duckOthers: musicVolume < appleMusicDuckingMixThreshold
         )
+    }
+
+    private func recoverPendingInteractiveAutoplayIfNeeded(reason: String) {
+        guard !isVideoPreferred else { return }
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        guard let pendingSentence = pendingInteractiveAutoplaySentence else { return }
+        guard viewModel.jobContext != nil else { return }
+        guard !viewModel.audioCoordinator.isPlaying ||
+            viewModel.audioCoordinator.nowPlayingPlayer == nil
+        else { return }
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Job recovering pending interactive autoplay reason=\(reason) sentence=\(pendingSentence)"
+        )
+        playbackLogger.info(
+            "Job playback recovering pending interactive autoplay reason=\(reason, privacy: .public) sentence=\(pendingSentence, privacy: .public)"
+        )
+        viewModel.jumpToSentence(pendingSentence, autoPlay: true)
+        resumeAppleMusicBedAfterInteractiveStartIfNeeded()
+    }
+
+    private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String) {
+        guard !isVideoPreferred else { return }
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        guard viewModel.audioCoordinator.isPlaybackRequested,
+              viewModel.audioCoordinator.isPlaying,
+              viewModel.audioCoordinator.volume <= 0.001,
+              !viewModel.isSequenceTransitioning
+        else { return }
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Job restoring muted Apple Music-bed narration reason=\(reason)"
+        )
+        playbackLogger.info(
+            "Job playback restoring muted Apple Music-bed narration reason=\(reason, privacy: .public)"
+        )
+        configureAppleMusicBedAudioSession()
+        viewModel.playForReaderTransport()
     }
 
     private func handleMusicKitPlaybackSurfaceChange() {
@@ -337,6 +375,8 @@ struct JobPlaybackView: View {
             isActive: viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying,
             reason: "jobWatchdog"
         )
+        recoverPendingInteractiveAutoplayIfNeeded(reason: "jobWatchdog")
+        recoverMutedAppleMusicBedNarrationIfNeeded(reason: "jobWatchdog")
         #if os(tvOS)
         if shouldReassertReaderTransportPauseAfterMusicPlay {
             playbackTransportDebugLog(

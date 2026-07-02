@@ -111,7 +111,7 @@ extension JobPlaybackView {
         }
     }
 
-    private func resumeAppleMusicBedAfterInteractiveStartIfNeeded() {
+    func resumeAppleMusicBedAfterInteractiveStartIfNeeded() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard lastReaderTransportAction != "play" else { return }
         #if os(tvOS)

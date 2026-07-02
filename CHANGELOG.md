@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Apple TV Music-bed watchdogs now recover reader starts that still have a pending interactive autoplay sentence but no reader player, and restore narration volume if reader audio is playing/requested but remains muted outside a sentence transition.
 - Apple reader original-only/translation-only end-of-batch anchors now survive slower NAS/device metadata hydration for up to 60 seconds, so the selected audio lane does not reset before the next batch becomes renderable.
 - Apple reader Job and Library autoplay now validate tracked resume/start sentences against the loaded job, allow start-only placeholder chunks to resolve their first sentence for metadata hydration, and share a longer bounded retry schedule, reducing stale-start autoplay stalls while tvOS Music-bed E2E remains under active hardening.
 - Apple E2E Xcode runs now go through a narrow retry wrapper that cleans stale result/DerivedData paths and retries once only for the known `mobile.notification_proxy` secure-connection simulator service failure, keeping tvOS Music-bed automation from stopping before app assertions.

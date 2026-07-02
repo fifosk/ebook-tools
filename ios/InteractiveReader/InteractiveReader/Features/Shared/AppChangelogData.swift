@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-watchdog-reader-recovery",
+                    title: "TV reader starts recover better",
+                    detail: "Apple TV Music-bed watchdogs now recover reader starts that still have a pending interactive autoplay sentence but no reader player, and restore narration volume if reader audio is playing or requested but remains muted outside a sentence transition."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-anchor-slow-hydration",
                     title: "Single-track batches wait longer",
                     detail: "Apple reader original-only and translation-only end-of-batch anchors now survive slower NAS and device metadata hydration for up to 60 seconds, so the selected audio lane does not reset before the next batch becomes renderable."

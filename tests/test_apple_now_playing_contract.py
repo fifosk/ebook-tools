@@ -587,7 +587,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "guard !viewModel.audioCoordinator.isPlaying else { return false }" not in job_interactive_resume_body
     job_interactive_start_music_body = _function_body(
         job_resume,
-        "private func resumeAppleMusicBedAfterInteractiveStartIfNeeded()",
+        "func resumeAppleMusicBedAfterInteractiveStartIfNeeded()",
     )
     assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in job_interactive_start_music_body
     assert 'guard lastReaderTransportAction != "play" else { return }' in job_interactive_start_music_body
@@ -926,7 +926,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "guard !viewModel.audioCoordinator.isPlaying else { return false }" not in library_interactive_resume_body
     library_interactive_start_music_body = _function_body(
         library_resume,
-        "private func resumeAppleMusicBedAfterInteractiveStartIfNeeded()",
+        "func resumeAppleMusicBedAfterInteractiveStartIfNeeded()",
     )
     assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in library_interactive_start_music_body
     assert 'guard lastReaderTransportAction != "play" else { return }' in library_interactive_start_music_body
@@ -1498,8 +1498,17 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     job_audio_state_body = _function_body(job, "private func handleAudioStateChange()")
     assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in job_audio_state_body
     assert "musicOwnership.updateReaderNarrationActivityForMusicBed(" in job_audio_state_body
+    assert 'recoverPendingInteractiveAutoplayIfNeeded(reason: "jobAudioState")' in job_audio_state_body
+    assert 'recoverMutedAppleMusicBedNarrationIfNeeded(reason: "jobAudioState")' in job_audio_state_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in job_audio_state_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_audio_state_body
+    assert "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)" in job
+    assert "viewModel.jumpToSentence(pendingSentence, autoPlay: true)" in job
+    assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in job
+    assert "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)" in job
+    assert "viewModel.audioCoordinator.volume <= 0.001" in job
+    assert "!viewModel.isSequenceTransitioning" in job
+    assert "viewModel.playForReaderTransport()" in job
     job_music_surface_body = _function_body(job, "private func handleMusicKitPlaybackSurfaceChange()")
     assert "if shouldMirrorAppleMusicPlayToNarration" in job_music_surface_body
     assert "viewModel.audioCoordinator.play()" in job_music_surface_body
@@ -1509,6 +1518,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "if shouldMirrorAppleMusicPauseToNarration" in job_music_surface_body
     assert 'mirrorAppleMusicPauseToReaderTransport(source: "musicSurface")' in job_music_surface_body
     job_watchdog_body = _function_body(job, "private func handleMusicKitReadingBedWatchdogTick()")
+    assert 'recoverPendingInteractiveAutoplayIfNeeded(reason: "jobWatchdog")' in job_watchdog_body
+    assert 'recoverMutedAppleMusicBedNarrationIfNeeded(reason: "jobWatchdog")' in job_watchdog_body
     assert 'mirrorAppleMusicPauseToReaderTransport(source: "watchdog")' in job_watchdog_body
     assert 'mirrorAppleMusicPauseToReaderTransport(source: "musicPlayReassert")' in job_watchdog_body
     job_mirror_pause_body = _function_body(job, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
@@ -1735,8 +1746,17 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.ownershipState != .appleMusicBed" in library
     library_audio_state_body = _function_body(library, "private func handleAudioStateChange()")
     assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in library_audio_state_body
+    assert 'recoverPendingInteractiveAutoplayIfNeeded(reason: "libraryAudioState")' in library_audio_state_body
+    assert 'recoverMutedAppleMusicBedNarrationIfNeeded(reason: "libraryAudioState")' in library_audio_state_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_audio_state_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_audio_state_body
+    assert "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)" in library
+    assert "viewModel.jumpToSentence(pendingSentence, autoPlay: true)" in library
+    assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in library
+    assert "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)" in library
+    assert "viewModel.audioCoordinator.volume <= 0.001" in library
+    assert "!viewModel.isSequenceTransitioning" in library
+    assert "viewModel.playForReaderTransport()" in library
     library_music_surface_body = _function_body(library, "private func handleMusicKitPlaybackSurfaceChange()")
     assert "if shouldMirrorAppleMusicPlayToNarration" in library_music_surface_body
     assert "viewModel.audioCoordinator.play()" in library_music_surface_body
@@ -1746,6 +1766,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "if shouldMirrorAppleMusicPauseToNarration" in library_music_surface_body
     assert 'mirrorAppleMusicPauseToReaderTransport(source: "musicSurface")' in library_music_surface_body
     library_watchdog_body = _function_body(library, "private func handleMusicKitReadingBedWatchdogTick()")
+    assert 'recoverPendingInteractiveAutoplayIfNeeded(reason: "libraryWatchdog")' in library_watchdog_body
+    assert 'recoverMutedAppleMusicBedNarrationIfNeeded(reason: "libraryWatchdog")' in library_watchdog_body
     assert 'mirrorAppleMusicPauseToReaderTransport(source: "watchdog")' in library_watchdog_body
     assert 'mirrorAppleMusicPauseToReaderTransport(source: "musicPlayReassert")' in library_watchdog_body
     library_mirror_pause_body = _function_body(library, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
