@@ -37,6 +37,14 @@ RESUME_OFFSET_LOG = """
 """
 
 
+RESUME_OFFSET_STABLE_RETRY_LOG = """
+1782670003.000 [PlaybackTransport] Library resume offset requested sentence=2190 time=14.250 sequence=true
+1782670003.050 [PlaybackTransport] Interactive sequence time seek accepted sentence=2190 time=14.250 track=translation
+1782670003.500 [PlaybackTransport] Library resume offset retry sentence=2190 time=14.250 sequence=true
+1782670003.550 [PlaybackTransport] Interactive sequence time seek accepted sentence=2190 time=14.250 track=translation
+"""
+
+
 RESUME_OFFSET_SINGLE_TRACK_LOG = """
 1782670003.000 [PlaybackTransport] Job resume offset requested sentence=42 time=8.125 sequence=false
 1782670003.050 [PlaybackTransport] Interactive time seek accepted sequence=false sentence=42 time=8.125
@@ -87,6 +95,32 @@ def test_resume_offset_playback_transport_log_validation_passes(tmp_path: Path) 
     log.write_text(RESUME_OFFSET_LOG, encoding="utf-8")
 
     assert module.validate_log(log, mode="resume-offset") == []
+
+
+def test_resume_offset_accepts_stable_sequence_retry_track(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(RESUME_OFFSET_STABLE_RETRY_LOG, encoding="utf-8")
+
+    assert module.validate_log(log, mode="resume-offset") == []
+
+
+def test_resume_offset_rejects_retry_that_flips_sequence_track(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        """
+1782670003.000 [PlaybackTransport] Job resume offset requested sentence=2190 time=14.250 sequence=true
+1782670003.050 [PlaybackTransport] Interactive sequence time seek accepted sentence=2190 time=14.250 track=translation
+1782670003.500 [PlaybackTransport] Job resume offset retry sentence=2190 time=14.250 sequence=true
+1782670003.550 [PlaybackTransport] Interactive sequence time seek accepted sentence=2190 time=14.250 track=original
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="resume-offset")
+
+    assert missing == [
+        "sequence resume retry changed track from translation to original for sentence 2190"
+    ]
 
 
 def test_resume_offset_accepts_single_track_exact_seek(tmp_path: Path) -> None:

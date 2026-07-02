@@ -1331,7 +1331,7 @@ extension InteractivePlayerViewModel {
                 )
                 return sequenceController.seekToSentence(
                     $0,
-                    preferredTrack: audioModeManager?.preferredTrack ?? .original
+                    preferredTrack: preferredTrack ?? sequenceController.currentTrack
                 )
             }) else {
                 playbackTransportDebugLog(

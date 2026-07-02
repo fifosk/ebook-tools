@@ -278,6 +278,12 @@ def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() 
     assert "sequenceController.seekToTime(" in selection_source
     assert "sequenceController.seekToTime(\n                time,\n                sentenceIndex: targetSentenceIndex" in selection_source
     assert "preferredTrack: preferredTrack ?? sequenceController.currentTrack" in selection_source
+    sequence_seek_body = selection_source.split("func seekSequencePlaybackWhenReady(", 1)[1].split(
+        "\n    private func sequenceTrackURL", 1
+    )[0]
+    assert "Interactive sequence time seek fallback=sentenceStart" in sequence_seek_body
+    assert "preferredTrack: preferredTrack ?? sequenceController.currentTrack" in sequence_seek_body
+    assert "preferredTrack: audioModeManager?.preferredTrack ?? .original" not in sequence_seek_body
     assert "selectChunk(id: chunk.id, autoPlay: false)" in selection_source
     assert "func resumePlaybackTime(_ time: Double, matches sentenceNumber: Int, in chunk: InteractiveChunk) -> Bool" in selection_source
     assert "resumeValidationTimingTracks(for: chunk)" in selection_source

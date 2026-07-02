@@ -166,17 +166,17 @@ final class AudioModeManager: ObservableObject {
         switch track {
         case .original:
             if nextOriginal && !nextTranslation {
-                // Currently only original is on - switch to only translation
-                nextOriginal = false
+                // Tapping the only active lane restores the full two-track sequence.
+                nextOriginal = true
                 nextTranslation = true
             } else {
                 nextOriginal.toggle()
             }
         case .translation:
             if nextTranslation && !nextOriginal {
-                // Currently only translation is on - switch to only original
-                nextTranslation = false
+                // Tapping the only active lane restores the full two-track sequence.
                 nextOriginal = true
+                nextTranslation = true
             } else {
                 nextTranslation.toggle()
             }

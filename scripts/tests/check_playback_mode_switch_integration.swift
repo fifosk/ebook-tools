@@ -1642,24 +1642,27 @@ private func runChecks() {
     )
     manager.toggle(.translation, preservingPosition: transcriptProvider.index)
     requireEqual(modeEvents.count, 2, "Second track toggle should emit a mode event")
-    requireEqual(modeEvents[1].0, .singleTrack(.original), "Translation-only toggle should switch to original-only")
+    requireEqual(modeEvents[1].0, .sequence, "Translation-only toggle should restore sequence mode")
     requireEqual(modeEvents[1].1, 6, "Transcript display position should be preserved")
-    requireEqual(manager.resolvePreferredTrackID(for: chunk), "original", "Original-only mode should prefer original")
-    requireInstruction(
+    requireEqual(manager.resolvePreferredTrackID(for: chunk), "combined", "Restored sequence mode should prefer combined audio")
+    requireSequenceInstruction(
         manager.resolveAudioInstruction(for: chunk, selectedTrackID: "combined"),
-        optionID: "original",
-        timing: .original,
-        "Original-only mode should route combined selection to original audio"
+        optionID: "combined",
+        "Restored sequence mode should route combined selection to sequence audio"
     )
     requireEqual(
         usesCombinedQueue(
-            isSequenceModeActive: false,
+            isSequenceModeActive: true,
             audioModeManager: manager,
             selectedOption: chunk.audioOptions.first { $0.id == "combined" }
         ),
-        false,
-        "Original-only mode should not add combined queue offsets"
+        true,
+        "Restored sequence mode should add combined queue offsets"
     )
+
+    manager.setTracks(original: true, translation: false, preservingPosition: nil)
+    requireEqual(modeEvents.count, 3, "Preparing sequence restore should emit an original-only mode event")
+    requireEqual(modeEvents[2].0, .singleTrack(.original), "Sequence restore setup should enter original-only mode")
 
     let pendingTarget = SentencePositionProvider.targetSentenceIndex(
         in: chunk,
@@ -1667,9 +1670,9 @@ private func runChecks() {
         pendingJump: .init(chunkID: "chapter-1", sentenceNumber: 102)
     )
     manager.enableSequenceMode(preservingPosition: pendingTarget)
-    requireEqual(modeEvents.count, 3, "Sequence restore should emit a mode event")
-    requireEqual(modeEvents[2].0, .sequence, "Pending jump restore should return to sequence mode")
-    requireEqual(modeEvents[2].1, 2, "Pending jump should preserve the resolved local sentence index")
+    requireEqual(modeEvents.count, 4, "Sequence restore should emit a mode event")
+    requireEqual(modeEvents[3].0, .sequence, "Pending jump restore should return to sequence mode")
+    requireEqual(modeEvents[3].1, 2, "Pending jump should preserve the resolved local sentence index")
     requireEqual(manager.resolvePreferredTrackID(for: chunk), "combined", "Sequence mode should prefer combined audio")
     requireSequenceInstruction(
         manager.resolveAudioInstruction(for: chunk, selectedTrackID: "combined"),
@@ -3150,9 +3153,9 @@ private func runChecks() {
         timeBasedIndex: { 3 }
     )
     manager.toggle(kind: .combined, preservingPosition: timeProvider.index)
-    requireEqual(modeEvents.count, 5, "Single-track to combined restore should emit a mode event")
-    requireEqual(modeEvents[4].0, .sequence, "Combined kind should restore sequence mode")
-    requireEqual(modeEvents[4].1, 3, "Time fallback position should be preserved")
+    requireEqual(modeEvents.count, 6, "Single-track to combined restore should emit a mode event")
+    requireEqual(modeEvents[5].0, .sequence, "Combined kind should restore sequence mode")
+    requireEqual(modeEvents[5].1, 3, "Time fallback position should be preserved")
 
     let explicitTarget = SentencePositionProvider.targetSentenceIndex(
         in: chunk,

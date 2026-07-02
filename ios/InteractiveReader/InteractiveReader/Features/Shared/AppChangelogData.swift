@@ -3,12 +3,27 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
-            version: "2026.07.02.007",
+            version: "2026.07.02.008",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-sequence-resume-retry-keeps-track",
+                    title: "First Translation resumes correctly",
+                    detail: "Apple reader sequence resume retries now keep the same resolved track as the initial in-sentence seek, preventing job open from starting in Translation and then retrying the first sentence on Original."
+                ),
+                AppChangelogEntry(
+                    id: "apple-resume-track-flip-log-check",
+                    title: "Resume logs catch track flips",
+                    detail: "Apple playback transport log verification now rejects sequence resume retries that change tracks for the same saved sentence and time, so physical Apple TV logs catch this regression directly."
+                ),
                 AppChangelogEntry(
                     id: "apple-header-language-pills-toggle-roles",
                     title: "Language pills toggle cleanly",
                     detail: "Apple reader header language pills now use true toggle semantics: when Original and Translation are both active, tapping Original disables only Original and keeps Translation active, with the symmetric behavior for Translation."
+                ),
+                AppChangelogEntry(
+                    id: "apple-single-track-pills-restore-both",
+                    title: "Single-track pills restore both",
+                    detail: "Apple reader track pills and shortcuts now keep Original-only and Translation-only as valid states, then restore both tracks when tapping the only active lane instead of swapping to the other lane."
                 ),
                 AppChangelogEntry(
                     id: "apple-visible-translation-beats-stale-original",

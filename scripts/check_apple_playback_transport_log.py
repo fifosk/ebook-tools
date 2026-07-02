@@ -141,6 +141,19 @@ TRANSPORT_EVENT_LINE_PATTERN = re.compile(
 )
 
 
+RESUME_OFFSET_REQUEST_LINE_PATTERN = re.compile(
+    r"^\d+(?:\.\d+)? \[PlaybackTransport\] (?P<surface>Job|Library) resume offset "
+    r"(?P<kind>requested|retry) sentence=(?P<sentence>\d+) time=(?P<time>\d+(?:\.\d+)?) "
+    r"sequence=true"
+)
+
+
+SEQUENCE_TIME_SEEK_ACCEPTED_LINE_PATTERN = re.compile(
+    r"^\d+(?:\.\d+)? \[PlaybackTransport\] Interactive sequence time seek accepted "
+    r"sentence=(?P<sentence>\d+) time=(?P<time>\d+(?:\.\d+)?) track=(?P<track>original|translation)"
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -257,24 +270,62 @@ def _consecutive_broker_pause_violations(text: str) -> list[str]:
 
 
 def _resume_offset_violations(text: str) -> list[str]:
+    violations: list[str] = []
     if re.search(
         r"\[PlaybackTransport\] (?:Job|Library) resume offset fallback=sentenceStart",
         text,
         flags=re.MULTILINE,
     ):
-        return ["reader resume offset fell back to the beginning of the sentence"]
+        violations.append("reader resume offset fell back to the beginning of the sentence")
     if re.search(
         r"\[PlaybackTransport\] Interactive sequence time seek fallback=sentenceStart",
         text,
         flags=re.MULTILINE,
     ):
-        return ["sequence resume offset fell back to the beginning of the sentence"]
+        violations.append("sequence resume offset fell back to the beginning of the sentence")
     if re.search(
         r"\[PlaybackTransport\] Interactive sequence time seek failed",
         text,
         flags=re.MULTILINE,
     ):
-        return ["sequence resume offset could not be applied"]
+        violations.append("sequence resume offset could not be applied")
+    violations.extend(_resume_retry_track_flip_violations(text))
+    return violations
+
+
+def _resume_retry_track_flip_violations(text: str) -> list[str]:
+    pending: tuple[str, str, str, str] | None = None
+    first_accepts: dict[tuple[str, str, str], str] = {}
+    for line in text.splitlines():
+        request_match = RESUME_OFFSET_REQUEST_LINE_PATTERN.match(line)
+        if request_match:
+            pending = (
+                request_match.group("surface"),
+                request_match.group("kind"),
+                request_match.group("sentence"),
+                request_match.group("time"),
+            )
+            continue
+        accepted_match = SEQUENCE_TIME_SEEK_ACCEPTED_LINE_PATTERN.match(line)
+        if not accepted_match or pending is None:
+            continue
+        surface, kind, sentence, requested_time = pending
+        accepted_sentence = accepted_match.group("sentence")
+        accepted_time = accepted_match.group("time")
+        if accepted_sentence != sentence or accepted_time != requested_time:
+            continue
+        track = accepted_match.group("track")
+        key = (surface, sentence, requested_time)
+        if kind == "requested":
+            first_accepts.setdefault(key, track)
+        elif kind == "retry":
+            first_track = first_accepts.get(key)
+            if first_track is not None and first_track != track:
+                return [
+                    "sequence resume retry changed track "
+                    f"from {first_track} to {track} for sentence {sentence}"
+                ]
+        pending = None
     return []
 
 

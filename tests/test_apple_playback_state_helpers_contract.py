@@ -126,8 +126,8 @@ def test_audio_mode_manager_swift_check_is_wired_into_apple_contracts() -> None:
     assert str(AUDIO_MODE_SWIFT_CHECK.relative_to(ROOT)) in check_script
     assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/AudioModeManager.swift" in check_script
     assert "manager.toggle(.original, preservingPosition: 4)" in swift_check
-    assert "manager.setTracks(original: false, translation: false, preservingPosition: 6)" in swift_check
-    assert "manager.toggle(kind: .combined, preservingPosition: 9)" in swift_check
+    assert "manager.setTracks(original: false, translation: false, preservingPosition: 7)" in swift_check
+    assert "manager.toggle(kind: .combined, preservingPosition: 10)" in swift_check
     assert "resolveAudioInstruction(for: chunk, selectedTrackID: \"combined\")" in swift_check
     assert "resolveTimingTrack(" in swift_check
 
@@ -159,7 +159,7 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "private func usesCombinedQueue(" in swift_check
     assert "if let audioModeManager, !audioModeManager.isSequenceMode" in swift_check
     assert "Translation-only mode should not add combined queue offsets" in swift_check
-    assert "Original-only mode should not add combined queue offsets" in swift_check
+    assert "Restored sequence mode should add combined queue offsets" in swift_check
     assert "Sequence mode should keep combined queue timing enabled" in swift_check
     assert "singleTrackNavigationTarget(" in swift_check
     assert "Translation-only next sentence at a chunk boundary should advance to the next displayed batch, not skip a batch" in swift_check
@@ -437,6 +437,15 @@ def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
     toggle_body = _function_body(source, "func toggle(_ track: SequenceTrack, preservingPosition currentSentenceIndex: Int? = nil)")
     assert "if nextOriginal && !nextTranslation" in toggle_body
     assert "if nextTranslation && !nextOriginal" in toggle_body
+    assert "Tapping the only active lane restores the full two-track sequence." in toggle_body
+    original_single_body = toggle_body.split("case .original:", 1)[1].split("case .translation:", 1)[0]
+    translation_single_body = toggle_body.split("case .translation:", 1)[1].split("applyTrackState(", 1)[0]
+    assert "nextOriginal = true" in original_single_body
+    assert "nextTranslation = true" in original_single_body
+    assert "nextOriginal = true" in translation_single_body
+    assert "nextTranslation = true" in translation_single_body
+    assert "nextOriginal = false" not in original_single_body
+    assert "nextTranslation = false" not in translation_single_body
     assert "preservingPosition: currentSentenceIndex" in toggle_body
 
     assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in tracks

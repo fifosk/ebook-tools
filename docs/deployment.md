@@ -448,8 +448,12 @@ make apple-device-pull-and-verify-playback-resume-offset-log \
 That mode looks only at token-safe numeric breadcrumbs: a Job/Library
 `resume offset requested` or retry line plus an Interactive exact `time seek
 accepted` line. It fails if the reader reports `fallback=sentenceStart` or a
-sequence time seek failure, which distinguishes a true last-word resume from the
-Cinema symptom where playback restarted at the beginning of the saved sentence.
+sequence time seek failure, and it also fails when a retry for the same saved
+sentence/time changes the accepted sequence track from Translation to Original
+or the reverse. That distinguishes a true last-word resume from the Cinema
+symptom where playback restarted at the beginning of the saved sentence and the
+Living Room symptom where opening a job accepted Translation first, then retried
+the same resume point on Original before the next Translation played.
 Each pull writes the familiar latest
 `test-results/apple-device-playback-transport-<device>.log` and preserves a
 timestamped sibling archive, with the raw CoreDevice copy log archived beside it,
