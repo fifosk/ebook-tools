@@ -13,15 +13,19 @@ import {
 } from '../video-dubbing/videoDubbingDiscovery';
 
 function provider(overrides: Partial<AcquisitionProvider>): AcquisitionProvider {
+  const mediaKinds = overrides.media_kinds ?? ['video'];
+  const discoveryMediaKinds = overrides.discovery_media_kinds ?? mediaKinds;
   return {
     id: 'nas_video',
     label: 'NAS videos',
-    media_kinds: ['video'],
+    media_kinds: mediaKinds,
     capabilities: ['import_local'],
     status: 'available',
     configured: true,
     available: true,
     rights: ['user_provided'],
+    discovery_media_kinds: discoveryMediaKinds,
+    default_eligible_media_kinds: overrides.default_eligible_media_kinds ?? discoveryMediaKinds,
     policy_notes: [],
     next_actions: [],
     ...overrides
@@ -78,7 +82,13 @@ describe('videoDubbingDiscovery', () => {
 
   it('keeps backend video providers in stable UI order and excludes acquire-only providers', () => {
     const options = buildVideoDiscoveryProviderOptions([
-      provider({ id: 'download_station', label: 'Download Station', capabilities: ['acquire'] }),
+      provider({
+        id: 'download_station',
+        label: 'Download Station',
+        capabilities: ['acquire'],
+        discovery_media_kinds: [],
+        default_eligible_media_kinds: []
+      }),
       provider({ id: 'youtube_url', label: 'YouTube URL backend', capabilities: ['metadata'], discovery_media_kinds: ['video'] }),
       provider({ id: 'youtube_search', label: 'YouTube backend', capabilities: ['search'] }),
       provider({ id: 'other_video', label: 'Other Video', capabilities: ['search'] }),
@@ -180,8 +190,19 @@ describe('videoDubbingDiscovery', () => {
 
   it('falls back to legacy explicit-only filtering when backend eligibility is absent', () => {
     const providers = [
-      provider({ id: 'youtube_url', label: 'YouTube URL backend', capabilities: ['metadata'], discovery_media_kinds: ['video'] }),
-      provider({ id: 'nas_video', label: 'NAS backend', capabilities: ['import_local'] })
+      provider({
+        id: 'youtube_url',
+        label: 'YouTube URL backend',
+        capabilities: ['metadata'],
+        discovery_media_kinds: ['video'],
+        default_eligible_media_kinds: undefined as unknown as AcquisitionProvider['default_eligible_media_kinds']
+      }),
+      provider({
+        id: 'nas_video',
+        label: 'NAS backend',
+        capabilities: ['import_local'],
+        default_eligible_media_kinds: undefined as unknown as AcquisitionProvider['default_eligible_media_kinds']
+      })
     ];
     const options = buildVideoDiscoveryProviderOptions(providers, { video: ['youtube_url', 'nas_video'] });
 

@@ -45,15 +45,19 @@ function video(overrides: Partial<YoutubeNasVideo> = {}): YoutubeNasVideo {
 }
 
 function provider(id: string, overrides: Partial<AcquisitionProvider> = {}): AcquisitionProvider {
+  const mediaKinds = overrides.media_kinds ?? ['video'];
+  const discoveryMediaKinds = overrides.discovery_media_kinds ?? mediaKinds;
   return {
     id,
     label: id,
-    media_kinds: ['video'],
+    media_kinds: mediaKinds,
     capabilities: ['search'],
     status: 'available',
     configured: true,
     available: true,
     rights: ['unknown'],
+    discovery_media_kinds: discoveryMediaKinds,
+    default_eligible_media_kinds: overrides.default_eligible_media_kinds ?? discoveryMediaKinds,
     policy_notes: [],
     next_actions: [],
     ...overrides

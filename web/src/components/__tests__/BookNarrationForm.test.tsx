@@ -6,6 +6,7 @@ import type {
   AcquisitionPreparedArtifactResponse,
   CreationTemplateEntry,
   AcquisitionDiscoveryResponse,
+  AcquisitionProvider,
   AcquisitionProviderListResponse,
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
@@ -47,6 +48,23 @@ vi.mock('../../api/client', () => ({
   synthesizeVoicePreview: vi.fn(),
   uploadEpubFile: vi.fn()
 }));
+
+type AcquisitionProviderFixture = Omit<
+  AcquisitionProvider,
+  'discovery_media_kinds' | 'default_eligible_media_kinds'
+> &
+  Partial<Pick<AcquisitionProvider, 'discovery_media_kinds' | 'default_eligible_media_kinds'>>;
+
+function acquisitionProvider(provider: AcquisitionProviderFixture): AcquisitionProvider {
+  const discoveryMediaKinds = provider.id === 'zlibrary_attended' ? [] : provider.media_kinds;
+  return {
+    discovery_media_kinds: provider.discovery_media_kinds ?? discoveryMediaKinds,
+    default_eligible_media_kinds:
+      provider.default_eligible_media_kinds ??
+      (provider.id === 'openlibrary' || provider.id === 'zlibrary_attended' ? [] : discoveryMediaKinds),
+    ...provider
+  };
+}
 
 const mockFileListing: PipelineFileBrowserResponse = {
   ebooks: [
@@ -289,7 +307,7 @@ const mockPreparedInternetArchiveArtifact: AcquisitionPreparedArtifactResponse =
 
 const mockAcquisitionProviders: AcquisitionProviderListResponse = {
   providers: [
-    {
+    acquisitionProvider({
       id: 'local_epub',
       label: 'Local EPUB library',
       media_kinds: ['book'],
@@ -300,8 +318,8 @@ const mockAcquisitionProviders: AcquisitionProviderListResponse = {
       rights: ['user_provided'],
       policy_notes: [],
       next_actions: []
-    },
-    {
+    }),
+    acquisitionProvider({
       id: 'manual_downloads',
       label: 'Manual download folders',
       media_kinds: ['book', 'video'],
@@ -312,8 +330,8 @@ const mockAcquisitionProviders: AcquisitionProviderListResponse = {
       rights: ['user_provided'],
       policy_notes: [],
       next_actions: []
-    },
-    {
+    }),
+    acquisitionProvider({
       id: 'gutenberg',
       label: 'Project Gutenberg/Gutendex',
       media_kinds: ['book'],
@@ -324,8 +342,8 @@ const mockAcquisitionProviders: AcquisitionProviderListResponse = {
       rights: ['public_domain', 'open_license'],
       policy_notes: [],
       next_actions: []
-    },
-    {
+    }),
+    acquisitionProvider({
       id: 'internet_archive',
       label: 'Internet Archive',
       media_kinds: ['book'],
@@ -336,8 +354,8 @@ const mockAcquisitionProviders: AcquisitionProviderListResponse = {
       rights: ['public_domain', 'open_license', 'unknown'],
       policy_notes: [],
       next_actions: []
-    },
-    {
+    }),
+    acquisitionProvider({
       id: 'openlibrary',
       label: 'Open Library metadata',
       media_kinds: ['book'],
@@ -348,8 +366,8 @@ const mockAcquisitionProviders: AcquisitionProviderListResponse = {
       rights: ['unknown'],
       policy_notes: [],
       next_actions: []
-    },
-    {
+    }),
+    acquisitionProvider({
       id: 'zlibrary_attended',
       label: 'Z-Library attended import',
       media_kinds: ['book'],
@@ -360,7 +378,7 @@ const mockAcquisitionProviders: AcquisitionProviderListResponse = {
       rights: ['unknown', 'restricted'],
       policy_notes: ['Direct Z-Library automation is intentionally disabled.'],
       next_actions: ['download_attended', 'place_in_manual_downloads']
-    }
+    })
   ],
   policy_notes: [],
   paths: {}
@@ -1392,7 +1410,7 @@ describe('BookNarrationForm', () => {
       ...mockAcquisitionProviders,
       providers: [
         ...mockAcquisitionProviders.providers,
-        {
+        acquisitionProvider({
           id: 'partner_catalog',
           label: 'Partner Catalog',
           media_kinds: ['book'],
@@ -1403,7 +1421,7 @@ describe('BookNarrationForm', () => {
           rights: ['unknown'],
           policy_notes: [],
           next_actions: []
-        }
+        })
       ]
     });
     const user = userEvent.setup();
@@ -1463,7 +1481,7 @@ describe('BookNarrationForm', () => {
     expect(discoverAcquisitionCandidates).toHaveBeenCalledTimes(1);
   });
 
-  it('shows Z-Library as an attended import path instead of searching it', async () => {
+  it('keeps Z-Library attended imports out of live source search', async () => {
     const user = userEvent.setup();
     await act(async () => {
       renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
@@ -1477,12 +1495,7 @@ describe('BookNarrationForm', () => {
     await waitFor(() => expect(fetchAcquisitionProviders).toHaveBeenCalled());
     await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenCalledTimes(1));
 
-    await user.click(await screen.findByRole('button', { name: /Z-Library import/i }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /Direct Z-Library automation is intentionally disabled/i
-    );
-    expect(screen.getByRole('button', { name: /^Search$/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Z-Library import/i })).not.toBeInTheDocument();
     expect(discoverAcquisitionCandidates).toHaveBeenCalledTimes(1);
   });
 

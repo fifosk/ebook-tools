@@ -144,6 +144,8 @@ describe('VideoDubbingPage', () => {
           configured: true,
           available: true,
           rights: ['user_provided'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video'],
           policy_notes: [],
           next_actions: ['choose_video']
         },
@@ -157,6 +159,7 @@ describe('VideoDubbingPage', () => {
           configured: true,
           available: true,
           rights: ['unknown', 'restricted'],
+          default_eligible_media_kinds: [],
           policy_notes: [],
           next_actions: ['inspect_url']
         },
@@ -169,6 +172,8 @@ describe('VideoDubbingPage', () => {
           configured: true,
           available: true,
           rights: ['unknown', 'restricted'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video'],
           policy_notes: [],
           next_actions: ['search', 'inspect_url']
         },
@@ -181,6 +186,8 @@ describe('VideoDubbingPage', () => {
           configured: true,
           available: true,
           rights: ['user_provided'],
+          discovery_media_kinds: ['book', 'video'],
+          default_eligible_media_kinds: ['book', 'video'],
           policy_notes: [],
           next_actions: ['select_local']
         },
@@ -193,6 +200,8 @@ describe('VideoDubbingPage', () => {
           configured: true,
           available: true,
           rights: ['unknown', 'restricted'],
+          discovery_media_kinds: [],
+          default_eligible_media_kinds: [],
           policy_notes: ['Reviewed handoff only.'],
           next_actions: ['confirm_acquisition', 'poll_download', 'import_local']
         },
@@ -205,6 +214,8 @@ describe('VideoDubbingPage', () => {
           configured: true,
           available: true,
           rights: ['unknown', 'restricted'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video'],
           policy_notes: ['Review-only metadata.'],
           next_actions: ['search', 'confirm_acquisition']
         }
@@ -676,6 +687,8 @@ describe('VideoDubbingPage', () => {
           configured: true,
           available: true,
           rights: ['user_provided'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video'],
           policy_notes: [],
           next_actions: ['choose_video']
         },
@@ -688,6 +701,8 @@ describe('VideoDubbingPage', () => {
           configured: true,
           available: true,
           rights: ['unknown'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video'],
           policy_notes: [],
           next_actions: ['search']
         }
@@ -1140,6 +1155,8 @@ describe('VideoDubbingPage', () => {
           configured: false,
           available: false,
           rights: ['unknown', 'restricted'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video'],
           policy_notes: ['Search uses the YouTube Data API when configured.'],
           next_actions: ['search', 'inspect_url']
         }

@@ -50,6 +50,8 @@ describe('YoutubeVideoPage', () => {
           configured: true,
           available: true,
           rights: ['unknown', 'restricted'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video'],
           policy_notes: [],
           next_actions: ['search', 'inspect_url']
         }
@@ -152,6 +154,8 @@ describe('YoutubeVideoPage', () => {
           configured: false,
           available: false,
           rights: ['unknown', 'restricted'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video'],
           policy_notes: ['Search uses the YouTube Data API when configured.'],
           next_actions: ['search', 'inspect_url']
         }
@@ -163,7 +167,7 @@ describe('YoutubeVideoPage', () => {
     render(<YoutubeVideoPage />);
 
     await screen.findByText(/YouTube search is not configured/i);
-    expect(screen.getByRole('button', { name: /^Search$/i })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: /^Search$/i }).some((button) => button.hasAttribute('disabled'))).toBe(true);
     expect(screen.getByLabelText(/YouTube URL/i)).toBeEnabled();
     expect(mockDiscoverAcquisitionCandidates).not.toHaveBeenCalled();
   });

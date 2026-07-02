@@ -14,15 +14,19 @@ const mockDiscoverAcquisitionCandidates = vi.mocked(discoverAcquisitionCandidate
 const mockFetchAcquisitionProviders = vi.mocked(fetchAcquisitionProviders);
 
 function provider(overrides: Partial<AcquisitionProvider>): AcquisitionProvider {
+  const mediaKinds = overrides.media_kinds ?? ['video'];
+  const discoveryMediaKinds = overrides.discovery_media_kinds ?? mediaKinds;
   return {
     id: 'nas_video',
     label: 'NAS videos',
-    media_kinds: ['video'],
+    media_kinds: mediaKinds,
     capabilities: ['import_local'],
     status: 'available',
     configured: true,
     available: true,
     rights: ['user_provided'],
+    discovery_media_kinds: discoveryMediaKinds,
+    default_eligible_media_kinds: overrides.default_eligible_media_kinds ?? discoveryMediaKinds,
     policy_notes: [],
     next_actions: [],
     ...overrides

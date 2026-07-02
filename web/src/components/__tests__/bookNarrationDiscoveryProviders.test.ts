@@ -14,15 +14,19 @@ import {
 } from '../book-narration/bookNarrationDiscoveryProviders';
 
 function provider(overrides: Partial<AcquisitionProvider>): AcquisitionProvider {
+  const mediaKinds = overrides.media_kinds ?? ['book'];
+  const discoveryMediaKinds = overrides.discovery_media_kinds ?? mediaKinds;
   return {
     id: 'local_epub',
     label: 'Local EPUB library',
-    media_kinds: ['book'],
+    media_kinds: mediaKinds,
     capabilities: ['import_local'],
     status: 'available',
     configured: true,
     available: true,
     rights: ['user_provided'],
+    discovery_media_kinds: discoveryMediaKinds,
+    default_eligible_media_kinds: overrides.default_eligible_media_kinds ?? discoveryMediaKinds,
     policy_notes: [],
     next_actions: [],
     ...overrides
