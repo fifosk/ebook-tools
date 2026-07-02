@@ -8,6 +8,11 @@ from typing import Any, Mapping
 
 from modules import config_manager as cfg
 
+from .provider_catalog import (
+    DISCOVERY_PROVIDER_MEDIA_KINDS,
+    discovery_media_kinds_for,
+    normalized_provider_id as _normalized_catalog_id,
+)
 from .provider_defaults import (
     default_discovery_provider_ids_from_readiness as _default_discovery_provider_ids_from_readiness,
     is_download_station_configured,
@@ -23,28 +28,6 @@ from .provider_roots import (
     resolve_manual_download_roots,
     resolve_video_root,
 )
-
-
-DISCOVERY_PROVIDER_MEDIA_KINDS: Mapping[str, tuple[str, ...]] = {
-    "gutenberg": ("book",),
-    "internet_archive": ("book",),
-    "local_epub": ("book",),
-    "manual_downloads": ("book", "video"),
-    "nas_video": ("video",),
-    "newznab_torznab": ("video",),
-    "openlibrary": ("book",),
-    "youtube_search": ("video",),
-    "youtube_url": ("video",),
-}
-
-def _normalized_catalog_id(value: str | None) -> str:
-    return str(value or "").strip().casefold()
-
-
-def discovery_media_kinds_for(provider_id: str) -> tuple[str, ...]:
-    """Return media kinds the provider supports through /api/acquisition/discover."""
-
-    return DISCOVERY_PROVIDER_MEDIA_KINDS.get(_normalized_catalog_id(provider_id), ())
 
 
 def default_discovery_provider_ids(

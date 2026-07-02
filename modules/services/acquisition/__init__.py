@@ -25,13 +25,15 @@ from .download_station import (
     resolve_download_station_config,
 )
 from .provider_registry import (
-    DISCOVERY_PROVIDER_MEDIA_KINDS,
     AcquisitionProvider,
     AcquisitionProviderRegistry,
     default_discovery_provider_ids,
-    discovery_media_kinds_for,
     is_indexer_search_configured,
     list_acquisition_providers,
+)
+from .provider_catalog import (
+    DISCOVERY_PROVIDER_MEDIA_KINDS,
+    discovery_media_kinds_for,
 )
 
 __all__ = [

@@ -8,10 +8,8 @@ from typing import Any
 
 import requests
 
-from .provider_registry import (
-    default_discovery_provider_ids,
-    discovery_media_kinds_for,
-)
+from .provider_catalog import discovery_media_kinds_for
+from .provider_registry import default_discovery_provider_ids
 from .discovery_planning import (
     order_default_discovery_candidates,
     provider_query_limit,

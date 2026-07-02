@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-provider-catalog-helper",
+                    title: "Provider routing is cleaner",
+                    detail: "Backend acquisition provider discoverability now lives in a focused catalog shared by discovery routing and the provider registry, reducing the chance that Web and Apple Create expose a provider the backend handler map cannot route."
+                ),
+                AppChangelogEntry(
                     id: "backend-provider-roots-direct-imports",
                     title: "Source handling is less coupled",
                     detail: "Backend acquisition file discovery, artifact preparation, and Download Station handoff now import source-root resolution from the focused provider-roots helper directly, keeping provider payload assembly out of reusable Web and Apple Create source paths."

@@ -702,6 +702,10 @@ Current Apple UI partially exposes:
   and the same helper now owns Gutendex API calls plus public-domain candidate
   construction, keeping Gutenberg behavior reusable for Web/Apple book
   discovery without reopening the shared provider fanout. Backend acquisition
+  provider discoverability now lives in
+  `modules/services/acquisition/provider_catalog.py`, so discovery routing and
+  the provider registry share provider/media-kind support without making
+  handlers depend on provider payload assembly. Backend acquisition
   discovery now dispatches provider calls through a registry-aligned routing
   table with direct coverage, keeping Web/Apple-visible provider metadata in
   lockstep with backend handlers. Default sources readiness now lives in

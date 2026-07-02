@@ -19,6 +19,7 @@ import modules.services.acquisition.indexer_discovery as indexer_discovery
 import modules.services.acquisition.internet_archive_discovery as internet_archive_discovery
 import modules.services.acquisition.models as acquisition_models
 import modules.services.acquisition.openlibrary_discovery as openlibrary_discovery
+import modules.services.acquisition.provider_catalog as provider_catalog
 import modules.services.acquisition.provider_defaults as provider_defaults
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
 import modules.services.acquisition.provider_roots as provider_roots
@@ -945,6 +946,7 @@ def test_discovery_router_has_handler_for_every_registered_provider() -> None:
     assert set(acquisition_discovery._PROVIDER_DISCOVERY_HANDLERS) == set(
         acquisition_provider_registry.DISCOVERY_PROVIDER_MEDIA_KINDS
     )
+    assert acquisition_discovery.discovery_media_kinds_for is provider_catalog.discovery_media_kinds_for
 
 
 def test_discover_zero_limit_skips_provider_scan(tmp_path: Path, monkeypatch) -> None:
