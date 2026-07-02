@@ -135,7 +135,7 @@ extension AppleBookCreatePresentation {
         let sourceProvider = preparedMetadata?["source_provider"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nonEmptyValue
-            ?? candidate.metadata?["source_provider"]?.stringValue?
+            ?? candidate.metadata["source_provider"]?.stringValue?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .nonEmptyValue
         if let sourceProvider {
@@ -144,7 +144,7 @@ extension AppleBookCreatePresentation {
         let acquisitionProvider = preparedMetadata?["acquisition_provider"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nonEmptyValue
-            ?? candidate.metadata?["acquisition_provider"]?.stringValue?
+            ?? candidate.metadata["acquisition_provider"]?.stringValue?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .nonEmptyValue
         if let acquisitionProvider {
@@ -153,7 +153,7 @@ extension AppleBookCreatePresentation {
         let acquisitionCandidateID = preparedMetadata?["acquisition_candidate_id"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nonEmptyValue
-            ?? candidate.metadata?["acquisition_candidate_id"]?.stringValue?
+            ?? candidate.metadata["acquisition_candidate_id"]?.stringValue?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .nonEmptyValue
         if let acquisitionCandidateID {
@@ -163,7 +163,7 @@ extension AppleBookCreatePresentation {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nonEmptyValue {
             state["source_kind"] = .string(sourceKind)
-        } else if let sourceKind = candidate.metadata?["source_kind"]?.stringValue?
+        } else if let sourceKind = candidate.metadata["source_kind"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nonEmptyValue {
             state["source_kind"] = .string(sourceKind)
@@ -265,7 +265,7 @@ extension AppleBookCreatePresentation {
         if let sourceURL = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
             return sourceURL
         }
-        return candidate.metadata?["youtube_url"]?.stringValue?
+        return candidate.metadata["youtube_url"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nonEmptyValue
     }
@@ -315,10 +315,10 @@ extension AppleBookCreatePresentation {
             if let sizeBytes = candidate.sizeBytes, sizeBytes > 0 {
                 details.append(ByteCountFormatter.string(fromByteCount: Int64(sizeBytes), countStyle: .file))
             }
-            if case let .number(seeders)? = candidate.metadata?["seeders"] {
+            if case let .number(seeders)? = candidate.metadata["seeders"] {
                 details.append("\(Int(seeders)) seeders")
             }
-            if case let .number(peers)? = candidate.metadata?["peers"] {
+            if case let .number(peers)? = candidate.metadata["peers"] {
                 details.append("\(Int(peers)) peers")
             }
             if isDownloadStationHandoffCandidate(candidate) {

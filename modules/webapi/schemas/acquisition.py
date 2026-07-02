@@ -72,10 +72,10 @@ class AcquisitionCandidatePayload(BaseModel):
     media_kind: AcquisitionMediaKind
     title: str
     rights: AcquisitionRights
-    capabilities: List[AcquisitionCapability] = Field(default_factory=list)
+    capabilities: List[AcquisitionCapability]
     candidate_token: str
     subtitle: str | None = None
-    contributors: List[str] = Field(default_factory=list)
+    contributors: List[str]
     language: str | None = None
     year: int | None = None
     published_at: str | None = None
@@ -86,18 +86,18 @@ class AcquisitionCandidatePayload(BaseModel):
     size_bytes: int | None = None
     modified_at: datetime | None = None
     duration_seconds: int | None = None
-    subtitles: List[AcquisitionSubtitleHintPayload] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    requires_confirmation: bool = False
-    policy_notes: List[str] = Field(default_factory=list)
+    subtitles: List[AcquisitionSubtitleHintPayload]
+    metadata: Dict[str, Any]
+    requires_confirmation: bool
+    policy_notes: List[str]
 
 
 class AcquisitionDiscoveryResponse(BaseModel):
     """Response for normalized discovery candidates."""
 
-    candidates: List[AcquisitionCandidatePayload] = Field(default_factory=list)
-    policy_notes: List[str] = Field(default_factory=list)
-    providers_queried: List[str] = Field(default_factory=list)
+    candidates: List[AcquisitionCandidatePayload]
+    policy_notes: List[str]
+    providers_queried: List[str]
 
 
 class AcquisitionAcquireRequest(BaseModel):

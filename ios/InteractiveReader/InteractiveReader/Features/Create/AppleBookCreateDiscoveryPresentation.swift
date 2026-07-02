@@ -206,7 +206,7 @@ extension AppleBookCreatePresentation {
         guard candidate.capabilities.contains("metadata") else {
             return nil
         }
-        var metadata = candidate.metadata ?? [:]
+        var metadata = candidate.metadata
         if let preparedMetadata {
             for (key, value) in preparedMetadata {
                 metadata[key] = value
@@ -237,7 +237,7 @@ extension AppleBookCreatePresentation {
     }
 
     static func internetArchiveSourceIDs(_ candidate: AcquisitionCandidate) -> [String] {
-        guard let metadataValue = candidate.metadata?["internet_archive_ids"] else {
+        guard let metadataValue = candidate.metadata["internet_archive_ids"] else {
             return []
         }
         let values = metadataValue.arrayValue ?? [metadataValue]

@@ -122,7 +122,7 @@ struct AppleCreationPayloadCheck {
                 && indexerCandidate.localPath == nil
                 && indexerCandidate.sizeBytes == 734003200
                 && indexerCandidate.contributors == ["Demo Indexer"]
-                && indexerCandidate.metadata?["seeders"] == .number(14),
+                && indexerCandidate.metadata["seeders"] == .number(14),
             "Apple indexer discovery should remain review-only metadata"
         )
         let indexerDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
@@ -388,12 +388,12 @@ struct AppleCreationPayloadCheck {
                 && openLibraryCandidate.sourceUrl == "https://openlibrary.org/works/OL45883W"
                 && openLibraryCandidate.localPath == nil
                 && !openLibraryCandidate.capabilities.contains("acquire")
-                && openLibraryCandidate.metadata?["openlibrary_work_key"] == .string("/works/OL45883W"),
+                && openLibraryCandidate.metadata["openlibrary_work_key"] == .string("/works/OL45883W"),
             "Apple Open Library discovery should remain metadata-only"
         )
         require(
-            openLibraryCandidate.metadata?["book_author"] == .string("Metadata Author")
-                && openLibraryCandidate.metadata?["cover_url"] == .string("https://covers.openlibrary.org/b/id/12345-L.jpg"),
+            openLibraryCandidate.metadata["book_author"] == .string("Metadata Author")
+                && openLibraryCandidate.metadata["cover_url"] == .string("https://covers.openlibrary.org/b/id/12345-L.jpg"),
             "Apple Open Library discovery should decode draft-friendly metadata"
         )
         require(
@@ -4013,7 +4013,7 @@ struct AppleCreationPayloadCheck {
         localPath: String? = nil,
         durationSeconds: Int? = nil,
         subtitles: [AcquisitionSubtitleHint] = [],
-        metadata: [String: JSONValue]? = nil
+        metadata: [String: JSONValue] = [:]
     ) -> AcquisitionCandidate {
         AcquisitionCandidate(
             candidateId: candidateId,

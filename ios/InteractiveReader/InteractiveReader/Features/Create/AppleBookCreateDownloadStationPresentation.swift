@@ -43,12 +43,12 @@ extension AppleBookCreatePresentation {
         guard candidate.provider == "newznab_torznab" else {
             return false
         }
-        if candidate.metadata?["handoff_provider"]?.stringValue?
+        if candidate.metadata["handoff_provider"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .localizedCaseInsensitiveCompare("download_station") == .orderedSame {
             return true
         }
-        return candidate.metadata?["has_download_url"]?.stringValue?
+        return candidate.metadata["has_download_url"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .localizedCaseInsensitiveCompare("true") == .orderedSame
     }

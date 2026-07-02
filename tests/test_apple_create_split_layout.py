@@ -3357,6 +3357,12 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "struct AcquisitionCandidate: Decodable, Equatable, Identifiable" in api_models_source
     assert "let candidateToken: String" in api_models_source
     assert "let localPath: String?" in api_models_source
+    assert re.search(
+        r"struct AcquisitionCandidate: Decodable, Equatable, Identifiable \{.*?"
+        r"let metadata: \[String: JSONValue\]\n",
+        api_models_source,
+        re.S,
+    )
     assert "struct AcquisitionDiscoveryResponse: Decodable, Equatable" in api_models_source
     assert "let defaultProviderIds: [String: [String]]" in api_models_source
     assert "struct AcquisitionJobCreateRequest: Encodable, Equatable" in api_models_source
@@ -3740,11 +3746,11 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "query: query" in source_actions
     assert "preparedMetadata: prepared.metadata" in source_actions
     assert "preparedMetadata: [String: JSONValue]? = nil" in video_discovery_source
-    assert '?? candidate.metadata?["source_provider"]?.stringValue?' in video_discovery_source
+    assert '?? candidate.metadata["source_provider"]?.stringValue?' in video_discovery_source
     assert 'state["acquisition_provider"] = .string(acquisitionProvider)' in video_discovery_source
-    assert '?? candidate.metadata?["acquisition_provider"]?.stringValue?' in video_discovery_source
+    assert '?? candidate.metadata["acquisition_provider"]?.stringValue?' in video_discovery_source
     assert 'state["acquisition_candidate_id"] = .string(acquisitionCandidateID)' in video_discovery_source
-    assert '?? candidate.metadata?["acquisition_candidate_id"]?.stringValue?' in video_discovery_source
+    assert '?? candidate.metadata["acquisition_candidate_id"]?.stringValue?' in video_discovery_source
     assert "prepared.videoPath?.trimmingCharacters" in source_actions
     assert "prepared.subtitlePath?.trimmingCharacters" in source_actions
     assert "prepared.subtitles.first?.path.trimmingCharacters" in source_actions
@@ -3877,9 +3883,9 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "static func filenameFromPath(" in video_discovery_source
     assert "static func videoDiscoveryCandidateDetail(" in video_discovery_source
     assert "static func isDownloadStationHandoffCandidate(_ candidate: AcquisitionCandidate) -> Bool" in download_station_source
-    assert 'candidate.metadata?["handoff_provider"]?.stringValue?' in download_station_source
+    assert 'candidate.metadata["handoff_provider"]?.stringValue?' in download_station_source
     assert '.localizedCaseInsensitiveCompare("download_station") == .orderedSame' in download_station_source
-    assert 'candidate.metadata?["has_download_url"]?.stringValue?' in download_station_source
+    assert 'candidate.metadata["has_download_url"]?.stringValue?' in download_station_source
     assert '.localizedCaseInsensitiveCompare("true") == .orderedSame' in download_station_source
     assert "Download Station handoff" in video_discovery_source
     assert "static func videoDiscoveryCandidateDetail(" not in discovery_source
