@@ -38,7 +38,9 @@ from .provider_registry import (
     list_acquisition_providers,
 )
 from .provider_catalog import (
+    ACQUISITION_PROVIDER_LABELS,
     DISCOVERY_PROVIDER_MEDIA_KINDS,
+    acquisition_provider_label,
     discovery_media_kinds_for,
 )
 
@@ -54,12 +56,14 @@ __all__ = [
     "AcquisitionSubtitleHint",
     "ACQUISITION_CAPABILITIES",
     "ACQUISITION_MEDIA_KINDS",
+    "ACQUISITION_PROVIDER_LABELS",
     "ACQUISITION_PROVIDER_STATUSES",
     "ACQUISITION_RIGHTS",
     "DISCOVERY_PROVIDER_MEDIA_KINDS",
     "DownloadStationConfig",
     "DownloadStationError",
     "acquire_acquisition_candidate",
+    "acquisition_provider_label",
     "default_discovery_provider_ids",
     "discovery_media_kinds_for",
     "discover_acquisition_candidates",

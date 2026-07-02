@@ -17,7 +17,7 @@ DISCOVERY_PROVIDER_MEDIA_KINDS: Mapping[str, tuple[str, ...]] = {
     "youtube_url": ("video",),
 }
 
-DISCOVERY_PROVIDER_LABELS: Mapping[str, str] = {
+ACQUISITION_PROVIDER_LABELS: Mapping[str, str] = {
     "download_station": "Synology Download Station",
     "gutenberg": "Project Gutenberg/Gutendex",
     "internet_archive": "Internet Archive",
@@ -42,8 +42,14 @@ def discovery_media_kinds_for(provider_id: str) -> tuple[str, ...]:
     return DISCOVERY_PROVIDER_MEDIA_KINDS.get(normalized_provider_id(provider_id), ())
 
 
-def discovery_provider_label(provider_id: str) -> str:
-    """Return the user-facing label for a known provider id."""
+def acquisition_provider_label(provider_id: str) -> str:
+    """Return the user-facing label for a known acquisition provider id."""
 
     normalized = normalized_provider_id(provider_id)
-    return DISCOVERY_PROVIDER_LABELS.get(normalized, str(provider_id or "").strip())
+    return ACQUISITION_PROVIDER_LABELS.get(normalized, str(provider_id or "").strip())
+
+
+def discovery_provider_label(provider_id: str) -> str:
+    """Return the user-facing label for a known discovery provider id."""
+
+    return acquisition_provider_label(provider_id)

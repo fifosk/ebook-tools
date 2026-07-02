@@ -722,6 +722,9 @@ def test_acquisition_provider_config_status_and_policy_notes(
 
 
 def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_path: Path) -> None:
+    provider_registry_source = (
+        ROOT / "modules" / "services" / "acquisition" / "provider_registry.py"
+    ).read_text(encoding="utf-8")
     registry = list_acquisition_providers(
         config={
             "ebooks_dir": str(tmp_path / "books"),
@@ -742,13 +745,19 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     assert discovery_media_kinds_for("download_station") == ()
     assert discovery_media_kinds_for("zlibrary_attended") == ()
     assert discovery_media_kinds_for("unknown_provider") == ()
-    assert provider_catalog.discovery_provider_label("newznab_torznab") == "Newznab/Torznab indexers"
-    assert provider_catalog.discovery_provider_label(" LOCAL_EPUB ") == "Local EPUB library"
-    assert provider_catalog.discovery_provider_label("unknown_provider") == "unknown_provider"
+    assert provider_catalog.acquisition_provider_label("newznab_torznab") == "Newznab/Torznab indexers"
+    assert provider_catalog.acquisition_provider_label(" LOCAL_EPUB ") == "Local EPUB library"
+    assert provider_catalog.acquisition_provider_label("unknown_provider") == "unknown_provider"
+    assert provider_catalog.discovery_provider_label("newznab_torznab") == (
+        provider_catalog.acquisition_provider_label("newznab_torznab")
+    )
     assert {
-        provider.id: provider_catalog.discovery_provider_label(provider.id)
+        provider.id: provider_catalog.acquisition_provider_label(provider.id)
         for provider in registry.providers
     } == {provider.id: provider.label for provider in registry.providers}
+    assert "acquisition_provider_label" in provider_registry_source
+    assert 'label="Local EPUB library"' not in provider_registry_source
+    assert 'label="Synology Download Station"' not in provider_registry_source
     assert registry.default_provider_ids == {
         "book": default_discovery_provider_ids("book", {}),
         "video": default_discovery_provider_ids("video", {}),

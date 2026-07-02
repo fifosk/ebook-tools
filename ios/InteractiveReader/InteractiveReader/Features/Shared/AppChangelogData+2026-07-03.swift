@@ -13,7 +13,7 @@ extension AppChangelogData {
         AppChangelogEntry(
             id: "backend-default-sources-friendly-provider-notes",
             title: "Default sources warnings read cleaner",
-            detail: "Backend acquisition discovery now formats partial Default sources provider failures with friendly provider labels such as Newznab/Torznab indexers instead of raw ids, so Web and Apple Create policy notes stay readable while remaining token-safe."
+            detail: "Backend acquisition now formats provider payload labels and partial Default sources provider failures from one shared catalog, using names such as Newznab/Torznab indexers instead of raw ids so Web and Apple Create policy notes stay readable while remaining token-safe."
         )
     ]
 }

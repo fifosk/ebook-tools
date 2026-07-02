@@ -18,6 +18,7 @@ from .discovery_values import (
 )
 from .provider_catalog import (
     DISCOVERY_PROVIDER_MEDIA_KINDS,
+    acquisition_provider_label,
     discovery_media_kinds_for,
     normalized_provider_id as _normalized_catalog_id,
 )
@@ -150,7 +151,7 @@ def list_acquisition_providers(
     providers = (
         AcquisitionProvider(
             id="local_epub",
-            label="Local EPUB library",
+            label=acquisition_provider_label("local_epub"),
             media_kinds=("book",),
             capabilities=("import_local", "metadata"),
             status="available" if readiness.books_root_readable else "not_configured",
@@ -167,7 +168,7 @@ def list_acquisition_providers(
         ),
         AcquisitionProvider(
             id="nas_video",
-            label="NAS video library",
+            label=acquisition_provider_label("nas_video"),
             media_kinds=("video",),
             capabilities=("import_local", "extract_subtitles", "metadata"),
             status="available" if readiness.video_root_readable else "not_configured",
@@ -184,7 +185,7 @@ def list_acquisition_providers(
         ),
         AcquisitionProvider(
             id="manual_downloads",
-            label="Manual download folders",
+            label=acquisition_provider_label("manual_downloads"),
             media_kinds=("book", "video"),
             capabilities=("import_local", "extract_subtitles", "metadata"),
             status="available" if readiness.readable_manual_roots else "not_configured",
@@ -204,7 +205,7 @@ def list_acquisition_providers(
         ),
         AcquisitionProvider(
             id="youtube_url",
-            label="YouTube URL",
+            label=acquisition_provider_label("youtube_url"),
             media_kinds=("video",),
             capabilities=("metadata", "acquire", "extract_subtitles"),
             status="available",
@@ -220,7 +221,7 @@ def list_acquisition_providers(
         ),
         AcquisitionProvider(
             id="youtube_search",
-            label="YouTube search",
+            label=acquisition_provider_label("youtube_search"),
             media_kinds=("video",),
             capabilities=("search", "metadata"),
             status="available" if readiness.youtube_search_configured else "not_configured",
@@ -236,7 +237,7 @@ def list_acquisition_providers(
         ),
         AcquisitionProvider(
             id="download_station",
-            label="Synology Download Station",
+            label=acquisition_provider_label("download_station"),
             media_kinds=("video",),
             capabilities=("acquire", "poll"),
             status="available" if readiness.download_station_configured else "not_configured",
@@ -251,7 +252,7 @@ def list_acquisition_providers(
         ),
         AcquisitionProvider(
             id="newznab_torznab",
-            label="Newznab/Torznab indexers",
+            label=acquisition_provider_label("newznab_torznab"),
             media_kinds=("video",),
             capabilities=("search", "metadata"),
             status="available" if readiness.indexer_search_configured else "not_configured",
@@ -266,7 +267,7 @@ def list_acquisition_providers(
         ),
         AcquisitionProvider(
             id="openlibrary",
-            label="Open Library metadata",
+            label=acquisition_provider_label("openlibrary"),
             media_kinds=("book",),
             capabilities=("search", "metadata"),
             status="available",
@@ -281,7 +282,7 @@ def list_acquisition_providers(
         ),
         AcquisitionProvider(
             id="zlibrary_attended",
-            label="Z-Library attended import",
+            label=acquisition_provider_label("zlibrary_attended"),
             media_kinds=("book",),
             capabilities=("import_local",),
             status="planned",
@@ -302,7 +303,7 @@ def list_acquisition_providers(
         ),
         AcquisitionProvider(
             id="gutenberg",
-            label="Project Gutenberg/Gutendex",
+            label=acquisition_provider_label("gutenberg"),
             media_kinds=("book",),
             capabilities=("search", "metadata", "acquire"),
             status="available",
@@ -317,7 +318,7 @@ def list_acquisition_providers(
         ),
         AcquisitionProvider(
             id="internet_archive",
-            label="Internet Archive",
+            label=acquisition_provider_label("internet_archive"),
             media_kinds=("book",),
             capabilities=("search", "metadata", "acquire"),
             status="available",

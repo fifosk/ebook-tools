@@ -8,7 +8,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Apple reader transport pauses now mute and stop sentence playback before latching the Apple Music bed, reject stale AVPlayer play callbacks after pause, and resume mirrored Music play through the reader transport helper so volume comes back with narration.
 - Apple Narrate EPUB discovery now disables stale template-restored book providers that the backend no longer advertises and shows the same unavailable-on-this-backend guidance and friendly provider labels as Web Create instead of leaving Search enabled.
-- Backend acquisition discovery now formats partial Default sources provider failures with friendly provider labels such as Newznab/Torznab indexers instead of raw ids, so Web and Apple Create policy notes stay readable while remaining token-safe.
+- Backend acquisition now formats provider payload labels and partial Default sources provider failures from one shared catalog, using names such as Newznab/Torznab indexers instead of raw ids so Web and Apple Create policy notes stay readable while remaining token-safe.
 - Advanced visible Apple app versioning to `v2026.07.03.001`.
 
 ## 2026-07-02

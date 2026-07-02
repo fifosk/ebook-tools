@@ -725,7 +725,9 @@ def test_backend_default_sources_friendly_provider_notes_are_visible_in_changelo
 
     assert 'id: "backend-default-sources-friendly-provider-notes"' in swift_changelog
     for source in (swift_changelog, markdown_changelog):
+        assert "provider payload labels" in source
         assert "partial Default sources provider failures" in source
+        assert "one shared catalog" in source
         assert "friendly provider labels" in source
         assert "Newznab/Torznab indexers" in source
         assert "token-safe" in source
