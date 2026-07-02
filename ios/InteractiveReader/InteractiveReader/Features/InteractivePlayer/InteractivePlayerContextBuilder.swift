@@ -641,7 +641,14 @@ enum JobContextBuilder {
             .lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
-        return tokens.contains { markers.contains($0) }
+        if tokens.contains(where: { markers.contains($0) }) {
+            return true
+        }
+
+        let compactName = normalizedAudioKey(rawName)
+        return markers.contains { marker in
+            compactName.contains("\(marker)audio")
+        }
     }
 
     private static func dedupedURLKey(for url: URL) -> String {

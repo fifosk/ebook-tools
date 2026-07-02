@@ -318,6 +318,22 @@ private func decodeTranslationAudioAliasFixture() throws -> PipelineMediaRespons
               ],
               "sentences": [],
               "audioTracks": {}
+            },
+            {
+              "chunkId": "chunk_alias_camel_file",
+              "rangeFragment": "00003-00003",
+              "startSentence": 3,
+              "endSentence": 3,
+              "files": [
+                {
+                  "name": "dubbedAudio.m4a",
+                  "url": "https://example.test/dubbedAudio.m4a",
+                  "relativePath": "chunk_alias_camel_file/dubbedAudio.m4a",
+                  "type": "audio"
+                }
+              ],
+              "sentences": [],
+              "audioTracks": {}
             }
           ]
         }
@@ -485,6 +501,13 @@ private func runChecks() throws {
     require(
         aliasFileChunk.audioOptions.contains { $0.kind == .translation && $0.label == "Translation" },
         "target_audio filename should become a selectable Translation audio option"
+    )
+    guard let aliasCamelFileChunk = translationAliasContext.chunk(withID: "chunk_alias_camel_file") else {
+        fail("Missing dubbedAudio file alias chunk")
+    }
+    require(
+        aliasCamelFileChunk.audioOptions.contains { $0.kind == .translation && $0.label == "Translation" },
+        "camelCase dubbedAudio filename should become a selectable Translation audio option"
     )
 }
 

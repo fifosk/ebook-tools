@@ -796,11 +796,13 @@ def test_apple_interactive_context_maps_target_audio_aliases_to_translation() ->
     assert '"translation", "translated", "target", "dubbed", "trans"' in audio_file_body
     assert '"translation", "translated", "target", "dubbed", "trans"' in label_body
     assert "return .translation" in audio_key_body
+    assert 'compactName.contains("\\(marker)audio")' in source
     swift_check = (ROOT / "scripts" / "tests" / "check_interactive_context_builder.swift").read_text(
         encoding="utf-8"
     )
     assert "translated_audio metadata key should become a selectable Translation audio option" in swift_check
     assert "target_audio filename should become a selectable Translation audio option" in swift_check
+    assert "camelCase dubbedAudio filename should become a selectable Translation audio option" in swift_check
 
 
 def test_docs_publish_shared_pipeline_targets() -> None:
