@@ -85,6 +85,26 @@ def build_sentence_splitter_capabilities() -> dict[str, object]:
     }
 
 
+def test_create_readiness_paths_follow_runtime_descriptor() -> None:
+    assert module.EXPECTED_CREATE_PATHS == module._runtime_descriptor.CREATION_DESCRIPTOR
+    assert module.EXPECTED_PIPELINE_FILES_PICKER_MIN_LIMIT == 1
+    assert module.EXPECTED_PIPELINE_FILES_PICKER_LIMIT == 200
+    assert module.EXPECTED_PIPELINE_FILES_PICKER_MAX_LIMIT == 500
+    for key in (
+        "pipelineCoverUploadPath",
+        "pipelineDefaultsPath",
+        "pipelineLlmModelsPath",
+        "pipelineSearchPath",
+        "imageNodeAvailabilityPath",
+        "audioVoicesPath",
+        "youtubeSubtitleDeletePath",
+        "youtubeVideoDeletePath",
+        "bookMetadataPreviewPath",
+        "bookMetadataCacheClearPath",
+    ):
+        assert key in module.EXPECTED_CREATE_PATHS
+
+
 def test_counts_backend_visible_sources() -> None:
     assert module.count_epubs(
         {

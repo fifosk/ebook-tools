@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-create-readiness-derived-runtime",
+                    title: "Readiness follows Create runtime",
+                    detail: "Apple Create readiness now derives its endpoint and picker-limit expectations from the public backend runtime descriptor so newly shared Web/Apple Create routes cannot drift behind copied preflight constants."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-release-contract-guard",
                     title: "Pipeline pins release metadata",
                     detail: "The reusable Apple pipeline manifest checker now validates the app release Info.plist path, EBOOK_TOOLS_RELEASE_VERSION key, and visible v-prefix used by deployment-delta reporting."
