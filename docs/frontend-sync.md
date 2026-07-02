@@ -446,6 +446,11 @@ Follow the suggested remediations to restore parity:
   a bed under narration, preserve the remembered Apple Music selection for the next reader resume, and clear
   stale pause-ignore state on reader resume so
   Apple Music cannot immediately resume narration or promote fullscreen artwork.
+  Post-resume Music pause observations are stale only during the short echo
+  window or while narration is not yet audible; after
+  `isNarrationAudibleForReaderTransport` becomes true, the first real Music
+  pause must mirror into reader transport so one remote press stops both bed and
+  sentence audio.
   On tvOS, active primary narration and Music fullscreen-artwork suppression
   share one idle-timer owner so sentence pauses cannot clear the fanart guard
   while the reader is foreground. Use `.mixWithOthers` plus
@@ -533,7 +538,11 @@ Follow the suggested remediations to restore parity:
   DEBUG status includes `stickySequenceResumes=N` for cases where a validated
   sequence handoff preserves the captured reader play intent even if lookup
   pronunciation or an audio-session transition transiently clears the coordinator
-  request flag before seek completion. The
+  request flag before seek completion. The tvOS status overlay computes
+  `audible=true` from a single live snapshot of requested playback, reader
+  `isPlaying`, volume, and transition state; do not feed it a parent-provided
+  cached audible flag, because recovery can make those values diverge during
+  startup. The
   iPhone and iPad code paths should treat passive MusicKit non-playing
   observations during active narration as transient bed interruptions to recover.
   On tvOS, an Apple Music non-playing observation while Apple Music is the

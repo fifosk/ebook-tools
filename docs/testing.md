@@ -135,7 +135,12 @@ checks the debug
 (`audible=true`, `volume=on`, `transitioning=false`) before accepting
 `music=playing` while Music is used as the bed, so it proves Job/Library reader
 transport command handling, reader surface ownership, and the tvOS Music artwork
-suppression path fired, not only the final MusicKit/Now Playing state. The tvOS
+suppression path fired, not only the final MusicKit/Now Playing state. The
+journey intentionally accepts either the deferred Music-resume route or the
+stalled-reader recovery route; do not require the
+`interactiveDeferredMusicResumes` counter on tvOS if `reader=playing`,
+`audible=true`, `volume=on`, `transitioning=false`, `music=playing`, and
+`surface=reader` are all proven after interactive start. The tvOS
 branch also taps the debug observed-Music
 pause control and requires `phase=observedPauseImmediate`,
 `readerTransportCommands=0`, `reader=paused`, `music=paused`,
