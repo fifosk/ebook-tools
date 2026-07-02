@@ -111,6 +111,12 @@ Follow the suggested remediations to restore parity:
   tolerant of those aliases and of translation-only timing payloads without a mix
   track so cached, archived, and offline media do not grey out the Translation
   pill while the media endpoint is already corrected.
+  Completed jobs may also return `/media` chunks with playable Original and
+  Translation audio/timing lanes before lazy sentence metadata has hydrated.
+  Apple text-track availability must therefore be audio-backed during that
+  placeholder state: dedicated translation audio or a combined stream with a
+  translation lane keeps the Translation pill/selectable row alive until the
+  chunk metadata fetch fills real tokens.
   If the manager and selected picker id both briefly reset to sequence/combined
   at a batch boundary, the single audio lane that was actually loaded is still
   authoritative for Original-only or Translation-only playback while the sequence
@@ -333,7 +339,10 @@ Follow the suggested remediations to restore parity:
   mode is active, the enabled audio track is authoritative for sentence timing;
   stale `AVPlayer.activeURL` values or an installed sequence controller plan
   from the previous original/translation file must not override the explicit
-  Original-only or Translation-only mode.
+  Original-only or Translation-only mode. Empty lazy chunks should not collapse
+  text-track availability to Original-only when their audio options prove that
+  Translation is playable; the executable Swift playback harness covers both
+  dedicated-audio and combined-audio lazy chunk shapes.
 - Apple playback must sort backend chunk manifests into canonical sentence
   order before building `JobContext.nextChunk` / `previousChunk`. Book jobs can
   emit `generated_files.chunks[]` in parallel completion order, so TV/iPad/iPhone

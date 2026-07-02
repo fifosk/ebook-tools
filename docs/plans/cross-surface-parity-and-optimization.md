@@ -1030,6 +1030,13 @@ Current Apple UI partially exposes:
   `applySingleTrackSelection` helper as chunk handoff instead of only assigning a
   matching option id, so the durable loaded lane survives the next batch
   boundary.
+  Text-track availability now also follows playable audio lanes while lazy chunk
+  metadata hydrates: completed media chunks that initially expose audio options
+  but no inline sentences keep Original and Translation selectable from
+  dedicated or combined audio lanes until the metadata fetch fills real token
+  rows. The executable playback mode-switch harness covers both dedicated-audio
+  and combined-audio lazy chunk shapes so Apple TV cannot regress to a grey
+  Translation pill in that placeholder state.
   Destination language pills prefer authoritative target-language request/config
   fields instead of broad nested metadata scans. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
