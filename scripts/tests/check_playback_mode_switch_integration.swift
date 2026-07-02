@@ -3052,6 +3052,25 @@ private func runChecks() {
         optionID: "combined-next",
         "Sequence-mode batch handoff should prefer the current chunk's combined option over a valid stale single-track selection"
     )
+    let dedicatedSequenceBatch = InteractiveChunk(
+        id: "chapter-2-dedicated",
+        startSentence: 104,
+        sentences: [
+            .init(id: 4, displayIndex: 104, startGate: 0.0, originalStartGate: 0.0)
+        ],
+        audioOptions: [
+            audioOption("original-dedicated", kind: .original, urls: [originalURL]),
+            audioOption("translation-dedicated", kind: .translation, urls: [translationURL])
+        ]
+    )
+    requireSequenceInstruction(
+        sequenceBoundaryManager.resolveAudioInstruction(
+            for: dedicatedSequenceBatch,
+            selectedTrackID: "original-dedicated"
+        ),
+        optionID: "original-dedicated",
+        "Sequence-mode startup should use dedicated original and translation lanes when no combined option exists"
+    )
     let placeholderNextBatch = InteractiveChunk(
         id: "chapter-3-placeholder",
         startSentence: 106,

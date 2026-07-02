@@ -429,6 +429,10 @@ sequence_mode_active_body = function_body(
 )
 if "guard audioModeManager?.isSequenceMode != false else" not in sequence_mode_active_body:
     fail("single-track mode must beat stale sequence-controller state for slider and skip handling")
+if "sequenceController.originalTrackURL != nil" not in sequence_mode_active_body:
+    fail("sequence mode must stay active for dedicated original/translation audio pairs")
+if "sequenceController.translationTrackURL != nil" not in sequence_mode_active_body:
+    fail("sequence mode must require a dedicated translation URL when no combined track is selected")
 playback_time_body = function_body(
     playback_source,
     "func playbackTime(for chunk: InteractiveChunk) -> Double",

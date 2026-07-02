@@ -368,7 +368,12 @@ extension AudioModeManager {
             if let combinedOption = chunk.audioOptions.first(where: { $0.kind == .combined }) {
                 return .sequence(combinedOption: combinedOption)
             }
-            // Selected track isn't combined — play it directly
+            let hasDedicatedOriginal = chunk.audioOptions.contains { $0.kind == .original && !$0.streamURLs.isEmpty }
+            let hasDedicatedTranslation = chunk.audioOptions.contains { $0.kind == .translation && !$0.streamURLs.isEmpty }
+            if hasDedicatedOriginal && hasDedicatedTranslation {
+                return .sequence(combinedOption: track)
+            }
+            // Selected track isn't combined and the chunk cannot form a sequence pair — play it directly.
             return .singleOption(option: track, timingTrack: timingTrackForKind(track.kind))
 
         case .singleTrack(let enabledTrack):

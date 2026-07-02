@@ -222,7 +222,12 @@ Follow the suggested remediations to restore parity:
   shortcuts, expected-position highlight time, and sequence time observer must
   all be gated by `isSequenceModeActive`, otherwise a settling sequence plan can
   keep rendering or advancing the previous mode while translation-only audio is
-  already playing. Resume restores must apply the saved single-track mode before
+  already playing. All/sequence playback should prefer a combined audio option
+  when present, but it must also enter the same sentence-plan path for chunks
+  that expose separate Original and Translation audio lanes without a combined
+  option; otherwise startup can play the first selected Original file and stop
+  instead of alternating sentence tracks. Resume restores must apply the saved
+  single-track mode before
   `jumpToTime` / `jumpToSentence`, and `InteractivePlayerView` must consume the
   pending resume track before defaulting visible tracks back to All; sequence
   resumes should not persist the current segment track as if it were a

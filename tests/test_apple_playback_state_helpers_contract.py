@@ -134,6 +134,7 @@ def test_audio_mode_manager_swift_check_is_wired_into_apple_contracts() -> None:
     assert "manager.setTracks(original: false, translation: false, preservingPosition: 10)" in swift_check
     assert "manager.toggle(kind: .combined, preservingPosition: 13)" in swift_check
     assert "resolveAudioInstruction(for: chunk, selectedTrackID: \"combined\")" in swift_check
+    assert "Sequence mode should use dedicated original and translation lanes when no combined option exists" in swift_check
     assert "resolveTimingTrack(" in swift_check
 
 
@@ -224,6 +225,7 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Once live\n  playback reaches the anchored sentence, the anchor must be consumed/cleared" in frontend_sync
     assert "first following translated sentence is rendered from live audio time" in frontend_sync
     assert "chunk/batch setup must preserve that single-track audio mode" in frontend_sync
+    assert "separate Original and Translation audio lanes without a combined\n  option" in frontend_sync
     assert "keeping all renderable transcript tracks visible" in frontend_sync
     assert "based on playable audio options too, not only currently hydrated visible text\n  tracks" in frontend_sync
     assert "Passive hydrated-batch text/audio sync must not expand a remembered single-track lane" in frontend_sync
@@ -233,6 +235,8 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     sequence_source = (INTERACTIVE / "InteractivePlayerViewModel+Sequence.swift").read_text(encoding="utf-8")
     sequence_active_body = sequence_source.split("var isSequenceModeActive: Bool", 1)[1].split("\n}", 1)[0]
     assert "guard audioModeManager?.isSequenceMode != false else" in sequence_active_body
+    assert "sequenceController.originalTrackURL != nil" in sequence_active_body
+    assert "sequenceController.translationTrackURL != nil" in sequence_active_body
 
 
 def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
@@ -533,6 +537,7 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     assert "return .sequence(combinedOption: track)" in instruction_body
     assert "chunk.audioOptions.first(where: { $0.kind == .combined })" in instruction_body
     assert "return .sequence(combinedOption: combinedOption)" in instruction_body
+    assert "hasDedicatedOriginal && hasDedicatedTranslation" in instruction_body
     assert "case .singleTrack(let enabledTrack):" in instruction_body
     assert "return resolveSingleFromCombined" in instruction_body
     assert "track.kind == audioOptionKind(for: enabledTrack)" in instruction_body

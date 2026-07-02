@@ -275,6 +275,15 @@ private func runChecks() {
         sequenceID: "combined",
         "Sequence mode should use the combined option"
     )
+    let dedicatedPairChunk = InteractiveChunk(
+        id: "dedicated-pair",
+        audioOptions: [original, translation]
+    )
+    requireInstruction(
+        manager.resolveAudioInstruction(for: dedicatedPairChunk, selectedTrackID: "original"),
+        sequenceID: "original",
+        "Sequence mode should use dedicated original and translation lanes when no combined option exists"
+    )
 
     manager.setTracks(original: true, translation: false)
     requireInstruction(

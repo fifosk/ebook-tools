@@ -81,21 +81,28 @@ extension InteractivePlayerViewModel {
             )
         }
 
-        guard let trackID = selectedAudioTrackID,
-              let track = chunk.audioOptions.first(where: { $0.id == trackID }),
-              track.kind == .combined else {
+        let selectedTrack = selectedAudioTrackID.flatMap { trackID in
+            chunk.audioOptions.first(where: { $0.id == trackID })
+        }
+        let combinedTrack = {
+            if selectedTrack?.kind == .combined {
+                return selectedTrack
+            }
+            return chunk.audioOptions.first { $0.kind == .combined }
+        }()
+        let originalTrack = chunk.audioOptions.first { $0.kind == .original }
+        let translationTrack = chunk.audioOptions.first { $0.kind == .translation }
+
+        guard combinedTrack != nil
+                || (originalTrack?.streamURLs.isEmpty == false && translationTrack?.streamURLs.isEmpty == false) else {
             if Self.sequenceDebug {
                 interactiveSequenceLogger.debug(
-                    "Configure sequence guard failed: trackID=\(self.selectedAudioTrackID ?? "nil", privacy: .private), track.kind != combined"
+                    "Configure sequence guard failed: trackID=\(self.selectedAudioTrackID ?? "nil", privacy: .private), no combined or dedicated sequence pair"
                 )
             }
             sequenceController.reset()
             return
         }
-
-        // Get the original and translation tracks
-        let originalTrack = chunk.audioOptions.first { $0.kind == .original }
-        let translationTrack = chunk.audioOptions.first { $0.kind == .translation }
 
         guard let originalURL = originalTrack?.primaryURL,
               let translationURL = translationTrack?.primaryURL else {
@@ -103,9 +110,13 @@ extension InteractivePlayerViewModel {
             if Self.sequenceDebug {
                 interactiveSequenceLogger.debug("Configure sequence: no separate tracks available, falling back to combined track URLs")
             }
+            guard let combinedTrack else {
+                sequenceController.reset()
+                return
+            }
             sequenceController.reset()
-            audioCoordinator.load(urls: track.streamURLs, autoPlay: autoPlay)
-            selectedTimingURL = track.timingURL ?? track.streamURLs.first
+            audioCoordinator.load(urls: combinedTrack.streamURLs, autoPlay: autoPlay)
+            selectedTimingURL = combinedTrack.timingURL ?? combinedTrack.streamURLs.first
             return
         }
 
@@ -271,8 +282,13 @@ extension InteractivePlayerViewModel {
         } else {
             if Self.sequenceDebug { interactiveSequenceLogger.debug("Configure sequence: sequence mode unavailable, falling back to combined URLs") }
             // Fall back to loading the combined track's URLs directly
-            audioCoordinator.load(urls: track.streamURLs, autoPlay: autoPlay)
-            selectedTimingURL = track.timingURL ?? track.streamURLs.first
+            guard let combinedTrack else {
+                sequenceController.reset()
+                selectedTimingURL = nil
+                return
+            }
+            audioCoordinator.load(urls: combinedTrack.streamURLs, autoPlay: autoPlay)
+            selectedTimingURL = combinedTrack.timingURL ?? combinedTrack.streamURLs.first
         }
     }
 
@@ -527,11 +543,16 @@ extension InteractivePlayerViewModel {
         if case .singleTrack = sequenceController.audioMode {
             return false
         }
-        guard let chunk = selectedChunk,
-              let trackID = selectedAudioTrackID,
-              let track = chunk.audioOptions.first(where: { $0.id == trackID }) else {
+        guard let chunk = selectedChunk else {
             return false
         }
-        return track.kind == .combined && sequenceController.isEnabled
+        if let trackID = selectedAudioTrackID,
+           let track = chunk.audioOptions.first(where: { $0.id == trackID }),
+           track.kind == .combined {
+            return sequenceController.isEnabled
+        }
+        return sequenceController.isEnabled
+            && sequenceController.originalTrackURL != nil
+            && sequenceController.translationTrackURL != nil
     }
 }
