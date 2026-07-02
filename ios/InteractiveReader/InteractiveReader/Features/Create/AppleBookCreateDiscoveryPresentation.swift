@@ -266,6 +266,13 @@ extension AppleBookCreatePresentation {
             .localizedCaseInsensitiveCompare(defaultBookDiscoveryProviderID) == .orderedSame
     }
 
+    static func bookDiscoveryProviderFallbackLabel(for providerID: String) -> String {
+        if isDefaultBookDiscoveryProviderID(providerID) {
+            return "Default sources"
+        }
+        return fallbackBookDiscoveryProviders.first { $0.id == providerID }?.label ?? providerID
+    }
+
     static func discoveryRequestProviderID(for providerID: String, mediaKind: String) -> String? {
         guard let normalizedProvider = providerID
             .trimmingCharacters(in: .whitespacesAndNewlines)

@@ -60,6 +60,15 @@ APPLE_CREATE_SOURCE_CONTROLS = (
     / "Create"
     / "AppleBookCreateSourceControls.swift"
 )
+APPLE_CREATE_DISCOVERY_PRESENTATION = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateDiscoveryPresentation.swift"
+)
 
 
 def _swift_changelog_sources() -> str:
@@ -687,6 +696,7 @@ def test_july3_music_bed_pause_sync_is_visible_in_changelogs() -> None:
 
 def test_apple_narrate_epub_stale_discovery_provider_matches_web_guidance() -> None:
     source = APPLE_CREATE_SOURCE_CONTROLS.read_text(encoding="utf-8")
+    discovery_source = APPLE_CREATE_DISCOVERY_PRESENTATION.read_text(encoding="utf-8")
     swift_changelog = _swift_changelog_sources()
     markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
 
@@ -696,11 +706,16 @@ def test_apple_narrate_epub_stale_discovery_provider_matches_web_guidance() -> N
     assert "isDefaultBookDiscoveryProviderID(providerID)" in source
     assert "return false" in source
     assert "selectedDiscoveryProviderLabel" in source
+    assert "bookDiscoveryProviderFallbackLabel(for: acquisitionDiscoveryProvider)" in source
+    assert "static func bookDiscoveryProviderFallbackLabel(for providerID: String)" in discovery_source
+    assert 'return "Default sources"' in discovery_source
+    assert "fallbackBookDiscoveryProviders.first { $0.id == providerID }?.label ?? providerID" in discovery_source
     assert "is unavailable on this backend. Choose another discovery source." in source
     assert "AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage" in source
     assert 'id: "apple-create-stale-book-provider-message"' in swift_changelog
     for changelog in (swift_changelog, markdown_changelog):
         assert "stale template-restored book providers" in changelog
+        assert "friendly provider labels" in changelog
         assert "leaving Search enabled" in changelog
 
 

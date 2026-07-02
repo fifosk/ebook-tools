@@ -385,7 +385,8 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 
     private var selectedDiscoveryProviderLabel: String {
-        selectedDiscoveryProviderOption?.label ?? acquisitionDiscoveryProvider
+        selectedDiscoveryProviderOption?.label
+            ?? AppleBookCreatePresentation.bookDiscoveryProviderFallbackLabel(for: acquisitionDiscoveryProvider)
     }
 
     private var noServerEbooksMessage: String {

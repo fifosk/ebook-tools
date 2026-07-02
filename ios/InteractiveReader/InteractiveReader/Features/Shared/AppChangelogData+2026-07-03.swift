@@ -8,7 +8,7 @@ extension AppChangelogData {
         AppChangelogEntry(
             id: "apple-create-stale-book-provider-message",
             title: "Narrate EPUB source warnings match Web",
-            detail: "Apple Narrate EPUB discovery now disables stale template-restored book providers that the backend no longer advertises and shows the same unavailable-on-this-backend guidance as Web Create instead of leaving Search enabled."
+            detail: "Apple Narrate EPUB discovery now disables stale template-restored book providers that the backend no longer advertises and shows the same unavailable-on-this-backend guidance and friendly provider labels as Web Create instead of leaving Search enabled."
         )
     ]
 }
