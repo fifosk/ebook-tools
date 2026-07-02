@@ -279,7 +279,7 @@ struct AcquisitionProviderListResponse: Decodable, Equatable {
     let providers: [AcquisitionProviderEntry]
     let policyNotes: [String]
     let paths: [String: String]
-    let defaultProviderIds: [String: [String]]?
+    let defaultProviderIds: [String: [String]]
 }
 
 struct AcquisitionCandidate: Decodable, Equatable, Identifiable {

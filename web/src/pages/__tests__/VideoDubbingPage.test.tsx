@@ -221,7 +221,8 @@ describe('VideoDubbingPage', () => {
         }
       ],
       policy_notes: [],
-      paths: {}
+      paths: {},
+      default_provider_ids: {}
     });
     mockCreateAcquisitionJob.mockResolvedValue({
       provider: 'download_station',
@@ -708,7 +709,8 @@ describe('VideoDubbingPage', () => {
         }
       ],
       policy_notes: [],
-      paths: {}
+      paths: {},
+      default_provider_ids: {}
     });
     mockFetchYoutubeLibrary.mockResolvedValue({
       base_dir: '/Volumes/Data/Download/DStation',
@@ -1162,7 +1164,8 @@ describe('VideoDubbingPage', () => {
         }
       ],
       policy_notes: [],
-      paths: {}
+      paths: {},
+      default_provider_ids: {}
     });
     mockFetchYoutubeLibrary.mockResolvedValue({
       base_dir: '/Volumes/Data/Download/DStation',

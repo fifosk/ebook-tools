@@ -57,7 +57,8 @@ describe('YoutubeVideoPage', () => {
         }
       ],
       policy_notes: [],
-      paths: {}
+      paths: {},
+      default_provider_ids: {}
     });
     mockFetchYoutubeLibrary.mockResolvedValue({
       base_dir: '/Volumes/Data/Download/DStation',
@@ -161,7 +162,8 @@ describe('YoutubeVideoPage', () => {
         }
       ],
       policy_notes: [],
-      paths: {}
+      paths: {},
+      default_provider_ids: {}
     });
 
     render(<YoutubeVideoPage />);

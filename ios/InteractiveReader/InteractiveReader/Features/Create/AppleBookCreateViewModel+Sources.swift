@@ -29,7 +29,7 @@ extension AppleBookCreateViewModel {
                 return acquisitionProviders
             }
             acquisitionProviders = response.providers
-            acquisitionDefaultProviderIds = response.defaultProviderIds ?? [:]
+            acquisitionDefaultProviderIds = response.defaultProviderIds
             loadedAcquisitionProvidersCacheKey = cacheKey
         } catch {
             guard requestSequence == acquisitionProvidersRequestSequence else {

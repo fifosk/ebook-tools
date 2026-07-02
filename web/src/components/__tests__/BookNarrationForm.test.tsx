@@ -381,7 +381,8 @@ const mockAcquisitionProviders: AcquisitionProviderListResponse = {
     })
   ],
   policy_notes: [],
-  paths: {}
+  paths: {},
+  default_provider_ids: {}
 };
 
 let resolveDefaults: ((value: PipelineDefaultsResponse) => void) | null = null;

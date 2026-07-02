@@ -162,7 +162,7 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
         / "bookNarrationDiscoveryProviders.ts"
     ).read_text(encoding="utf-8")
     dto_source = (ROOT / "web" / "src" / "api" / "dtos.ts").read_text(encoding="utf-8")
-    assert "default_provider_ids?: Partial<Record<AcquisitionMediaKind, string[]>>" in dto_source
+    assert "default_provider_ids: Partial<Record<AcquisitionMediaKind, string[]>>" in dto_source
     assert "discovery_media_kinds: AcquisitionMediaKind[]" in dto_source
     assert "default_eligible_media_kinds: AcquisitionMediaKind[]" in dto_source
     assert "resolveDefaultBookDiscoveryProvider(" in discovery_hook

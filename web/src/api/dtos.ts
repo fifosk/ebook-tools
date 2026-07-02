@@ -64,7 +64,7 @@ export interface AcquisitionProviderListResponse {
   providers: AcquisitionProvider[];
   policy_notes: string[];
   paths: Record<string, string>;
-  default_provider_ids?: Partial<Record<AcquisitionMediaKind, string[]>>;
+  default_provider_ids: Partial<Record<AcquisitionMediaKind, string[]>>;
 }
 
 export interface AcquisitionSubtitleHint {

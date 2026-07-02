@@ -36,7 +36,8 @@ describe('useVideoDubbingAcquisitionProviders', () => {
     mockFetchAcquisitionProviders.mockResolvedValue({
       providers: [],
       policy_notes: [],
-      paths: {}
+      paths: {},
+      default_provider_ids: {}
     });
   });
 
@@ -79,7 +80,8 @@ describe('useVideoDubbingAcquisitionProviders', () => {
         })
       ],
       policy_notes: [],
-      paths: {}
+      paths: {},
+      default_provider_ids: {}
     });
 
     const { result } = renderHook(() => useVideoDubbingAcquisitionProviders('youtube_search'));

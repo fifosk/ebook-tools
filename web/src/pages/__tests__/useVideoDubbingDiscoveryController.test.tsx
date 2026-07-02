@@ -82,7 +82,8 @@ describe('useVideoDubbingDiscoveryController', () => {
     mockFetchAcquisitionProviders.mockResolvedValue({
       providers: [],
       policy_notes: [],
-      paths: {}
+      paths: {},
+      default_provider_ids: {}
     });
   });
 

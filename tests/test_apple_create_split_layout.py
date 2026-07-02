@@ -3358,7 +3358,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "let candidateToken: String" in api_models_source
     assert "let localPath: String?" in api_models_source
     assert "struct AcquisitionDiscoveryResponse: Decodable, Equatable" in api_models_source
-    assert "let defaultProviderIds: [String: [String]]?" in api_models_source
+    assert "let defaultProviderIds: [String: [String]]" in api_models_source
     assert "struct AcquisitionJobCreateRequest: Encodable, Equatable" in api_models_source
     assert "let candidateToken: String?" in api_models_source
     assert "let metadata: [String: JSONValue]?" in api_models_source
@@ -3649,7 +3649,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "func loadAcquisitionProviders(" in view_model_sources
     assert "@Published var acquisitionProviders: [AcquisitionProviderEntry] = []" in view_model_source
     assert "@Published var acquisitionDefaultProviderIds: [String: [String]] = [:]" in view_model_source
-    assert "acquisitionDefaultProviderIds = response.defaultProviderIds ?? [:]" in view_model_sources
+    assert "acquisitionDefaultProviderIds = response.defaultProviderIds" in view_model_sources
+    assert "response.defaultProviderIds ?? [:]" not in view_model_sources
     assert 'mediaKind: "video"' in view_model_sources
     assert "provider: String = AppleBookCreatePresentation.defaultVideoDiscoveryProviderID" in view_model_sources
     assert "?? AppleBookCreatePresentation.defaultVideoDiscoveryProviderID" in view_model_sources
