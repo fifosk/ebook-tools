@@ -891,8 +891,13 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert "loadedSingleTrackPlaybackMode" in requested_body
     assert "durableSingleTrackPlaybackMode" in requested_body
     assert "selectedTimingSingleTrackMode(in: chunk)" in requested_body
+    assert "case .sequence:\n                return nil" in requested_body
+    assert "if case .sequence = sequenceController.audioMode {\n            return nil\n        }" in requested_body
     assert requested_body.index("if let audioModeManager") < requested_body.index("if let loadedSingleTrackPlaybackMode")
     assert requested_body.index("if case .singleTrack(let track) = sequenceController.audioMode") < requested_body.index(
+        "if let loadedSingleTrackPlaybackMode"
+    )
+    assert requested_body.index("case .sequence:\n                return nil") < requested_body.index(
         "if let loadedSingleTrackPlaybackMode"
     )
     assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let preferredSingleTrackMode")
@@ -910,6 +915,8 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert "preferredSingleTrackMode" in lifecycle_restore_body
     assert "durableSingleTrackPlaybackMode" in lifecycle_restore_body
     assert "selectedTimingSingleTrackMode(in: chunk)" in lifecycle_restore_body
+    assert "case .sequence:\n                return nil" in lifecycle_restore_body
+    assert "if case .sequence = sequenceController.audioMode {\n            return nil\n        }" in lifecycle_restore_body
     assert lifecycle_restore_body.index("if let audioModeManager") < lifecycle_restore_body.index(
         "if let loadedSingleTrackPlaybackMode"
     )
@@ -1219,9 +1226,13 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
 
     requested_body = _function_body(selection, "func requestedSingleTrackMode() -> SequenceTrack?")
     assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let preferredSingleTrackMode")
-    assert "case .singleTrack(let track) = audioModeManager.currentMode" in requested_body
-    assert "case .singleTrack(let track) = sequenceController.audioMode" in requested_body
+    assert "switch audioModeManager.currentMode" in requested_body
+    assert "case .singleTrack(let track):" in requested_body
+    assert "case .sequence:\n                return nil" in requested_body
+    assert "if case .sequence = sequenceController.audioMode" in requested_body
+    assert "if case .singleTrack(let track) = sequenceController.audioMode" in requested_body
     assert requested_body.index("audioModeManager.currentMode") < requested_body.index("sequenceController.audioMode")
+    assert requested_body.index("case .sequence:\n                return nil") < requested_body.index("if let loadedSingleTrackPlaybackMode")
     assert "let selectedOption = chunk.audioOptions.first(where: { $0.id == selectedAudioTrackID })" in requested_body
     assert "case .translation:" in requested_body
 
@@ -1272,6 +1283,7 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "audioModeManager.resolvePreferredTrackID(for: chunk)" in sync_selected_audio_body
     assert "selectedAudioTrackID = targetID" in sync_selected_audio_body
     assert "preferredAudioKind = preferredAudioKindForCurrentMode(" in sync_selected_audio_body
+    assert "clearSingleTrackPlaybackState()" in sync_selected_audio_body
     assert "sequenceController.audioMode = audioModeManager.currentMode" in sync_selected_audio_body
 
 
@@ -1291,8 +1303,13 @@ def test_passive_audio_mode_observation_keeps_single_track_lane() -> None:
     assert "durableSingleTrackPlaybackMode = track" in remember_body
     assert "case .sequence:" in remember_body
     assert "if clearSingleTrackOnSequence" in remember_body
-    assert "preferredSingleTrackMode = nil" in remember_body
-    assert "durableSingleTrackPlaybackMode = nil" in remember_body
+    assert "clearSingleTrackPlaybackState()" in remember_body
+    clear_body = _function_body(selection, "func clearSingleTrackPlaybackState()")
+    assert "pendingResumeSingleTrack = nil" in clear_body
+    assert "preferredSingleTrackMode = nil" in clear_body
+    assert "durableSingleTrackPlaybackMode = nil" in clear_body
+    assert "loadedSingleTrackPlaybackMode = nil" in clear_body
+    assert "selectedTimingSingleTrackMode = nil" in clear_body
 
     audio_mode_change_body = _function_body(lifecycle, "private func handleAudioModeChange(_ newMode: AudioMode)")
     assert "viewModel.rememberAudioModePreference(newMode, clearSingleTrackOnSequence: false)" in audio_mode_change_body

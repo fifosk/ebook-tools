@@ -35,12 +35,17 @@ extension InteractivePlayerViewModel {
             selectedTimingSingleTrackMode = track
         case .sequence:
             if clearSingleTrackOnSequence {
-                preferredSingleTrackMode = nil
-                durableSingleTrackPlaybackMode = nil
-                loadedSingleTrackPlaybackMode = nil
-                selectedTimingSingleTrackMode = nil
+                clearSingleTrackPlaybackState()
             }
         }
+    }
+
+    func clearSingleTrackPlaybackState() {
+        pendingResumeSingleTrack = nil
+        preferredSingleTrackMode = nil
+        durableSingleTrackPlaybackMode = nil
+        loadedSingleTrackPlaybackMode = nil
+        selectedTimingSingleTrackMode = nil
     }
 
     /// Check if chunk sentences have gate data needed for combined (sequence) mode
@@ -388,14 +393,23 @@ extension InteractivePlayerViewModel {
         )
         if case .singleTrack(let track) = audioModeManager.currentMode {
             preferredSingleTrackMode = track
+        } else {
+            clearSingleTrackPlaybackState()
         }
         sequenceController.audioMode = audioModeManager.currentMode
     }
 
     func requestedSingleTrackMode() -> SequenceTrack? {
-        if let audioModeManager,
-           case .singleTrack(let track) = audioModeManager.currentMode {
-            return track
+        if let audioModeManager {
+            switch audioModeManager.currentMode {
+            case .singleTrack(let track):
+                return track
+            case .sequence:
+                return nil
+            }
+        }
+        if case .sequence = sequenceController.audioMode {
+            return nil
         }
         if case .singleTrack(let track) = sequenceController.audioMode {
             return track
@@ -440,9 +454,16 @@ extension InteractivePlayerViewModel {
     }
 
     func lifecycleSingleTrackRestoreMode(in chunk: InteractiveChunk? = nil) -> SequenceTrack? {
-        if let audioModeManager,
-           case .singleTrack(let track) = audioModeManager.currentMode {
-            return track
+        if let audioModeManager {
+            switch audioModeManager.currentMode {
+            case .singleTrack(let track):
+                return track
+            case .sequence:
+                return nil
+            }
+        }
+        if case .sequence = sequenceController.audioMode {
+            return nil
         }
         if case .singleTrack(let track) = sequenceController.audioMode {
             return track
