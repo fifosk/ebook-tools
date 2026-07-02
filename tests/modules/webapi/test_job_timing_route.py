@@ -109,6 +109,61 @@ def test_job_timing_route_normalizes_padded_job_id(tmp_path: Path) -> None:
     assert library_repository.calls == [job_id]
 
 
+def test_job_timing_route_canonicalizes_audio_track_aliases(tmp_path: Path) -> None:
+    locator = FileLocator(storage_dir=tmp_path)
+    job_id = "timing-audio-aliases"
+    job_root = locator.resolve_path(job_id)
+    timing_path = job_root / "metadata" / "timing_index.json"
+    timing_path.parent.mkdir(parents=True, exist_ok=True)
+    timing_path.write_text(
+        '{"translated_audio":[{"text":"Hallo","start":0.0,"end":0.5}]}',
+        encoding="utf-8",
+    )
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+        result_payload={
+            "timing_tracks": {"targetAudio": "metadata/timing_index.json"},
+            "generated_files": {
+                "chunks": [
+                    {
+                        "audioTracks": {
+                            "OriginalAudio": {"path": "media/chunk/original.mp3"},
+                            "translated_audio": {"path": "media/chunk/translated.mp3"},
+                            "mix": "media/chunk/mix.mp3",
+                        },
+                    }
+                ],
+            },
+        },
+    )
+    manager = _RecordingJobManager(job)
+    library_repository = _EmptyLibraryRepository()
+    app = _app_with_timing_dependencies(
+        job_manager=manager,
+        file_locator=locator,
+        library_repository=library_repository,
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/api/jobs/{job_id}/timing")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload["tracks"]) == {"translation"}
+    assert payload["tracks"]["translation"]["segments"] == [
+        {"text": "Hallo", "start": 0.0, "end": 0.5}
+    ]
+    assert payload["audio"]["orig"]["available"] is True
+    assert payload["audio"]["translation"]["available"] is True
+    assert payload["audio"]["orig_trans"]["available"] is True
+    assert payload["audio"]["translation"]["track"] == "translation"
+
+
 def test_job_timing_route_uses_safe_stat_for_timing_file_checks(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

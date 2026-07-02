@@ -24,6 +24,7 @@ from ...dependencies import (
     get_request_user,
 )
 from modules.services.job_manager import PipelineJob
+from .audio_roles import canonical_audio_track_key, canonical_timing_track_key
 from .common import _resolve_job_path
 
 jobs_timing_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -306,11 +307,13 @@ async def get_job_timing(
     if not isinstance(timing_tracks, Mapping):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No timing track available")
 
-    requested_tracks = {
-        key: path
-        for key, path in timing_tracks.items()
-        if key in {"mix", "translation", "original"} and isinstance(path, str) and path.strip()
-    }
+    requested_tracks: Dict[str, str] = {}
+    for raw_key, path in timing_tracks.items():
+        if not isinstance(raw_key, str) or not isinstance(path, str) or not path.strip():
+            continue
+        track_key = canonical_timing_track_key(raw_key)
+        if track_key in {"mix", "translation", "original"}:
+            requested_tracks[track_key] = path
     if not requested_tracks:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No timing track available")
 
@@ -343,6 +346,15 @@ async def get_job_timing(
         segments: list[Any]
         if isinstance(payload, Mapping):
             track_entries = payload.get(track_name)
+            if not isinstance(track_entries, list):
+                for raw_payload_key, payload_entries in payload.items():
+                    if (
+                        isinstance(raw_payload_key, str)
+                        and canonical_timing_track_key(raw_payload_key) == track_name
+                        and isinstance(payload_entries, list)
+                    ):
+                        track_entries = payload_entries
+                        break
             if isinstance(track_entries, list):
                 segments = track_entries
             elif track_name == "translation" and isinstance(payload.get("segments"), list):
@@ -391,6 +403,8 @@ async def get_job_timing(
                         continue
                     tracks = chunk.get("audioTracks")
                     if not isinstance(tracks, Mapping):
+                        tracks = chunk.get("audio_tracks")
+                    if not isinstance(tracks, Mapping):
                         continue
                     for raw_key, raw_value in tracks.items():
                         if not isinstance(raw_key, str):
@@ -398,20 +412,18 @@ async def get_job_timing(
                         key = raw_key.strip()
                         if not key:
                             continue
-                        if key == "trans":
-                            key = "translation"
-                        chunk_audio_keys.add(key)
+                        chunk_audio_keys.add(canonical_audio_track_key(key))
         audio_summary["orig_trans"] = {
             "track": "mix",
             "available": "orig_trans" in chunk_audio_keys,
         }
         audio_summary["orig"] = {
             "track": "original",
-            "available": "orig" in chunk_audio_keys or "original" in chunk_audio_keys,
+            "available": "orig" in chunk_audio_keys,
         }
         audio_summary["translation"] = {
             "track": "translation",
-            "available": "translation" in chunk_audio_keys or "trans" in chunk_audio_keys,
+            "available": "translation" in chunk_audio_keys,
         }
         return audio_summary
 

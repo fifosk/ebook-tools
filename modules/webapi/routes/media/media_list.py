@@ -29,6 +29,7 @@ from ...schemas import (
     PipelineMediaFile,
     PipelineMediaResponse,
 )
+from .audio_roles import canonical_audio_track_key
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -209,34 +210,6 @@ def _coerce_int(value: Any) -> Optional[int]:
     except (TypeError, ValueError):
         return None
     return number
-
-
-def _canonical_audio_track_key(value: str) -> str:
-    stripped = value.strip()
-    normalized = re.sub(r"[^a-z0-9]+", "", stripped.lower())
-    if normalized in {"origtrans", "originaltranslation", "originalandtranslation", "mix"}:
-        return "orig_trans"
-    if normalized in {
-        "orig",
-        "origaudio",
-        "original",
-        "originalaudio",
-    }:
-        return "orig"
-    if normalized in {
-        "trans",
-        "transaudio",
-        "translation",
-        "translationaudio",
-        "translated",
-        "translatedaudio",
-        "target",
-        "targetaudio",
-        "dubbed",
-        "dubbedaudio",
-    }:
-        return "translation"
-    return stripped
 
 
 def _range_fragment_bounds(value: Optional[str]) -> tuple[Optional[int], Optional[int]]:
@@ -476,7 +449,7 @@ def _serialize_media_entries(
                 key = raw_key.strip()
                 if not key:
                     return
-                key = _canonical_audio_track_key(key)
+                key = canonical_audio_track_key(key)
 
                 entry: Dict[str, Any] = {}
                 if isinstance(raw_value, str):
@@ -690,7 +663,7 @@ def _serialize_chunk_entry(
         key = raw_key.strip()
         if not key:
             return
-        key = _canonical_audio_track_key(key)
+        key = canonical_audio_track_key(key)
 
         entry: Dict[str, Any] = {}
         if isinstance(raw_value, str):
