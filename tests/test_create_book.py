@@ -432,7 +432,7 @@ def test_pipeline_file_picker_records_safe_timing(
     )
 
 
-def test_pipeline_file_picker_accepts_bounded_ebook_limit(
+def test_pipeline_file_picker_accepts_bounded_picker_limit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -475,13 +475,13 @@ def test_pipeline_file_picker_accepts_bounded_ebook_limit(
     assert [entry["path"] for entry in body["ebooks"]] == ["Public/newer.epub"]
     assert [entry["path"] for entry in body["outputs"]] == ["aaa-newer-output"]
     rendered_logs = "\n".join(logger.messages)
-    assert "Pipeline source picker result=success ebooks=1 outputs=1 ebook_limit=1" in rendered_logs
+    assert "Pipeline source picker result=success ebooks=1 outputs=1 picker_limit=1" in rendered_logs
     assert "Public/newer.epub" not in rendered_logs
     assert "aaa-newer-output" not in rendered_logs
     assert "office-ipad-user" not in rendered_logs
 
 
-def test_pipeline_file_picker_rejects_invalid_ebook_limit(tmp_path: Path) -> None:
+def test_pipeline_file_picker_rejects_invalid_picker_limit(tmp_path: Path) -> None:
     app = create_app()
     stub_context_provider = _StubRuntimeContextProvider(tmp_path)
 

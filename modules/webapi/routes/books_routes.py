@@ -66,7 +66,7 @@ def _log_pipeline_file_picker(
     result: str,
     ebook_count: int = 0,
     output_count: int = 0,
-    ebook_limit: int | None = None,
+    picker_limit: int | None = None,
     books_root_present: bool | None = None,
     output_root_present: bool | None = None,
 ) -> None:
@@ -81,7 +81,7 @@ def _log_pipeline_file_picker(
         duration_first=False,
         ebooks=ebook_count,
         outputs=output_count,
-        ebook_limit=ebook_limit,
+        picker_limit=picker_limit,
         books_root_present=books_root_present,
         output_root_present=output_root_present,
     )
@@ -358,7 +358,7 @@ async def list_pipeline_files(
         result="success",
         ebook_count=len(ebooks),
         output_count=len(outputs),
-        ebook_limit=limit,
+        picker_limit=limit,
         books_root_present=books_root_present,
         output_root_present=output_root_present,
     )

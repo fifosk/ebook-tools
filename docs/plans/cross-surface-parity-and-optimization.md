@@ -1389,7 +1389,7 @@ Optimization candidates:
   sources as idempotent cleanup results while still rejecting paths outside the
   allowed base directory. EPUB and subtitle source picker routes now share
   token-safe duration telemetry through the shared route telemetry helper, with
-  aggregate source/output counts, bounded EPUB limit state, and no NAS path,
+  aggregate source/output counts, bounded picker limit state, and no NAS path,
   filename, job id, user id, auth header, or token logging. The
   manifest-registered `test-backend-pipeline-sources` target now covers EPUB
   source listing, bounded newest-first picker limits, selected-source
