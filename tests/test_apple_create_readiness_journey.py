@@ -62,6 +62,12 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
     assert {
         "action": "assert_value_contains",
         "selector": "settingsCreateContractRow",
+        "text": "/api/pipelines/intake/status",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
         "text": "/api/subtitles/delete-source",
         "timeout": 20,
     } in runtime_steps

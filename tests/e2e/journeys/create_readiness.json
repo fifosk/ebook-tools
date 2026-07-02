@@ -40,6 +40,12 @@
     {
       "action": "assert_value_contains",
       "selector": "settingsCreateContractRow",
+      "text": "/api/pipelines/intake/status",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsCreateContractRow",
       "text": "/api/subtitles/delete-source",
       "timeout": 20
     },

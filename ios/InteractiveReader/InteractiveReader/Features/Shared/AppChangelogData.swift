@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-02",
             dateLabel: "July 2, 2026",
-            version: "2026.07.02.008",
+            version: "2026.07.02.009",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-settings-intake-contract-visible",
+                    title: "Settings shows intake readiness",
+                    detail: "Apple Settings Create Contract now surfaces the job-intake readiness endpoint so device preflights can verify queue-pressure parity before native Create opens."
+                ),
                 AppChangelogEntry(
                     id: "apple-sequence-resume-retry-keeps-track",
                     title: "First Translation resumes correctly",

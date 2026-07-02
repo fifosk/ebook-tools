@@ -509,6 +509,8 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
     assert 'accessibilityIdentifier: "settingsAuthContractRow"' in source
     assert 'title: "Create Contract"' in source
     assert 'accessibilityIdentifier: "settingsCreateContractRow"' in source
+    view_source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
+    assert "AppleCreateRuntimeContract.pipelineIntakeStatusPath" in view_source
     assert "var libraryActionsContractState: BackendRuntimeContractState?" in source
     assert 'title: "Library Contract"' in source
     assert 'accessibilityIdentifier: "settingsLibraryActionsContractRow"' in source

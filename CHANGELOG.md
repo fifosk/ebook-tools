@@ -4,8 +4,9 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-02
 
-### 2026.07.02.008
+### 2026.07.02.009
 
+- Apple Settings Create Contract now surfaces the job-intake readiness endpoint (`/api/pipelines/intake/status`) so the device pipeline can verify queue-pressure parity before opening native Create.
 - Apple reader sequence resume retries now keep the same resolved track as the initial in-sentence seek, preventing job open from starting in Translation and then retrying the first sentence on Original before the next Translation plays.
 - Apple playback transport log verification now rejects sequence resume retries that change tracks for the same saved sentence/time, so physical Apple TV logs catch this regression directly.
 - Apple reader header language pills now use true toggle semantics: when Original and Translation are both active, tapping Original disables only Original and keeps Translation active, with the symmetric behavior for Translation.
@@ -17,7 +18,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Backend media manifests now canonicalize chunk timing-track aliases through the same Original, Translation, and Mix role mapping as audio tracks, so Web and Apple diagnostics agree on translation availability.
 - Apple reader header language pills and audio shortcuts keep the active lane stable across single-track switching and restore all available tracks when tapping the only active lane.
 - Apple Job and Library resume recording now stores the same selected-track player clock used by resume, preventing Now Playing refreshes from overwriting the last spoken word offset with a rendered sentence-start highlight time.
-- Advanced visible Apple app versioning to `v2026.07.02.008`.
+- Advanced visible Apple app versioning to `v2026.07.02.009`.
 
 ### 2026.07.02.003
 
