@@ -195,7 +195,17 @@ SOURCE_LABELED_ACQUISITION_PROVIDERS = {
     "nas_video",
 }
 REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS = {
+    "local_epub": {"book"},
+    "manual_downloads": {"book", "video"},
+    "nas_video": {"video"},
     "youtube_url": {"video"},
+    "youtube_search": {"video"},
+    "newznab_torznab": {"video"},
+    "openlibrary": {"book"},
+    "gutenberg": {"book"},
+    "internet_archive": {"book"},
+    "download_station": set(),
+    "zlibrary_attended": set(),
 }
 
 
@@ -639,7 +649,13 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             continue
         media_kinds = _string_set(provider.get("media_kinds"))
         capabilities = _string_set(provider.get("capabilities"))
-        declared_discovery_media_kinds = _string_set(provider.get("discovery_media_kinds"))
+        raw_discovery_media_kinds = provider.get("discovery_media_kinds")
+        raw_default_eligible_media_kinds = provider.get("default_eligible_media_kinds")
+        declared_discovery_media_kinds = (
+            _string_set(raw_discovery_media_kinds)
+            if isinstance(raw_discovery_media_kinds, list)
+            else set()
+        )
         missing_media = sorted(requirements["media_kinds"] - media_kinds)
         missing_capabilities = sorted(requirements["capabilities"] - capabilities)
         missing_discovery_media = sorted(
@@ -650,8 +666,12 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             invalid.append(f"{provider_id}.media_kinds:{','.join(missing_media)}")
         if missing_capabilities:
             invalid.append(f"{provider_id}.capabilities:{','.join(missing_capabilities)}")
-        if missing_discovery_media:
+        if not isinstance(raw_discovery_media_kinds, list):
+            invalid.append(f"{provider_id}.discovery_media_kinds")
+        elif missing_discovery_media:
             invalid.append(f"{provider_id}.discovery_media_kinds:{','.join(missing_discovery_media)}")
+        if not isinstance(raw_default_eligible_media_kinds, list):
+            invalid.append(f"{provider_id}.default_eligible_media_kinds")
         if (
             provider_id in SOURCE_LABELED_ACQUISITION_PROVIDERS
             and provider.get("available") is True
@@ -669,14 +689,16 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             and "attended" in policy_text
         )
         zlibrary_discovery_media_kinds = zlibrary.get("discovery_media_kinds")
-        if not isinstance(zlibrary_discovery_media_kinds, list):
-            invalid.append("zlibrary_attended.discovery_media_kinds")
-        elif _string_set(zlibrary_discovery_media_kinds):
+        if (
+            isinstance(zlibrary_discovery_media_kinds, list)
+            and _string_set(zlibrary_discovery_media_kinds)
+        ):
             invalid.append("zlibrary_attended.discovery_media_kinds")
         zlibrary_default_eligible_media_kinds = zlibrary.get("default_eligible_media_kinds")
-        if not isinstance(zlibrary_default_eligible_media_kinds, list):
-            invalid.append("zlibrary_attended.default_eligible_media_kinds")
-        elif _string_set(zlibrary_default_eligible_media_kinds):
+        if (
+            isinstance(zlibrary_default_eligible_media_kinds, list)
+            and _string_set(zlibrary_default_eligible_media_kinds)
+        ):
             invalid.append("zlibrary_attended.default_eligible_media_kinds")
     if not zlibrary_policy_ready:
         invalid.append("zlibrary_attended.policy")

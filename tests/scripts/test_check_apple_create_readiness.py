@@ -28,9 +28,14 @@ def add_source_label(provider: dict[str, object], provider_id: str) -> dict[str,
     }
     if provider_id in labels:
         provider["source_label"] = labels[provider_id]
-    if provider_id == "zlibrary_attended":
-        provider.setdefault("discovery_media_kinds", [])
+    provider.setdefault(
+        "discovery_media_kinds",
+        sorted(module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, [])),
+    )
+    if provider_id in {"download_station", "youtube_url", "zlibrary_attended"}:
         provider.setdefault("default_eligible_media_kinds", [])
+    else:
+        provider.setdefault("default_eligible_media_kinds", provider["discovery_media_kinds"])
     return provider
 
 
@@ -646,8 +651,12 @@ def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entr
         if provider not in {"local_epub", "youtube_search", "zlibrary_attended"}
     ]
     assert inventory["invalid_acquisition_providers"] == [
+        "local_epub.default_eligible_media_kinds",
+        "local_epub.discovery_media_kinds",
         "local_epub.source_label",
         "youtube_search.capabilities:search",
+        "youtube_search.default_eligible_media_kinds",
+        "youtube_search.discovery_media_kinds",
         "zlibrary_attended.default_eligible_media_kinds",
         "zlibrary_attended.discovery_media_kinds",
         "zlibrary_attended.policy",
