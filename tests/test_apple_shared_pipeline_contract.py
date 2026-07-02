@@ -377,6 +377,11 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
         "apple-device-verify-music-bed-guarded-play-log:", 1
     )[1].split("\n\n", 1)[0]
     assert "$(MAKE) apple-device-verify-music-bed-launch-log APPLE_MUSIC_BED_LAUNCH_LOG_MODE=guarded-play" in guarded_play_log_target
+    assert "apple-device-verify-music-bed-reader-progress-log:" in makefile
+    reader_progress_log_target = makefile.split(
+        "apple-device-verify-music-bed-reader-progress-log:", 1
+    )[1].split("\n\n", 1)[0]
+    assert "$(MAKE) apple-device-verify-music-bed-launch-log APPLE_MUSIC_BED_LAUNCH_LOG_MODE=reader-progress" in reader_progress_log_target
     assert "apple-device-pull-playback-log:" in makefile
     pull_playback_log_target = makefile.split("apple-device-pull-playback-log:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/apple_pull_device_playback_log.sh" in pull_playback_log_target
@@ -428,9 +433,11 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "`requested=true` or\n`playing=true`" in deployment_doc
     assert "lone `readerPause=true` flag is not enough" in deployment_doc
     assert "apple-device-pull-and-verify-playback-resume-offset-log" in testing_doc
+    assert "apple-device-verify-music-bed-reader-progress-log" in testing_doc
     assert "fallback=sentenceStart" in testing_doc
     assert "last spoken position inside\nthe sentence" in testing_doc
     assert "apple-device-pull-and-verify-playback-resume-offset-log" in deployment_doc
+    assert "apple-device-verify-music-bed-reader-progress-log" in deployment_doc
     assert 'APPLE_DEVICE_ID="Cinema"' in deployment_doc
     assert "true last-word resume" in deployment_doc
     assert "apple-device-full-entitlement-fallback-install:" in makefile

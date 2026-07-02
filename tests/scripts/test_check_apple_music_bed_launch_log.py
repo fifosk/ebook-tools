@@ -53,6 +53,26 @@ InteractiveReaderTV[101] Apple Music playback surface changed reason=resume revi
 )
 
 
+READER_PROGRESS_LOG = (
+    STARTUP_LOG
+    + """
+InteractiveReaderTV[101] Reader NowPlaying transport=playing playbackRate=1.0 force=true position=0.100 duration=42.0
+InteractiveReaderTV[101] Reader NowPlaying transport=playing playbackRate=1.0 force=true position=1.200 duration=42.0
+InteractiveReaderTV[101] Reader NowPlaying transport=playing playbackRate=1.0 force=true position=2.400 duration=42.0
+"""
+)
+
+
+READER_ZERO_STUCK_LOG = (
+    STARTUP_LOG
+    + """
+InteractiveReaderTV[101] Reader NowPlaying transport=playing playbackRate=1.0 force=true position=0.000 duration=42.0
+InteractiveReaderTV[101] Reader NowPlaying transport=playing playbackRate=1.0 force=true position=0.000 duration=42.0
+InteractiveReaderTV[101] Reader NowPlaying transport=playing playbackRate=1.0 force=true position=0.000 duration=42.0
+"""
+)
+
+
 OBSERVED_NON_PLAYING_PAUSE_LOG = (
     STARTUP_LOG
     + """
@@ -100,6 +120,22 @@ def test_pause_resume_log_validation_passes(tmp_path: Path) -> None:
     log.write_text(PAUSE_RESUME_LOG, encoding="utf-8")
 
     assert module.validate_log(log, mode="pause-resume") == []
+
+
+def test_reader_progress_log_validation_passes(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(READER_PROGRESS_LOG, encoding="utf-8")
+
+    assert module.validate_log(log, mode="reader-progress") == []
+
+
+def test_reader_progress_rejects_zero_stuck_now_playing(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(READER_ZERO_STUCK_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="reader-progress")
+
+    assert missing == ["reader sentence Now Playing position did not advance past 1.0s"]
 
 
 def test_pause_resume_allows_broker_resume_before_play_acceptance(tmp_path: Path) -> None:

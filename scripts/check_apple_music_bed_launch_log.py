@@ -152,6 +152,14 @@ PLAYBACK_BREADCRUMB_PATTERNS: tuple[str, ...] = (
 )
 
 
+NOW_PLAYING_TRANSPORT_RE = re.compile(
+    r"Reader NowPlaying transport=(?P<transport>playing|paused)"
+    r".*?playbackRate=(?P<rate>[0-9.]+)"
+    r".*?position=(?P<position>[0-9.]+)"
+    r".*?duration=(?P<duration>[0-9.]+)"
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -206,6 +214,39 @@ def _pause_guard_violations(text: str) -> list[str]:
     return []
 
 
+def _reader_progress_violations(text: str) -> list[str]:
+    samples: list[tuple[str, float, float, float]] = []
+    for match in NOW_PLAYING_TRANSPORT_RE.finditer(text):
+        try:
+            samples.append(
+                (
+                    match.group("transport"),
+                    float(match.group("rate")),
+                    float(match.group("position")),
+                    float(match.group("duration")),
+                )
+            )
+        except ValueError:
+            continue
+
+    active_samples = [
+        (transport, rate, position, duration)
+        for transport, rate, position, duration in samples
+        if transport == "playing" and rate > 0 and duration > 0
+    ]
+    if not active_samples:
+        return ["reader sentence playback did not publish playing Now Playing samples with duration"]
+
+    max_position = max(position for _, _, position, _ in active_samples)
+    if max_position < 1.0:
+        return ["reader sentence Now Playing position did not advance past 1.0s"]
+
+    nonzero_count = sum(1 for _, _, position, _ in active_samples if position > 0.05)
+    if nonzero_count < 3:
+        return ["reader sentence Now Playing progress did not produce repeated nonzero samples"]
+    return []
+
+
 def diagnostic_hints(text: str, *, mode: str, missing: list[str]) -> list[str]:
     if not missing or mode == "startup":
         return []
@@ -234,6 +275,8 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
     elif mode == "pause-resume":
         requirements = STARTUP_REQUIREMENTS + PAUSE_RELEASE_REQUIREMENTS + PAUSE_RESUME_REQUIREMENTS
     missing = _missing_requirements(text, requirements)
+    if mode == "reader-progress":
+        missing.extend(_reader_progress_violations(text))
     if mode in {"pause-release", "guarded-play", "pause-resume"}:
         missing.extend(_pause_guard_violations(text))
     return missing
@@ -249,10 +292,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=("startup", "pause-release", "guarded-play", "pause-resume"),
+        choices=("startup", "reader-progress", "pause-release", "guarded-play", "pause-resume"),
         default=os.environ.get("APPLE_MUSIC_BED_LAUNCH_LOG_MODE", "startup"),
         help=(
-            "Validation mode. startup checks ownership breadcrumbs; pause-release also checks "
+            "Validation mode. startup checks ownership breadcrumbs; reader-progress also checks "
+            "that reader Now Playing sentence position advances beyond startup; pause-release also checks "
             "reader-owned pause/release breadcrumbs; guarded-play additionally requires evidence "
             "that a stray Now Playing play callback was ignored during the reader pause guard; "
             "pause-resume requires an accepted reader-owned resume after pause-release evidence."

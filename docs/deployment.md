@@ -365,6 +365,11 @@ AppleLanguages and unconnected `nw_connection` startup noise. After a
 launch-console capture, run
 `make apple-device-verify-music-bed-launch-log APPLE_DEVICE_ID=<device>` to
 check the startup breadcrumbs, or set
+`APPLE_MUSIC_BED_LAUNCH_LOG_MODE=reader-progress` after a launch/playback
+capture to also require reader Now Playing sentence position to advance beyond
+startup. The named shortcut is
+`make apple-device-verify-music-bed-reader-progress-log APPLE_DEVICE_ID=<device>`.
+Set
 `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release` after a manual Play/Pause
 capture to require reader-owned Music pause and tvOS Music surface release
 evidence, including fullscreen-artwork suppression reassertion after the

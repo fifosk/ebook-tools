@@ -1040,6 +1040,13 @@ make apple-device-verify-music-bed-launch-log \
   APPLE_DEVICE_ID="Living Room Apple TV"
 ```
 
+Use `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=reader-progress` after a launch/playback
+capture to require the reader Now Playing sentence position to advance beyond
+startup, catching logs where transport says `playing` but stays pinned at zero.
+The shortcut
+`make apple-device-verify-music-bed-reader-progress-log APPLE_DEVICE_ID=<device>`
+runs the same reader-progress validation.
+
 For a manual Play/Pause repro capture that should include reader-owned Music
 pause plus tvOS Music surface suppression/reassertion evidence, run the same verifier with
 `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release`. The verifier reports missing
