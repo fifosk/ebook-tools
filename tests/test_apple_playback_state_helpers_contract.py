@@ -801,9 +801,13 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     requested_body = _function_body(selection, "func requestedSingleTrackMode() -> SequenceTrack?")
     assert "loadedSingleURLTrackMode()" in requested_body
     assert "loadedSingleTrackPlaybackMode" in requested_body
+    assert "durableSingleTrackPlaybackMode" in requested_body
     assert "selectedTimingSingleTrackMode(in: chunk)" in requested_body
     assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let preferredSingleTrackMode")
     assert requested_body.index("if let preferredSingleTrackMode") < requested_body.index(
+        "if let durableSingleTrackPlaybackMode"
+    )
+    assert requested_body.index("if let durableSingleTrackPlaybackMode") < requested_body.index(
         "selectedTimingSingleTrackMode(in: chunk)"
     )
     assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let audioModeManager")
@@ -823,6 +827,7 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert "preservedSingleTrack: SequenceTrack? = nil" in selection
     handoff_body = _function_body(selection, "private func selectChunkPreservingAudioLane(")
     assert "if let track = preservedSingleTrack ?? requestedSingleTrackMode()" in handoff_body
+    assert "durableSingleTrackPlaybackMode = preservedSingleTrack" in ended_body
     assert "applySingleTrackSelection(track, for: chunk)" in handoff_body
     assert "rememberSingleTrackSentenceAnchor(" in handoff_body
     assert "targetIndex: targetSentenceIndex" in handoff_body
@@ -1098,9 +1103,11 @@ def test_passive_audio_mode_observation_keeps_single_track_lane() -> None:
     assert "clearSingleTrackOnSequence: Bool = true" in selection
     assert "case .singleTrack(let track):" in remember_body
     assert "preferredSingleTrackMode = track" in remember_body
+    assert "durableSingleTrackPlaybackMode = track" in remember_body
     assert "case .sequence:" in remember_body
     assert "if clearSingleTrackOnSequence" in remember_body
     assert "preferredSingleTrackMode = nil" in remember_body
+    assert "durableSingleTrackPlaybackMode = nil" in remember_body
 
     audio_mode_change_body = _function_body(lifecycle, "private func handleAudioModeChange(_ newMode: AudioMode)")
     assert "viewModel.rememberAudioModePreference(newMode, clearSingleTrackOnSequence: false)" in audio_mode_change_body

@@ -114,6 +114,10 @@ Large Web UI hotspots to split before redesign work:
   rendering now live in `web/src/pages/video-dubbing/VideoDubbingFeedbackPanel.tsx`
   with rendered coverage and changed-test routing, trimming another repeated
   render stack out of the page coordinator.
+  Video source discovery provider buttons, query input, status/error rendering,
+  candidate selection, and embedded Download Station handoff chrome now live in
+  `web/src/pages/video-dubbing/VideoDiscoveryPanel.tsx` with rendered coverage,
+  keeping discovery behavior easier to compare with Apple YouTube Dub.
   YouTube Dub generate/save-template action state, intake
   capacity guard, shared payload construction, backend submission, template
   persistence, and discovery-state template preservation now live in

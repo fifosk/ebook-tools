@@ -113,6 +113,10 @@ Follow the suggested remediations to restore parity:
   lane state itself, a stale enabled sequence controller at a batch boundary
   must not suppress `selectedTimingSingleTrackMode`; otherwise audio can remain
   on the selected single track while rendering falls back to combined.
+  The selected single-track lane should also be kept as durable view-model state,
+  cleared only by an intentional sequence/all-track selection, so metadata
+  hydration and EOF queue cleanup cannot make the next batch forget the user's
+  Original-only or Translation-only choice.
   If the user has explicitly hidden Original or Translation, chunk lifecycle
   setup must restore that visible single-track selection into `AudioModeManager`
   before any default selection can expand the reader back to All. Resume and

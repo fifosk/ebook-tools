@@ -14,6 +14,7 @@ extension InteractivePlayerViewModel {
     func prepareResumeSingleTrack(_ track: SequenceTrack?) {
         pendingResumeSingleTrack = track
         preferredSingleTrackMode = track
+        durableSingleTrackPlaybackMode = track
         guard let track, let audioModeManager else { return }
         audioModeManager.setTracks(
             original: track == .original,
@@ -29,9 +30,11 @@ extension InteractivePlayerViewModel {
         switch mode {
         case .singleTrack(let track):
             preferredSingleTrackMode = track
+            durableSingleTrackPlaybackMode = track
         case .sequence:
             if clearSingleTrackOnSequence {
                 preferredSingleTrackMode = nil
+                durableSingleTrackPlaybackMode = nil
                 loadedSingleTrackPlaybackMode = nil
                 selectedTimingSingleTrackMode = nil
             }
@@ -212,6 +215,7 @@ extension InteractivePlayerViewModel {
         switch track.kind {
         case .original:
             preferredSingleTrackMode = .original
+            durableSingleTrackPlaybackMode = .original
             if let audioModeManager {
                 audioModeManager.setTracks(original: true, translation: false)
                 sequenceController.audioMode = audioModeManager.currentMode
@@ -220,6 +224,7 @@ extension InteractivePlayerViewModel {
             }
         case .translation:
             preferredSingleTrackMode = .translation
+            durableSingleTrackPlaybackMode = .translation
             if let audioModeManager {
                 audioModeManager.setTracks(original: false, translation: true)
                 sequenceController.audioMode = audioModeManager.currentMode
@@ -228,6 +233,7 @@ extension InteractivePlayerViewModel {
             }
         case .combined:
             preferredSingleTrackMode = nil
+            durableSingleTrackPlaybackMode = nil
             loadedSingleTrackPlaybackMode = nil
             selectedTimingSingleTrackMode = nil
             if let audioModeManager {
@@ -391,6 +397,9 @@ extension InteractivePlayerViewModel {
         if let preferredSingleTrackMode {
             return preferredSingleTrackMode
         }
+        if let durableSingleTrackPlaybackMode {
+            return durableSingleTrackPlaybackMode
+        }
         if let chunk = selectedChunk,
            let selectedTimingSingleTrack = selectedTimingSingleTrackMode(in: chunk) {
             return selectedTimingSingleTrack
@@ -461,6 +470,7 @@ extension InteractivePlayerViewModel {
         if let track = requestedSingleTrackMode() {
             applySingleTrackSelection(track, for: chunk)
             preferredSingleTrackMode = track
+            durableSingleTrackPlaybackMode = track
             return
         }
         synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)
@@ -489,6 +499,7 @@ extension InteractivePlayerViewModel {
 
     func applySingleTrackSelection(_ track: SequenceTrack, for chunk: InteractiveChunk) {
         preferredSingleTrackMode = track
+        durableSingleTrackPlaybackMode = track
         loadedSingleTrackPlaybackMode = track
         if let audioModeManager {
             audioModeManager.setTracks(
@@ -738,6 +749,7 @@ extension InteractivePlayerViewModel {
         )
         if let preservedSingleTrack {
             preferredSingleTrackMode = preservedSingleTrack
+            durableSingleTrackPlaybackMode = preservedSingleTrack
             loadedSingleTrackPlaybackMode = preservedSingleTrack
         }
         selectChunkPreservingAudioLane(

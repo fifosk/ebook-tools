@@ -355,6 +355,9 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     source_panel = (
         ROOT / "web" / "src" / "pages" / "video-dubbing" / "VideoSourcePanel.tsx"
     ).read_text(encoding="utf-8")
+    discovery_panel = (
+        ROOT / "web" / "src" / "pages" / "video-dubbing" / "VideoDiscoveryPanel.tsx"
+    ).read_text(encoding="utf-8")
     download_station_panel = (
         ROOT
         / "web"
@@ -542,12 +545,13 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "selectedVideoDiscoveryProvider?.available ?? !hasProviderInventory" in discovery_helper
     assert "is unavailable on this backend. Choose another discovery source." in discovery_helper
     assert "onSelectDiscoveryCandidate" in source_panel
-    assert "VideoDownloadStationPanel" in source_panel
+    assert "VideoDiscoveryPanel" in source_panel
+    assert "VideoDownloadStationPanel" in discovery_panel
     assert "Download Station handoff" in download_station_panel
     assert "resolveDownloadStationCompletedFiles" in download_station_panel
-    assert "Video source discovery" in source_panel
+    assert "Video source discovery" in discovery_panel
     assert "discoveryProviderOptions: VideoDiscoveryProviderOption[]" in source_panel
-    assert "discoveryProviderOptions.map" in source_panel
+    assert "discoveryProviderOptions.map" in discovery_panel
     assert "discovers NAS video candidates" in test_source
     assert "discovers a direct YouTube URL candidate" in test_source
     assert "mockDiscoverAcquisitionCandidates" in test_source

@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-durable-single-track-eof-lane",
+                    title: "Single-track batches stay selected",
+                    detail: "Apple reader Original-only and Translation-only playback now keeps the selected lane as durable view-model state across sentence-batch endings and metadata refreshes, so rendering stays synced to the playing audio."
+                ),
+                AppChangelogEntry(
+                    id: "web-video-discovery-panel",
+                    title: "Video discovery is cleaner",
+                    detail: "Web Video Dubbing source provider buttons, query/search status, remote candidate rendering, and Download Station handoff chrome now live in a focused component with rendered coverage and changed-test routing."
+                ),
+                AppChangelogEntry(
                     id: "web-video-tv-metadata-preview",
                     title: "Video metadata is cleaner",
                     detail: "Web Video Dubbing TVMaze metadata preview, artwork, editable job/show/episode fields, and raw payload rendering now live in a focused component with rendered coverage, keeping the Web flow easier to compare with Apple Create metadata review."

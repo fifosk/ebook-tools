@@ -19,13 +19,8 @@ import type {
   VideoDiscoveryProvider,
   VideoDiscoveryProviderOption
 } from './videoDubbingDiscovery';
-import {
-  filenameFromPath,
-  formatDiscoveryCandidateMeta,
-  resolveDiscoveryHint,
-  resolveDiscoveryPlaceholder
-} from './videoSourcePanelUtils';
-import VideoDownloadStationPanel from './VideoDownloadStationPanel';
+import { filenameFromPath } from './videoSourcePanelUtils';
+import VideoDiscoveryPanel from './VideoDiscoveryPanel';
 import styles from '../VideoDubbingPage.module.css';
 
 type VideoSourcePanelProps = {
@@ -157,8 +152,6 @@ export default function VideoSourcePanel({
   onCancelStreamSelection,
   onExtractAllStreams
 }: VideoSourcePanelProps) {
-  const discoveryPlaceholder = resolveDiscoveryPlaceholder(discoveryProvider);
-  const discoveryHint = resolveDiscoveryHint(discoveryProvider);
   const detachedSelectedVideoPath = selectedVideoPath && !selectedVideo ? selectedVideoPath : null;
 
   return (
@@ -184,99 +177,40 @@ export default function VideoSourcePanel({
         </div>
       </div>
       {loadError ? <p className={styles.error}>{loadError}</p> : null}
-      <div className={styles.discoveryPanel} aria-label="Video source discovery">
-        <div className={styles.discoveryHeader}>
-          <div>
-            <h3 className={styles.sectionTitle}>Discover video sources</h3>
-            <p className={styles.cardHint}>{discoveryHint}</p>
-          </div>
-          <div className={styles.discoveryControls}>
-            <div className={styles.discoveryProviderToggle} role="group" aria-label="Video discovery source">
-              {discoveryProviderOptions.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`${styles.discoveryProviderOption} ${
-                    discoveryProvider === option.id ? styles.discoveryProviderOptionActive : ''
-                  }`}
-                  aria-pressed={discoveryProvider === option.id}
-                  onClick={() => onDiscoveryProviderChange(option.id)}
-                  disabled={!option.available}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <input
-              className={styles.input}
-              value={discoveryQuery}
-              onChange={(event) => onDiscoveryQueryChange(event.target.value)}
-              placeholder={discoveryPlaceholder}
-              aria-label="Video discovery search"
-            />
-            <button
-              className={styles.secondaryButton}
-              type="button"
-              onClick={onDiscoverVideos}
-              disabled={isDiscoveringVideos || !isDiscoveryProviderAvailable}
-            >
-              {isDiscoveringVideos ? 'Searching…' : 'Discover'}
-            </button>
-          </div>
-        </div>
-        {discoveryError ? <p className={styles.error}>{discoveryError}</p> : null}
-        {discoveryPolicyNotes.map((note) => (
-          <p className={styles.status} key={note}>
-            {note}
-          </p>
-        ))}
-        {acquisitionProviderError ? <p className={styles.error}>{acquisitionProviderError}</p> : null}
-        {youtubeSearchUnavailableMessage ? (
-          <p className={styles.status}>{youtubeSearchUnavailableMessage}</p>
-        ) : null}
-        {manualDownloadsUnavailableMessage ? (
-          <p className={styles.status}>{manualDownloadsUnavailableMessage}</p>
-        ) : null}
-        {indexerSearchUnavailableMessage ? (
-          <p className={styles.status}>{indexerSearchUnavailableMessage}</p>
-        ) : null}
-        {!isDiscoveringVideos && discoveryCandidates.length === 0 ? (
-          <p className={styles.status}>No discovery results loaded yet.</p>
-        ) : null}
-        {discoveryCandidates.length > 0 ? (
-          <div className={styles.discoveryList}>
-            {discoveryCandidates.map((candidate) => (
-              <button
-                key={candidate.candidate_id}
-                type="button"
-                className={styles.discoveryOption}
-                onClick={() => onSelectDiscoveryCandidate(candidate)}
-              >
-                <span className={styles.discoveryTitle}>{candidate.title}</span>
-                <span className={styles.discoveryMeta}>{formatDiscoveryCandidateMeta(candidate)}</span>
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <VideoDownloadStationPanel
-          unavailableMessage={downloadStationUnavailableMessage}
-          isAvailable={isDownloadStationAvailable}
-          sourceUri={downloadStationSourceUri}
-          candidate={downloadStationCandidate}
-          destination={downloadStationDestination}
-          confirmed={downloadStationConfirmed}
-          job={downloadStationJob}
-          error={downloadStationError}
-          isSubmitting={isSubmittingDownloadStation}
-          isPolling={isPollingDownloadStation}
-          onSourceUriChange={onDownloadStationSourceUriChange}
-          onClearCandidate={onClearDownloadStationCandidate}
-          onDestinationChange={onDownloadStationDestinationChange}
-          onConfirmedChange={onDownloadStationConfirmedChange}
-          onSubmit={onSubmitDownloadStation}
-          onPoll={onPollDownloadStation}
-        />
-      </div>
+      <VideoDiscoveryPanel
+        discoveryProvider={discoveryProvider}
+        discoveryProviderOptions={discoveryProviderOptions}
+        discoveryQuery={discoveryQuery}
+        discoveryCandidates={discoveryCandidates}
+        discoveryError={discoveryError}
+        discoveryPolicyNotes={discoveryPolicyNotes}
+        acquisitionProviderError={acquisitionProviderError}
+        youtubeSearchUnavailableMessage={youtubeSearchUnavailableMessage}
+        manualDownloadsUnavailableMessage={manualDownloadsUnavailableMessage}
+        downloadStationUnavailableMessage={downloadStationUnavailableMessage}
+        isDownloadStationAvailable={isDownloadStationAvailable}
+        indexerSearchUnavailableMessage={indexerSearchUnavailableMessage}
+        downloadStationSourceUri={downloadStationSourceUri}
+        downloadStationCandidate={downloadStationCandidate}
+        downloadStationDestination={downloadStationDestination}
+        downloadStationConfirmed={downloadStationConfirmed}
+        downloadStationJob={downloadStationJob}
+        downloadStationError={downloadStationError}
+        isSubmittingDownloadStation={isSubmittingDownloadStation}
+        isPollingDownloadStation={isPollingDownloadStation}
+        isDiscoveryProviderAvailable={isDiscoveryProviderAvailable}
+        isDiscoveringVideos={isDiscoveringVideos}
+        onDiscoveryProviderChange={onDiscoveryProviderChange}
+        onDiscoveryQueryChange={onDiscoveryQueryChange}
+        onDiscoverVideos={onDiscoverVideos}
+        onSelectDiscoveryCandidate={onSelectDiscoveryCandidate}
+        onDownloadStationSourceUriChange={onDownloadStationSourceUriChange}
+        onClearDownloadStationCandidate={onClearDownloadStationCandidate}
+        onDownloadStationDestinationChange={onDownloadStationDestinationChange}
+        onDownloadStationConfirmedChange={onDownloadStationConfirmedChange}
+        onSubmitDownloadStation={onSubmitDownloadStation}
+        onPollDownloadStation={onPollDownloadStation}
+      />
       {isLoading && videos.length === 0 ? <p className={styles.status}>Loading videos…</p> : null}
       {!isLoading && videos.length === 0 ? (
         <p className={styles.status}>No downloaded videos found in this directory.</p>

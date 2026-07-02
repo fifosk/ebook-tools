@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Apple reader Original-only and Translation-only playback now keeps the user-selected lane as durable view-model state across sentence-batch EOF handoffs and metadata refreshes, so track selection survives batch boundaries and rendering stays synced to the playing audio.
+- Web Video Dubbing source discovery provider buttons, query/search status, remote candidate rendering, and Download Station handoff chrome now live in a focused `VideoDiscoveryPanel` component with rendered coverage and changed-test routing.
 - Web Video Dubbing TVMaze metadata preview, artwork, editable job/show/episode fields, and raw payload rendering now live in a focused `VideoTvMetadataPreview` component with rendered coverage and changed-test routing, trimming the metadata panel while preserving Apple Create parity behavior.
 - Apple reader combined/sequence batch endings no longer infer Original-only or Translation-only mode from the final segment URL after the sequence plan has ended, preventing all-track playback from resetting the next batch to the last spoken track and drifting rendering out of sync.
 - Backend acquisition provider discoverability now lives in a focused `provider_catalog` module shared by discovery routing and the provider registry, reducing the chance that Web and Apple Create expose a provider the backend handler map cannot actually route.
