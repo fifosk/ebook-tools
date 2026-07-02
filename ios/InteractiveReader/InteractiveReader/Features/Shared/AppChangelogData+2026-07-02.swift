@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-create-readiness-default-key-gate",
+                    title: "Readiness rejects bad source keys",
+                    detail: "Apple Create readiness preflight now flags unsupported acquisition Default sources media-kind keys, matching backend, Web, and Apple Create validation before unattended pipeline runs."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-default-provider-eligibility-validation",
                     title: "Default sources stay eligible",
                     detail: "Backend, Web, and Apple Create now reject acquisition Default sources that point at providers not marked default-eligible for that media kind, keeping picker defaults aligned with the provider inventory."

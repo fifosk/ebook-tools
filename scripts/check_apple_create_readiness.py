@@ -760,6 +760,10 @@ def acquisition_default_provider_issues(
         return ["default_provider_ids"]
 
     issues: list[str] = []
+    supported_media_kinds = {"book", "video"}
+    for media_kind in sorted(default_provider_ids):
+        if not isinstance(media_kind, str) or media_kind not in supported_media_kinds:
+            issues.append(f"{media_kind}.unsupported")
     for media_kind in ("book", "video"):
         provider_ids = normalized_default_provider_ids(default_provider_ids, media_kind)
         if not provider_ids:

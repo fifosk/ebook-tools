@@ -918,6 +918,41 @@ def test_acquisition_provider_inventory_reports_invalid_default_providers() -> N
     ]
 
 
+def test_acquisition_provider_inventory_reports_unsupported_default_media_kind() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        providers.append(
+            {
+                "id": provider_id,
+                "media_kinds": sorted(requirements["media_kinds"]),
+                "discovery_media_kinds": sorted(requirements["media_kinds"]),
+                "default_eligible_media_kinds": sorted(requirements["media_kinds"]),
+                "capabilities": sorted(requirements["capabilities"]),
+                "available": provider_id != "zlibrary_attended",
+                "policy_notes": (
+                    [
+                        "Direct Z-Library automation is intentionally disabled.",
+                        "Use an attended browser/download workflow only.",
+                    ]
+                    if provider_id == "zlibrary_attended"
+                    else []
+                ),
+            }
+        )
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "audio": ["local_epub"],
+            "book": ["local_epub"],
+            "video": ["nas_video"],
+        },
+    })
+
+    assert inventory["acquisition_default_providers_ready"] is False
+    assert inventory["acquisition_default_provider_issues"] == ["audio.unsupported"]
+
+
 def test_acquisition_provider_inventory_reports_unavailable_default_providers() -> None:
     providers = []
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
