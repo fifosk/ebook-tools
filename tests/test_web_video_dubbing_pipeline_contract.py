@@ -169,8 +169,16 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "assertAcquisitionProviderListResponse(payload)" in api_client
     assert "Invalid acquisition provider response: missing providers." in api_client
     assert "Invalid acquisition provider response: missing default_provider_ids." in api_client
+    assert "assertStringArrayMap(payload.default_provider_ids, 'default_provider_ids')" in api_client
+    assert "assertStringMap(payload.paths, 'paths')" in api_client
     assert "Invalid acquisition provider response: missing discovery_media_kinds." in api_client
     assert "Invalid acquisition provider response: missing default_eligible_media_kinds." in api_client
+    assert "assertBooleanField(provider, 'configured')" in api_client
+    assert "assertBooleanField(provider, 'available')" in api_client
+    assert "assertStringArray(provider.policy_notes, 'policy_notes')" in api_client
+    assert "assertStringArray(provider.next_actions, 'next_actions')" in api_client
+    assert "assertStringArray(provider.capabilities, 'capabilities')" in api_client
+    assert "assertStringArray(provider.rights, 'rights')" in api_client
     assert "resolveDefaultBookDiscoveryProvider(" in discovery_hook
     assert "defaultProviderIds?.book" in discovery_providers
     assert "hasUserSelectedDiscoveryProvider.current" in discovery_hook

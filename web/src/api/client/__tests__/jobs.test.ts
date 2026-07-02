@@ -40,24 +40,27 @@ function jsonResponse(payload: unknown): Response {
   });
 }
 
+function acquisitionProvider(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'local_epub',
+    label: 'Local EPUBs',
+    media_kinds: ['book'],
+    capabilities: ['import_local'],
+    status: 'available',
+    configured: true,
+    available: true,
+    rights: ['user_provided'],
+    discovery_media_kinds: ['book'],
+    default_eligible_media_kinds: ['book'],
+    policy_notes: [],
+    next_actions: [],
+    ...overrides
+  };
+}
+
 function acquisitionProviderListResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    providers: [
-      {
-        id: 'local_epub',
-        label: 'Local EPUBs',
-        media_kinds: ['book'],
-        capabilities: ['import_local'],
-        status: 'available',
-        configured: true,
-        available: true,
-        rights: ['user_provided'],
-        discovery_media_kinds: ['book'],
-        default_eligible_media_kinds: ['book'],
-        policy_notes: [],
-        next_actions: []
-      }
-    ],
+    providers: [acquisitionProvider()],
     policy_notes: [],
     paths: {},
     default_provider_ids: { book: ['local_epub'] },
@@ -172,21 +175,21 @@ describe('jobs API client', () => {
   it('rejects malformed acquisition provider registry payloads', async () => {
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
       .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({ default_provider_ids: undefined })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({ default_provider_ids: { book: 'local_epub' } })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({ paths: { books: 42 } })))
       .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
         providers: [
-          {
-            id: 'local_epub',
-            label: 'Local EPUBs',
-            media_kinds: ['book'],
-            capabilities: ['import_local'],
-            status: 'available',
-            configured: true,
-            available: true,
-            rights: ['user_provided'],
-            discovery_media_kinds: ['book'],
-            policy_notes: [],
-            next_actions: []
-          }
+          acquisitionProvider({ default_eligible_media_kinds: undefined })
+        ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
+        providers: [
+          acquisitionProvider({ configured: 'true' })
+        ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
+        providers: [
+          acquisitionProvider({ policy_notes: [42] })
         ]
       })));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -195,7 +198,19 @@ describe('jobs API client', () => {
       'Invalid acquisition provider response: missing default_provider_ids.'
     );
     await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: invalid default_provider_ids.'
+    );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: invalid paths.'
+    );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
       'Invalid acquisition provider response: missing default_eligible_media_kinds.'
+    );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: missing configured.'
+    );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: missing policy_notes.'
     );
   });
 

@@ -231,18 +231,83 @@ function assertAcquisitionProviderListResponse(
   if (!isRecord(payload.default_provider_ids)) {
     throw new Error('Invalid acquisition provider response: missing default_provider_ids.');
   }
+  assertStringMap(payload.paths, 'paths');
+  assertStringArrayMap(payload.default_provider_ids, 'default_provider_ids');
   for (const provider of payload.providers) {
-    if (!isRecord(provider) || !Array.isArray(provider.discovery_media_kinds)) {
+    if (!isRecord(provider)) {
+      throw new Error('Invalid acquisition provider response: missing provider entry.');
+    }
+    assertStringField(provider, 'id');
+    assertStringField(provider, 'label');
+    assertStringField(provider, 'status');
+    assertBooleanField(provider, 'configured');
+    assertBooleanField(provider, 'available');
+    assertStringArray(provider.media_kinds, 'media_kinds');
+    assertStringArray(provider.capabilities, 'capabilities');
+    assertStringArray(provider.rights, 'rights');
+    if (!Array.isArray(provider.discovery_media_kinds)) {
       throw new Error('Invalid acquisition provider response: missing discovery_media_kinds.');
     }
     if (!Array.isArray(provider.default_eligible_media_kinds)) {
       throw new Error('Invalid acquisition provider response: missing default_eligible_media_kinds.');
     }
+    assertStringArray(provider.discovery_media_kinds, 'discovery_media_kinds');
+    assertStringArray(provider.default_eligible_media_kinds, 'default_eligible_media_kinds');
+    if (
+      provider.source_path !== undefined &&
+      provider.source_path !== null &&
+      typeof provider.source_path !== 'string'
+    ) {
+      throw new Error('Invalid acquisition provider response: invalid source_path.');
+    }
+    if (
+      provider.source_label !== undefined &&
+      provider.source_label !== null &&
+      typeof provider.source_label !== 'string'
+    ) {
+      throw new Error('Invalid acquisition provider response: invalid source_label.');
+    }
+    assertStringArray(provider.policy_notes, 'policy_notes');
+    assertStringArray(provider.next_actions, 'next_actions');
   }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertStringField(record: Record<string, unknown>, key: string): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid acquisition provider response: missing ${key}.`);
+  }
+}
+
+function assertBooleanField(record: Record<string, unknown>, key: string): void {
+  if (typeof record[key] !== 'boolean') {
+    throw new Error(`Invalid acquisition provider response: missing ${key}.`);
+  }
+}
+
+function assertStringArray(value: unknown, key: string): void {
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+    throw new Error(`Invalid acquisition provider response: missing ${key}.`);
+  }
+}
+
+function assertStringMap(value: Record<string, unknown>, key: string): void {
+  if (Object.values(value).some((entry) => typeof entry !== 'string')) {
+    throw new Error(`Invalid acquisition provider response: invalid ${key}.`);
+  }
+}
+
+function assertStringArrayMap(value: Record<string, unknown>, key: string): void {
+  if (
+    Object.values(value).some(
+      (entry) => !Array.isArray(entry) || entry.some((item) => typeof item !== 'string')
+    )
+  ) {
+    throw new Error(`Invalid acquisition provider response: invalid ${key}.`);
+  }
 }
 
 export async function discoverAcquisitionCandidates({
