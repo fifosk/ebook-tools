@@ -715,7 +715,9 @@ Current Apple UI partially exposes:
   `modules/services/acquisition/provider_roots.py`, keeping books root, NAS
   video root, manual-download config/env splitting, source labels, and
   tolerant safe-stat readability checks reusable outside the provider registry
-  payload builder. Backend local/manual/NAS source candidate helpers now live in
+  payload builder. File-backed discovery, reviewed artifact preparation, and
+  Download Station handoff now import those root helpers directly instead of
+  depending on provider payload assembly. Backend local/manual/NAS source candidate helpers now live in
   `modules/services/acquisition/source_candidates.py` with focused coverage,
   keeping source-relative paths, display-title derivation, zero-byte EPUB
   filtering, and bounded newest-first manual source ordering shared for

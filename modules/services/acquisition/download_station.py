@@ -12,7 +12,7 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 
-from .provider_registry import resolve_manual_download_roots
+from .provider_roots import resolve_manual_download_roots
 from .references import resolve_acquisition_reference
 from .tokens import decode_acquisition_token
 

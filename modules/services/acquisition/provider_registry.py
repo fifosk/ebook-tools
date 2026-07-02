@@ -37,30 +37,6 @@ DISCOVERY_PROVIDER_MEDIA_KINDS: Mapping[str, tuple[str, ...]] = {
     "youtube_url": ("video",),
 }
 
-_EXPLICIT_MANUAL_DOWNLOAD_ROOT_KEYS = (
-    "acquisition_manual_download_roots",
-    "manual_download_roots",
-    "acquisition_manual_download_root",
-    "manual_download_root",
-    "download_station_completed_root",
-    "downloads_root",
-)
-
-_VIDEO_DOWNLOAD_ROOT_KEYS = (
-    "youtube_video_root",
-    "youtube_library_root",
-    "video_download_root",
-)
-
-_MANUAL_DOWNLOAD_ROOT_ENV_KEYS = (
-    "EBOOK_ACQUISITION_MANUAL_ROOTS",
-    "EBOOK_MANUAL_DOWNLOAD_ROOTS",
-    "EBOOK_ACQUISITION_MANUAL_ROOT",
-    "EBOOK_MANUAL_DOWNLOAD_ROOT",
-    "DOWNLOAD_STATION_COMPLETED_ROOT",
-)
-
-
 def _normalized_catalog_id(value: str | None) -> str:
     return str(value or "").strip().casefold()
 

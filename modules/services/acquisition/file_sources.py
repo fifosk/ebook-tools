@@ -15,7 +15,7 @@ from modules.services.source_discovery import (
 from modules.services.youtube_dubbing import list_downloaded_videos
 
 from .models import AcquisitionCandidate, AcquisitionSubtitleHint
-from .provider_registry import (
+from .provider_roots import (
     resolve_books_root,
     resolve_manual_download_roots,
     resolve_video_root,

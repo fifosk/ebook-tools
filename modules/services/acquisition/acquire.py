@@ -16,7 +16,7 @@ import requests
 from modules.services.source_discovery import safe_stat
 from modules.services.youtube_dubbing import list_downloaded_videos
 
-from .provider_registry import (
+from .provider_roots import (
     resolve_books_root,
     resolve_manual_download_roots,
     resolve_video_root,

@@ -12,6 +12,7 @@ import requests
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.discovery_normalization as discovery_normalization
+import modules.services.acquisition.download_station as download_station
 import modules.services.acquisition.file_sources as file_sources
 import modules.services.acquisition.gutenberg_discovery as gutenberg_discovery
 import modules.services.acquisition.indexer_discovery as indexer_discovery
@@ -715,6 +716,16 @@ def test_provider_root_readability_uses_tolerant_safe_stat(
     assert provider_roots.is_readable_dir(Path("/nas/synthetic-file")) is False
     assert provider_roots.is_readable_dir(Path("/nas/missing")) is False
     assert calls == ["synthetic-dir", "synthetic-file", "missing"]
+
+
+def test_acquisition_helpers_use_provider_roots_directly() -> None:
+    assert file_sources.resolve_books_root is provider_roots.resolve_books_root
+    assert file_sources.resolve_video_root is provider_roots.resolve_video_root
+    assert file_sources.resolve_manual_download_roots is provider_roots.resolve_manual_download_roots
+    assert acquisition_acquire.resolve_books_root is provider_roots.resolve_books_root
+    assert acquisition_acquire.resolve_video_root is provider_roots.resolve_video_root
+    assert acquisition_acquire.resolve_manual_download_roots is provider_roots.resolve_manual_download_roots
+    assert download_station.resolve_manual_download_roots is provider_roots.resolve_manual_download_roots
 
 
 def test_acquisition_provider_requires_download_station_credentials(monkeypatch) -> None:
