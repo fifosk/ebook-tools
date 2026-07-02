@@ -546,6 +546,59 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     }
 
 
+def test_provider_registry_defaults_and_listing_share_readiness_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    books_root = tmp_path / "books"
+    video_root = tmp_path / "videos"
+    calls: list[dict[str, object]] = []
+
+    def _fake_readiness(*, config, context=None):
+        calls.append({"config": config, "context": context})
+        return acquisition_provider_registry._ProviderReadiness(
+            books_root=books_root,
+            video_root=video_root,
+            manual_download_roots=(),
+            readable_manual_roots=(),
+            readable_default_manual_roots=(),
+            books_root_readable=True,
+            video_root_readable=False,
+            youtube_search_configured=True,
+            download_station_configured=False,
+            indexer_search_configured=True,
+            default_provider_ids={
+                "book": ("local_epub",),
+                "video": ("youtube_search", "newznab_torznab"),
+            },
+        )
+
+    monkeypatch.setattr(
+        acquisition_provider_registry,
+        "_resolve_provider_readiness",
+        _fake_readiness,
+    )
+
+    assert default_discovery_provider_ids("video", {"config": "shared"}) == (
+        "youtube_search",
+        "newznab_torznab",
+    )
+    registry = list_acquisition_providers(config={"config": "shared"})
+    providers = {provider.id: provider for provider in registry.providers}
+
+    assert registry.default_provider_ids == {
+        "book": ("local_epub",),
+        "video": ("youtube_search", "newznab_torznab"),
+    }
+    assert providers["local_epub"].available is True
+    assert providers["local_epub"].default_eligible_media_kinds == ("book",)
+    assert providers["nas_video"].available is False
+    assert providers["nas_video"].default_eligible_media_kinds == ()
+    assert providers["youtube_search"].default_eligible_media_kinds == ("video",)
+    assert providers["newznab_torznab"].default_eligible_media_kinds == ("video",)
+    assert len(calls) == 2
+
+
 def test_default_discovery_provider_ids_are_config_aware(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

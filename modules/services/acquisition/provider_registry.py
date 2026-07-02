@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import Any, Mapping
 
 from modules import config_manager as cfg
@@ -40,19 +41,10 @@ def default_discovery_provider_ids(
     media_kind = _normalized_catalog_id(media_kind)
     if media_kind not in ("book", "video"):
         return ()
-    readable_manual_roots = _readable_explicit_manual_download_roots(config)
-    books_root_readable = _is_readable_dir(resolve_books_root(config=config, context=None))
-    video_root_readable = _is_readable_dir(resolve_video_root(config))
-    youtube_search_configured = is_youtube_search_configured(config)
-    indexer_search_configured = is_indexer_search_configured(config)
-    return _default_discovery_provider_ids_from_readiness(
-        media_kind,
-        books_root_readable=books_root_readable,
-        video_root_readable=video_root_readable,
-        has_readable_manual_roots=bool(readable_manual_roots),
-        youtube_search_configured=youtube_search_configured,
-        indexer_search_configured=indexer_search_configured,
-    )
+    return _resolve_provider_readiness(
+        config=config,
+        context=None,
+    ).default_provider_ids.get(media_kind, ())
 
 
 @dataclass(frozen=True)
@@ -121,6 +113,23 @@ class AcquisitionProviderRegistry:
         }
 
 
+@dataclass(frozen=True)
+class _ProviderReadiness:
+    """Resolved source roots and provider readiness for one registry request."""
+
+    books_root: Path
+    video_root: Path
+    manual_download_roots: tuple[Path, ...]
+    readable_manual_roots: tuple[Path, ...]
+    readable_default_manual_roots: tuple[Path, ...]
+    books_root_readable: bool
+    video_root_readable: bool
+    youtube_search_configured: bool
+    download_station_configured: bool
+    indexer_search_configured: bool
+    default_provider_ids: Mapping[str, tuple[str, ...]]
+
+
 def list_acquisition_providers(
     *,
     config: Mapping[str, Any] | None = None,
@@ -129,34 +138,7 @@ def list_acquisition_providers(
     """Return token-safe provider metadata for Web and Apple Create."""
 
     config = config or {}
-    books_root = resolve_books_root(config=config, context=context)
-    video_root = resolve_video_root(config)
-    manual_download_roots = resolve_manual_download_roots(config)
-    readable_manual_roots = tuple(root for root in manual_download_roots if _is_readable_dir(root))
-    readable_default_manual_roots = _readable_explicit_manual_download_roots(config)
-    books_root_readable = _is_readable_dir(books_root)
-    video_root_readable = _is_readable_dir(video_root)
-    youtube_api_configured = is_youtube_search_configured(config)
-    download_station_configured = is_download_station_configured(config)
-    indexer_configured = is_indexer_search_configured(config)
-    default_provider_ids = {
-        "book": _default_discovery_provider_ids_from_readiness(
-            "book",
-            books_root_readable=books_root_readable,
-            video_root_readable=video_root_readable,
-            has_readable_manual_roots=bool(readable_default_manual_roots),
-            youtube_search_configured=youtube_api_configured,
-            indexer_search_configured=indexer_configured,
-        ),
-        "video": _default_discovery_provider_ids_from_readiness(
-            "video",
-            books_root_readable=books_root_readable,
-            video_root_readable=video_root_readable,
-            has_readable_manual_roots=bool(readable_default_manual_roots),
-            youtube_search_configured=youtube_api_configured,
-            indexer_search_configured=indexer_configured,
-        ),
-    }
+    readiness = _resolve_provider_readiness(config=config, context=context)
 
     providers = (
         AcquisitionProvider(
@@ -164,12 +146,12 @@ def list_acquisition_providers(
             label="Local EPUB library",
             media_kinds=("book",),
             capabilities=("import_local", "metadata"),
-            status="available" if books_root_readable else "not_configured",
+            status="available" if readiness.books_root_readable else "not_configured",
             configured=True,
-            available=books_root_readable,
+            available=readiness.books_root_readable,
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("local_epub"),
-            source_path=books_root.as_posix(),
+            source_path=readiness.books_root.as_posix(),
             source_label="Books root",
             policy_notes=(
                 "Uses backend-visible EPUB files under the configured books root.",
@@ -181,12 +163,12 @@ def list_acquisition_providers(
             label="NAS video library",
             media_kinds=("video",),
             capabilities=("import_local", "extract_subtitles", "metadata"),
-            status="available" if video_root_readable else "not_configured",
+            status="available" if readiness.video_root_readable else "not_configured",
             configured=True,
-            available=video_root_readable,
+            available=readiness.video_root_readable,
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("nas_video"),
-            source_path=video_root.as_posix(),
+            source_path=readiness.video_root.as_posix(),
             source_label="NAS video root",
             policy_notes=(
                 "Uses downloaded or user-owned videos visible to the backend NAS scanner.",
@@ -198,13 +180,16 @@ def list_acquisition_providers(
             label="Manual download folders",
             media_kinds=("book", "video"),
             capabilities=("import_local", "extract_subtitles", "metadata"),
-            status="available" if readable_manual_roots else "not_configured",
-            configured=bool(manual_download_roots),
-            available=bool(readable_manual_roots),
+            status="available" if readiness.readable_manual_roots else "not_configured",
+            configured=bool(readiness.manual_download_roots),
+            available=bool(readiness.readable_manual_roots),
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("manual_downloads"),
-            source_path=";".join(root.as_posix() for root in readable_manual_roots) or None,
-            source_label=_manual_download_source_label(manual_download_roots),
+            source_path=(
+                ";".join(root.as_posix() for root in readiness.readable_manual_roots)
+                or None
+            ),
+            source_label=_manual_download_source_label(readiness.manual_download_roots),
             policy_notes=(
                 "Scans configured backend-visible folders for user-authorized files already downloaded through Safari, Download Station, or another manual workflow.",
             ),
@@ -231,9 +216,9 @@ def list_acquisition_providers(
             label="YouTube search",
             media_kinds=("video",),
             capabilities=("search", "metadata"),
-            status="available" if youtube_api_configured else "not_configured",
-            configured=youtube_api_configured,
-            available=youtube_api_configured,
+            status="available" if readiness.youtube_search_configured else "not_configured",
+            configured=readiness.youtube_search_configured,
+            available=readiness.youtube_search_configured,
             rights=("unknown", "restricted"),
             discovery_media_kinds=discovery_media_kinds_for("youtube_search"),
             policy_notes=(
@@ -247,9 +232,9 @@ def list_acquisition_providers(
             label="Synology Download Station",
             media_kinds=("video",),
             capabilities=("acquire", "poll"),
-            status="available" if download_station_configured else "not_configured",
-            configured=download_station_configured,
-            available=download_station_configured,
+            status="available" if readiness.download_station_configured else "not_configured",
+            configured=readiness.download_station_configured,
+            available=readiness.download_station_configured,
             rights=("unknown", "restricted"),
             policy_notes=(
                 "Queue handoff is for lawful reviewed torrents, magnets, NZBs, or URLs only.",
@@ -262,9 +247,9 @@ def list_acquisition_providers(
             label="Newznab/Torznab indexers",
             media_kinds=("video",),
             capabilities=("search", "metadata"),
-            status="available" if indexer_configured else "not_configured",
-            configured=indexer_configured,
-            available=indexer_configured,
+            status="available" if readiness.indexer_search_configured else "not_configured",
+            configured=readiness.indexer_search_configured,
+            available=readiness.indexer_search_configured,
             rights=("unknown", "restricted"),
             discovery_media_kinds=discovery_media_kinds_for("newznab_torznab"),
             policy_notes=(
@@ -298,9 +283,15 @@ def list_acquisition_providers(
             rights=("unknown", "restricted"),
             policy_notes=(
                 "Direct Z-Library automation is intentionally disabled.",
-                "Use an attended browser/download workflow only for books you are authorized to process, then import the EPUB through Manual downloads or the backend books folder.",
+                "Use an attended browser/download workflow only for books you are "
+                "authorized to process, then import the EPUB through Manual downloads "
+                "or the backend books folder.",
             ),
-            next_actions=("download_attended", "place_in_manual_downloads", "refresh_manual_downloads"),
+            next_actions=(
+                "download_attended",
+                "place_in_manual_downloads",
+                "refresh_manual_downloads",
+            ),
         ),
         AcquisitionProvider(
             id="gutenberg",
@@ -338,7 +329,7 @@ def list_acquisition_providers(
             provider,
             default_eligible_media_kinds=_default_eligible_media_kinds(
                 provider.id,
-                default_provider_ids,
+                readiness.default_provider_ids,
             ),
         )
         for provider in providers
@@ -352,12 +343,55 @@ def list_acquisition_providers(
             "Credentials and raw provider tokens stay server-side and are never returned by this endpoint.",
         ),
         paths={
-            "books_root": books_root.as_posix(),
-            "video_root": video_root.as_posix(),
+            "books_root": readiness.books_root.as_posix(),
+            "video_root": readiness.video_root.as_posix(),
             "manual_download_roots": os.pathsep.join(
-                root.as_posix() for root in manual_download_roots
+                root.as_posix() for root in readiness.manual_download_roots
             ),
         },
+        default_provider_ids=readiness.default_provider_ids,
+    )
+
+
+def _resolve_provider_readiness(
+    *,
+    config: Mapping[str, Any],
+    context: cfg.RuntimeContext | None = None,
+) -> _ProviderReadiness:
+    books_root = resolve_books_root(config=config, context=context)
+    video_root = resolve_video_root(config)
+    manual_download_roots = resolve_manual_download_roots(config)
+    readable_manual_roots = tuple(
+        root for root in manual_download_roots if _is_readable_dir(root)
+    )
+    readable_default_manual_roots = _readable_explicit_manual_download_roots(config)
+    books_root_readable = _is_readable_dir(books_root)
+    video_root_readable = _is_readable_dir(video_root)
+    youtube_search_configured = is_youtube_search_configured(config)
+    download_station_configured = is_download_station_configured(config)
+    indexer_search_configured = is_indexer_search_configured(config)
+    default_provider_ids = {
+        media_kind: _default_discovery_provider_ids_from_readiness(
+            media_kind,
+            books_root_readable=books_root_readable,
+            video_root_readable=video_root_readable,
+            has_readable_manual_roots=bool(readable_default_manual_roots),
+            youtube_search_configured=youtube_search_configured,
+            indexer_search_configured=indexer_search_configured,
+        )
+        for media_kind in ("book", "video")
+    }
+    return _ProviderReadiness(
+        books_root=books_root,
+        video_root=video_root,
+        manual_download_roots=manual_download_roots,
+        readable_manual_roots=readable_manual_roots,
+        readable_default_manual_roots=readable_default_manual_roots,
+        books_root_readable=books_root_readable,
+        video_root_readable=video_root_readable,
+        youtube_search_configured=youtube_search_configured,
+        download_station_configured=download_station_configured,
+        indexer_search_configured=indexer_search_configured,
         default_provider_ids=default_provider_ids,
     )
 

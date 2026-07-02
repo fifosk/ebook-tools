@@ -135,7 +135,10 @@ Initial routes:
     keys stay server-side until a separate reviewed handoff.
   - Status: implemented as a token-safe provider registry in
     `modules/services/acquisition/` and advertised through
-    `creation.acquisitionProvidersPath` in `/api/system/runtime`.
+    `creation.acquisitionProvidersPath` in `/api/system/runtime`. Provider-list
+    readiness and backend-owned default fanout now share one resolved readiness
+    snapshot, so Web/Apple Create provider metadata and default discovery use
+    the same root/config evidence without duplicate filesystem/config probes.
 - `GET /api/acquisition/discover`
   - Query params: `media_kind=book|video`, `q`, `provider`, `language`,
     `limit`, optional provider filters, and repeated `source_id` values for
