@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-create-readiness-discovery-value-gate",
+                    title: "Readiness validates discovery values",
+                    detail: "Apple Create readiness preflight now rejects acquisition discovery candidates with unsupported media kinds, rights, or capabilities, matching backend, Web, and Apple validation before device deploys."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-readiness-default-key-gate",
                     title: "Readiness rejects bad source keys",
                     detail: "Apple Create readiness preflight now flags unsupported acquisition Default sources media-kind keys, matching backend, Web, and Apple Create validation before unattended pipeline runs."

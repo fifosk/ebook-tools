@@ -1156,6 +1156,39 @@ def test_acquisition_discovery_inventory_reports_shape_issues(monkeypatch) -> No
     ]
 
 
+def test_acquisition_discovery_payload_reports_candidate_value_issues() -> None:
+    payload = {
+        "candidates": [
+            {
+                "candidate_id": "bad",
+                "provider": "local_epub",
+                "media_kind": "audio",
+                "title": "Bad source",
+                "rights": "metadata_only",
+                "capabilities": ["metadata", "scrape_browser", 7],
+                "candidate_token": "redacted-token",
+                "contributors": [],
+                "subtitles": [],
+                "requires_confirmation": False,
+                "policy_notes": [],
+            }
+        ],
+        "policy_notes": [],
+        "providers_queried": ["local_epub"],
+    }
+
+    assert module.acquisition_discovery_payload_issues(
+        payload,
+        expected_provider="local_epub",
+        expected_media_kind="book",
+    ) == [
+        "candidate_0.capabilities:7,scrape_browser",
+        "candidate_0.media_kind",
+        "candidate_0.media_kind:book",
+        "candidate_0.rights",
+    ]
+
+
 def test_acquisition_default_discovery_payload_accepts_default_fanout() -> None:
     payload = {
         "candidates": [
@@ -1165,7 +1198,7 @@ def test_acquisition_default_discovery_payload_accepts_default_fanout() -> None:
                 "media_kind": "video",
                 "title": "Demo",
                 "rights": "user_provided",
-                "capabilities": ["use_local_video"],
+                "capabilities": ["import_local"],
                 "candidate_token": "redacted-token",
                 "contributors": [],
                 "subtitles": [],
@@ -1192,7 +1225,7 @@ def test_acquisition_default_discovery_payload_reports_unexpected_provider() -> 
                 "provider": "youtube_url",
                 "media_kind": "video",
                 "title": "Demo",
-                "rights": "metadata_only",
+                "rights": "unknown",
                 "capabilities": ["metadata"],
                 "candidate_token": "redacted-token",
                 "contributors": [],
@@ -2464,7 +2497,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                         "media_kind": "video",
                         "title": "Current Video",
                         "rights": "user_provided",
-                        "capabilities": ["select_video", "extract_subtitles"],
+                        "capabilities": ["import_local", "extract_subtitles"],
                         "candidate_token": "video-token",
                         "contributors": [],
                         "subtitles": [
@@ -2510,7 +2543,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                         "media_kind": "video",
                         "title": "Current Video",
                         "rights": "user_provided",
-                        "capabilities": ["select_video", "extract_subtitles"],
+                        "capabilities": ["import_local", "extract_subtitles"],
                         "candidate_token": "video-token",
                         "contributors": [],
                         "subtitles": [

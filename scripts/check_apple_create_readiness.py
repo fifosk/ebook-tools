@@ -207,6 +207,22 @@ REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS = {
     "download_station": set(),
     "zlibrary_attended": set(),
 }
+ACQUISITION_DISCOVERY_MEDIA_KINDS = {"book", "video"}
+ACQUISITION_DISCOVERY_CAPABILITIES = {
+    "search",
+    "metadata",
+    "acquire",
+    "poll",
+    "extract_subtitles",
+    "import_local",
+}
+ACQUISITION_DISCOVERY_RIGHTS = {
+    "public_domain",
+    "open_license",
+    "user_provided",
+    "unknown",
+    "restricted",
+}
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -814,6 +830,7 @@ def acquisition_discovery_payload_issues(
     payload: Any,
     *,
     expected_provider: str,
+    expected_media_kind: str | None = None,
 ) -> list[str]:
     if not isinstance(payload, dict):
         return ["payload"]
@@ -845,6 +862,32 @@ def acquisition_discovery_payload_issues(
             for field, expected_type in required_candidate_fields.items():
                 if not isinstance(candidate.get(field), expected_type):
                     issues.append(f"candidate_{index}.{field}")
+            media_kind = candidate.get("media_kind")
+            if isinstance(media_kind, str):
+                if media_kind not in ACQUISITION_DISCOVERY_MEDIA_KINDS:
+                    issues.append(f"candidate_{index}.media_kind")
+                if expected_media_kind and media_kind != expected_media_kind:
+                    issues.append(f"candidate_{index}.media_kind:{expected_media_kind}")
+            rights = candidate.get("rights")
+            if isinstance(rights, str) and rights not in ACQUISITION_DISCOVERY_RIGHTS:
+                issues.append(f"candidate_{index}.rights")
+            capabilities = candidate.get("capabilities")
+            if isinstance(capabilities, list):
+                unsupported_capabilities = sorted(
+                    (
+                        capability
+                        for capability in capabilities
+                        if not isinstance(capability, str)
+                        or capability not in ACQUISITION_DISCOVERY_CAPABILITIES
+                    ),
+                    key=str,
+                )
+                if unsupported_capabilities:
+                    issues.append(
+                        "candidate_"
+                        f"{index}.capabilities:"
+                        + ",".join(str(capability) for capability in unsupported_capabilities)
+                    )
     if not isinstance(policy_notes, list) or not all(isinstance(note, str) for note in policy_notes):
         issues.append("policy_notes")
     if not isinstance(providers_queried, list) or not all(isinstance(provider, str) for provider in providers_queried):
@@ -900,6 +943,7 @@ def acquisition_discovery_inventory(
         payload_issues = acquisition_discovery_payload_issues(
             payload,
             expected_provider=provider,
+            expected_media_kind=media_kind,
         )
         issues.extend(f"{media_kind}.{issue}" for issue in payload_issues)
         if isinstance(payload, dict):
@@ -929,7 +973,11 @@ def acquisition_default_discovery_payload_issues(
     media_kind: str,
     expected_provider_ids: list[str],
 ) -> list[str]:
-    issues = acquisition_discovery_payload_issues(payload, expected_provider="")
+    issues = acquisition_discovery_payload_issues(
+        payload,
+        expected_provider="",
+        expected_media_kind=media_kind,
+    )
     issues = [issue for issue in issues if not issue.startswith("providers_queried:")]
     if not isinstance(payload, dict):
         return issues
@@ -957,8 +1005,6 @@ def acquisition_default_discovery_payload_issues(
         for index, candidate in enumerate(candidates[:3]):
             if not isinstance(candidate, dict):
                 continue
-            if candidate.get("media_kind") != media_kind:
-                issues.append(f"candidate_{index}.media_kind:{media_kind}")
             provider = candidate.get("provider")
             if expected and isinstance(provider, str) and provider not in expected:
                 issues.append(f"candidate_{index}.provider:{provider}")
