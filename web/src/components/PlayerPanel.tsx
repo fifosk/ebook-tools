@@ -3,11 +3,6 @@ import type { LiveMediaChunk, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { useMyLinguist } from '../context/MyLinguistProvider';
-import {
-  DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT,
-  MY_LINGUIST_FONT_SCALE_STEP,
-} from './player-panel/constants';
 import type { LibraryItem } from '../api/dtos';
 import { PlayerPanelFrame } from './player-panel/PlayerPanelFrame';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
@@ -27,8 +22,6 @@ import { useReadingBedControls } from './player-panel/useReadingBedControls';
 import { useInteractiveTextSettings } from './player-panel/useInteractiveTextSettings';
 import { useSubtitleInfo } from './player-panel/useSubtitleInfo';
 import { useTextPreview } from './player-panel/useTextPreview';
-import { ShortcutHelpOverlay } from './player-panel/ShortcutHelpOverlay';
-import { usePlayerShortcuts } from './player-panel/usePlayerShortcuts';
 import { usePlayerPanelJobInfo } from './player-panel/usePlayerPanelJobInfo';
 import { usePlayerPanelSelectionState } from './player-panel/usePlayerPanelSelectionState';
 import { usePlayerPanelPlaybackState } from './player-panel/usePlayerPanelPlaybackState';
@@ -54,6 +47,7 @@ import {
   buildPlayerPanelChromeState,
 } from './player-panel/playerPanelChromeState';
 import { usePlayerPanelNavigationChrome } from './player-panel/usePlayerPanelNavigationChrome';
+import { usePlayerPanelShortcutControls } from './player-panel/usePlayerPanelShortcutControls';
 
 type ReadingBedOverride = {
   id: string;
@@ -112,8 +106,6 @@ export default function PlayerPanel({
   const linguistEnabled = features.linguist !== false;
   const painterEnabled = features.painter !== false;
   const searchEnabled = features.search !== false;
-  const { baseFontScalePercent, setBaseFontScalePercent, adjustBaseFontScalePercent, toggle: toggleMyLinguist } =
-    useMyLinguist();
   const hasJobId = Boolean(jobId);
   const normalisedJobId = jobId ?? '';
   const mediaMemory = useMediaMemory({ jobId });
@@ -452,28 +444,6 @@ export default function PlayerPanel({
   });
   useWakeLock(shouldHoldWakeLock);
 
-  const adjustMyLinguistFontScale = useCallback(
-    (direction: 'increase' | 'decrease') => {
-      const delta = direction === 'increase' ? MY_LINGUIST_FONT_SCALE_STEP : -MY_LINGUIST_FONT_SCALE_STEP;
-      adjustBaseFontScalePercent(delta);
-    },
-    [adjustBaseFontScalePercent],
-  );
-  const handleToggleMyLinguist = useCallback(() => {
-    if (linguistEnabled) {
-      toggleMyLinguist();
-    }
-  }, [linguistEnabled, toggleMyLinguist]);
-  const handleAdjustMyLinguistFontScale = useCallback(
-    (direction: 'increase' | 'decrease') => {
-      if (!linguistEnabled) {
-        return;
-      }
-      adjustMyLinguistFontScale(direction);
-    },
-    [adjustMyLinguistFontScale, linguistEnabled],
-  );
-
   const activateTextItem = usePlayerPanelTextActivation({
     chunks,
     deriveBaseId,
@@ -537,32 +507,25 @@ export default function PlayerPanel({
     onSeekTo: handleMediaSessionSeekTo,
   });
 
-  const { showShortcutHelp, setShowShortcutHelp } = usePlayerShortcuts({
+  const {
+    baseFontScalePercent,
+    setBaseFontScalePercent,
+    resetMyLinguistFontScale,
+    shortcutHelpOverlay,
+  } = usePlayerPanelShortcutControls({
+    linguistEnabled,
     canToggleOriginalAudio,
     onToggleOriginalAudio: handleOriginalAudioToggle,
     canToggleTranslationAudio,
     onToggleTranslationAudio: handleTranslationAudioToggle,
     onToggleCueLayer: handleToggleInteractiveTextLayer,
-    onToggleMyLinguist: handleToggleMyLinguist,
-    enableMyLinguist: linguistEnabled,
     onToggleReadingBed: handleToggleReadingBed,
     onToggleFullscreen: handleInteractiveFullscreenToggle,
     onTogglePlayback: handleToggleActiveMedia,
     onNavigate: handleKeyboardNavigate,
     adjustTranslationSpeed,
     adjustFontScale,
-    adjustMyLinguistFontScale: handleAdjustMyLinguistFontScale,
   });
-
-  const shortcutHelpOverlay = (
-    <ShortcutHelpOverlay
-      isOpen={showShortcutHelp}
-      onClose={() => setShowShortcutHelp(false)}
-      canToggleOriginalAudio={canToggleOriginalAudio}
-      canToggleTranslationAudio={canToggleTranslationAudio}
-      showMyLinguist={linguistEnabled}
-    />
-  );
   const { handleTextScroll } = usePlayerPanelScrollMemory({
     textScrollRef,
     activeTextId: selectedItemIds.text,
@@ -594,10 +557,10 @@ export default function PlayerPanel({
   }, [isInteractiveFullscreen, onFullscreenChange]);
 
   const handleResetInteractiveLayout = useCallback(() => {
-    setBaseFontScalePercent(DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT);
+    resetMyLinguistFontScale();
     resetInteractiveTextSettings();
     resetReadingBed();
-  }, [resetInteractiveTextSettings, resetReadingBed, setBaseFontScalePercent]);
+  }, [resetInteractiveTextSettings, resetMyLinguistFontScale, resetReadingBed]);
 
   const exportState = usePlayerPanelExport({
     jobId,

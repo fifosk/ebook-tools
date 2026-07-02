@@ -10,6 +10,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Apple reader header language pills now clamp stale track state to the lanes available in the current chunk before toggling, so single-track chunks keep their playable pill active while Original + Translation chunks can still use both lanes.
 - Apple reader Audio controls now expose Original + Translation, Original-only, and Translation-only as first-class choices across Apple surfaces, with the header pill label driven by the live audio mode instead of stale single-track resume memory.
 - Web Library external focus and debounced search state now live in a focused hook with coverage for cross-surface jump-to-library requests, trimming more state wiring from the page shell.
+- Web playback shortcut registration, MyLinguist font-scale wiring, and the shortcut-help overlay now live in a focused PlayerPanel hook with coverage for help toggling and feature-disabled MyLinguist shortcuts.
 - Web playback now renders PlayerPanel boundary, shell, prelude, content, and document slots through a focused frame component with direct coverage in the playback gate.
 - Backend YouTube NAS video deletion now scans adjacent subtitle sidecars through the shared tolerant directory iterator, so transient NAS directory failures do not break Web or Apple cleanup flows.
 - Web Library tab counts, active media-kind switching, and embedded LibraryList wiring now live in a focused entries panel with direct coverage in the Library Web gate.
