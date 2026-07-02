@@ -9,6 +9,12 @@ from .acquire import (
 from .discovery import (
     discover_acquisition_candidates,
 )
+from .discovery_values import (
+    ACQUISITION_CAPABILITIES,
+    ACQUISITION_MEDIA_KINDS,
+    ACQUISITION_PROVIDER_STATUSES,
+    ACQUISITION_RIGHTS,
+)
 from .models import (
     AcquisitionCandidate,
     AcquisitionDiscoveryResult,
@@ -46,6 +52,10 @@ __all__ = [
     "AcquisitionProviderDiscoveryError",
     "AcquisitionProviderRegistry",
     "AcquisitionSubtitleHint",
+    "ACQUISITION_CAPABILITIES",
+    "ACQUISITION_MEDIA_KINDS",
+    "ACQUISITION_PROVIDER_STATUSES",
+    "ACQUISITION_RIGHTS",
     "DISCOVERY_PROVIDER_MEDIA_KINDS",
     "DownloadStationConfig",
     "DownloadStationError",

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "backend-acquisition-value-contract",
+                    title: "Discovery contracts start at backend",
+                    detail: "The backend acquisition provider registry now validates media kinds, capabilities, rights, statuses, and default-provider ids against the shared source-discovery contract before Web or Apple source pickers consume them."
+                ),
+                AppChangelogEntry(
                     id: "apple-acquisition-enum-contracts",
                     title: "Apple discovery values stay valid",
                     detail: "Apple Create now rejects acquisition provider and discovery payloads with unknown media kinds, rights, capabilities, or provider status values before native source pickers render them."

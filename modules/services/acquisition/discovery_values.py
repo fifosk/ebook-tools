@@ -4,8 +4,42 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Final
 from urllib.parse import urlsplit, urlunsplit
+
+
+ACQUISITION_MEDIA_KINDS: Final[tuple[str, ...]] = ("book", "video")
+ACQUISITION_CAPABILITIES: Final[tuple[str, ...]] = (
+    "search",
+    "metadata",
+    "acquire",
+    "poll",
+    "extract_subtitles",
+    "import_local",
+)
+ACQUISITION_RIGHTS: Final[tuple[str, ...]] = (
+    "public_domain",
+    "open_license",
+    "user_provided",
+    "unknown",
+    "restricted",
+)
+ACQUISITION_PROVIDER_STATUSES: Final[tuple[str, ...]] = (
+    "available",
+    "not_configured",
+    "planned",
+)
+
+
+def unsupported_contract_values(
+    values: Sequence[str],
+    *,
+    allowed_values: Sequence[str],
+) -> tuple[str, ...]:
+    """Return values outside a shared acquisition contract allow-list."""
+
+    allowed = set(allowed_values)
+    return tuple(value for value in values if value not in allowed)
 
 
 def string_value(value: Any) -> str | None:

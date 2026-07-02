@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
+from typing import get_args
 
 import pytest
 import requests
@@ -26,6 +27,7 @@ import modules.services.acquisition.provider_roots as provider_roots
 import modules.services.acquisition.source_candidates as source_candidates
 import modules.services.acquisition.discovery_values as discovery_values
 import modules.services.acquisition.youtube_discovery as youtube_discovery
+import modules.webapi.schemas.acquisition as acquisition_schemas
 from modules.services.source_discovery import DiscoveredSourceFile
 from modules.services.acquisition.discovery_planning import (
     order_default_discovery_candidates,
@@ -608,6 +610,47 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
         "local_epub": ("book",),
         "nas_video": ("video",),
     }
+
+
+def test_acquisition_contract_values_are_shared_with_openapi_schema() -> None:
+    assert get_args(acquisition_schemas.AcquisitionMediaKind) == (
+        discovery_values.ACQUISITION_MEDIA_KINDS
+    )
+    assert get_args(acquisition_schemas.AcquisitionCapability) == (
+        discovery_values.ACQUISITION_CAPABILITIES
+    )
+    assert get_args(acquisition_schemas.AcquisitionRights) == (
+        discovery_values.ACQUISITION_RIGHTS
+    )
+    assert get_args(acquisition_schemas.AcquisitionProviderStatus) == (
+        discovery_values.ACQUISITION_PROVIDER_STATUSES
+    )
+
+
+def test_provider_registry_rejects_contract_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_discovery_media_kinds_for = acquisition_provider_registry.discovery_media_kinds_for
+
+    def _drifting_discovery_media_kinds_for(provider_id: str) -> tuple[str, ...]:
+        if provider_id == "local_epub":
+            return ("audio",)
+        return real_discovery_media_kinds_for(provider_id)
+
+    monkeypatch.setattr(
+        acquisition_provider_registry,
+        "discovery_media_kinds_for",
+        _drifting_discovery_media_kinds_for,
+    )
+
+    with pytest.raises(ValueError, match="discovery_media_kinds"):
+        list_acquisition_providers(
+            config={
+                "ebooks_dir": str(tmp_path / "books"),
+                "youtube_video_root": str(tmp_path / "videos"),
+            }
+        )
 
 
 def test_provider_registry_defaults_and_listing_share_readiness_snapshot(
