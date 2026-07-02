@@ -104,6 +104,13 @@ Follow the suggested remediations to restore parity:
   back to the sentence start. Job and Library resume recorders should write that
   same selected-track clock, not the rendered highlight clock, so Now Playing
   refreshes cannot downgrade the saved word offset.
+  Backend media manifests should canonicalize chunk audio and timing roles before
+  Apple or Web playback sees them: `targetAudio`, `translated_audio`, `dubbedAudio`,
+  and similar aliases map to Translation, `OriginalAudio` maps to Original, and
+  legacy `mix`/combined names map to the combined lane. Apple timing decode stays
+  tolerant of those aliases and of translation-only timing payloads without a mix
+  track so cached, archived, and offline media do not grey out the Translation
+  pill while the media endpoint is already corrected.
   If the manager and selected picker id both briefly reset to sequence/combined
   at a batch boundary, the single audio lane that was actually loaded is still
   authoritative for Original-only or Translation-only playback while the sequence

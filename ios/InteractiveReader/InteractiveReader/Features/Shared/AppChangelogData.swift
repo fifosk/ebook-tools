@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.02.004",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-timing-track-alias-resilience",
+                    title: "Translation timing survives aliases",
+                    detail: "Apple reader timing decode now accepts target, translated, and dubbed timing-track aliases and tolerates translation-only timing payloads without a mix track, keeping Translation selectable across live, archived, and offline media."
+                ),
+                AppChangelogEntry(
+                    id: "backend-media-timing-track-canonical-roles",
+                    title: "Media timing roles are canonical",
+                    detail: "Backend media manifests now publish chunk timing tracks through the same Original, Translation, and Mix role mapping as audio tracks, so Web and Apple diagnostics agree on whether a translation lane is available."
+                ),
+                AppChangelogEntry(
                     id: "apple-target-audio-translation-role",
                     title: "Translation track stays available",
                     detail: "Apple reader media context now treats target, translated, and dubbed audio aliases as Translation tracks, keeping the TV language pill selectable when archived or library media uses those backend-visible names."
