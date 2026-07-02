@@ -182,6 +182,12 @@ remain inside the intended hold window. It also keeps MusicKit play-observation 
 active until reader transport explicitly resumes, with repeated confirmation
 checks so a stray or delayed Apple Music resume after reader-owned pause is
 re-paused instead of restarting narration or promoting fullscreen Music artwork.
+Reader-owned pause paths also re-check the sentence coordinator shortly after
+broker, Music-surface, and rejected-play pause acceptance; if narration still
+reports `requested` or `playing`, the reader issues another transport pause and
+republishes paused Now Playing metadata. That targets the physical split-pause
+case where the first remote press stopped the Apple Music bed while sentence
+audio continued until a second press.
 The simulator journey also taps the debug reader `play` command while that
 pause guard is active and asserts the reader transport command count stays
 unchanged, proving stray Music-surface play callbacks do not resume narration.

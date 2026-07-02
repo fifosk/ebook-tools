@@ -408,6 +408,7 @@ struct LibraryPlaybackView: View {
             "Library playback accepted Apple Music pause as reader transport source=\(source, privacy: .public)"
         )
         viewModel.pauseForReaderTransport()
+        confirmReaderTransportPauseAfterCommand(source: source)
         if !musicOwnership.isPausedByReaderTransport {
             musicOwnership.pauseReadingBedForReaderTransport()
         }

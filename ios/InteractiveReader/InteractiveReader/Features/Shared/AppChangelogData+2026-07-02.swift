@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-combined-bed-sentence-pause-confirm",
+                    title: "TV pause sticks to both audio layers",
+                    detail: "Apple TV reader-owned pause now confirms the sentence coordinator has stopped after broker, Music-surface, or rejected-play pause paths, so one remote press is less likely to leave narration playing after the Apple Music bed pauses."
+                ),
+                AppChangelogEntry(
                     id: "apple-dedicated-pair-progress-duration",
                     title: "Dedicated pairs count both lanes",
                     detail: "Apple reader progress and remaining-time helpers now treat separate Original and Translation files as one sequence when both roles are active, so the header timing pill no longer undercounts jobs that lack a combined audio option."

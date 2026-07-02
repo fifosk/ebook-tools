@@ -200,6 +200,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "readerTransportMusicResumeTask != nil" in job_stale_pause_body
     job_mirror_pause_body = _function_body(job_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in job_mirror_pause_body
+    assert "confirmReaderTransportPauseAfterCommand(source: source)" in job_mirror_pause_body
     job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
     job_accept_body = _function_body(job_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in job_accept_body
@@ -244,6 +245,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "invalidateReaderTransportResumeTasks()" in job_reinforce_body
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_reinforce_body
     assert "viewModel.pauseForReaderTransport()" in job_reinforce_body
+    assert "confirmReaderTransportPauseAfterCommand(source: command)" in job_reinforce_body
     assert job_reinforce_body.index("viewModel.pauseForReaderTransport()") < job_reinforce_body.index(
         "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
@@ -561,6 +563,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     job_perform_pause_body = _function_body(job_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "invalidateReaderTransportResumeTasks()" in job_perform_pause_body
     assert "viewModel.pauseForReaderTransport()" in job_perform_pause_body
+    assert 'confirmReaderTransportPauseAfterCommand(source: "pauseCommand")' in job_perform_pause_body
     assert job_perform_pause_body.index("viewModel.pauseForReaderTransport()") < job_perform_pause_body.index(
         "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
@@ -570,6 +573,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     ) < job_perform_pause_body.index(
         "publishReaderNowPlayingSnapshot(force: true)"
     )
+    job_confirm_pause_body = _function_body(job_now_playing, "func confirmReaderTransportPauseAfterCommand(source: String)")
+    assert "[60_000_000, 180_000_000, 420_000_000]" in job_confirm_pause_body
+    assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in job_confirm_pause_body
+    assert 'guard lastReaderTransportAction == "pause" else { return }' in job_confirm_pause_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested ||" in job_confirm_pause_body
+    assert "viewModel.audioCoordinator.isPlaying" in job_confirm_pause_body
+    assert "viewModel.pauseForReaderTransport()" in job_confirm_pause_body
+    assert "publishReaderNowPlayingSnapshot(force: true)" in job_confirm_pause_body
+    assert "Job confirming reader pause source=" in job_confirm_pause_body
     job_interactive_toggle_body = _function_body(job_now_playing, "func toggleInteractiveReaderPlaybackTransport()")
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job_interactive_toggle_body
     assert "viewModel.audioCoordinator.isPlaying" in job_interactive_toggle_body
@@ -708,6 +720,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "readerTransportMusicResumeTask != nil" in library_stale_pause_body
     library_mirror_pause_body = _function_body(library_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in library_mirror_pause_body
+    assert "confirmReaderTransportPauseAfterCommand(source: source)" in library_mirror_pause_body
     library_toggle_body = _function_body(library_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
     library_accept_body = _function_body(library_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in library_accept_body
@@ -752,6 +765,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "invalidateReaderTransportResumeTasks()" in library_reinforce_body
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_reinforce_body
     assert "viewModel.pauseForReaderTransport()" in library_reinforce_body
+    assert "confirmReaderTransportPauseAfterCommand(source: command)" in library_reinforce_body
     assert library_reinforce_body.index("viewModel.pauseForReaderTransport()") < library_reinforce_body.index(
         "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
@@ -900,6 +914,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     library_perform_pause_body = _function_body(library_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "invalidateReaderTransportResumeTasks()" in library_perform_pause_body
     assert "viewModel.pauseForReaderTransport()" in library_perform_pause_body
+    assert 'confirmReaderTransportPauseAfterCommand(source: "pauseCommand")' in library_perform_pause_body
     assert library_perform_pause_body.index("viewModel.pauseForReaderTransport()") < library_perform_pause_body.index(
         "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
@@ -909,6 +924,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     ) < library_perform_pause_body.index(
         "publishReaderNowPlayingSnapshot(force: true)"
     )
+    library_confirm_pause_body = _function_body(library_now_playing, "func confirmReaderTransportPauseAfterCommand(source: String)")
+    assert "[60_000_000, 180_000_000, 420_000_000]" in library_confirm_pause_body
+    assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in library_confirm_pause_body
+    assert 'guard lastReaderTransportAction == "pause" else { return }' in library_confirm_pause_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested ||" in library_confirm_pause_body
+    assert "viewModel.audioCoordinator.isPlaying" in library_confirm_pause_body
+    assert "viewModel.pauseForReaderTransport()" in library_confirm_pause_body
+    assert "publishReaderNowPlayingSnapshot(force: true)" in library_confirm_pause_body
+    assert "Library confirming reader pause source=" in library_confirm_pause_body
     library_interactive_toggle_body = _function_body(library_now_playing, "func toggleInteractiveReaderPlaybackTransport()")
     assert "viewModel.audioCoordinator.isPlaybackRequested" in library_interactive_toggle_body
     assert "viewModel.audioCoordinator.isPlaying" in library_interactive_toggle_body

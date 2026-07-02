@@ -33,6 +33,7 @@ extension LibraryPlaybackView {
             )
             cancelReaderTransportPlaybackRecovery()
             viewModel.pauseForReaderTransport()
+            confirmReaderTransportPauseAfterCommand(source: "unsolicitedPlayEcho")
             publishReaderNowPlayingSnapshot(force: true)
             return
         }
@@ -262,6 +263,7 @@ extension LibraryPlaybackView {
         )
         invalidateReaderTransportResumeTasks()
         viewModel.pauseForReaderTransport()
+        confirmReaderTransportPauseAfterCommand(source: command)
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
     }
@@ -434,8 +436,31 @@ extension LibraryPlaybackView {
         invalidateReaderTransportResumeTasks()
         localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
         viewModel.pauseForReaderTransport()
+        confirmReaderTransportPauseAfterCommand(source: "pauseCommand")
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
+    }
+
+    func confirmReaderTransportPauseAfterCommand(source: String) {
+        let scheduledGeneration = readerTransportResumeGeneration
+        Task { @MainActor in
+            for delay in [60_000_000, 180_000_000, 420_000_000] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delay)
+                guard readerTransportResumeGeneration == scheduledGeneration else { return }
+                guard lastReaderTransportAction == "pause" else { return }
+                guard viewModel.audioCoordinator.isPlaybackRequested ||
+                    viewModel.audioCoordinator.isPlaying
+                else { continue }
+                playbackTransportDebugLog(
+                    "[PlaybackTransport] Library confirming reader pause source=\(source) requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+                )
+                playbackLogger.info(
+                    "Library reader transport confirming pause source=\(source, privacy: .public) requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+                )
+                viewModel.pauseForReaderTransport()
+                publishReaderNowPlayingSnapshot(force: true)
+            }
+        }
     }
 
     func resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: Bool = false) {
