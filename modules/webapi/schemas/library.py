@@ -15,11 +15,11 @@ class LibraryItemPayload(BaseModel):
     job_id: str = Field(alias="jobId")
     author: str
     book_title: str = Field(alias="bookTitle")
-    item_type: Literal["book", "video", "narrated_subtitle"] = Field(alias="itemType", default="book")
+    item_type: Literal["book", "video", "narrated_subtitle"] = Field(alias="itemType")
     genre: Optional[str] = None
     language: str
     status: Literal["finished", "paused"]
-    media_completed: bool = Field(alias="mediaCompleted", default=False)
+    media_completed: bool = Field(alias="mediaCompleted")
     created_at: str = Field(alias="createdAt")
     updated_at: str = Field(alias="updatedAt")
     library_path: str = Field(alias="libraryPath")
@@ -28,7 +28,7 @@ class LibraryItemPayload(BaseModel):
     source_path: Optional[str] = Field(alias="sourcePath", default=None)
     owner_id: Optional[str] = Field(alias="ownerId", default=None)
     access: Optional[AccessPolicyPayload] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any]
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -56,7 +56,7 @@ class LibrarySearchResponse(BaseModel):
     page: int
     limit: int
     view: Literal["flat", "by_author", "by_genre", "by_language"]
-    items: List[LibraryItemPayload] = Field(default_factory=list)
+    items: List[LibraryItemPayload]
     groups: Optional[List[Dict[str, Any]]] = None
 
 

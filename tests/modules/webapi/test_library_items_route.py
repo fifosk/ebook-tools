@@ -1483,6 +1483,28 @@ def test_list_library_items_records_safe_timing(monkeypatch: pytest.MonkeyPatch)
     )
 
 
+def test_library_search_openapi_marks_cross_surface_fields_required() -> None:
+    schemas = create_app().openapi()["components"]["schemas"]
+
+    search_required = set(schemas["LibrarySearchResponse"]["required"])
+    item_required = set(schemas["LibraryItemPayload"]["required"])
+
+    assert {"total", "page", "limit", "view", "items"} <= search_required
+    assert {
+        "jobId",
+        "author",
+        "bookTitle",
+        "itemType",
+        "language",
+        "status",
+        "mediaCompleted",
+        "createdAt",
+        "updatedAt",
+        "libraryPath",
+        "metadata",
+    } <= item_required
+
+
 @pytest.mark.parametrize(
     ("sync", "expected_status", "expected_result"),
     [

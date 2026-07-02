@@ -3,6 +3,7 @@ import {
   refreshLibraryMetadata,
   reindexLibrary,
   removeLibraryMedia,
+  searchLibrary,
   updateLibraryAccess
 } from '../library';
 import type { LibraryItem } from '../../dtos';
@@ -96,5 +97,84 @@ describe('library API client', () => {
 
     const [, init] = fetchMock.mock.calls[0];
     expect(init?.body).toBe(JSON.stringify({ enrichFromExternal: false }));
+  });
+
+  it('validates library search responses and sends query params deliberately', async () => {
+    const payload = {
+      total: 1,
+      page: 2,
+      limit: 10,
+      view: 'flat',
+      items: [refreshedItem],
+      groups: null
+    };
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValue(jsonResponse(payload));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      searchLibrary({ query: 'dan brown', page: 2, limit: 10 })
+    ).resolves.toEqual(payload);
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.pathname).toBe('/api/library/items');
+    expect(url.searchParams.get('q')).toBe('dan brown');
+    expect(url.searchParams.get('page')).toBe('2');
+    expect(url.searchParams.get('limit')).toBe('10');
+  });
+
+  it('rejects malformed library search responses before rendering library rows', async () => {
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          total: 0,
+          page: 1,
+          limit: 25,
+          view: 'flat'
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          total: 1,
+          page: 1,
+          limit: 25,
+          view: 'flat',
+          items: [{ ...refreshedItem, jobId: undefined }]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          total: 1,
+          page: 1,
+          limit: 25,
+          view: 'flat',
+          items: [{ ...refreshedItem, status: 'queued' }]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          total: 1,
+          page: 1,
+          limit: 25,
+          view: 'flat',
+          items: [{ ...refreshedItem, metadata: undefined }]
+        })
+      );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(searchLibrary({})).rejects.toThrow(
+      'Invalid library search response: missing items.'
+    );
+    await expect(searchLibrary({})).rejects.toThrow(
+      'Invalid library item response: missing jobId.'
+    );
+    await expect(searchLibrary({})).rejects.toThrow(
+      'Invalid library item response: missing status.'
+    );
+    await expect(searchLibrary({})).rejects.toThrow(
+      'Invalid library item response: missing metadata.'
+    );
   });
 });

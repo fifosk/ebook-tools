@@ -78,7 +78,106 @@ export async function searchLibrary(params: LibrarySearchParams): Promise<Librar
     ? `${WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.itemsPath}?${queryString}`
     : WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.itemsPath;
   const response = await apiFetch(path);
-  return handleResponse<LibrarySearchResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertLibrarySearchResponse(payload);
+  return payload;
+}
+
+function assertLibrarySearchResponse(payload: unknown): asserts payload is LibrarySearchResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid library search response.');
+  }
+  assertNumberField(payload, 'total', 'library search');
+  assertNumberField(payload, 'page', 'library search');
+  assertNumberField(payload, 'limit', 'library search');
+  assertLibraryViewMode(payload.view);
+  if (!Array.isArray(payload.items)) {
+    throw new Error('Invalid library search response: missing items.');
+  }
+  payload.items.forEach(assertLibraryItem);
+  if (
+    payload.groups !== undefined &&
+    payload.groups !== null &&
+    !Array.isArray(payload.groups)
+  ) {
+    throw new Error('Invalid library search response: invalid groups.');
+  }
+}
+
+function assertLibraryItem(payload: unknown): void {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid library search response: missing item entry.');
+  }
+  assertStringField(payload, 'jobId', 'library item');
+  assertStringField(payload, 'author', 'library item');
+  assertStringField(payload, 'bookTitle', 'library item');
+  assertLibraryItemType(payload.itemType);
+  assertStringField(payload, 'language', 'library item');
+  assertLibraryStatus(payload.status);
+  assertBooleanField(payload, 'mediaCompleted', 'library item');
+  assertStringField(payload, 'createdAt', 'library item');
+  assertStringField(payload, 'updatedAt', 'library item');
+  assertStringField(payload, 'libraryPath', 'library item');
+  if (!isRecord(payload.metadata)) {
+    throw new Error('Invalid library item response: missing metadata.');
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertStringField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'string') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertNumberField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'number' || !Number.isFinite(record[key])) {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertBooleanField(
+  record: Record<string, unknown>,
+  key: string,
+  responseKind: string
+): void {
+  if (typeof record[key] !== 'boolean') {
+    throw new Error(`Invalid ${responseKind} response: missing ${key}.`);
+  }
+}
+
+function assertLibraryViewMode(value: unknown): void {
+  if (
+    value !== 'flat' &&
+    value !== 'by_author' &&
+    value !== 'by_genre' &&
+    value !== 'by_language'
+  ) {
+    throw new Error('Invalid library search response: missing view.');
+  }
+}
+
+function assertLibraryItemType(value: unknown): void {
+  if (value !== 'book' && value !== 'video' && value !== 'narrated_subtitle') {
+    throw new Error('Invalid library item response: missing itemType.');
+  }
+}
+
+function assertLibraryStatus(value: unknown): void {
+  if (value !== 'finished' && value !== 'paused') {
+    throw new Error('Invalid library item response: missing status.');
+  }
 }
 
 export async function removeLibraryMedia(jobId: string): Promise<LibraryMediaRemovalResponse> {
