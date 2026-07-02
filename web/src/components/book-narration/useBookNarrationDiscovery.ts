@@ -109,7 +109,7 @@ export function useBookNarrationDiscovery({
     setIsLoadingProviders(true);
     try {
       const response = await fetchAcquisitionProviders();
-      const entries = response.providers ?? [];
+      const entries = response.providers;
       setProviders(entries);
       setDefaultProviderIds(response.default_provider_ids);
       setProviderError(null);

@@ -208,7 +208,41 @@ export async function fetchPipelineFiles(
 
 export async function fetchAcquisitionProviders(): Promise<AcquisitionProviderListResponse> {
   const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.acquisitionProvidersPath);
-  return handleResponse<AcquisitionProviderListResponse>(response);
+  const payload = await handleResponse<unknown>(response);
+  assertAcquisitionProviderListResponse(payload);
+  return payload;
+}
+
+function assertAcquisitionProviderListResponse(
+  payload: unknown
+): asserts payload is AcquisitionProviderListResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid acquisition provider response.');
+  }
+  if (!Array.isArray(payload.providers)) {
+    throw new Error('Invalid acquisition provider response: missing providers.');
+  }
+  if (!Array.isArray(payload.policy_notes)) {
+    throw new Error('Invalid acquisition provider response: missing policy_notes.');
+  }
+  if (!isRecord(payload.paths)) {
+    throw new Error('Invalid acquisition provider response: missing paths.');
+  }
+  if (!isRecord(payload.default_provider_ids)) {
+    throw new Error('Invalid acquisition provider response: missing default_provider_ids.');
+  }
+  for (const provider of payload.providers) {
+    if (!isRecord(provider) || !Array.isArray(provider.discovery_media_kinds)) {
+      throw new Error('Invalid acquisition provider response: missing discovery_media_kinds.');
+    }
+    if (!Array.isArray(provider.default_eligible_media_kinds)) {
+      throw new Error('Invalid acquisition provider response: missing default_eligible_media_kinds.');
+    }
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export async function discoverAcquisitionCandidates({

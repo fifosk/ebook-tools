@@ -164,7 +164,7 @@ export default function YoutubeVideoPage() {
     setProviderError(null);
     try {
       const response = await fetchAcquisitionProviders();
-      setAcquisitionProviders(response.providers ?? []);
+      setAcquisitionProviders(response.providers);
     } catch (error) {
       const message =
         error instanceof Error ? error.message || 'Unable to load discovery providers.' : 'Unable to load discovery providers.';

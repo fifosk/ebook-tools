@@ -161,14 +161,21 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
         / "book-narration"
         / "bookNarrationDiscoveryProviders.ts"
     ).read_text(encoding="utf-8")
+    api_client = (ROOT / "web" / "src" / "api" / "client" / "jobs.ts").read_text(encoding="utf-8")
     dto_source = (ROOT / "web" / "src" / "api" / "dtos.ts").read_text(encoding="utf-8")
     assert "default_provider_ids: Partial<Record<AcquisitionMediaKind, string[]>>" in dto_source
     assert "discovery_media_kinds: AcquisitionMediaKind[]" in dto_source
     assert "default_eligible_media_kinds: AcquisitionMediaKind[]" in dto_source
+    assert "assertAcquisitionProviderListResponse(payload)" in api_client
+    assert "Invalid acquisition provider response: missing providers." in api_client
+    assert "Invalid acquisition provider response: missing default_provider_ids." in api_client
+    assert "Invalid acquisition provider response: missing discovery_media_kinds." in api_client
+    assert "Invalid acquisition provider response: missing default_eligible_media_kinds." in api_client
     assert "resolveDefaultBookDiscoveryProvider(" in discovery_hook
     assert "defaultProviderIds?.book" in discovery_providers
     assert "hasUserSelectedDiscoveryProvider.current" in discovery_hook
     assert "setDefaultProviderIds(response.default_provider_ids)" in discovery_hook
+    assert "response.providers ?? []" not in discovery_hook
     assert "buildBookNarrationDiscoveryProviderOptions(providers, defaultProviderIds)" in discovery_hook
     assert "DEFAULT_BOOK_DISCOVERY_PROVIDER" in discovery_hook
     assert "useState<BookNarrationDiscoveryProvider>(DEFAULT_BOOK_DISCOVERY_PROVIDER)" in discovery_hook
@@ -518,6 +525,7 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "canExtractEmbeddedSubtitles" in resolved_selection_hook
     assert "resolveSubtitleLanguageCandidate" in resolved_selection_hook
     assert "fetchAcquisitionProviders" in provider_hook
+    assert "response.providers ?? []" not in provider_hook
     assert "resolveVideoDiscoveryProviderState" in provider_hook
     assert "createAcquisitionJob" not in page
     assert "fetchAcquisitionJobStatus" not in page
@@ -594,6 +602,7 @@ def test_youtube_downloader_uses_acquisition_discovery_for_search_handoff() -> N
 
     assert "discoverAcquisitionCandidates" in page
     assert "fetchAcquisitionProviders" in page
+    assert "response.providers ?? []" not in page
     assert "provider: 'youtube_search'" in page
     assert "isYoutubeSearchAvailable" in page
     assert "handleSelectDiscoveryCandidate" in page

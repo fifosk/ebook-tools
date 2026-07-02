@@ -17,7 +17,7 @@ export function useVideoDubbingAcquisitionProviders(selectedProvider: VideoDisco
     setProviderError(null);
     try {
       const response = await fetchAcquisitionProviders();
-      setProviders(response.providers ?? []);
+      setProviders(response.providers);
       setDefaultProviderIds(response.default_provider_ids);
     } catch (error) {
       const message =

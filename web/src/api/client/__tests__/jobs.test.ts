@@ -40,6 +40,31 @@ function jsonResponse(payload: unknown): Response {
   });
 }
 
+function acquisitionProviderListResponse(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    providers: [
+      {
+        id: 'local_epub',
+        label: 'Local EPUBs',
+        media_kinds: ['book'],
+        capabilities: ['import_local'],
+        status: 'available',
+        configured: true,
+        available: true,
+        rights: ['user_provided'],
+        discovery_media_kinds: ['book'],
+        default_eligible_media_kinds: ['book'],
+        policy_notes: [],
+        next_actions: []
+      }
+    ],
+    policy_notes: [],
+    paths: {},
+    default_provider_ids: { book: ['local_epub'] },
+    ...overrides
+  };
+}
+
 describe('jobs API client', () => {
   const originalFetch = globalThis.fetch;
 
@@ -81,7 +106,7 @@ describe('jobs API client', () => {
 
   it('uses shared acquisition routes and encodes artifact and task ids', async () => {
     const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse()))
       .mockResolvedValueOnce(jsonResponse({}))
       .mockResolvedValueOnce(jsonResponse({}))
       .mockResolvedValueOnce(jsonResponse({}))
@@ -142,6 +167,36 @@ describe('jobs API client', () => {
     const statusUrl = new URL(String(fetchMock.mock.calls[6][0]));
     expect(statusUrl.pathname).toBe('/api/acquisition/jobs/task%2Fwith%3Fparts');
     expect(statusUrl.searchParams.get('provider')).toBe('download_station');
+  });
+
+  it('rejects malformed acquisition provider registry payloads', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({ default_provider_ids: undefined })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
+        providers: [
+          {
+            id: 'local_epub',
+            label: 'Local EPUBs',
+            media_kinds: ['book'],
+            capabilities: ['import_local'],
+            status: 'available',
+            configured: true,
+            available: true,
+            rights: ['user_provided'],
+            discovery_media_kinds: ['book'],
+            policy_notes: [],
+            next_actions: []
+          }
+        ]
+      })));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: missing default_provider_ids.'
+    );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: missing default_eligible_media_kinds.'
+    );
   });
 
   it('uses shared pipeline source and default routes with encoded content-index queries', async () => {
