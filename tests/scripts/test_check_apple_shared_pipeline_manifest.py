@@ -381,12 +381,22 @@ def test_validate_manifest_requires_backend_acquisition_runtime_expectations(
     tmp_path: Path,
 ) -> None:
     runtime_expected = dict(module.REQUIRED_BACKEND_RUNTIME_EXPECTED)
+    del runtime_expected["creation.acquisitionProvidersPath"]
     del runtime_expected["acquisition.mediaKinds"]
+    runtime_expected["creation.acquisitionAcquirePath"] = "/old/acquire"
     runtime_expected["acquisition.providerStatuses"] = ["available"]
     path = _write_manifest(tmp_path, backend_runtime_expected=runtime_expected)
 
     errors = module.validate_manifest(path)
 
+    assert (
+        "backend.runtimeExpected.creation.acquisitionProvidersPath=None "
+        "expected '/api/acquisition/providers'"
+    ) in errors
+    assert (
+        "backend.runtimeExpected.creation.acquisitionAcquirePath='/old/acquire' "
+        "expected '/api/acquisition/acquire'"
+    ) in errors
     assert (
         "backend.runtimeExpected.acquisition.mediaKinds=None expected ['book', 'video']"
     ) in errors

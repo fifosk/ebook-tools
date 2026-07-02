@@ -103,8 +103,15 @@ REQUIRED_APPLE_CONTRACT_TARGETS = (
     "test-apple-contracts",
 )
 REQUIRED_BACKEND_RUNTIME_EXPECTED = {
-    f"acquisition.{key}": list(value) if isinstance(value, tuple) else value
-    for key, value in _runtime_descriptor.ACQUISITION_DESCRIPTOR.items()
+    **{
+        f"creation.{key}": value
+        for key, value in _runtime_descriptor.CREATION_DESCRIPTOR.items()
+        if key.startswith("acquisition")
+    },
+    **{
+        f"acquisition.{key}": list(value) if isinstance(value, tuple) else value
+        for key, value in _runtime_descriptor.ACQUISITION_DESCRIPTOR.items()
+    },
 }
 
 

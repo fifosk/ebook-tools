@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "shared-pipeline-acquisition-route-expected",
+                    title: "Pipeline pins source routes",
+                    detail: "The reusable Apple pipeline manifest now also pins acquisition Create route paths so backend runtime checks catch stale source-discovery endpoints before simulator or device runs."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-acquisition-runtime-expected",
                     title: "Pipeline pins source values",
                     detail: "The reusable Apple pipeline manifest now advertises expected acquisition media kinds, capabilities, rights, and provider statuses so backend runtime checks catch source-picker drift before app runs."
