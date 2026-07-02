@@ -261,6 +261,35 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     )
 
 
+def test_acquisition_provider_openapi_marks_cross_surface_fields_required() -> None:
+    app = create_app()
+    schemas = app.openapi()["components"]["schemas"]
+
+    provider_required = set(schemas["AcquisitionProviderPayload"]["required"])
+    assert {
+        "id",
+        "label",
+        "media_kinds",
+        "capabilities",
+        "status",
+        "configured",
+        "available",
+        "rights",
+        "discovery_media_kinds",
+        "default_eligible_media_kinds",
+        "policy_notes",
+        "next_actions",
+    } <= provider_required
+
+    list_required = set(schemas["AcquisitionProviderListResponse"]["required"])
+    assert {
+        "providers",
+        "policy_notes",
+        "paths",
+        "default_provider_ids",
+    } <= list_required
+
+
 def test_acquisition_provider_route_failure_uses_generic_detail_and_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

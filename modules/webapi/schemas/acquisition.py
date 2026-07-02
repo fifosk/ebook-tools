@@ -32,27 +32,27 @@ class AcquisitionProviderPayload(BaseModel):
 
     id: str
     label: str
-    media_kinds: List[AcquisitionMediaKind] = Field(default_factory=list)
-    capabilities: List[AcquisitionCapability] = Field(default_factory=list)
+    media_kinds: List[AcquisitionMediaKind]
+    capabilities: List[AcquisitionCapability]
     status: AcquisitionProviderStatus
-    configured: bool = False
-    available: bool = False
-    rights: List[AcquisitionRights] = Field(default_factory=list)
-    discovery_media_kinds: List[AcquisitionMediaKind] = Field(default_factory=list)
-    default_eligible_media_kinds: List[AcquisitionMediaKind] = Field(default_factory=list)
+    configured: bool
+    available: bool
+    rights: List[AcquisitionRights]
+    discovery_media_kinds: List[AcquisitionMediaKind]
+    default_eligible_media_kinds: List[AcquisitionMediaKind]
     source_path: str | None = None
     source_label: str | None = None
-    policy_notes: List[str] = Field(default_factory=list)
-    next_actions: List[str] = Field(default_factory=list)
+    policy_notes: List[str]
+    next_actions: List[str]
 
 
 class AcquisitionProviderListResponse(BaseModel):
     """Response listing configured and planned acquisition providers."""
 
-    providers: List[AcquisitionProviderPayload] = Field(default_factory=list)
-    policy_notes: List[str] = Field(default_factory=list)
-    paths: Dict[str, str] = Field(default_factory=dict)
-    default_provider_ids: Dict[str, List[str]] = Field(default_factory=dict)
+    providers: List[AcquisitionProviderPayload]
+    policy_notes: List[str]
+    paths: Dict[str, str]
+    default_provider_ids: Dict[str, List[str]]
 
 
 class AcquisitionSubtitleHintPayload(BaseModel):
