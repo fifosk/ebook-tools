@@ -320,6 +320,7 @@ enum AcquisitionContractValidationError: Error, LocalizedError, Equatable {
     case invalidProviderValue(providerID: String, field: String, value: String)
     case invalidDefaultProviderMediaKind(mediaKind: String)
     case invalidDefaultProviderID(mediaKind: String, providerID: String)
+    case invalidDefaultProviderEligibility(mediaKind: String, providerID: String)
     case invalidCandidateValue(candidateID: String, field: String, value: String)
 
     var errorDescription: String? {
@@ -330,6 +331,8 @@ enum AcquisitionContractValidationError: Error, LocalizedError, Equatable {
             return "Invalid acquisition provider response: default providers include unsupported media kind \(mediaKind)."
         case let .invalidDefaultProviderID(mediaKind, providerID):
             return "Invalid acquisition provider response: default providers for \(mediaKind) include unknown provider \(providerID)."
+        case let .invalidDefaultProviderEligibility(mediaKind, providerID):
+            return "Invalid acquisition provider response: default providers for \(mediaKind) include ineligible provider \(providerID)."
         case let .invalidCandidateValue(candidateID, field, value):
             return "Invalid acquisition discovery response: candidate \(candidateID) has unsupported \(field) value \(value)."
         }
@@ -356,7 +359,10 @@ enum AcquisitionContractValidation {
     static let providerStatuses: Set<String> = ["available", "not_configured", "planned"]
 
     static func validate(_ response: AcquisitionProviderListResponse) throws {
-        let providerIDs = Set(response.providers.map(\.id))
+        let providersByID = Dictionary(
+            response.providers.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         for provider in response.providers {
             try validate(provider.status, in: providerStatuses, providerID: provider.id, field: "status")
             try validate(provider.mediaKinds, in: mediaKinds, providerID: provider.id, field: "media_kinds")
@@ -379,11 +385,19 @@ enum AcquisitionContractValidation {
             throw AcquisitionContractValidationError.invalidDefaultProviderMediaKind(mediaKind: mediaKind)
         }
         for (mediaKind, defaultProviderIDs) in response.defaultProviderIds {
-            for providerID in defaultProviderIDs where !providerIDs.contains(providerID) {
-                throw AcquisitionContractValidationError.invalidDefaultProviderID(
-                    mediaKind: mediaKind,
-                    providerID: providerID
-                )
+            for providerID in defaultProviderIDs {
+                guard let provider = providersByID[providerID] else {
+                    throw AcquisitionContractValidationError.invalidDefaultProviderID(
+                        mediaKind: mediaKind,
+                        providerID: providerID
+                    )
+                }
+                guard provider.defaultEligibleMediaKinds.contains(mediaKind) else {
+                    throw AcquisitionContractValidationError.invalidDefaultProviderEligibility(
+                        mediaKind: mediaKind,
+                        providerID: providerID
+                    )
+                }
             }
         }
     }

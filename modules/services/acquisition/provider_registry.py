@@ -421,7 +421,7 @@ def _default_eligible_media_kinds(
 def _validate_provider_registry_contract(registry: AcquisitionProviderRegistry) -> None:
     """Fail fast when backend provider metadata drifts from public API enums."""
 
-    provider_ids = {provider.id for provider in registry.providers}
+    providers_by_id = {provider.id: provider for provider in registry.providers}
     for provider in registry.providers:
         _ensure_provider_values(
             provider,
@@ -467,12 +467,22 @@ def _validate_provider_registry_contract(registry: AcquisitionProviderRegistry) 
         unknown_provider_ids = tuple(
             provider_id
             for provider_id in default_provider_ids
-            if provider_id not in provider_ids
+            if provider_id not in providers_by_id
         )
         if unknown_provider_ids:
             raise ValueError(
                 "Unknown acquisition default provider ids for "
                 f"{media_kind!r}: {', '.join(unknown_provider_ids)}."
+            )
+        ineligible_provider_ids = tuple(
+            provider_id
+            for provider_id in default_provider_ids
+            if media_kind not in providers_by_id[provider_id].default_eligible_media_kinds
+        )
+        if ineligible_provider_ids:
+            raise ValueError(
+                "Ineligible acquisition default provider ids for "
+                f"{media_kind!r}: {', '.join(ineligible_provider_ids)}."
             )
 
 

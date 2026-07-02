@@ -357,6 +357,10 @@ describe('jobs API client', () => {
       .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({ default_provider_ids: { book: 'local_epub' } })))
       .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({ default_provider_ids: { audio: ['local_epub'] } })))
       .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({ default_provider_ids: { book: ['missing_provider'] } })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
+        default_provider_ids: { book: ['local_epub'] },
+        providers: [acquisitionProvider({ default_eligible_media_kinds: [] })]
+      })))
       .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({ paths: { books: 42 } })))
       .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
         providers: [
@@ -397,6 +401,9 @@ describe('jobs API client', () => {
 
     await expect(fetchAcquisitionProviders()).rejects.toThrow(
       'Invalid acquisition provider response: missing default_provider_ids.'
+    );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: invalid default_provider_ids.'
     );
     await expect(fetchAcquisitionProviders()).rejects.toThrow(
       'Invalid acquisition provider response: invalid default_provider_ids.'

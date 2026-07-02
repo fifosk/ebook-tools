@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july2Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "acquisition-default-provider-eligibility-validation",
+                    title: "Default sources stay eligible",
+                    detail: "Backend, Web, and Apple Create now reject acquisition Default sources that point at providers not marked default-eligible for that media kind, keeping picker defaults aligned with the provider inventory."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-default-provider-id-validation",
                     title: "Default sources point to real providers",
                     detail: "Web and Apple Create now reject acquisition Default sources that reference provider ids missing from the loaded provider inventory, matching the backend registry contract before picker defaults are used."

@@ -735,6 +735,29 @@ def test_provider_registry_rejects_contract_drift(
         )
 
 
+def test_provider_registry_rejects_ineligible_default_provider_ids() -> None:
+    registry = acquisition_provider_registry.AcquisitionProviderRegistry(
+        providers=(
+            acquisition_provider_registry.AcquisitionProvider(
+                id="local_epub",
+                label="Local EPUB",
+                media_kinds=("book",),
+                capabilities=("import_local",),
+                status="available",
+                configured=True,
+                available=True,
+                rights=("user_provided",),
+                discovery_media_kinds=("book",),
+                default_eligible_media_kinds=(),
+            ),
+        ),
+        default_provider_ids={"book": ("local_epub",)},
+    )
+
+    with pytest.raises(ValueError, match="Ineligible acquisition default provider ids"):
+        acquisition_provider_registry._validate_provider_registry_contract(registry)
+
+
 def test_provider_registry_defaults_and_listing_share_readiness_snapshot(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

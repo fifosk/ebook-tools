@@ -426,6 +426,7 @@ function assertAcquisitionProviderListResponse(
     'default_provider_ids'
   );
   const providerIds = new Set<string>();
+  const defaultEligibleMediaKindsByProviderId = new Map<string, string[]>();
   for (const provider of payload.providers) {
     if (!isRecord(provider)) {
       throw new Error('Invalid acquisition provider response: missing provider entry.');
@@ -450,17 +451,21 @@ function assertAcquisitionProviderListResponse(
       throw new Error('Invalid acquisition provider response: missing default_eligible_media_kinds.');
     }
     assertStringArray(provider.discovery_media_kinds, 'discovery_media_kinds');
-    assertStringArray(provider.default_eligible_media_kinds, 'default_eligible_media_kinds');
+    const defaultEligibleMediaKinds = assertStringArray(
+      provider.default_eligible_media_kinds,
+      'default_eligible_media_kinds'
+    );
     assertAllowedStringArray(
       provider.discovery_media_kinds,
       ACQUISITION_MEDIA_KINDS,
       'discovery_media_kinds'
     );
     assertAllowedStringArray(
-      provider.default_eligible_media_kinds,
+      defaultEligibleMediaKinds,
       ACQUISITION_MEDIA_KINDS,
       'default_eligible_media_kinds'
     );
+    defaultEligibleMediaKindsByProviderId.set(providerId, defaultEligibleMediaKinds);
     if (
       provider.source_path !== undefined &&
       provider.source_path !== null &&
@@ -483,6 +488,11 @@ function assertAcquisitionProviderListResponse(
     providerIds,
     'default_provider_ids'
   );
+  assertDefaultProviderEligibilityMap(
+    payload.default_provider_ids,
+    defaultEligibleMediaKindsByProviderId,
+    'default_provider_ids'
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -502,10 +512,11 @@ function assertBooleanField(record: Record<string, unknown>, key: string): void 
   }
 }
 
-function assertStringArray(value: unknown, key: string): void {
+function assertStringArray(value: unknown, key: string): string[] {
   if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
     throw new Error(`Invalid acquisition provider response: missing ${key}.`);
   }
+  return value;
 }
 
 function assertStringMap(value: Record<string, unknown>, key: string): void {
@@ -543,6 +554,23 @@ function assertStringArrayMapValues(
     Array.isArray(entry) && entry.some((item) => !allowed.has(item))
   );
   if (hasInvalidValue) {
+    throw new Error(`Invalid acquisition provider response: invalid ${key}.`);
+  }
+}
+
+function assertDefaultProviderEligibilityMap(
+  value: Record<string, unknown>,
+  eligibleMediaKindsByProviderId: Map<string, string[]>,
+  key: string
+): void {
+  const hasIneligibleValue = Object.entries(value).some(([mediaKind, providerIds]) =>
+    Array.isArray(providerIds) &&
+    providerIds.some((providerId) => {
+      const eligibleMediaKinds = eligibleMediaKindsByProviderId.get(providerId);
+      return Array.isArray(eligibleMediaKinds) && !eligibleMediaKinds.includes(mediaKind);
+    })
+  );
+  if (hasIneligibleValue) {
     throw new Error(`Invalid acquisition provider response: invalid ${key}.`);
   }
 }

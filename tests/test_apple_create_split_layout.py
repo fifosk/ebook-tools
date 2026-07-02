@@ -3376,9 +3376,11 @@ def test_apple_acquisition_api_validates_backend_enum_contracts() -> None:
         '"media_kind"',
     ]:
         assert field in api_models_source
-    assert "let providerIDs = Set(response.providers.map(\\.id))" in api_models_source
+    assert "let providersByID = Dictionary(" in api_models_source
     assert "invalidDefaultProviderMediaKind(mediaKind: mediaKind)" in api_models_source
     assert "invalidDefaultProviderID(" in api_models_source
+    assert "invalidDefaultProviderEligibility(" in api_models_source
+    assert "provider.defaultEligibleMediaKinds.contains(mediaKind)" in api_models_source
     assert "providerID: providerID" in api_models_source
     assert "let payload = try decode(AcquisitionProviderListResponse.self, from: data)" in api_client_source
     assert "let payload = try decode(AcquisitionDiscoveryResponse.self, from: data)" in api_client_source
