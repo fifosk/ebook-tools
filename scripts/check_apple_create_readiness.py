@@ -643,6 +643,11 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
     indexed = acquisition_provider_map(payload)
     missing = sorted(set(REQUIRED_ACQUISITION_PROVIDERS) - set(indexed))
     invalid: list[str] = []
+    for provider_id, provider in indexed.items():
+        if not isinstance(provider.get("discovery_media_kinds"), list):
+            invalid.append(f"{provider_id}.discovery_media_kinds")
+        if not isinstance(provider.get("default_eligible_media_kinds"), list):
+            invalid.append(f"{provider_id}.default_eligible_media_kinds")
     for provider_id, requirements in REQUIRED_ACQUISITION_PROVIDERS.items():
         provider = indexed.get(provider_id)
         if provider is None:
@@ -666,12 +671,8 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             invalid.append(f"{provider_id}.media_kinds:{','.join(missing_media)}")
         if missing_capabilities:
             invalid.append(f"{provider_id}.capabilities:{','.join(missing_capabilities)}")
-        if not isinstance(raw_discovery_media_kinds, list):
-            invalid.append(f"{provider_id}.discovery_media_kinds")
-        elif missing_discovery_media:
+        if isinstance(raw_discovery_media_kinds, list) and missing_discovery_media:
             invalid.append(f"{provider_id}.discovery_media_kinds:{','.join(missing_discovery_media)}")
-        if not isinstance(raw_default_eligible_media_kinds, list):
-            invalid.append(f"{provider_id}.default_eligible_media_kinds")
         if (
             provider_id in SOURCE_LABELED_ACQUISITION_PROVIDERS
             and provider.get("available") is True

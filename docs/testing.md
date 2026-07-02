@@ -357,10 +357,10 @@ pipeline-defaults config shape, that `/api/creation/templates` returns the
 shared saved template list shape even when the user has no saved templates, and
 that `/api/acquisition/providers` advertises the provider ids, book/video media
 kinds, capabilities, explicit `discovery_media_kinds` and
-`default_eligible_media_kinds` lists for every provider, attended Z-Library
-policy, explicit empty list fields for that attended-only provider, and
-token-safe `source_label` values expected by the Web and Apple discovery
-pickers. It checks both
+`default_eligible_media_kinds` lists for every advertised provider including
+provider extensions, attended Z-Library policy, explicit empty list fields for
+that attended-only provider, and token-safe `source_label` values expected by
+the Web and Apple discovery pickers. It checks both
 explicit-provider discovery routes and the no-provider Default sources fan-out
 used by Web and Apple pickers, while keeping `youtube_url` explicit-only. It
 also exercises the shared token-safe Download Station readiness helper used by

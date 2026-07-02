@@ -714,6 +714,48 @@ def test_acquisition_provider_inventory_rejects_zlibrary_discovery_or_defaulting
     ]
 
 
+def test_acquisition_provider_inventory_requires_list_fields_for_extra_providers() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        entry = {
+            "id": provider_id,
+            "media_kinds": sorted(requirements["media_kinds"]),
+            "capabilities": sorted(requirements["capabilities"]),
+            "available": provider_id != "zlibrary_attended",
+            "policy_notes": (
+                [
+                    "Direct Z-Library automation is intentionally disabled.",
+                    "Use an attended browser/download workflow only.",
+                ]
+                if provider_id == "zlibrary_attended"
+                else []
+            ),
+        }
+        providers.append(add_source_label(entry, provider_id))
+    providers.append({
+        "id": "partner_catalog",
+        "media_kinds": ["book"],
+        "capabilities": ["search", "metadata"],
+        "available": True,
+        "policy_notes": ["Token-safe provider."],
+    })
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["local_epub"],
+            "video": ["nas_video"],
+        },
+    })
+
+    assert inventory["acquisition_providers_ready"] is False
+    assert inventory["missing_acquisition_providers"] == []
+    assert inventory["invalid_acquisition_providers"] == [
+        "partner_catalog.default_eligible_media_kinds",
+        "partner_catalog.discovery_media_kinds",
+    ]
+
+
 def test_acquisition_provider_inventory_rejects_youtube_url_defaults_or_missing_discovery_kind() -> None:
     providers = []
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():

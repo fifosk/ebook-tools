@@ -128,8 +128,9 @@ Initial routes:
     discovery provider ids per media kind, and each provider's default-eligible
     media kinds so clients do not infer blind fan-out membership locally.
     `discovery_media_kinds` and `default_eligible_media_kinds` are explicit
-    list fields for every provider, even when empty, so Web and Apple pickers
-    can avoid capability/media-kind heuristics for modern backends.
+    list fields for every advertised provider, including provider extensions,
+    even when empty, so Web and Apple pickers can avoid capability/media-kind
+    heuristics for modern backends.
   - Web Narrate Ebook, Web Video Dubbing, and Apple Create adopt those
     backend-owned defaults for the initial book/video discovery picker while
     preserving user-chosen providers for the active session.
@@ -288,8 +289,8 @@ Acquisition task fields:
      contract while rejecting it from backend default video discovery fan-out.
      The provider inventory now also validates explicit
      `discovery_media_kinds` and `default_eligible_media_kinds` list fields for
-     every provider, plus media-kind eligibility when a provider appears in
-     backend default discovery ids.
+     every advertised provider, including provider extensions, plus media-kind
+     eligibility when a provider appears in backend default discovery ids.
    - Status: editor/admin-only discovery, acquire, artifact prepare, and
      downloader handoff/poll routes now record token-safe `forbidden` duration
      metrics before provider calls run, so Web/Apple Create permission drift is
