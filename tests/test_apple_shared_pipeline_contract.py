@@ -789,12 +789,18 @@ def test_apple_interactive_context_maps_target_audio_aliases_to_translation() ->
         1,
     )[0]
 
-    for alias in ["translated", "target", "target_audio", "dubbed", "dubbed_audio"]:
-        assert f'normalized == "{alias}"' in audio_key_body
-    for marker in ["_translated", "-translated", "_target", "-target", "_dubbed", "-dubbed"]:
-        assert f'rawName.contains("{marker}")' in audio_file_body
-        assert f'lowercased.contains("{marker}")' in label_body
+    for alias in ["translatedaudio", "targetaudio", "dubbedaudio", "translationaudio", "transaudio"]:
+        assert f'"{alias}"' in audio_key_body
+    assert "normalizedAudioKey" in source
+    assert "audioNameContainsAny" in source
+    assert '"translation", "translated", "target", "dubbed", "trans"' in audio_file_body
+    assert '"translation", "translated", "target", "dubbed", "trans"' in label_body
     assert "return .translation" in audio_key_body
+    swift_check = (ROOT / "scripts" / "tests" / "check_interactive_context_builder.swift").read_text(
+        encoding="utf-8"
+    )
+    assert "translated_audio metadata key should become a selectable Translation audio option" in swift_check
+    assert "target_audio filename should become a selectable Translation audio option" in swift_check
 
 
 def test_docs_publish_shared_pipeline_targets() -> None:

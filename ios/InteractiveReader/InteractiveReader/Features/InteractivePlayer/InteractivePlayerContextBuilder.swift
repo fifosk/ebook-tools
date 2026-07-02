@@ -576,73 +576,72 @@ enum JobContextBuilder {
 
     private static func labelForAudioFile(_ file: PipelineMediaFile) -> String {
         let rawName = file.relativePath ?? file.path ?? file.name
-        let lowercased = rawName.lowercased()
-        if lowercased.contains("orig_trans") || lowercased.contains("mix") {
+        if rawName.lowercased().contains("orig_trans")
+            || audioNameContainsAny(["mix"], in: rawName) {
             return "Original + Translation"
         }
-        if lowercased.contains("_translation") || lowercased.contains("-translation") {
+        if audioNameContainsAny(["translation", "translated", "target", "dubbed", "trans"], in: rawName) {
             return "Translation"
         }
-        if lowercased.contains("_translated") || lowercased.contains("-translated") {
-            return "Translation"
-        }
-        if lowercased.contains("_target") || lowercased.contains("-target") {
-            return "Translation"
-        }
-        if lowercased.contains("_dubbed") || lowercased.contains("-dubbed") {
-            return "Translation"
-        }
-        if lowercased.contains("_trans") || lowercased.contains("-trans") {
-            return "Translation"
-        }
-        if lowercased.contains("_orig") || lowercased.contains("-orig") {
-            return "Original"
-        }
-        if lowercased.contains("_original") || lowercased.contains("-original") {
+        if audioNameContainsAny(["orig", "original"], in: rawName) {
             return "Original"
         }
         return file.name
     }
 
     private static func audioKind(for key: String) -> InteractiveChunk.AudioOption.Kind {
-        let normalized = key
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-            .replacingOccurrences(of: "-", with: "_")
-        if normalized == "orig_trans" || normalized == "mix" {
+        let normalized = normalizedAudioKey(key)
+        if ["origtrans", "originaltranslation", "originalandtranslation", "mix"].contains(normalized) {
             return .combined
         }
-        if normalized == "translation"
-            || normalized == "translated"
-            || normalized == "target"
-            || normalized == "target_audio"
-            || normalized == "dubbed"
-            || normalized == "dubbed_audio"
-            || normalized == "trans" {
+        if [
+            "translation",
+            "translationaudio",
+            "translated",
+            "translatedaudio",
+            "target",
+            "targetaudio",
+            "dubbed",
+            "dubbedaudio",
+            "trans",
+            "transaudio",
+        ].contains(normalized) {
             return .translation
         }
-        if normalized == "orig" || normalized == "original" {
+        if ["orig", "origaudio", "original", "originalaudio"].contains(normalized) {
             return .original
         }
         return .other
     }
 
     private static func audioKind(for file: PipelineMediaFile) -> InteractiveChunk.AudioOption.Kind {
-        let rawName = (file.relativePath ?? file.path ?? file.name).lowercased()
-        if rawName.contains("orig_trans") || rawName.contains("mix") {
+        let rawName = file.relativePath ?? file.path ?? file.name
+        if rawName.lowercased().contains("orig_trans")
+            || audioNameContainsAny(["mix"], in: rawName) {
             return .combined
         }
-        if rawName.contains("_original") || rawName.contains("-original") || rawName.contains("_orig") || rawName.contains("-orig") {
+        if audioNameContainsAny(["orig", "original"], in: rawName) {
             return .original
         }
-        if rawName.contains("_translation") || rawName.contains("-translation")
-            || rawName.contains("_translated") || rawName.contains("-translated")
-            || rawName.contains("_target") || rawName.contains("-target")
-            || rawName.contains("_dubbed") || rawName.contains("-dubbed")
-            || rawName.contains("_trans") || rawName.contains("-trans") {
+        if audioNameContainsAny(["translation", "translated", "target", "dubbed", "trans"], in: rawName) {
             return .translation
         }
         return .other
+    }
+
+    private static func normalizedAudioKey(_ value: String) -> String {
+        value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .filter { $0.isLetter || $0.isNumber }
+    }
+
+    private static func audioNameContainsAny(_ markers: Set<String>, in rawName: String) -> Bool {
+        let tokens = rawName
+            .lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+        return tokens.contains { markers.contains($0) }
     }
 
     private static func dedupedURLKey(for url: URL) -> String {

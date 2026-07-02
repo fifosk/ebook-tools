@@ -284,6 +284,50 @@ private func decodeLocalSentenceNumberFixture() throws -> PipelineMediaResponse 
     return try decoder.decode(PipelineMediaResponse.self, from: data)
 }
 
+private func decodeTranslationAudioAliasFixture() throws -> PipelineMediaResponse {
+    let data = Data(
+        """
+        {
+          "complete": true,
+          "media": {},
+          "chunks": [
+            {
+              "chunkId": "chunk_alias_tracks",
+              "rangeFragment": "00001-00001",
+              "startSentence": 1,
+              "endSentence": 1,
+              "files": [],
+              "sentences": [],
+              "audioTracks": {
+                "OriginalAudio": {"url": "https://example.test/original.mp3", "duration": 0.8},
+                "translated_audio": {"url": "https://example.test/translated.mp3", "duration": 1.1}
+              }
+            },
+            {
+              "chunkId": "chunk_alias_files",
+              "rangeFragment": "00002-00002",
+              "startSentence": 2,
+              "endSentence": 2,
+              "files": [
+                {
+                  "name": "target_audio.mp3",
+                  "url": "https://example.test/target_audio.mp3",
+                  "relativePath": "chunk_alias_files/target_audio.mp3",
+                  "type": "audio"
+                }
+              ],
+              "sentences": [],
+              "audioTracks": {}
+            }
+          ]
+        }
+        """.utf8
+    )
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return try decoder.decode(PipelineMediaResponse.self, from: data)
+}
+
 private func runChecks() throws {
     let media = try decodeFixture()
     let context = try JobContextBuilder.build(
@@ -414,6 +458,33 @@ private func runChecks() throws {
         localNumberChunk.sentences.map(\.displayIndex),
         [2220, 2221],
         "Chunk-local sentence numbers must display as public sentence ids"
+    )
+
+    let translationAliasMedia = try decodeTranslationAudioAliasFixture()
+    let translationAliasContext = try JobContextBuilder.build(
+        jobId: "translation-audio-alias-fixture",
+        media: translationAliasMedia,
+        timing: nil,
+        resolver: MediaURLResolver(),
+        tokenCache: TokenNormalizationCache()
+    )
+    guard let aliasTrackChunk = translationAliasContext.chunk(withID: "chunk_alias_tracks") else {
+        fail("Missing translated_audio alias chunk")
+    }
+    require(
+        aliasTrackChunk.audioOptions.contains { $0.kind == .translation },
+        "translated_audio metadata key should become a selectable Translation audio option"
+    )
+    require(
+        aliasTrackChunk.audioOptions.contains { $0.kind == .combined && $0.streamURLs.count == 2 },
+        "OriginalAudio plus translated_audio should synthesize a two-stream combined option"
+    )
+    guard let aliasFileChunk = translationAliasContext.chunk(withID: "chunk_alias_files") else {
+        fail("Missing target_audio file alias chunk")
+    }
+    require(
+        aliasFileChunk.audioOptions.contains { $0.kind == .translation && $0.label == "Translation" },
+        "target_audio filename should become a selectable Translation audio option"
     )
 }
 
