@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-gutenberg-discovery-provider-helper",
+                    title: "Gutenberg discovery is leaner",
+                    detail: "Backend Project Gutenberg acquisition discovery now lives with the focused Gutenberg helper module, keeping Gutendex API calls and public-domain candidate construction out of the shared provider fanout while preserving Web and Apple Create contracts."
+                ),
+                AppChangelogEntry(
                     id: "backend-indexer-discovery-helper-module",
                     title: "Indexer discovery is leaner",
                     detail: "Backend Newznab and Torznab acquisition discovery now lives with the focused indexer helper module, keeping review-only metadata candidate construction, source-reference storage, and token-safe indexer error handling out of the shared provider fanout."

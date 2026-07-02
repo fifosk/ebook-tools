@@ -1181,6 +1181,39 @@ def test_discover_gutenberg_normalizes_public_domain_epub_metadata() -> None:
 
 
 def test_gutenberg_discovery_helpers_normalize_formats_and_people() -> None:
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return {
+                "results": [
+                    {
+                        "id": 84,
+                        "title": "Frankenstein",
+                        "authors": [{"name": "Shelley, Mary Wollstonecraft"}],
+                        "languages": ["en"],
+                        "copyright": False,
+                        "formats": {
+                            "application/epub+zip": "https://www.gutenberg.org/ebooks/84.epub3.images",
+                        },
+                    }
+                ]
+            }
+
+    class _FakeSession:
+        def get(self, url, *, params, timeout):
+            return _FakeResponse()
+
+    candidates = gutenberg_discovery.discover_gutenberg(
+        "frankenstein",
+        1,
+        language="English",
+        session=_FakeSession(),
+    )
+    assert candidates[0].provider == "gutenberg"
+    assert candidates[0].candidate_id == "gutenberg:84"
+    assert candidates[0].rights == "public_domain"
     assert gutenberg_discovery.gutendex_search_params("dune", 99, "en") == {
         "search": "dune",
         "page_size": 32,
