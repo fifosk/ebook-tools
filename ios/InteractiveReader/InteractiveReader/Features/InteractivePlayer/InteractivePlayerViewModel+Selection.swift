@@ -437,6 +437,30 @@ extension InteractivePlayerViewModel {
         return nil
     }
 
+    func lifecycleSingleTrackRestoreMode(in chunk: InteractiveChunk? = nil) -> SequenceTrack? {
+        if let loadedSingleTrackPlaybackMode {
+            return loadedSingleTrackPlaybackMode
+        }
+        if let preferredSingleTrackMode {
+            return preferredSingleTrackMode
+        }
+        if let durableSingleTrackPlaybackMode {
+            return durableSingleTrackPlaybackMode
+        }
+        if let chunk,
+           let selectedTimingSingleTrack = selectedTimingSingleTrackMode(in: chunk) {
+            return selectedTimingSingleTrack
+        }
+        if case .singleTrack(let track) = sequenceController.audioMode {
+            return track
+        }
+        if let audioModeManager,
+           case .singleTrack(let track) = audioModeManager.currentMode {
+            return track
+        }
+        return nil
+    }
+
     private func loadedSingleURLTrackMode() -> SequenceTrack? {
         guard !sequenceController.isEnabled,
               sequenceController.plan.isEmpty,

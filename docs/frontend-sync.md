@@ -191,7 +191,12 @@ Follow the suggested remediations to restore parity:
   before sentence tokens load. The SwiftUI lifecycle bridge must also recover a
   one-track custom visible selection into `AudioModeManager` and the selected
   audio option before `applyDefaultTrackSelection`, because visible track state
-  can outlive a transient audio-mode reset at a chunk boundary.
+  can outlive a transient audio-mode reset at a chunk boundary. That lifecycle
+  restore must use the view model's loaded, preferred, and durable
+  single-track lane state before consulting chunk-local defaults, because a
+  batch-end metadata refresh can briefly clear the preferred lane while the
+  user-selected Original-only or Translation-only playback lane is still the
+  correct rendering authority.
   Natural end-of-batch single-track advances should
   establish a fresh next-batch anchor from the target index or chunk range
   before autoplay starts, so placeholder metadata can still render the selected lane

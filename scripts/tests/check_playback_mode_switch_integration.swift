@@ -513,17 +513,20 @@ private func restoreSingleTrackModeFromViewModelPreferenceIfNeeded(
     hasCustomTrackSelection: inout Bool,
     selectedAudioTrackID: inout String?,
     preferredSingleTrackMode: SequenceTrack?,
+    durableSingleTrackPlaybackMode: SequenceTrack? = nil,
+    loadedSingleTrackPlaybackMode: SequenceTrack? = nil,
     sequenceAudioMode: inout AudioMode,
     preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?
 ) -> Bool {
-    let requestedTrack: SequenceTrack?
-    if let preferredSingleTrackMode {
-        requestedTrack = preferredSingleTrackMode
-    } else if case .singleTrack(let sequenceTrack) = sequenceAudioMode {
-        requestedTrack = sequenceTrack
-    } else {
-        requestedTrack = nil
-    }
+    let requestedTrack = requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind,
+        durableSingleTrackPlaybackMode: durableSingleTrackPlaybackMode,
+        loadedSingleTrackPlaybackMode: loadedSingleTrackPlaybackMode,
+        chunk: chunk
+    )
     guard let requestedTrack else { return false }
 
     let desiredTextTrack: TextPlayerVariantKind = requestedTrack == .original ? .original : .translation
@@ -688,6 +691,7 @@ private func requestedSingleTrackMode(
     sequenceAudioMode: AudioMode,
     preferredSingleTrackMode: SequenceTrack?,
     preferredAudioKind: InteractiveChunk.AudioOption.Kind?,
+    durableSingleTrackPlaybackMode: SequenceTrack? = nil,
     loadedSingleTrackPlaybackMode: SequenceTrack? = nil,
     chunk: InteractiveChunk? = nil,
     selectedTimingURL: URL? = nil,
@@ -698,6 +702,9 @@ private func requestedSingleTrackMode(
     }
     if let preferredSingleTrackMode {
         return preferredSingleTrackMode
+    }
+    if let durableSingleTrackPlaybackMode {
+        return durableSingleTrackPlaybackMode
     }
     if let chunk,
        let selectedTimingSingleTrackMode {
@@ -757,6 +764,7 @@ private func requestedSingleTrackMode(
     chunk: InteractiveChunk,
     sequenceEnabled: Bool,
     activeURLs: [URL],
+    durableSingleTrackPlaybackMode: SequenceTrack? = nil,
     loadedSingleTrackPlaybackMode: SequenceTrack? = nil,
     sequencePlanIsEmpty: Bool = true
 ) -> SequenceTrack? {
@@ -765,6 +773,7 @@ private func requestedSingleTrackMode(
         sequenceAudioMode: sequenceAudioMode,
         preferredSingleTrackMode: preferredSingleTrackMode,
         preferredAudioKind: preferredAudioKind,
+        durableSingleTrackPlaybackMode: durableSingleTrackPlaybackMode,
         loadedSingleTrackPlaybackMode: loadedSingleTrackPlaybackMode,
         chunk: chunk
     ) {
@@ -2491,6 +2500,48 @@ private func runChecks() {
         hydratedBatchBridgeSelectedTrackID,
         "translation-next",
         "Hydrated batch bridge should repair the selected audio id before playback prepares"
+    )
+    let durableOnlyBatchBridgeManager = AudioModeManager()
+    var durableOnlyBatchBridgeVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
+    var durableOnlyBatchBridgeHasCustomTrackSelection = false
+    var durableOnlyBatchBridgeSelectedTrackID: String? = "combined-next"
+    var durableOnlyBatchBridgeSequenceMode: AudioMode = .sequence
+    var durableOnlyBatchBridgePreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
+    requireEqual(
+        restoreSingleTrackModeFromViewModelPreferenceIfNeeded(
+            for: nextBatch,
+            availableTracks: [.original, .translation, .transliteration],
+            manager: durableOnlyBatchBridgeManager,
+            visibleTracks: &durableOnlyBatchBridgeVisibleTracks,
+            hasCustomTrackSelection: &durableOnlyBatchBridgeHasCustomTrackSelection,
+            selectedAudioTrackID: &durableOnlyBatchBridgeSelectedTrackID,
+            preferredSingleTrackMode: nil,
+            durableSingleTrackPlaybackMode: .translation,
+            sequenceAudioMode: &durableOnlyBatchBridgeSequenceMode,
+            preferredAudioKind: &durableOnlyBatchBridgePreferredKind
+        ),
+        true,
+        "Hydrated batch bridge should restore translation-only from durable state even when preferred state was cleared"
+    )
+    requireEqual(
+        durableOnlyBatchBridgeManager.currentMode,
+        .singleTrack(.translation),
+        "Durable-only batch bridge should put the SwiftUI manager back on translation before defaults run"
+    )
+    requireEqual(
+        durableOnlyBatchBridgeSequenceMode,
+        .singleTrack(.translation),
+        "Durable-only batch bridge should restore sequence-controller mode before playback prepares"
+    )
+    requireEqual(
+        durableOnlyBatchBridgeVisibleTracks,
+        [.translation],
+        "Durable-only batch bridge should keep rendered text on the selected translation lane"
+    )
+    requireEqual(
+        durableOnlyBatchBridgeSelectedTrackID,
+        "translation-next",
+        "Durable-only batch bridge should repair the chunk-local audio id before playback prepares"
     )
     let passiveHydratedManager = AudioModeManager()
     var passiveHydratedVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]

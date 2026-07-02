@@ -811,6 +811,26 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
         "selectedTimingSingleTrackMode(in: chunk)"
     )
     assert requested_body.index("if let loadedSingleTrackPlaybackMode") < requested_body.index("if let audioModeManager")
+    lifecycle_restore_body = _function_body(
+        selection,
+        "func lifecycleSingleTrackRestoreMode(in chunk: InteractiveChunk? = nil) -> SequenceTrack?",
+    )
+    assert "loadedSingleTrackPlaybackMode" in lifecycle_restore_body
+    assert "preferredSingleTrackMode" in lifecycle_restore_body
+    assert "durableSingleTrackPlaybackMode" in lifecycle_restore_body
+    assert "selectedTimingSingleTrackMode(in: chunk)" in lifecycle_restore_body
+    assert lifecycle_restore_body.index("if let loadedSingleTrackPlaybackMode") < lifecycle_restore_body.index(
+        "if let preferredSingleTrackMode"
+    )
+    assert lifecycle_restore_body.index("if let preferredSingleTrackMode") < lifecycle_restore_body.index(
+        "if let durableSingleTrackPlaybackMode"
+    )
+    assert lifecycle_restore_body.index("if let durableSingleTrackPlaybackMode") < lifecycle_restore_body.index(
+        "selectedTimingSingleTrackMode(in: chunk)"
+    )
+    assert lifecycle_restore_body.index("sequenceController.audioMode") < lifecycle_restore_body.index(
+        "audioModeManager.currentMode"
+    )
     selected_timing_body = _function_body(
         selection,
         "private func selectedTimingSingleTrackMode(in chunk: InteractiveChunk) -> SequenceTrack?",
@@ -980,6 +1000,7 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "viewModel.sequenceController.audioMode = audioModeManager.currentMode" in initial_playback_body
     assert "let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)" in initial_playback_body
     assert "preserveSingleTrackModeIfNeeded(for: chunk)" in initial_playback_body
+    assert "restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for: chunk)" in initial_playback_body
     assert "if !preservedSingleTrack" in initial_playback_body
     assert "viewModel.synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)" in initial_playback_body
     assert initial_playback_body.index("viewModel.audioModeManager = audioModeManager") < initial_playback_body.index(
@@ -1005,6 +1026,16 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "hasCustomTrackSelection = true" in preserve_body
     assert "viewModel.applySingleTrackSelection(track, for: chunk)" in preserve_body
     assert "viewModel.selectedAudioTrackID = targetID" not in preserve_body
+
+    restore_body = _function_body(
+        tracks,
+        "func restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for chunk: InteractiveChunk) -> Bool",
+    )
+    assert "viewModel.lifecycleSingleTrackRestoreMode(in: chunk)" in restore_body
+    assert "viewModel.preferredSingleTrackMode" not in restore_body
+    assert "case .singleTrack(let sequenceTrack) = viewModel.sequenceController.audioMode" not in restore_body
+    assert "audioModeManager.setTracks(" in restore_body
+    assert "viewModel.applySingleTrackSelection(requestedTrack, for: chunk)" in restore_body
 
     resume_track_body = _function_body(
         tracks,

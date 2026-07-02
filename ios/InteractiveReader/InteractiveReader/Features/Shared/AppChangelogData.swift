@@ -448,6 +448,11 @@ enum AppChangelogData {
                     detail: "Web PlayerPanel navigation controls now derive shell class names, search placement, export labels, advanced toggle state, and compact control visibility through a tested helper while preserving panel and fullscreen behavior."
                 ),
                 AppChangelogEntry(
+                    id: "apple-single-track-durable-lifecycle-restore",
+                    title: "Single-track batches keep their lane",
+                    detail: "Apple reader batch lifecycle restores now use the loaded/preferred/durable original-only or translation-only lane before default track setup, preventing end-of-batch refreshes from resetting rendering to All while narration stays on the selected track."
+                ),
+                AppChangelogEntry(
                     id: "web-player-panel-navigation-debug-opt-in",
                     title: "Web player navigation is quieter",
                     detail: "Web PlayerPanel media-navigation debug logs are now opt-in during development, keeping sentence skip and media-session navigation quiet by default under local dogfood and automated playback tests."

@@ -281,15 +281,7 @@ extension InteractivePlayerView {
 
     @discardableResult
     func restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for chunk: InteractiveChunk) -> Bool {
-        let requestedTrack: SequenceTrack?
-        if let preferredTrack = viewModel.preferredSingleTrackMode {
-            requestedTrack = preferredTrack
-        } else if case .singleTrack(let sequenceTrack) = viewModel.sequenceController.audioMode {
-            requestedTrack = sequenceTrack
-        } else {
-            requestedTrack = nil
-        }
-        guard let requestedTrack else { return false }
+        guard let requestedTrack = viewModel.lifecycleSingleTrackRestoreMode(in: chunk) else { return false }
 
         let desiredTextTrack: TextPlayerVariantKind = requestedTrack == .original ? .original : .translation
         let available = Set(availableTracks(for: chunk))
