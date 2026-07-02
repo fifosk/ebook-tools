@@ -11,6 +11,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Apple reader Audio controls now expose Original + Translation, Original-only, and Translation-only as first-class choices across Apple surfaces, with the header pill label driven by the live audio mode instead of stale single-track resume memory.
 - Apple reader audio shortcuts now use the same guarded track-toggle path as the header pills, and sequence mode now prefers the combined lane before stale single-track evidence when calculating timeline duration and header progress.
 - Web playback viewer renderability, fullscreen preference, document/chrome state, and wake-lock activation now live in a focused PlayerPanel hook with coverage in the playback gate.
+- Web live-media snapshot normalization, storage URL resolution, chunk assembly, and progress-generated file parsing now live in a focused helper shared by online playback, Library media, and offline export playback.
 - Web Library external focus and debounced search state now live in a focused hook with coverage for cross-surface jump-to-library requests, trimming more state wiring from the page shell.
 - Web playback shortcut registration, MyLinguist font-scale wiring, and the shortcut-help overlay now live in a focused PlayerPanel hook with coverage for help toggling and feature-disabled MyLinguist shortcuts.
 - Web playback lifecycle effects for autoplay handoff, shell playback/fullscreen callbacks, and per-job pending-reader cleanup now live in a focused PlayerPanel hook with direct coverage.

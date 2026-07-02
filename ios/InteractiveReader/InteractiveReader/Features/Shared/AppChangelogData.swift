@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.012",
             entries: [
                 AppChangelogEntry(
+                    id: "web-live-media-normalise-helper",
+                    title: "Web playback snapshots are shared",
+                    detail: "Web live-media snapshot normalization, storage URL resolution, chunk assembly, and progress-generated file parsing now live in a focused helper shared by online playback, Library media, and offline export playback."
+                ),
+                AppChangelogEntry(
                     id: "apple-audio-shortcuts-sequence-lane",
                     title: "Track pills and shortcuts agree",
                     detail: "Apple reader audio shortcuts now use the same guarded track-toggle path as the header pills, and sequence mode prefers the combined lane before stale single-track evidence when calculating timeline duration and header progress."

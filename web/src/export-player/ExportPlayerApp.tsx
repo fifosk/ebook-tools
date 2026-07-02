@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import PlayerPanel from '../components/PlayerPanel';
 import YoutubeDubPlayer from '../components/YoutubeDubPlayer';
 import type { PipelineMediaResponse } from '../api/dtos';
-import { normaliseFetchedMedia } from '../hooks/useLiveMedia';
+import { normaliseFetchedMedia } from '../hooks/liveMediaNormalise';
 import type { ExportPlayerManifest, ExportReadingBed } from '../types/exportPlayer';
 
 function getExportManifest(): ExportPlayerManifest | null {

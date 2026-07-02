@@ -5,8 +5,8 @@ import {
   LiveMediaChunk,
   LiveMediaState,
   createEmptyState,
-  normaliseFetchedMedia,
 } from './useLiveMedia';
+import { normaliseFetchedMedia } from './liveMediaNormalise';
 
 export interface UseLibraryMediaResult {
   media: LiveMediaState;

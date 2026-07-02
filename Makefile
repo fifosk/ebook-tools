@@ -316,6 +316,7 @@ test-web-playback-focused:
 	npm --prefix web test -- --run \
 		src/api/client/__tests__/media.test.ts \
 		src/hooks/__tests__/liveMediaState.test.ts \
+		src/hooks/__tests__/liveMediaNormalise.test.ts \
 		src/hooks/__tests__/liveMediaTiming.test.ts \
 		src/hooks/__tests__/useLiveMedia.test.tsx \
 		src/components/__tests__/playerPanelChapterNavigation.test.ts \
