@@ -112,9 +112,12 @@ def test_tvos_reader_pause_reasserts_against_stray_music_play() -> None:
         ), label
         assert 'lastReaderTransportAction == "pause"' in reassert_body, label
         assert "musicOwnership.isPlaying" in reassert_body, label
-        assert "!musicOwnership.isReaderTransportPauseGuardActive" in reassert_body, label
-        assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in reassert_body, label
-        assert "e2eReaderTransportCommandCount == 0" in reassert_body, label
+        assert "musicOwnership.isPausedByReaderTransport" in reassert_body, label
+        assert "musicOwnership.isManuallyPaused" in reassert_body, label
+        assert "musicOwnership.isReaderTransportPauseGuardActive" in reassert_body, label
+        assert "!musicOwnership.isReaderTransportPauseGuardActive" not in reassert_body, label
+        assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' not in reassert_body, label
+        assert "e2eReaderTransportCommandCount == 0" not in reassert_body, label
 
 
 def test_tvos_active_music_pause_adopts_before_recovery() -> None:

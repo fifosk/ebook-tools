@@ -546,15 +546,13 @@ struct LibraryPlaybackView: View {
 
     #if os(tvOS)
     private var shouldReassertReaderTransportPauseAfterMusicPlay: Bool {
-        #if DEBUG
-        if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1",
-           e2eReaderTransportCommandCount == 0 {
-            return false
-        }
-        #endif
         return lastReaderTransportAction == "pause" &&
             musicOwnership.isPlaying &&
-            !musicOwnership.isReaderTransportPauseGuardActive
+            (
+                musicOwnership.isPausedByReaderTransport ||
+                musicOwnership.isManuallyPaused ||
+                musicOwnership.isReaderTransportPauseGuardActive
+            )
     }
     #endif
 

@@ -1483,7 +1483,7 @@ final class MusicKitCoordinator: ObservableObject {
         }
         #if os(tvOS)
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            try? await Task.sleep(nanoseconds: 16_000_000_000)
             guard self.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
             self.simulateReadingBedPlayForE2E()
         }
