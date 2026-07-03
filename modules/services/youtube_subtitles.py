@@ -17,6 +17,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError, ExtractorError
 
 from modules import logging_manager as log_mgr
+from modules.services import source_discovery
 from modules.services.source_discovery import safe_stat
 
 logger = log_mgr.get_logger().getChild("services.youtube_subtitles")
@@ -505,11 +506,10 @@ def _recent_files(paths: Iterable[Path], *, context: str) -> List[tuple[Path, fl
 
 
 def _safe_iterdir(path: Path, *, context: str) -> List[Path]:
-    try:
-        return list(path.iterdir())
-    except OSError:
-        logger.debug("Unable to scan YouTube %s directory %s", context, path, exc_info=True)
-        return []
+    entries = source_discovery.safe_iterdir(path)
+    if not entries and safe_stat(path) is None:
+        logger.debug("Unable to scan YouTube %s directory %s", context, path)
+    return entries
 
 
 def _path_exists(path: Path) -> bool:

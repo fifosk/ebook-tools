@@ -1,4 +1,5 @@
 from datetime import datetime
+import inspect
 from pathlib import Path
 
 import pytest
@@ -94,6 +95,13 @@ def test_recent_files_uses_safe_stat_instead_of_is_file(
     monkeypatch.setattr(Path, "is_file", fail_is_file)
 
     assert [path for path, _mtime in _recent_files([stable], context="test")] == [stable]
+
+
+def test_safe_iterdir_delegates_to_shared_source_discovery_helper() -> None:
+    source = inspect.getsource(youtube_subtitles._safe_iterdir)
+
+    assert "source_discovery.safe_iterdir(path)" in source
+    assert "path.iterdir()" not in source
 
 
 def test_download_subtitle_skips_stale_candidates(
