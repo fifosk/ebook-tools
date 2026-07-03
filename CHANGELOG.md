@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple Job and Library playback now refresh the Music-bed reader-active bridge from the requested-play state before Music surface changes and reader transport commands, so a single pause can combine Apple Music bed and sentence audio even during autoplay or track handoff timing gaps.
 - Golden Apple pipeline verification now runs the serial iPad plus tvOS Music-bed candidate gate after the dogfood pipeline, keeping pause/resume and lookup regressions inside the no-physical-deploy readiness recipe.
 - Apple TV Music-bed pause now keeps the short post-resume echo guard, but after that window a MusicKit pause observed while narration is still requested or playing is mirrored into sentence transport immediately so one press can pause both layers.
 - The iPad music-bed simulator journey now publishes lookup-bubble counters through a dedicated DEBUG status element, keeping keyboard lookup validation independent from the longer music-bed transport label.
