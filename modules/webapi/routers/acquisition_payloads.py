@@ -201,7 +201,7 @@ def candidate_payload(candidate: AcquisitionCandidate) -> AcquisitionCandidatePa
         duration_seconds=candidate.duration_seconds,
         subtitles=[
             AcquisitionSubtitleHintPayload(
-                path=subtitle.path,
+                path=strip_sensitive_url_parts(subtitle.path),
                 filename=subtitle.filename,
                 language=subtitle.language,
                 format=subtitle.format,
@@ -238,10 +238,14 @@ def prepared_artifact_payload(artifact) -> AcquisitionPreparedArtifactResponse:
         local_path=artifact.local_path,
         input_file=artifact.input_file,
         video_path=artifact.video_path,
-        subtitle_path=artifact.subtitle_path,
+        subtitle_path=(
+            strip_sensitive_url_parts(artifact.subtitle_path)
+            if artifact.subtitle_path
+            else None
+        ),
         subtitles=[
             AcquisitionSubtitleHintPayload(
-                path=str(subtitle.get("path") or ""),
+                path=strip_sensitive_url_parts(str(subtitle.get("path") or "")),
                 filename=str(subtitle.get("filename") or ""),
                 language=subtitle.get("language")
                 if isinstance(subtitle.get("language"), str)

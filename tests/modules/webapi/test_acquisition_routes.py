@@ -29,6 +29,7 @@ from modules.webapi.routers.acquisition_route_support import (
     discovery_response,
     provider_list_response,
 )
+from modules.webapi.routers.acquisition_payloads import prepared_artifact_payload
 from modules.webapi.schemas.acquisition import AcquisitionProviderListResponse
 
 
@@ -416,6 +417,7 @@ def test_acquisition_route_support_shapes_discovery_response_token_safely() -> N
     from modules.services.acquisition import (
         AcquisitionCandidate,
         AcquisitionDiscoveryResult,
+        AcquisitionSubtitleHint,
     )
 
     response = discovery_response(
@@ -434,6 +436,17 @@ def test_acquisition_route_support_shapes_discovery_response_token_safely() -> N
                         "https://secret-user:secret-pass@indexer.example.invalid/get?"
                         "id=7&apikey=secret-key"
                     ),
+                    subtitles=(
+                        AcquisitionSubtitleHint(
+                            path=(
+                                "https://secret-user:secret-pass@indexer.example.invalid/subtitle?"
+                                "id=7&apikey=secret-key"
+                            ),
+                            filename="reviewed.srt",
+                            language="en",
+                            format="srt",
+                        ),
+                    ),
                     metadata={
                         "title": "Reviewed Video",
                         "api_key": "secret-key",
@@ -450,9 +463,55 @@ def test_acquisition_route_support_shapes_discovery_response_token_safely() -> N
     assert response.providers_queried == ["newznab_torznab"]
     assert response.policy_notes == ["Review rights before download."]
     assert response.candidates[0].source_url == "https://indexer.example.invalid/get?id=7"
+    assert response.candidates[0].subtitles[0].path == (
+        "https://indexer.example.invalid/subtitle?id=7"
+    )
     assert response.candidates[0].metadata == {
         "title": "Reviewed Video",
         "download_url": "https://indexer.example.invalid/get?id=7",
+    }
+    assert "secret-key" not in response.model_dump_json()
+
+
+def test_acquisition_payloads_strip_secret_subtitle_handoff_urls() -> None:
+    from modules.services.acquisition import AcquisitionPreparedArtifact
+
+    response = prepared_artifact_payload(
+        AcquisitionPreparedArtifact(
+            provider="manual_downloads",
+            media_kind="video",
+            source_kind="manual_download",
+            local_path="/Volumes/Data/Download/Demo.mkv",
+            video_path="/Volumes/Data/Download/Demo.mkv",
+            subtitle_path=(
+                "https://secret-user:secret-pass@indexer.example.invalid/subtitle?"
+                "id=7&apikey=secret-key"
+            ),
+            subtitles=(
+                {
+                    "path": (
+                        "https://secret-user:secret-pass@indexer.example.invalid/subtitle?"
+                        "id=7&apikey=secret-key"
+                    ),
+                    "filename": "demo.srt",
+                    "language": "en",
+                    "format": "srt",
+                },
+            ),
+            next_actions=("extract_subtitles", "create_dub_job"),
+            metadata={
+                "api_key": "secret-key",
+                "subtitle_url": (
+                    "https://indexer.example.invalid/subtitle?id=7&apikey=secret-key"
+                ),
+            },
+        )
+    )
+
+    assert response.subtitle_path == "https://indexer.example.invalid/subtitle?id=7"
+    assert response.subtitles[0].path == "https://indexer.example.invalid/subtitle?id=7"
+    assert response.metadata == {
+        "subtitle_url": "https://indexer.example.invalid/subtitle?id=7"
     }
     assert "secret-key" not in response.model_dump_json()
 
