@@ -3900,6 +3900,10 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "prepared.videoPath?.trimmingCharacters" in source_actions
     assert "prepared.subtitlePath?.trimmingCharacters" in source_actions
     assert "prepared.subtitles.first?.path.trimmingCharacters" in source_actions
+    assert "let preparedSubtitleHint = preferredSubtitlePath.flatMap" in source_actions
+    assert "let selectedSubtitleHint = preparedSubtitleHint ?? candidateSubtitleHint" in source_actions
+    assert "!editedFields.contains(.targetLanguage)" in source_actions
+    assert "AppleBookCreateLanguage(backendValue: language)" in source_actions
     assert "handleYoutubeVideoPathChange(videoPath)" in source_actions
 
     assert "let acquisitionDiscovery: AcquisitionDiscoveryResponse?" in youtube_source

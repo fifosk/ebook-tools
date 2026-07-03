@@ -478,6 +478,17 @@ extension AppleBookCreateView {
         let preferredSubtitlePath = prepared.subtitlePath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
             ?? prepared.subtitles.first?.path.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
             ?? candidate.subtitles.first?.path.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        let preparedSubtitleHint = preferredSubtitlePath.flatMap { path in
+            prepared.subtitles.first {
+                $0.path.trimmingCharacters(in: .whitespacesAndNewlines) == path
+            }
+        } ?? prepared.subtitles.first
+        let candidateSubtitleHint = preferredSubtitlePath.flatMap { path in
+            candidate.subtitles.first {
+                $0.path.trimmingCharacters(in: .whitespacesAndNewlines) == path
+            }
+        } ?? candidate.subtitles.first
+        let selectedSubtitleHint = preparedSubtitleHint ?? candidateSubtitleHint
 
         markEdited(.youtubeVideoPath)
         youtubeVideoPath = videoPath
@@ -495,6 +506,11 @@ extension AppleBookCreateView {
             markEdited(.youtubeSubtitlePath)
             youtubeSubtitlePath = subtitlePath
             handleYoutubeSubtitlePathChange(subtitlePath)
+            if !editedFields.contains(.targetLanguage),
+               let language = selectedSubtitleHint?.language,
+               let preparedLanguage = AppleBookCreateLanguage(backendValue: language) {
+                targetLanguage = preparedLanguage
+            }
             youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
                 from: candidate,
                 selectedVideoPath: videoPath,

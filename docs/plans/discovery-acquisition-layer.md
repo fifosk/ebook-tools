@@ -521,7 +521,9 @@ Acquisition task fields:
    - Status: Apple YouTube Dub now prepares local/manual video discovery
      candidates through the shared artifact endpoint before filling `video_path`
      and `subtitle_path`, while YouTube metadata and indexer handoff candidates
-     remain review/download flows.
+     remain review/download flows. Prepared subtitle language hints also update
+     the Apple target language when the user has not edited it, matching the Web
+     handoff before a refreshed NAS/manual library row is available.
   - Status: Web Narrate Ebook and Apple Narrate EPUB templates now persist
      token-free `discovery_state` for selected book discovery candidates,
      including provider, candidate id, selected path, source URL, rights, and
