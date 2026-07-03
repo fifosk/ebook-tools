@@ -29,6 +29,15 @@ if _RUNTIME_DESCRIPTOR_SPEC is None or _RUNTIME_DESCRIPTOR_SPEC.loader is None:
     raise RuntimeError(f"Unable to load runtime descriptor from {_RUNTIME_DESCRIPTOR_PATH}")
 _runtime_descriptor = importlib.util.module_from_spec(_RUNTIME_DESCRIPTOR_SPEC)
 _RUNTIME_DESCRIPTOR_SPEC.loader.exec_module(_runtime_descriptor)
+_PROVIDER_CATALOG_PATH = _ROOT_DIR / "modules" / "services" / "acquisition" / "provider_catalog.py"
+_PROVIDER_CATALOG_SPEC = importlib.util.spec_from_file_location(
+    "ebook_tools_acquisition_provider_catalog",
+    _PROVIDER_CATALOG_PATH,
+)
+if _PROVIDER_CATALOG_SPEC is None or _PROVIDER_CATALOG_SPEC.loader is None:
+    raise RuntimeError(f"Unable to load provider catalog from {_PROVIDER_CATALOG_PATH}")
+_provider_catalog = importlib.util.module_from_spec(_PROVIDER_CATALOG_SPEC)
+_PROVIDER_CATALOG_SPEC.loader.exec_module(_provider_catalog)
 
 EXPECTED_CREATE_PATHS = dict(_runtime_descriptor.CREATION_DESCRIPTOR)
 EXPECTED_BOOK_OPTIONS_PATH = str(EXPECTED_CREATE_PATHS["bookOptionsPath"])
@@ -166,6 +175,7 @@ REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS = {
     "download_station": set(),
     "zlibrary_attended": set(),
 }
+EXPECTED_ACQUISITION_PROVIDER_LABELS = dict(_provider_catalog.ACQUISITION_PROVIDER_LABELS)
 
 
 def _runtime_acquisition_value_set(key: str) -> set[str]:
@@ -631,6 +641,14 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
     missing = sorted(set(REQUIRED_ACQUISITION_PROVIDERS) - set(indexed))
     invalid: list[str] = []
     for provider_id, provider in indexed.items():
+        label = str(provider.get("label") or "").strip()
+        if not label:
+            invalid.append(f"{provider_id}.label")
+        elif (
+            provider_id in EXPECTED_ACQUISITION_PROVIDER_LABELS
+            and label != EXPECTED_ACQUISITION_PROVIDER_LABELS[provider_id]
+        ):
+            invalid.append(f"{provider_id}.label")
         if not isinstance(provider.get("discovery_media_kinds"), list):
             invalid.append(f"{provider_id}.discovery_media_kinds")
         if not isinstance(provider.get("default_eligible_media_kinds"), list):

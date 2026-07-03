@@ -21,6 +21,8 @@ def parse_query_value(path: str, name: str) -> str:
 
 
 def add_source_label(provider: dict[str, object], provider_id: str) -> dict[str, object]:
+    if provider_id in module.EXPECTED_ACQUISITION_PROVIDER_LABELS:
+        provider.setdefault("label", module.EXPECTED_ACQUISITION_PROVIDER_LABELS[provider_id])
     labels = {
         "local_epub": "Books root",
         "manual_downloads": "Manual download folders",
@@ -554,7 +556,7 @@ def test_acquisition_provider_inventory_pins_registry_shape() -> None:
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
         entry = {
             "id": provider_id,
-            "label": provider_id.replace("_", " ").title(),
+            "label": module.EXPECTED_ACQUISITION_PROVIDER_LABELS[provider_id],
             "media_kinds": sorted(requirements["media_kinds"]),
             "capabilities": sorted(requirements["capabilities"]),
             "status": "planned" if provider_id == "zlibrary_attended" else "available",
@@ -604,7 +606,7 @@ def test_acquisition_provider_inventory_normalizes_provider_ids_once() -> None:
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
         entry = {
             "id": f" {provider_id} ",
-            "label": provider_id,
+            "label": module.EXPECTED_ACQUISITION_PROVIDER_LABELS[provider_id],
             "media_kinds": sorted(requirements["media_kinds"]),
             "capabilities": sorted(requirements["capabilities"]),
             "available": provider_id != "zlibrary_attended",
@@ -674,12 +676,15 @@ def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entr
     assert inventory["invalid_acquisition_providers"] == [
         "local_epub.default_eligible_media_kinds",
         "local_epub.discovery_media_kinds",
+        "local_epub.label",
         "local_epub.source_label",
         "youtube_search.capabilities:search",
         "youtube_search.default_eligible_media_kinds",
         "youtube_search.discovery_media_kinds",
+        "youtube_search.label",
         "zlibrary_attended.default_eligible_media_kinds",
         "zlibrary_attended.discovery_media_kinds",
+        "zlibrary_attended.label",
         "zlibrary_attended.policy",
     ]
     assert inventory["acquisition_default_providers_ready"] is False
@@ -697,7 +702,7 @@ def test_acquisition_provider_inventory_reports_unsupported_provider_values() ->
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
         entry = {
             "id": provider_id,
-            "label": provider_id.replace("_", " ").title(),
+            "label": module.EXPECTED_ACQUISITION_PROVIDER_LABELS[provider_id],
             "media_kinds": sorted(requirements["media_kinds"]),
             "capabilities": sorted(requirements["capabilities"]),
             "status": "planned" if provider_id == "zlibrary_attended" else "available",
@@ -827,7 +832,44 @@ def test_acquisition_provider_inventory_requires_list_fields_for_extra_providers
     assert inventory["invalid_acquisition_providers"] == [
         "partner_catalog.default_eligible_media_kinds",
         "partner_catalog.discovery_media_kinds",
+        "partner_catalog.label",
     ]
+
+
+def test_acquisition_provider_inventory_rejects_raw_known_provider_labels() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        entry = {
+            "id": provider_id,
+            "media_kinds": sorted(requirements["media_kinds"]),
+            "capabilities": sorted(requirements["capabilities"]),
+            "available": provider_id != "zlibrary_attended",
+            "policy_notes": (
+                [
+                    "Direct Z-Library automation is intentionally disabled.",
+                    "Use an attended browser/download workflow only.",
+                ]
+                if provider_id == "zlibrary_attended"
+                else ["Token-safe provider."]
+            ),
+            "discovery_media_kinds": sorted(
+                module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, [])
+            ),
+        }
+        providers.append(add_source_label(entry, provider_id))
+    newznab = next(provider for provider in providers if provider["id"] == "newznab_torznab")
+    newznab["label"] = "newznab_torznab"
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["local_epub"],
+            "video": ["nas_video"],
+        },
+    })
+
+    assert inventory["acquisition_providers_ready"] is False
+    assert inventory["invalid_acquisition_providers"] == ["newznab_torznab.label"]
 
 
 def test_acquisition_provider_inventory_rejects_youtube_url_defaults_or_missing_discovery_kind() -> None:
