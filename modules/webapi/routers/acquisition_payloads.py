@@ -243,20 +243,7 @@ def prepared_artifact_payload(artifact) -> AcquisitionPreparedArtifactResponse:
             if artifact.subtitle_path
             else None
         ),
-        subtitles=[
-            AcquisitionSubtitleHintPayload(
-                path=strip_sensitive_url_parts(str(subtitle.get("path") or "")),
-                filename=str(subtitle.get("filename") or ""),
-                language=subtitle.get("language")
-                if isinstance(subtitle.get("language"), str)
-                else None,
-                format=subtitle.get("format")
-                if isinstance(subtitle.get("format"), str)
-                else None,
-            )
-            for subtitle in artifact.subtitles
-            if subtitle.get("path") and subtitle.get("filename")
-        ],
+        subtitles=prepared_subtitle_hint_payloads(artifact.subtitles),
         next_actions=list(artifact.next_actions),
         metadata=public_metadata(artifact.metadata),
     )
@@ -293,3 +280,35 @@ def _normalize_optional_text(value: str | None) -> str | None:
         return None
     normalized = str(value).strip()
     return normalized or None
+
+
+def prepared_subtitle_hint_payloads(
+    subtitles: Sequence[Any],
+) -> list[AcquisitionSubtitleHintPayload]:
+    payloads: list[AcquisitionSubtitleHintPayload] = []
+    for subtitle in subtitles:
+        if not isinstance(subtitle, Mapping):
+            continue
+        path = _normalize_optional_text(
+            strip_sensitive_url_parts(str(subtitle.get("path") or ""))
+        )
+        filename = _normalize_optional_text(str(subtitle.get("filename") or ""))
+        if not path or not filename:
+            continue
+        language = _normalize_optional_text_value(subtitle.get("language"))
+        subtitle_format = _normalize_optional_text_value(subtitle.get("format"))
+        payloads.append(
+            AcquisitionSubtitleHintPayload(
+                path=path,
+                filename=filename,
+                language=language,
+                format=subtitle_format,
+            )
+        )
+    return payloads
+
+
+def _normalize_optional_text_value(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    return _normalize_optional_text(value)

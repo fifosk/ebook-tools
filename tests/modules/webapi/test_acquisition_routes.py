@@ -533,6 +533,43 @@ def test_acquisition_payloads_strip_secret_subtitle_handoff_urls() -> None:
     assert "secret-key" not in response.model_dump_json()
 
 
+def test_acquisition_payloads_skip_malformed_prepared_subtitle_hints() -> None:
+    from modules.services.acquisition import AcquisitionPreparedArtifact
+
+    response = prepared_artifact_payload(
+        AcquisitionPreparedArtifact(
+            provider="manual_downloads",
+            media_kind="video",
+            source_kind="manual_download",
+            local_path="/Volumes/Data/Download/Demo.mkv",
+            video_path="/Volumes/Data/Download/Demo.mkv",
+            subtitles=(
+                None,  # type: ignore[arg-type]
+                "not-a-mapping",  # type: ignore[arg-type]
+                {"path": "", "filename": "missing-path.srt"},
+                {"path": "/Volumes/Data/Download/Demo.en.srt", "filename": "   "},
+                {
+                    "path": " /Volumes/Data/Download/Demo.nl.srt ",
+                    "filename": " demo.nl.srt ",
+                    "language": " nl ",
+                    "format": " srt ",
+                },
+            ),
+            next_actions=("extract_subtitles", "create_dub_job"),
+            metadata={},
+        )
+    )
+
+    assert [subtitle.model_dump() for subtitle in response.subtitles] == [
+        {
+            "path": "/Volumes/Data/Download/Demo.nl.srt",
+            "filename": "demo.nl.srt",
+            "language": "nl",
+            "format": "srt",
+        }
+    ]
+
+
 def test_acquisition_provider_route_failure_uses_generic_detail_and_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
