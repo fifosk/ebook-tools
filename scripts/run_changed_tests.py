@@ -380,7 +380,12 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/services/test_export_service.py",
             "tests/modules/webapi/test_export_routes.py",
         ),
-        ("test-backend-offline-export",),
+        (
+            "test-backend-offline-export",
+            "test-web-playback-focused",
+            "test-web-library-focused",
+            "test-apple-contracts",
+        ),
     ),
     (
         (

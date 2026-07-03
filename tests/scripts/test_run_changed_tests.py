@@ -772,14 +772,23 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
     ]
     assert select_targets(["modules/webapi/routers/exports.py"]) == [
         "test-backend-offline-export",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
         "test-webapi",
     ]
     assert select_targets(["modules/services/export_service.py"]) == [
         "test-backend-offline-export",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
         "test-services",
     ]
     assert select_targets(["tests/modules/services/test_export_service.py"]) == [
         "test-backend-offline-export",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
         "test-services",
     ]
 
