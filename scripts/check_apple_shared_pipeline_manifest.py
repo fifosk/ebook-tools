@@ -905,6 +905,9 @@ def _validate_known_gates(payload: dict[str, Any]) -> list[str]:
         "Physical iPhone/iPad deployment is attended and on-request only",
         "recursive development loops stop at simulator and build-only proof",
         "authenticated Xcode account and provisioning profiles",
+        "scripts/check_apple_build_metadata.py",
+        "branch.stamp and commit.stamp match the current checkout",
+        "before CoreDevice preflight or install",
     ):
         if phrase not in gates:
             errors.append(f"knownGates missing required deployment guard: {phrase}")

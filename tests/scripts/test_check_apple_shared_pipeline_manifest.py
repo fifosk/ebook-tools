@@ -339,6 +339,12 @@ def _write_manifest(
                 "Physical device signing requires an authenticated Xcode account and "
                 "provisioning profiles."
             ),
+            (
+                "Normal physical-device builds and non-signed skip-build installs "
+                "must run scripts/check_apple_build_metadata.py so bundled "
+                "branch.stamp and commit.stamp match the current checkout before "
+                "CoreDevice preflight or install."
+            ),
         ],
     }
     path.write_text(json.dumps(payload), encoding="utf-8")

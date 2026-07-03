@@ -623,6 +623,9 @@ def test_shared_pipeline_manifest_keeps_physical_deploys_on_request() -> None:
     assert "iCloud, Sign in with Apple, and Push Notifications" in known_gates
     assert "use the attended Xcode GUI fallback only after simulator smoke" in known_gates
     assert "verify the installed build with devicectl and stop the debugger" in known_gates
+    assert "scripts/check_apple_build_metadata.py" in known_gates
+    assert "branch.stamp and commit.stamp match the current checkout" in known_gates
+    assert "before CoreDevice preflight or install" in known_gates
 
 
 def test_docs_pin_current_ipad_pro_unattended_profile() -> None:
