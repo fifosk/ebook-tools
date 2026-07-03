@@ -525,18 +525,17 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=paused",
-      "platforms": ["tvOS"],
-      "timeout": 15,
-      "screenshot": "music_bed_pause_observed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
       "text": "reader=playing",
       "platforms": ["tvOS"],
       "timeout": 55,
       "screenshot": "music_bed_play_observed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "transitioning=false",
+      "platforms": ["tvOS"],
+      "timeout": 20
     },
     {
       "action": "assert_value_contains",

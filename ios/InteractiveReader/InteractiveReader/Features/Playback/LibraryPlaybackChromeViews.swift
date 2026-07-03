@@ -577,6 +577,9 @@ struct MusicBedSyncE2EControls: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + initialPauseDelay) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPauseForE2E()
+            #if os(tvOS)
+            audioCoordinator.pause()
+            #endif
         }
         #if os(tvOS)
         DispatchQueue.main.asyncAfter(deadline: .now() + 36.0) {
@@ -626,7 +629,7 @@ struct MusicBedSyncE2EControls: View {
         }
         #if os(tvOS)
         if isInitialInteractiveStart {
-            for observedPauseDelay in [8_000_000_000, 20_000_000_000, 36_000_000_000, 52_000_000_000] as [UInt64] {
+            for observedPauseDelay in [64_000_000_000, 76_000_000_000, 88_000_000_000, 100_000_000_000] as [UInt64] {
                 scheduleObservedPauseProbeForE2EIfNeeded(after: observedPauseDelay)
             }
         }

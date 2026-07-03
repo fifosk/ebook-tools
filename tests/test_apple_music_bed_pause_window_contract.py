@@ -178,6 +178,10 @@ def test_tvos_active_music_pause_keeps_reader_transport() -> None:
         music,
         "private var shouldDeferObservedNonPlayingDuringActiveReadingBed",
     )
+    recover_body = _function_body(
+        music,
+        "private var shouldRecoverObservedNonPlayingForReadingBed",
+    )
     deferred_non_playing_body = _function_body(
         music,
         "private func deferObservedNonPlayingDuringActiveReadingBed(reason: String)",
@@ -187,7 +191,7 @@ def test_tvos_active_music_pause_keeps_reader_transport() -> None:
     assert "confirmActiveNarrationNonPlayingAsReaderPause(reason: \"observedNonPlaying\")" not in observed_body
     assert "private var shouldConfirmActiveNarrationNonPlayingAsReaderPause" not in music
     assert "private func confirmActiveNarrationNonPlayingAsReaderPause" not in music
-    assert observed_body.index("if shouldDeferObservedNonPlayingDuringActiveReadingBed") < observed_body.index(
+    assert observed_body.index("if shouldRecoverObservedNonPlayingForReadingBed") < observed_body.index(
         "guard shouldTreatObservedNonPlayingAsReaderPause else"
     )
     assert observed_body.index("guard shouldTreatObservedNonPlayingAsReaderPause else") < observed_body.index(
@@ -196,7 +200,7 @@ def test_tvos_active_music_pause_keeps_reader_transport() -> None:
     assert observed_body.index("if shouldAdoptObservedNonPlayingImmediately") < observed_body.index(
         "observedNonPlayingTask = Task"
     )
-    assert "if shouldDeferObservedNonPlayingDuringActiveReadingBed" in observed_body
+    assert "if shouldRecoverObservedNonPlayingForReadingBed" in observed_body
     ignored_gate_body = _function_body(
         music,
         "private var shouldAdoptIgnoredObservedNonPlayingAsReaderPause",
@@ -208,6 +212,15 @@ def test_tvos_active_music_pause_keeps_reader_transport() -> None:
     assert "observedPlayingAsReadingBed" in ignored_gate_body
     assert "hasAutoResumeIntent" in ignored_gate_body
     assert "shouldAdoptObservedNonPlayingImmediately" in defer_body
+    assert "shouldAdoptObservedNonPlayingImmediately" in recover_body
+    assert "ownershipState == .appleMusicBed" in recover_body
+    assert "!isManuallyPaused" in recover_body
+    assert "!isPausedByReaderTransport" in recover_body
+    assert "isReaderNarrationActiveForMusicBed ||" in recover_body
+    assert "observedPlayingAsReadingBed ||" in recover_body
+    assert "hasAutoResumeIntent" in recover_body
     assert "Apple Music deferred non-playing persisted while reader stayed active; keeping narration transport" in deferred_non_playing_body
+    assert "self.shouldRecoverObservedNonPlayingForReadingBed" in deferred_non_playing_body
+    assert "self.shouldDeferObservedNonPlayingDuringActiveReadingBed" not in deferred_non_playing_body
     assert 'source: "persistent observed non-playing"' not in deferred_non_playing_body
     assert 'adoptPauseAsReaderTransport(\n                reason: "deferredObservedNonPlaying",' not in deferred_non_playing_body

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-music-bed-drop-recovers-before-pause",
+            title: "TV bed drops recover first",
+            detail: "Apple TV Apple Music bed status drops now recover in the MusicKit coordinator before they can become reader pauses, preventing passive bed interruptions from stopping book playback."
+        ),
+        AppChangelogEntry(
             id: "backend-acquisition-route-support-direct",
             title: "Discovery routes stay shared",
             detail: "Acquisition provider routes now call the shared route support helpers directly for provider responses, discovery payloads, permission checks, telemetry, and async Download Station validation, keeping Web and Apple Create source discovery behavior easier to audit."

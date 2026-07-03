@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple TV Apple Music bed status drops are now recovered in the MusicKit coordinator before they can become reader pauses, preventing passive bed interruptions from stopping book playback.
 - Acquisition provider routes now call the shared route support helpers directly for provider responses, discovery payloads, permission checks, telemetry, and async Download Station validation, keeping Web and Apple Create source discovery behavior easier to audit.
 - Apple TV Job and Library playback now keep reader narration active when MusicKit reports an observed Apple Music bed non-playing dip, even if tvOS has stale pause bookkeeping from a prior reader action.
 - Pipeline media manifest and single-chunk routes now share one audio/timing track serialization helper, keeping Web and Apple playback aligned when chunk sidecars and generated job payloads both describe tracks.

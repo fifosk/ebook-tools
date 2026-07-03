@@ -2479,6 +2479,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "let initialPauseDelay: TimeInterval = 8.0" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 36.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 104.0)" in chrome
+    assert "audioCoordinator.pause()" in auto_sequence_body
     assert "guard musicOwnership.e2eObservedPauseProbeCount == 0 else { return }" in auto_sequence_body
     assert "for retryDelay in [62.0, 68.0, 72.0, 76.0, 88.0, 96.0, 100.0, 112.0, 132.0]" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in chrome
@@ -2500,7 +2501,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "audioCoordinator.restoreVolume()" in attempt_interactive_body
     assert "if audioCoordinator.isPlaybackRequested" in attempt_interactive_body
     assert "audioCoordinator.play()" in attempt_interactive_body
-    assert "for observedPauseDelay in [8_000_000_000, 20_000_000_000, 36_000_000_000, 52_000_000_000] as [UInt64]" in attempt_interactive_body
+    assert "for observedPauseDelay in [64_000_000_000, 76_000_000_000, 88_000_000_000, 100_000_000_000] as [UInt64]" in attempt_interactive_body
     assert "scheduleObservedPauseProbeForE2EIfNeeded(after: observedPauseDelay)" in attempt_interactive_body
     observed_probe_body = _function_body(chrome, "private func scheduleObservedPauseProbeForE2EIfNeeded(after delay: UInt64)")
     assert "Task { @MainActor in" in observed_probe_body
