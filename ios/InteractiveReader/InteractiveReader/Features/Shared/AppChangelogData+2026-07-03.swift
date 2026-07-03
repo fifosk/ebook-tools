@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-single-track-stream-isolation",
+            title: "Single-track playback stays isolated",
+            detail: "Original-only and Translation-only reader modes now narrow combined audio options to the requested stream URL before loading, while tvOS sequence handoffs keep a larger output-buffer guard so the next original sentence cannot leak before Translation starts."
+        ),
+        AppChangelogEntry(
             id: "sequence-eof-owned-by-controller",
             title: "Sequence EOF avoids chunk jumps",
             detail: "Interactive reader sequence playback now treats AVPlayer item-end notifications as segment fallbacks only while the sequence controller is active, ignoring late EOF during dwell or track transitions so playback does not jump chunks, loop, or leak a next-sentence sliver before Translation starts."

@@ -700,20 +700,25 @@ extension InteractivePlayerViewModel {
         case .sequence:
             return
 
-        case .singleOption(let option, _):
+        case .singleOption(let option, let timingTrack):
+            let resolved = singleTrackPlaybackSource(
+                for: option,
+                timingTrack: timingTrack,
+                in: chunk
+            )
             // Check if already playing the same URLs (prevent unnecessary reload from SwiftUI re-renders)
-            if audioCoordinator.activeURLs == option.streamURLs {
+            if audioCoordinator.activeURLs == resolved.urls {
                 handleSameURLPlayback(
                     autoPlay: autoPlay,
                     targetSentenceIndex: targetSentenceIndex,
                     chunk: chunk,
-                    timingURL: option.timingURL ?? option.streamURLs.first
+                    timingURL: resolved.timingURL
                 )
                 return
             }
             loadSingleTrack(
-                urls: option.streamURLs,
-                timingURL: option.timingURL ?? option.streamURLs.first,
+                urls: resolved.urls,
+                timingURL: resolved.timingURL,
                 autoPlay: autoPlay,
                 targetSentenceIndex: targetSentenceIndex,
                 chunk: chunk
@@ -728,6 +733,42 @@ extension InteractivePlayerViewModel {
                 chunk: chunk
             )
         }
+    }
+
+    private func singleTrackPlaybackSource(
+        for option: InteractiveChunk.AudioOption,
+        timingTrack: TextPlayerTimingTrack,
+        in chunk: InteractiveChunk
+    ) -> (urls: [URL], timingURL: URL?) {
+        guard option.kind == .combined,
+              let requestedTrack = requestedSingleTrackMode(),
+              option.streamURLs.count > 1 else {
+            return (option.streamURLs, option.timingURL ?? option.streamURLs.first)
+        }
+
+        let selectedURL: URL?
+        switch requestedTrack {
+        case .original:
+            selectedURL = option.streamURLs.first
+        case .translation:
+            selectedURL = option.streamURLs.dropFirst().first
+        }
+
+        guard let selectedURL else {
+            return (option.streamURLs, option.timingURL ?? option.streamURLs.first)
+        }
+
+        let dedicatedTimingURL: URL? = {
+            switch timingTrack {
+            case .original:
+                return chunk.audioOptions.first(where: { $0.kind == .original })?.timingURL
+            case .translation:
+                return chunk.audioOptions.first(where: { $0.kind == .translation })?.timingURL
+            case .mix:
+                return option.timingURL
+            }
+        }()
+        return ([selectedURL], dedicatedTimingURL ?? selectedURL)
     }
 
     /// Handle the case where the same URLs are already loaded (prevent unnecessary reload).

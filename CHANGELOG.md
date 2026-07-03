@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple Original-only and Translation-only playback now narrows combined audio options to the requested stream URL before loading, and tvOS sequence handoffs use a larger output-buffer guard to prevent a next-original-sentence sliver before Translation starts.
+- Backend acquisition provider readiness resolution now lives in a focused helper while preserving the existing provider-registry compatibility hooks used by route/tests and Web/Apple Create discovery defaults.
 - Apple sequence playback now scales tvOS boundary headroom, fade, and dwell pinning to each sentence segment and keeps same-track dwell seeks muted through handoff, reducing clipped transitions and short next-sentence leaks before Translation starts.
 - Apple TV Job and Library playback now block pending interactive-autoplay recovery during the local reader pause-hold window, preventing a just-paused Music-bed session from immediately reviving stale sentence playback before MusicKit pause state catches up.
 - Backend Download Station client/config/URI validation now lives in a focused helper with direct coverage, keeping Synology HTTP mechanics separate from token-safe Web/Apple acquisition job orchestration.

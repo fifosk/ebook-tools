@@ -806,8 +806,11 @@ Current Apple UI partially exposes:
   lockstep with backend handlers. Default sources readiness now lives in
   `modules/services/acquisition/provider_defaults.py` with focused coverage,
   keeping default book/video fanout policy reusable outside the provider
-  registry payload builder. Provider readiness also resolves manual-download
-  roots through one helper that keeps NAS video roots available for explicit
+  registry payload builder. Provider readiness resolution now lives in
+  `modules/services/acquisition/provider_readiness.py`, keeping readable-root
+  checks and configured-provider flags reusable while the provider registry
+  retains compatibility hooks for existing route/tests. Provider readiness also
+  resolves manual-download roots through one helper that keeps NAS video roots available for explicit
   manual discovery compatibility while excluding them from explicit
   manual-download default fallback policy, preserving Web/Apple default-source
   semantics. Provider source-root resolution now lives in

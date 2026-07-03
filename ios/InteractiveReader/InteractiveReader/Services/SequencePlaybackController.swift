@@ -415,7 +415,7 @@ final class SequencePlaybackController: ObservableObject {
 
     private var sameTrackHandoffGuard: Double {
         #if os(tvOS)
-        return 0.60
+        return 0.90
         #else
         return 0.08
         #endif
@@ -423,7 +423,7 @@ final class SequencePlaybackController: ObservableObject {
 
     private var sameTrackPrerollSlop: Double {
         #if os(tvOS)
-        return 1.10
+        return 1.45
         #else
         return 0.14
         #endif
@@ -479,12 +479,12 @@ final class SequencePlaybackController: ObservableObject {
     /// Install a boundary observer for the current segment's end time.
     /// Called whenever a new segment becomes the active playback segment.
     /// How far before segment.end to place the boundary observer (seconds).
-    /// tvOS still needs extra output-buffer headroom, but a fixed 550ms window
+    /// tvOS still needs extra output-buffer headroom, but a fixed narrow window
     /// can over-trim short sentences and make transitions sound clipped. Scale
     /// the headroom to the active segment and cap it at the old worst case.
     private func boundaryHeadroom(for segment: SequenceSegment) -> Double {
         #if os(tvOS)
-        return min(0.55, max(0.12, segment.duration * 0.18))
+        return min(0.85, max(0.22, segment.duration * 0.28))
         #else
         return min(0.08, max(0.03, segment.duration * 0.08))
         #endif
@@ -494,7 +494,7 @@ final class SequencePlaybackController: ObservableObject {
     /// This must be long enough to cover HDMI output buffer depth (~100-300ms).
     private func fadeOutDuration(for segment: SequenceSegment) -> Double {
         #if os(tvOS)
-        return min(0.32, max(0.10, segment.duration * 0.14))
+        return min(0.55, max(0.16, segment.duration * 0.22))
         #else
         return min(0.16, max(0.05, segment.duration * 0.10))
         #endif
@@ -505,7 +505,7 @@ final class SequencePlaybackController: ObservableObject {
     /// device output when the source file contains continuous sentence audio.
     private func dwellPinBackoff(for segment: SequenceSegment) -> Double {
         #if os(tvOS)
-        return min(0.14, max(0.04, segment.duration * 0.05))
+        return min(0.24, max(0.08, segment.duration * 0.08))
         #else
         return min(0.04, max(0.02, segment.duration * 0.04))
         #endif

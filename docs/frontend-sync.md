@@ -312,10 +312,14 @@ Follow the suggested remediations to restore parity:
   For combined-only audio options, URL membership must be checked against the
   selected lane inside the combined stream list; translation-only playback must
   reject the original stream's EOF even though that URL belongs to the combined
-  option object. The transcript's recent single-track render anchor should use
-  the same selected-option and selected-lane membership check before releasing
-  a next-batch lock; stale or hidden-track audio must not clear the anchor while
-  the new batch's rendered sentence is still waiting for the selected lane.
+  option object. Single-track prepare/load code must also narrow a combined
+  option to the requested lane's single stream URL before comparing active URLs
+  or loading AVPlayer, otherwise a hidden companion file can play, end, or leak
+  before the selected lane's timing state catches up. The transcript's recent
+  single-track render anchor should use the same selected-option and selected-lane
+  membership check before releasing a next-batch lock; stale or hidden-track
+  audio must not clear the anchor while the new batch's rendered sentence is
+  still waiting for the selected lane.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the
@@ -493,9 +497,10 @@ Follow the suggested remediations to restore parity:
   Apple Music before the app-level reader callback. Sequence dwell should keep
   reader playback intent alive for the bed, but on tvOS it mutes and applies
   segment-proportional boundary headroom, fade, and pin-backoff windows before
-  seeking to the next segment so short sentences are not over-trimmed while
-  output-buffer tail audio still cannot leak the next sentence before the
-  handoff.
+  seeking to the next segment. The tvOS guard must stay wider than iOS/iPadOS
+  because physical HDMI output can still drain buffered next-sentence audio
+  after AVPlayer pauses; single-track iPad/iPhone behavior should not inherit
+  that extra trim.
   Web and Apple sequence-plan builders must also clamp overlapping or tightly
   adjacent same-track gates with the tvOS guard margin before installing
   boundary observers or fade windows, while leaving wider non-overlapping gaps

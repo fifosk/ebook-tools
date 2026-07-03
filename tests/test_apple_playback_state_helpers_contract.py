@@ -386,11 +386,11 @@ def test_sequence_overlap_trimming_leaves_a_handoff_guard() -> None:
     assert trim_body.index("segment.end > nextStart") < trim_body.index("nextStart - sameTrackHandoffGuard")
     guard_body = _function_body(controller, "private var sameTrackHandoffGuard: Double")
     assert "#if os(tvOS)" in guard_body
-    assert "return 0.60" in guard_body
+    assert "return 0.90" in guard_body
     assert "return 0.08" in guard_body
     preroll_body = _function_body(controller, "private var sameTrackPrerollSlop: Double")
     assert "#if os(tvOS)" in preroll_body
-    assert "return 1.10" in preroll_body
+    assert "return 1.45" in preroll_body
     assert "return 0.14" in preroll_body
 
 
@@ -1177,15 +1177,15 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
 
     headroom_body = _function_body(controller, "private func boundaryHeadroom(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in headroom_body
-    assert "min(0.55, max(0.12, segment.duration * 0.18))" in headroom_body
+    assert "min(0.85, max(0.22, segment.duration * 0.28))" in headroom_body
     assert "min(0.08, max(0.03, segment.duration * 0.08))" in headroom_body
     fade_body = _function_body(controller, "private func fadeOutDuration(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in fade_body
-    assert "min(0.32, max(0.10, segment.duration * 0.14))" in fade_body
+    assert "min(0.55, max(0.16, segment.duration * 0.22))" in fade_body
     assert "min(0.16, max(0.05, segment.duration * 0.10))" in fade_body
     pin_body = _function_body(controller, "private func dwellPinBackoff(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in pin_body
-    assert "min(0.14, max(0.04, segment.duration * 0.05))" in pin_body
+    assert "min(0.24, max(0.08, segment.duration * 0.08))" in pin_body
     assert "min(0.04, max(0.02, segment.duration * 0.04))" in pin_body
     trigger_body = _function_body(controller, "private func boundaryTriggerTime(for segment: SequenceSegment) -> Double")
     assert "segment.end - boundaryHeadroom(for: segment)" in trigger_body
@@ -1269,6 +1269,29 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
     )[0]
     assert "self.audioCoordinator.prepareForSequenceHandoff()" in resume_dwell_body
     assert "self.audioCoordinator.clearAudioMix()" not in resume_dwell_body
+
+
+def test_single_track_combined_option_loads_only_requested_stream_url() -> None:
+    selection = _source("InteractivePlayerViewModel+Selection.swift")
+    helper_body = _function_body(
+        selection,
+        "private func singleTrackPlaybackSource",
+    )
+    prepare_body = _function_body(
+        selection,
+        "private func prepareSingleTrackAudio",
+    )
+
+    assert "option.kind == .combined" in helper_body
+    assert "let requestedTrack = requestedSingleTrackMode()" in helper_body
+    assert "option.streamURLs.count > 1" in helper_body
+    assert "selectedURL = option.streamURLs.first" in helper_body
+    assert "selectedURL = option.streamURLs.dropFirst().first" in helper_body
+    assert "return ([selectedURL], dedicatedTimingURL ?? selectedURL)" in helper_body
+    assert "audioCoordinator.activeURLs == resolved.urls" in prepare_body
+    assert "urls: resolved.urls" in prepare_body
+    assert "timingURL: resolved.timingURL" in prepare_body
+    assert "urls: option.streamURLs" not in prepare_body
 
 
 def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:
