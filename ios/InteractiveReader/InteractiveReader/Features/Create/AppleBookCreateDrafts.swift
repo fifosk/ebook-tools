@@ -259,6 +259,14 @@ extension AppleBookCreatePresentation {
             .replacingOccurrences(of: "-", with: "")
             .replacingOccurrences(of: "_", with: "")
             .lowercased()
+        if [
+            "sig",
+            "xamzcredential",
+            "xamzsecuritytoken",
+            "xamzsignature",
+        ].contains(normalized) {
+            return true
+        }
         return [
             "accesskey",
             "apikey",

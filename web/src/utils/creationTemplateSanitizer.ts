@@ -25,10 +25,19 @@ const SENSITIVE_KEY_MARKERS = [
   'sid',
   'token'
 ];
+const SENSITIVE_KEYS = [
+  'sig',
+  'x_amz_credential',
+  'x_amz_security_token',
+  'x_amz_signature'
+];
 const PUBLIC_URL_SCHEMES = new Set(['http:', 'https:', 'magnet:']);
 
 function isSensitiveKey(key: string): boolean {
   const normalized = key.replace(/[-_]/g, '').toLowerCase();
+  if (SENSITIVE_KEYS.some((candidate) => normalized === candidate.replace(/[-_]/g, ''))) {
+    return true;
+  }
   return SENSITIVE_KEY_MARKERS.some((marker) =>
     normalized.includes(marker.replace(/[-_]/g, ''))
   );

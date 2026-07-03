@@ -230,8 +230,12 @@ struct LibraryPlaybackView: View {
         }
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        if clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "libraryAudioState") {
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+            return
+        }
         refreshReaderNarrationActivityForMusicBed(reason: "libraryAudioState")
-        clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "libraryAudioState")
         recoverMutedAppleMusicBedNarrationIfNeeded(reason: "libraryAudioState")
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()

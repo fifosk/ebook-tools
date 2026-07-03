@@ -786,6 +786,22 @@ def _swift_returned_string_array(source: str, signature: str) -> set[str]:
     return set(re.findall(r'"([^"]+)"', match.group("body")))
 
 
+def _swift_string_array_between(
+    source: str,
+    signature: str,
+    prefix_regex: str,
+    suffix: str,
+) -> set[str]:
+    body = _swift_function_body(source, signature)
+    match = re.search(
+        rf"{prefix_regex}\s*\[(?P<body>.*?)\]\.{re.escape(suffix)}",
+        body,
+        flags=re.S,
+    )
+    assert match is not None, f"Could not find Swift string array before .{suffix}"
+    return set(re.findall(r'"([^"]+)"', match.group("body")))
+
+
 def _swift_inline_string_array(source: str, signature: str, suffix: str) -> set[str]:
     body = _swift_function_body(source, signature)
     match = re.search(rf"\[(?P<body>.*?)\]\.{re.escape(suffix)}", body, flags=re.S)
@@ -799,15 +815,25 @@ def _normalized_sensitive_markers(markers: set[str]) -> set[str]:
 
 def test_url_safety_markers_stay_aligned_across_backend_web_and_apple() -> None:
     backend_markers = _python_literal_assignment(BACKEND_URL_SAFETY, "SENSITIVE_KEY_MARKERS")
+    backend_exact_keys = _python_literal_assignment(BACKEND_URL_SAFETY, "SENSITIVE_KEYS")
     backend_schemes = _python_literal_assignment(BACKEND_URL_SAFETY, "PUBLIC_URL_SCHEMES")
     web_source = _source(WEB_TEMPLATE_SANITIZER)
     swift_source = _source(CREATE_DRAFTS)
 
     web_markers = _typescript_string_array(web_source, "SENSITIVE_KEY_MARKERS")
+    web_exact_keys = _typescript_string_array(web_source, "SENSITIVE_KEYS")
     web_schemes = {scheme.removesuffix(":") for scheme in _typescript_string_array(web_source, "PUBLIC_URL_SCHEMES")}
-    swift_markers = _swift_returned_string_array(
+    swift_exact_keys = _swift_string_array_between(
         swift_source,
         "private static func isSensitiveBookMetadataExtraKey(_ key: String) -> Bool",
+        "if",
+        "contains(normalized)",
+    )
+    swift_markers = _swift_string_array_between(
+        swift_source,
+        "private static func isSensitiveBookMetadataExtraKey(_ key: String) -> Bool",
+        "return",
+        "contains { normalized.contains($0) }",
     )
     swift_schemes = _swift_inline_string_array(
         swift_source,
@@ -816,8 +842,11 @@ def test_url_safety_markers_stay_aligned_across_backend_web_and_apple() -> None:
     )
 
     expected_markers = _normalized_sensitive_markers(backend_markers)
+    expected_exact_keys = _normalized_sensitive_markers(backend_exact_keys)
     assert _normalized_sensitive_markers(web_markers) == expected_markers
     assert _normalized_sensitive_markers(swift_markers) == expected_markers
+    assert _normalized_sensitive_markers(web_exact_keys) == expected_exact_keys
+    assert _normalized_sensitive_markers(swift_exact_keys) == expected_exact_keys
     assert web_schemes == backend_schemes
     assert swift_schemes == backend_schemes
 

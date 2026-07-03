@@ -36,7 +36,7 @@ describe('creationTemplateSanitizer', () => {
     expect(
       sanitizeTemplateValue({
         source_url:
-          'https://user:secret@indexer.example.invalid/download/7?title=Demo&apikey=secret#name=Demo&access_token=secret',
+          'https://user:secret@indexer.example.invalid/download/7?title=Demo&apikey=secret&sig=secret&X-Amz-Security-Token=secret#name=Demo&access_token=secret&sig=secret',
         nested: {
           plain: 'not a url with access_token=left as ordinary text',
           magnet: 'magnet:?xt=urn:btih:abc&passkey=secret&dn=Demo'

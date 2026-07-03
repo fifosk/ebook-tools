@@ -31,11 +31,16 @@ INTERACTIVE = (
     / "Features"
     / "InteractivePlayer"
 )
+PLAYBACK = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Features" / "Playback"
 SHARED = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Features" / "Shared"
 
 
 def _source(name: str) -> str:
     return (INTERACTIVE / name).read_text(encoding="utf-8")
+
+
+def _playback_source(name: str) -> str:
+    return (PLAYBACK / name).read_text(encoding="utf-8")
 
 
 def _shared_source(name: str) -> str:
@@ -386,11 +391,11 @@ def test_sequence_overlap_trimming_leaves_a_handoff_guard() -> None:
     assert trim_body.index("segment.end > nextStart") < trim_body.index("nextStart - sameTrackHandoffGuard")
     guard_body = _function_body(controller, "private var sameTrackHandoffGuard: Double")
     assert "#if os(tvOS)" in guard_body
-    assert "return 0.22" in guard_body
+    assert "return 0.30" in guard_body
     assert "return 0.08" in guard_body
     preroll_body = _function_body(controller, "private var sameTrackPrerollSlop: Double")
     assert "#if os(tvOS)" in preroll_body
-    assert "return 0.50" in preroll_body
+    assert "return 0.62" in preroll_body
     assert "return 0.14" in preroll_body
 
 
@@ -1178,15 +1183,15 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     headroom_body = _function_body(controller, "private func boundaryHeadroom(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in headroom_body
     assert "nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false" in headroom_body
-    assert "min(0.82, max(0.22, segment.duration * 0.28))" in headroom_body
-    assert "min(0.66, max(0.14, segment.duration * 0.21))" in headroom_body
+    assert "min(0.95, max(0.30, segment.duration * 0.34))" in headroom_body
+    assert "min(0.72, max(0.18, segment.duration * 0.24))" in headroom_body
     assert "min(0.12, max(0.05, segment.duration * 0.10))" in headroom_body
     assert "min(0.08, max(0.03, segment.duration * 0.08))" in headroom_body
     fade_body = _function_body(controller, "private func fadeOutDuration(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in fade_body
     assert "nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false" in fade_body
-    assert "min(0.48, max(0.16, segment.duration * 0.20))" in fade_body
-    assert "min(0.38, max(0.11, segment.duration * 0.16))" in fade_body
+    assert "min(0.58, max(0.20, segment.duration * 0.24))" in fade_body
+    assert "min(0.44, max(0.14, segment.duration * 0.18))" in fade_body
     assert "min(0.20, max(0.07, segment.duration * 0.12))" in fade_body
     assert "min(0.16, max(0.05, segment.duration * 0.10))" in fade_body
     next_body = _function_body(controller, "private func nextPlayableSegment(after segment: SequenceSegment) -> SequenceSegment?")
@@ -1194,7 +1199,7 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     assert "return candidate" in next_body
     pin_body = _function_body(controller, "private func dwellPinBackoff(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in pin_body
-    assert "min(0.16, max(0.045, segment.duration * 0.055))" in pin_body
+    assert "min(0.20, max(0.06, segment.duration * 0.07))" in pin_body
     assert "min(0.04, max(0.02, segment.duration * 0.04))" in pin_body
     trigger_body = _function_body(controller, "private func boundaryTriggerTime(for segment: SequenceSegment) -> Double")
     assert "segment.end - boundaryHeadroom(for: segment)" in trigger_body
@@ -1255,6 +1260,28 @@ def test_segment_fade_is_bound_to_current_player_item() -> None:
     assert "removeBoundaryObserver()" in handoff_body
     assert "isPlaybackRequested = false" not in handoff_body
     assert "AudioPlaybackRegistry.shared.endPlayback" not in handoff_body
+
+
+def test_music_bed_audio_state_clears_pending_autoplay_before_recovery() -> None:
+    for source_name, audio_state_reason in [
+        ("JobPlaybackView.swift", "jobAudioState"),
+        ("LibraryPlaybackView.swift", "libraryAudioState"),
+    ]:
+        source = _playback_source(source_name)
+        audio_state_body = _function_body(source, "private func handleAudioStateChange()")
+        early_clear = (
+            f'if clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "{audio_state_reason}")'
+        )
+        assert early_clear in audio_state_body
+        assert audio_state_body.index(early_clear) < audio_state_body.index(
+            f'recoverMutedAppleMusicBedNarrationIfNeeded(reason: "{audio_state_reason}")'
+        )
+        assert audio_state_body.index(early_clear) < audio_state_body.index(
+            f'refreshReaderNarrationActivityForMusicBed(reason: "{audio_state_reason}")'
+        )
+
+        recovery_body = _function_body(source, "private func recoverPendingInteractiveAutoplayIfNeeded")
+        assert f'guard reason != "{audio_state_reason}" else {{ return }}' in recovery_body
 
 
 def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:

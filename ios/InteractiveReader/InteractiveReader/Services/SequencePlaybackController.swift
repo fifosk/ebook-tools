@@ -415,7 +415,7 @@ final class SequencePlaybackController: ObservableObject {
 
     private var sameTrackHandoffGuard: Double {
         #if os(tvOS)
-        return 0.22
+        return 0.30
         #else
         return 0.08
         #endif
@@ -423,7 +423,7 @@ final class SequencePlaybackController: ObservableObject {
 
     private var sameTrackPrerollSlop: Double {
         #if os(tvOS)
-        return 0.50
+        return 0.62
         #else
         return 0.14
         #endif
@@ -486,9 +486,9 @@ final class SequencePlaybackController: ObservableObject {
         let isTrackSwitch = nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false
         #if os(tvOS)
         if isTrackSwitch {
-            return min(0.82, max(0.22, segment.duration * 0.28))
+            return min(0.95, max(0.30, segment.duration * 0.34))
         }
-        return min(0.66, max(0.14, segment.duration * 0.21))
+        return min(0.72, max(0.18, segment.duration * 0.24))
         #else
         if isTrackSwitch {
             return min(0.12, max(0.05, segment.duration * 0.10))
@@ -503,9 +503,9 @@ final class SequencePlaybackController: ObservableObject {
         let isTrackSwitch = nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false
         #if os(tvOS)
         if isTrackSwitch {
-            return min(0.48, max(0.16, segment.duration * 0.20))
+            return min(0.58, max(0.20, segment.duration * 0.24))
         }
-        return min(0.38, max(0.11, segment.duration * 0.16))
+        return min(0.44, max(0.14, segment.duration * 0.18))
         #else
         if isTrackSwitch {
             return min(0.20, max(0.07, segment.duration * 0.12))
@@ -533,7 +533,7 @@ final class SequencePlaybackController: ObservableObject {
     /// device output when the source file contains continuous sentence audio.
     private func dwellPinBackoff(for segment: SequenceSegment) -> Double {
         #if os(tvOS)
-        return min(0.16, max(0.045, segment.duration * 0.055))
+        return min(0.20, max(0.06, segment.duration * 0.07))
         #else
         return min(0.04, max(0.02, segment.duration * 0.04))
         #endif

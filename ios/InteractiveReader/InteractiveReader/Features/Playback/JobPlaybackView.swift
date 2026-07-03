@@ -240,8 +240,12 @@ struct JobPlaybackView: View {
         }
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        if clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "jobAudioState") {
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+            return
+        }
         refreshReaderNarrationActivityForMusicBed(reason: "jobAudioState")
-        clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "jobAudioState")
         recoverMutedAppleMusicBedNarrationIfNeeded(reason: "jobAudioState")
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()
