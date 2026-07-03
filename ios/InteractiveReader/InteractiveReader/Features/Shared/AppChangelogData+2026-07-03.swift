@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "acquisition-readable-source-paths",
+            title: "Discovery paths stay readable",
+            detail: "Backend acquisition providers now keep source labels for unavailable local EPUB and NAS video roots while only publishing source paths for roots that are currently readable, so Web and Apple Create avoid stale picker paths during NAS outages."
+        ),
+        AppChangelogEntry(
             id: "tvos-sequence-fade-ends-at-handoff",
             title: "TV handoff fades end earlier",
             detail: "Interactive reader sequence playback now fades the active audio track to silence at the same early handoff boundary used by the TV boundary observer, preventing a short piece of the next sentence from leaking before the translation track starts."

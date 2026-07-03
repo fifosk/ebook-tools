@@ -159,7 +159,11 @@ def list_acquisition_providers(
             available=readiness.books_root_readable,
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("local_epub"),
-            source_path=readiness.books_root.as_posix(),
+            source_path=(
+                readiness.books_root.as_posix()
+                if readiness.books_root_readable
+                else None
+            ),
             source_label="Books root",
             policy_notes=(
                 "Uses backend-visible EPUB files under the configured books root.",
@@ -176,7 +180,11 @@ def list_acquisition_providers(
             available=readiness.video_root_readable,
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("nas_video"),
-            source_path=readiness.video_root.as_posix(),
+            source_path=(
+                readiness.video_root.as_posix()
+                if readiness.video_root_readable
+                else None
+            ),
             source_label="NAS video root",
             policy_notes=(
                 "Uses downloaded or user-owned videos visible to the backend NAS scanner.",

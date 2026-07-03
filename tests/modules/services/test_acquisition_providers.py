@@ -694,7 +694,13 @@ def test_acquisition_provider_config_status_and_policy_notes(
 
     providers = {provider.id: provider for provider in registry.providers}
     assert providers["local_epub"].status == "not_configured"
+    assert providers["local_epub"].available is False
+    assert providers["local_epub"].source_path is None
+    assert providers["local_epub"].source_label == "Books root"
     assert providers["nas_video"].status == "not_configured"
+    assert providers["nas_video"].available is False
+    assert providers["nas_video"].source_path is None
+    assert providers["nas_video"].source_label == "NAS video root"
     assert providers["youtube_search"].status == "available"
     assert providers["download_station"].status == "available"
     assert providers["newznab_torznab"].status == "available"

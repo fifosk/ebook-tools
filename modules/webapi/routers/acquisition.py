@@ -415,6 +415,7 @@ def _job_payload(
 @router.get(
     "/providers",
     response_model=AcquisitionProviderListResponse,
+    response_model_exclude_none=True,
     status_code=status.HTTP_200_OK,
 )
 def list_providers(

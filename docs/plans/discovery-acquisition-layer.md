@@ -143,6 +143,10 @@ Initial routes:
     readiness and backend-owned default fanout now share one resolved readiness
     snapshot, so Web/Apple Create provider metadata and default discovery use
     the same root/config evidence without duplicate filesystem/config probes.
+    Source-backed providers keep stable `source_label` values for unavailable
+    roots but only publish `source_path` for roots that are currently readable,
+    matching the manual-download provider and keeping Web/Apple Create from
+    presenting stale backend paths during NAS outages.
 - `GET /api/acquisition/discover`
   - Query params: `media_kind=book|video`, `q`, `provider`, `language`,
     `limit`, optional provider filters, and repeated `source_id` values for

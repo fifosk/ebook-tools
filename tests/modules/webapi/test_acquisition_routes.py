@@ -490,6 +490,18 @@ def test_acquisition_provider_route_defaults_to_manual_downloads_when_primary_ro
         "book": ["manual_downloads"],
         "video": ["manual_downloads", "youtube_search"],
     }
+    local_epub = next(
+        provider for provider in payload["providers"] if provider["id"] == "local_epub"
+    )
+    assert local_epub["status"] == "not_configured"
+    assert "source_path" not in local_epub
+    assert local_epub["source_label"] == "Books root"
+    nas_video = next(
+        provider for provider in payload["providers"] if provider["id"] == "nas_video"
+    )
+    assert nas_video["status"] == "not_configured"
+    assert "source_path" not in nas_video
+    assert nas_video["source_label"] == "NAS video root"
     manual_downloads = next(
         provider for provider in payload["providers"] if provider["id"] == "manual_downloads"
     )
