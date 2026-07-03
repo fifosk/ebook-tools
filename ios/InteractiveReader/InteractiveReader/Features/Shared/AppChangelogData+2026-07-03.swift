@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-sequence-handoff-preserves-tail",
+            title: "TV handoffs keep sentence tails",
+            detail: "Apple TV sequence handoffs now back off the extra-wide trim that could clip sentence endings, while stale pending autoplay recovery is cleared when the reader is already paused instead of restarting a loop."
+        ),
+        AppChangelogEntry(
             id: "apple-single-track-stream-isolation",
             title: "Single-track playback stays isolated",
             detail: "Original-only and Translation-only reader modes now narrow combined audio options to the requested stream URL before loading, while tvOS sequence handoffs keep a larger output-buffer guard so the next original sentence cannot leak before Translation starts."
