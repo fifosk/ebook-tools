@@ -296,6 +296,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "modules/services/acquisition/",
             "modules/webapi/routers/acquisition.py",
             "modules/webapi/routers/acquisition_payloads.py",
+            "modules/webapi/routers/acquisition_route_support.py",
             "modules/webapi/schemas/acquisition.py",
             "tests/modules/services/test_source_discovery.py",
             "tests/modules/services/test_acquisition_providers.py",

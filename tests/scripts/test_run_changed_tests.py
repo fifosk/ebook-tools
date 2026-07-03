@@ -927,6 +927,14 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-apple-create-readiness-contract",
         "test-webapi",
     ]
+    assert select_targets(["modules/webapi/routers/acquisition_route_support.py"]) == [
+        "test-backend-pipeline-sources",
+        "test-backend-acquisition",
+        "test-web-create-intake-focused",
+        "test-web-video-dubbing-focused",
+        "test-apple-create-readiness-contract",
+        "test-webapi",
+    ]
     assert select_targets(["modules/webapi/schemas/acquisition.py"]) == [
         "test-backend-pipeline-sources",
         "test-backend-acquisition",

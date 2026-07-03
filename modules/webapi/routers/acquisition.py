@@ -6,8 +6,6 @@ import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from modules import logging_manager as log_mgr
-from modules.permissions import normalize_role
 from modules.services.acquisition import (
     AcquisitionProviderDiscoveryError,
     DownloadStationError,
@@ -30,7 +28,6 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
-from ..route_telemetry import log_started_route_result
 from ..schemas.acquisition import (
     AcquisitionAcquireRequest,
     AcquisitionArtifactResponse,
@@ -49,19 +46,25 @@ from .acquisition_payloads import (
     prepared_artifact_payload as _prepared_artifact_payload,
     public_metadata as _public_metadata,
 )
+from .acquisition_route_support import (
+    ACQUISITION_ACQUIRE_UNAVAILABLE_MESSAGE,
+    ACQUISITION_ARTIFACT_PREPARE_UNAVAILABLE_MESSAGE,
+    ACQUISITION_DISCOVERY_UNAVAILABLE_MESSAGE,
+    ACQUISITION_JOB_CREATE_UNAVAILABLE_MESSAGE,
+    ACQUISITION_JOB_POLL_UNAVAILABLE_MESSAGE,
+    ACQUISITION_PROVIDERS_UNAVAILABLE_MESSAGE,
+    LOGGER,
+    ensure_discovery_user as _support_ensure_discovery_user,
+    log_provider_route as _support_log_provider_route,
+    log_unexpected_route_error as _support_log_unexpected_route_error,
+    normalize_async_job_provider_id as _support_normalize_async_job_provider_id,
+    normalize_optional_text as _normalize_optional_text,
+    normalize_route_id as _normalize_route_id,
+    raise_bad_acquisition_route_id as _support_raise_bad_acquisition_route_id,
+)
 
 
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
-LOGGER = log_mgr.get_logger().getChild("webapi.acquisition")
-_ALLOWED_DISCOVERY_ROLES = {"admin", "editor"}
-ACQUISITION_PROVIDERS_UNAVAILABLE_MESSAGE = "Unable to load acquisition providers."
-ACQUISITION_DISCOVERY_UNAVAILABLE_MESSAGE = "Unable to query acquisition provider."
-ACQUISITION_ACQUIRE_UNAVAILABLE_MESSAGE = "Unable to acquire candidate."
-ACQUISITION_ARTIFACT_PREPARE_UNAVAILABLE_MESSAGE = (
-    "Unable to prepare acquisition artifact."
-)
-ACQUISITION_JOB_CREATE_UNAVAILABLE_MESSAGE = "Unable to submit acquisition job."
-ACQUISITION_JOB_POLL_UNAVAILABLE_MESSAGE = "Unable to poll acquisition job."
 
 
 def _log_provider_route(
@@ -71,24 +74,17 @@ def _log_provider_route(
     operation: str = "providers",
     provider_count: int = 0,
 ) -> None:
-    log_started_route_result(
-        LOGGER,
-        metric_name="ACQUISITION_ROUTE_DURATION",
-        message=f"Acquisition {operation} route",
+    _support_log_provider_route(
+        result,
+        started_at,
         operation=operation,
-        result=result,
-        started_at=started_at,
-        include_operation=False,
-        duration_first=False,
-        providers=provider_count,
+        provider_count=provider_count,
+        logger=LOGGER,
     )
 
 
 def _log_unexpected_route_error(operation: str) -> None:
-    LOGGER.warning(
-        "Acquisition %s route failed unexpectedly; response detail suppressed",
-        operation,
-    )
+    _support_log_unexpected_route_error(operation, logger=LOGGER)
 
 
 def _ensure_discovery_user(
@@ -97,24 +93,12 @@ def _ensure_discovery_user(
     operation: str,
     started_at: float,
 ) -> None:
-    role = normalize_role(request_user.user_role) or ""
-    if role not in _ALLOWED_DISCOVERY_ROLES:
-        _log_provider_route("forbidden", started_at, operation=operation)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions",
-        )
-
-
-def _normalize_route_id(value: str) -> str:
-    return str(value).strip()
-
-
-def _normalize_optional_text(value: str | None) -> str | None:
-    if value is None:
-        return None
-    normalized = str(value).strip()
-    return normalized or None
+    _support_ensure_discovery_user(
+        request_user,
+        operation=operation,
+        started_at=started_at,
+        logger=LOGGER,
+    )
 
 
 def _normalize_async_job_provider_id(
@@ -123,20 +107,12 @@ def _normalize_async_job_provider_id(
     operation: str,
     started_at: float,
 ) -> str:
-    provider_id = str(value or "").strip().casefold()
-    if not provider_id:
-        _raise_bad_acquisition_route_id(
-            operation=operation,
-            started_at=started_at,
-            detail="Missing acquisition provider",
-        )
-    if provider_id != "download_station":
-        _log_provider_route("bad_request", started_at, operation=operation)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Provider does not support async acquisition jobs",
-        )
-    return provider_id
+    return _support_normalize_async_job_provider_id(
+        value,
+        operation=operation,
+        started_at=started_at,
+        logger=LOGGER,
+    )
 
 
 def _raise_bad_acquisition_route_id(
@@ -145,8 +121,12 @@ def _raise_bad_acquisition_route_id(
     started_at: float,
     detail: str,
 ) -> None:
-    _log_provider_route("bad_request", started_at, operation=operation)
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+    _support_raise_bad_acquisition_route_id(
+        operation=operation,
+        started_at=started_at,
+        detail=detail,
+        logger=LOGGER,
+    )
 
 
 @router.get(

@@ -1257,7 +1257,12 @@ Optimization candidates:
   `modules/webapi/routers/acquisition_payloads.py`, keeping token-safe metadata
   scrubbing, completed-file normalization, candidate payloads, prepared
   artifacts, and Download Station job status payloads outside the route module
-  while preserving the Web/Apple Create response contract.
+  while preserving the Web/Apple Create response contract. Acquisition route
+  telemetry, role checks, id normalization, async-provider validation, and
+  generic public error constants now live in
+  `modules/webapi/routers/acquisition_route_support.py`, keeping those shared
+  route invariants reusable while the router still exposes the compatibility
+  hooks covered by the WebAPI tests.
 - Prefer precomputed or cached job summary fields for list rows while keeping
   full metadata available on detail/media routes. Status:
   `/api/pipelines/jobs` now uses compact row result summaries so list rendering
