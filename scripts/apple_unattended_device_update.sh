@@ -1282,6 +1282,9 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
 fi
 
 if [[ "${INSTALL}" == "1" ]]; then
+  if [[ "${SKIP_BUILD}" == "1" && "${FALLBACK_TO_SIGNED_ARTIFACT}" != "1" ]]; then
+    print_command "Build metadata verification command" "${BUILD_METADATA_CMD[@]}"
+  fi
   if [[ "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]]; then
     print_command "Device preflight command" "${PREFLIGHT_CMD[@]}"
   fi
@@ -1395,6 +1398,10 @@ fi
 
 if [[ "${INSTALL}" == "1" && "${SKIP_BUILD}" == "1" && "${FALLBACK_TO_SIGNED_ARTIFACT}" == "1" ]]; then
   verify_signed_artifact_bundle "${APP_PATH}"
+fi
+
+if [[ "${INSTALL}" == "1" && "${SKIP_BUILD}" == "1" && "${FALLBACK_TO_SIGNED_ARTIFACT}" != "1" ]]; then
+  verify_built_app_metadata "${APP_PATH}"
 fi
 
 if [[ "${INSTALL}" == "1" && "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]]; then

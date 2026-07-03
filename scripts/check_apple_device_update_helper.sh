@@ -371,7 +371,7 @@ if [[ "${source_skip_status}" == "0" ]]; then
   exit 1
 fi
 assert_contains "${source_skip_output}" "Deploy source freshness check skipped by APPLE_DEVICE_SOURCE_SYNC_MODE=skip." "emergency source-sync override should be explicit in deploy output"
-assert_contains "${source_skip_output}" "App bundle not found: /tmp/InteractiveReader.app" "source-sync skip should continue into the ordinary install path"
+assert_contains "${source_skip_output}" "Apple app bundle does not exist: /tmp/InteractiveReader.app" "source-sync skip should continue into the ordinary install path"
 export APPLE_DEVICE_SOURCE_SYNC_MODE=skip
 
 resolved_destination_output="$(
@@ -454,6 +454,8 @@ install_output="$(
     --launch
 )"
 assert_not_contains "${install_output}" "Build command:" "skip-build install dry run should not print a build command"
+assert_contains "${install_output}" "Build metadata verification command:" "skip-build install dry run should verify bundled git metadata"
+assert_contains "${install_output}" "scripts/check_apple_build_metadata.py" "skip-build install dry run should disclose bundled metadata verification"
 assert_contains "${install_output}" "Device preflight command:" "install dry run should print the pre-install device preflight"
 assert_contains "${install_output}" "device  info  details" "install dry run should preflight CoreDevice before install"
 assert_contains "${install_output}" "Install command:" "install dry run should print install command"
