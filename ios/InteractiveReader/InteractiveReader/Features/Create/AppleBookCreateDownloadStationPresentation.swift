@@ -54,19 +54,34 @@ extension AppleBookCreatePresentation {
     }
 
     private static func normalizedDownloadStationMetadataStrings(_ values: [String]) -> [String] {
-        values.compactMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue }
+        values.compactMap { safeDownloadStationCompletedFileHint($0) }
     }
 
     private static func normalizedDownloadStationMetadataStrings(_ value: JSONValue?) -> [String] {
         if let array = value?.arrayValue {
             return array.compactMap {
-                $0.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+                $0.stringValue.flatMap(safeDownloadStationCompletedFileHint)
             }
         }
-        return value?.stringValue?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nonEmptyValue
+        return value?.stringValue
+            .flatMap(safeDownloadStationCompletedFileHint)
             .map { [$0] } ?? []
+    }
+
+    private static func safeDownloadStationCompletedFileHint(_ value: String) -> String? {
+        guard let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue else {
+            return nil
+        }
+        let lowercased = trimmed.lowercased()
+        if lowercased.hasPrefix("magnet:") ||
+            lowercased.hasPrefix("file:") ||
+            lowercased.contains("://") {
+            return nil
+        }
+        if trimmed.split(whereSeparator: { $0 == "/" || $0 == "\\" }).contains("..") {
+            return nil
+        }
+        return trimmed
     }
 
     private static func downloadStationCompletedFileHints(

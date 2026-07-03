@@ -190,9 +190,12 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     job_mirror_pause_decision_body = _function_body(job_playback, "private var shouldMirrorAppleMusicPauseToNarration")
     assert "#if os(tvOS)" in job_mirror_pause_decision_body
     assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in job_mirror_pause_decision_body
-    assert job_mirror_pause_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < job_mirror_pause_decision_body.index(
-        "if musicOwnership.isPausedByReaderTransport"
+    assert job_mirror_pause_decision_body.index("if musicOwnership.isPausedByReaderTransport") < job_mirror_pause_decision_body.index(
+        "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay"
     )
+    assert job_mirror_pause_decision_body.index(
+        "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed"
+    ) < job_mirror_pause_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
     job_stale_pause_body = _function_body(job_playback, "private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
     assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in job_stale_pause_body
     assert "previousAction: lastReaderTransportAction" in job_stale_pause_body
@@ -741,9 +744,12 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     library_mirror_pause_decision_body = _function_body(library_playback, "private var shouldMirrorAppleMusicPauseToNarration")
     assert "#if os(tvOS)" in library_mirror_pause_decision_body
     assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in library_mirror_pause_decision_body
-    assert library_mirror_pause_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < library_mirror_pause_decision_body.index(
-        "if musicOwnership.isPausedByReaderTransport"
+    assert library_mirror_pause_decision_body.index("if musicOwnership.isPausedByReaderTransport") < library_mirror_pause_decision_body.index(
+        "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay"
     )
+    assert library_mirror_pause_decision_body.index(
+        "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed"
+    ) < library_mirror_pause_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
     library_stale_pause_body = _function_body(library_playback, "private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
     assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in library_stale_pause_body
     assert "previousAction: lastReaderTransportAction" in library_stale_pause_body

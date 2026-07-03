@@ -90,18 +90,28 @@ describe('videoDubbingDownloadStationUtils', () => {
     expect(resolveDownloadStationCompletedFiles(null)).toEqual([]);
     expect(
       resolveDownloadStationCompletedFiles(acquisitionJob({
-        completed_files: ['/downloads/top-level.mkv'],
+        completed_files: [
+          'https://indexer.example.invalid/download?id=7&apikey=secret',
+          '../escape.mkv',
+          '/downloads/top-level.mkv'
+        ],
         metadata: { completed_files: ['/downloads/metadata.mkv'] }
       }))
     ).toEqual(['/downloads/top-level.mkv']);
     expect(
       resolveDownloadStationCompletedFiles(acquisitionJob({
-        metadata: { completed_files: ['/downloads/metadata.mkv'] }
+        metadata: {
+          completed_files: [
+            'magnet:?xt=urn:btih:private',
+            'file:///tmp/local.mkv',
+            '/downloads/metadata.mkv'
+          ]
+        }
       }))
     ).toEqual(['/downloads/metadata.mkv']);
     expect(
       resolveDownloadStationCompletedFiles(acquisitionJob({
-        metadata: { files: ['/downloads/files-array.mkv'] }
+        metadata: { files: ['folder/../escape.mkv', '/downloads/files-array.mkv'] }
       }))
     ).toEqual(['/downloads/files-array.mkv']);
     expect(
@@ -109,6 +119,11 @@ describe('videoDubbingDownloadStationUtils', () => {
         metadata: { completed_file: '/downloads/single.mkv' }
       }))
     ).toEqual(['/downloads/single.mkv']);
+    expect(
+      resolveDownloadStationCompletedFiles(acquisitionJob({
+        metadata: { completed_file: 'https://indexer.example.invalid/download?id=7' }
+      }))
+    ).toEqual([]);
   });
 
   it('matches completed file hints to refreshed NAS videos', () => {

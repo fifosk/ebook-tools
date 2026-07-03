@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-tv-music-bed-combined-pause-priority",
+            title: "TV pause combines bed and narration",
+            detail: "Apple TV now gives explicit Music-bed pause evidence priority over the post-resume stale-event filter, so a single Play/Pause press can stop both Apple Music bed audio and the current sentence track."
+        ),
+        AppChangelogEntry(
+            id: "create-completed-file-client-filtering",
+            title: "Create filters completion hints",
+            detail: "Web Video Dubbing and Apple YouTube Dub now ignore URL-like, file-scheme, magnet, and traversal values in legacy Download Station completion metadata before displaying or matching refreshed manual-download candidates."
+        ),
+        AppChangelogEntry(
             id: "acquisition-completed-files-safe-metadata",
             title: "Downloader completions are bounded",
             detail: "Download Station poll responses now apply safe manual-download root checks to legacy metadata completion hints too, so Web and Apple Create reconnect only to reviewed local filenames or configured inbox paths."

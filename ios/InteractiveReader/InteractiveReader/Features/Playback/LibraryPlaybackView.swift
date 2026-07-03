@@ -505,11 +505,6 @@ struct LibraryPlaybackView: View {
     }
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
-        #if os(tvOS)
-        if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay {
-            return false
-        }
-        #endif
         if musicOwnership.isPausedByReaderTransport {
             return viewModel.audioCoordinator.isPlaybackRequested ||
                 viewModel.audioCoordinator.isPlaying
@@ -518,7 +513,15 @@ struct LibraryPlaybackView: View {
             return false
         }
         #if os(tvOS)
-        return musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed
+        if musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed {
+            return true
+        }
+        if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay {
+            return false
+        }
+        #endif
+        #if os(tvOS)
+        return false
         #else
         return false
         #endif

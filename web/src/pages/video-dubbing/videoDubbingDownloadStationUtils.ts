@@ -30,10 +30,31 @@ function stringArrayFromMetadataValue(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
       .map((entry) => normalizeTextValue(entry))
+      .map(safeCompletedFileHint)
       .filter((entry): entry is string => entry !== null);
   }
   const single = normalizeTextValue(value);
-  return single ? [single] : [];
+  const safeSingle = safeCompletedFileHint(single);
+  return safeSingle ? [safeSingle] : [];
+}
+
+function safeCompletedFileHint(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  const lower = value.toLowerCase();
+  if (
+    lower.startsWith('magnet:') ||
+    lower.startsWith('file:') ||
+    lower.includes('://')
+  ) {
+    return null;
+  }
+  const pathParts = value.split(/[\\/]+/);
+  if (pathParts.some((part) => part === '..')) {
+    return null;
+  }
+  return value;
 }
 
 export function resolveDownloadStationCompletedFiles(

@@ -369,6 +369,10 @@ Acquisition task fields:
     under configured manual/download roots, URL-like and path-traversal hints
     are dropped, and safe relative filenames remain available for Web/Apple
     Create matching against refreshed manual-download discovery.
+    Web Video Dubbing and Apple YouTube Dub also filter legacy completed-file
+    hints client-side before naming or matching refreshed candidates, keeping
+    old task payloads from selecting URL-like, `file:`, magnet, or traversal
+    values.
   - Status: `manual_downloads` discovery is available for configured backend
      inbox roots (`manual_download_root`, `manual_download_roots`,
      `download_station_completed_root`, existing `youtube_video_root` /
