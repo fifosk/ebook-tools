@@ -84,6 +84,12 @@ def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_player
     assert "func playbackTransportDebugLog" in shortcuts
     assert "PlaybackTransportDebugLogger" in shortcuts
     assert 'appendingPathComponent("interactive-reader-playback-transport.log")' in shortcuts
+    assert "[PlaybackTransportBuild] \\(metadata)" in shortcuts
+    assert "release=\\(AppVersion.release)" in shortcuts
+    assert "marketing=\\(AppVersion.marketingVersion)" in shortcuts
+    assert "bundle=\\(AppVersion.bundleVersion)" in shortcuts
+    assert "branch=\\(AppVersion.branch)" in shortcuts
+    assert "writeSessionHeaderIfNeeded(fileURL)" in shortcuts
     assert "size.intValue > 512_000" in shortcuts
     assert "Apple Music reader transport pause adopted source=" in music
     assert "playbackTransportDebugLog(" in music

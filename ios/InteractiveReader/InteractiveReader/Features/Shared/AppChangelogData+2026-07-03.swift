@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "playback-transport-build-header",
+            title: "Device logs show build",
+            detail: "DEBUG Apple playback transport logs now include a token-safe release, bundle, and branch header before reader events, making physical TV/iPad repro captures easier to match to the deployed checkpoint."
+        ),
+        AppChangelogEntry(
             id: "sequence-fade-survives-handoff-seek",
             title: "Track handoffs keep fades latched",
             detail: "Interactive reader sequence handoffs now keep the old segment fade attached while the muted AVPlayer seeks or loads, then rebuild the fade only after the new Original or Translation segment lands, reducing stale next-sentence slivers before track switches."

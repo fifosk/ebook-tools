@@ -101,6 +101,7 @@ private final class PlaybackTransportDebugLogger {
     private let logger = Logger(subsystem: "InteractiveReader", category: "PlaybackTransportFile")
     private let fileURL: URL?
     private var didPrepareFile = false
+    private var didWriteSessionHeader = false
 
     private init() {
         fileURL = FileManager.default
@@ -115,6 +116,8 @@ private final class PlaybackTransportDebugLogger {
             try? FileManager.default.removeItem(at: fileURL)
             FileManager.default.createFile(atPath: fileURL.path, contents: nil)
             self.didPrepareFile = true
+            self.didWriteSessionHeader = false
+            self.writeSessionHeaderIfNeeded(fileURL)
         }
     }
 
@@ -130,7 +133,9 @@ private final class PlaybackTransportDebugLogger {
             guard let data = line.data(using: .utf8) else { return }
             if !FileManager.default.fileExists(atPath: fileURL.path) {
                 FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+                self.didWriteSessionHeader = false
             }
+            self.writeSessionHeaderIfNeeded(fileURL)
             guard let handle = try? FileHandle(forWritingTo: fileURL) else { return }
             handle.seekToEndOfFile()
             handle.write(data)
@@ -149,6 +154,26 @@ private final class PlaybackTransportDebugLogger {
         }
         try? FileManager.default.removeItem(at: fileURL)
         FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+        didWriteSessionHeader = false
+        writeSessionHeaderIfNeeded(fileURL)
+    }
+
+    private func writeSessionHeaderIfNeeded(_ fileURL: URL) {
+        guard !didWriteSessionHeader else { return }
+        didWriteSessionHeader = true
+        let timestamp = String(format: "%.3f", Date().timeIntervalSince1970)
+        let metadata = [
+            "release=\(AppVersion.release)",
+            "marketing=\(AppVersion.marketingVersion)",
+            "bundle=\(AppVersion.bundleVersion)",
+            "branch=\(AppVersion.branch)",
+        ].joined(separator: " ")
+        let line = "\(timestamp) [PlaybackTransportBuild] \(metadata)\n"
+        guard let data = line.data(using: .utf8) else { return }
+        guard let handle = try? FileHandle(forWritingTo: fileURL) else { return }
+        handle.seekToEndOfFile()
+        handle.write(data)
+        try? handle.close()
     }
 }
 #endif
