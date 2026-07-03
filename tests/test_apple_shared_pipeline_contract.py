@@ -795,7 +795,12 @@ def test_apple_create_default_sources_request_mapping_is_visible_in_changelogs()
 def test_golden_pipeline_verification_includes_source_sync_without_physical_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
-    target_line = "verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync verify-apple-dogfood-pipeline"
+    target_line = (
+        "verify-apple-golden-pipeline: apple-runtime-fast-forward "
+        "apple-runtime-ssh-check apple-runtime-xcode-readiness "
+        "apple-pipeline-source-sync verify-apple-dogfood-pipeline "
+        "verify-apple-music-bed-candidate"
+    )
     assert target_line in makefile
 
     target = makefile.split("verify-apple-golden-pipeline:", 1)[1].split("\n\n", 1)[0]
@@ -804,6 +809,8 @@ def test_golden_pipeline_verification_includes_source_sync_without_physical_depl
     assert "apple-runtime-xcode-readiness" in target
     assert "apple-pipeline-source-sync" in target
     assert "verify-apple-dogfood-pipeline" in target
+    assert "verify-apple-music-bed-candidate" in target
+    assert target.index("verify-apple-dogfood-pipeline") < target.index("verify-apple-music-bed-candidate")
     assert "apple-device-update" not in target
     assert "run_app_device_deploy.py" not in target
     assert "apple_unattended_device_update.sh" not in target

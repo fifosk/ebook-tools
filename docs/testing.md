@@ -609,8 +609,8 @@ explicit hardware deploy request. When
 that runtime SSH check and source-sync check are expected to pass,
 `verify-apple-golden-pipeline` runs the fast-forward, SSH check, and source-sync
 steps, plus the remote Xcode readiness preflight, in front of
-`verify-apple-dogfood-pipeline` while still avoiding physical-device
-deployment.
+`verify-apple-dogfood-pipeline` and then `verify-apple-music-bed-candidate`
+while still avoiding physical-device deployment.
 When GitHub push is blocked by the local macOS account/cache issue, preserve
 committed local progress with `make apple-local-checkpoint-bundle`. It writes a
 verified Git bundle plus JSON manifest under `test-results/git-checkpoints/`
@@ -740,8 +740,10 @@ journey and then the real tvOS Music-bed XCUITest journey
 Use it when a change affects reader transport, Apple Music bed ownership, Now
 Playing state, keyboard lookup, or TV playback chrome. `make verify-apple-living-room-candidate`
 adds the full non-physical shared pipeline gate before that serial Music-bed
-candidate check. These targets intentionally do not call device install,
-`devicectl`, or the unattended physical update helpers.
+candidate check, and `make verify-apple-golden-pipeline` runs the same serial
+Music-bed candidate after the dogfood gate once runtime fast-forward/source-sync
+has passed. These targets intentionally do not call device install, `devicectl`,
+or the unattended physical update helpers.
 
 Latest Living Room candidate evidence from June 30, 2026:
 `make verify-apple-living-room-candidate` passed at commit `1010eb5fe`,

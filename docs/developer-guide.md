@@ -170,7 +170,8 @@ checkpoint before the shared gate. After the Mac Studio/runtime checkout has
 been fast-forwarded and source-sync is expected to pass,
 `make verify-apple-golden-pipeline` first fast-forwards the Mac Studio runtime
 checkout with the guarded `git pull --ff-only` helper, verifies the SSH
-checkout, runs source-sync, and then runs the same non-physical dogfood gate.
+checkout, runs source-sync, and then runs the same non-physical dogfood gate
+plus the serial iPad/tvOS Music-bed candidate gate.
 The fast-forward helper also removes stale untracked export-player JS bundles
 that are no longer referenced by `web/export-dist/export.html`, then fails if
 any other remote dirtiness remains.
