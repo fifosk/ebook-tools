@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "download-station-route-metadata-dedupe",
+            title: "Downloader metadata avoids repeats",
+            detail: "Acquisition job polling now de-duplicates legacy Download Station completed-file metadata after sanitization, so older jobs and mocked poll results present the same single finished artifact list as live backend polling."
+        ),
+        AppChangelogEntry(
             id: "download-station-completed-file-dedupe",
             title: "Downloader completions stay singular",
             detail: "Download Station polling now collapses repeated completed-file aliases after safe manual-download root normalization, keeping Web and Apple video source handoff from showing the same finished artifact more than once."

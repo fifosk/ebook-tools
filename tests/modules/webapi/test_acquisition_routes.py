@@ -1774,6 +1774,8 @@ def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
                 "source_kind": "download_station",
                 "files": [
                     f"  {ready_file.as_posix()}  ",
+                    ready_file.as_posix(),
+                    "Loose completed title.mkv",
                     "Loose completed title.mkv",
                     "/Volumes/Data/Download/DStation/Outside.mkv",
                     "https://indexer.example.invalid/download?id=7&apikey=secret-indexer-key",

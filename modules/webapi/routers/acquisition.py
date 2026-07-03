@@ -177,9 +177,11 @@ def _metadata_string_values(
 ) -> list[str]:
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         values: list[str] = []
+        seen_values: set[str] = set()
         for item in value:
             normalized = _normalize_completed_file_value(item, safe_roots=safe_roots)
-            if normalized:
+            if normalized and normalized not in seen_values:
+                seen_values.add(normalized)
                 values.append(normalized)
         return values
     normalized = _normalize_completed_file_value(value, safe_roots=safe_roots)
