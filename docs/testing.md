@@ -789,7 +789,7 @@ iPad/tvOS Music-bed journey wiring without credentials or simulator boots.
 journey and then the real tvOS Music-bed XCUITest journey
 (`make test-e2e-ipad-music-bed-sync` then `make test-e2e-tvos-music-bed-sync`).
 Use it when a change affects reader transport, Apple Music bed ownership, Now
-Playing state, keyboard lookup, or TV playback chrome. `make verify-apple-living-room-candidate`
+Playing session/remote-command state, keyboard lookup, or TV playback chrome. `make verify-apple-living-room-candidate`
 adds the full non-physical shared pipeline gate before that serial Music-bed
 candidate check, and `make verify-apple-golden-pipeline` runs the same serial
 Music-bed candidate after the dogfood gate once runtime fast-forward/source-sync

@@ -155,6 +155,7 @@ def test_select_targets_runs_music_bed_dry_runs_for_reader_transport_paths() -> 
         "ios/InteractiveReader/InteractiveReader/Features/Playback/ReaderTransportCommandResolver.swift",
         "ios/InteractiveReader/InteractiveReaderUITests/JourneyRunner.swift",
         "ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift",
+        "ios/InteractiveReader/InteractiveReader/Services/NowPlayingCoordinator.swift",
     ]
 
     for path in music_bed_paths:
@@ -251,6 +252,14 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift"]
+    ) == [
+        "test-apple-contracts",
+        "verify-apple-music-bed-candidate-dry-run",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Services/NowPlayingCoordinator.swift"]
     ) == [
         "test-apple-contracts",
         "verify-apple-music-bed-candidate-dry-run",

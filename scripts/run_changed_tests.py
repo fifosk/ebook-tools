@@ -279,6 +279,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "ios/InteractiveReader/InteractiveReader/Features/Playback/ReaderTransportCommandResolver.swift",
             "ios/InteractiveReader/InteractiveReaderUITests/JourneyRunner.swift",
             "ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift",
+            "ios/InteractiveReader/InteractiveReader/Services/NowPlayingCoordinator.swift",
         ),
         ("verify-apple-music-bed-candidate-dry-run",),
     ),
