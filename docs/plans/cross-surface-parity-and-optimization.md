@@ -816,7 +816,11 @@ Current Apple UI partially exposes:
   tolerant safe-stat readability checks reusable outside the provider registry
   payload builder. File-backed discovery, reviewed artifact preparation, and
   Download Station handoff now import those root helpers directly instead of
-  depending on provider payload assembly. Backend local/manual/NAS source candidate helpers now live in
+  depending on provider payload assembly. Backend Download Station
+  client/config/URI validation now lives in
+  `modules/services/acquisition/download_station_client.py` with focused
+  coverage, keeping Synology HTTP mechanics separate from token-safe Web/Apple
+  acquisition job orchestration. Backend local/manual/NAS source candidate helpers now live in
   `modules/services/acquisition/source_candidates.py` with focused coverage,
   keeping source-relative paths, display-title derivation, zero-byte EPUB
   filtering, and bounded newest-first source candidate ordering shared for

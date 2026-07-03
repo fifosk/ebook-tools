@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Backend Download Station client/config/URI validation now lives in a focused helper with direct coverage, keeping Synology HTTP mechanics separate from token-safe Web/Apple acquisition job orchestration.
 - Backend generated-book LLM sentence and metadata helpers now live in a focused module with direct coverage, keeping prompt construction and response parsing reusable outside the large Create router for Web/Apple continuation jobs.
 - Backend generated-book cover generation now lives in a focused helper with direct coverage, keeping DrawThings prompt shaping, image-node selection, and skip reasons reusable outside the large Create router.
 - Backend generated-book source-context and summary helpers now live outside the large Create router with direct coverage, keeping Web and Apple continuation-job metadata shaping reusable across prepare and enqueue paths.

@@ -19,6 +19,7 @@ import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.discovery_normalization as discovery_normalization
 import modules.services.acquisition.download_station as download_station
+import modules.services.acquisition.download_station_client as download_station_client
 import modules.services.acquisition.download_station_values as download_station_values
 import modules.services.acquisition.file_sources as file_sources
 import modules.services.acquisition.gutenberg_discovery as gutenberg_discovery
@@ -3801,6 +3802,50 @@ def test_enqueue_download_station_rejects_unconfirmed_or_invalid_uri() -> None:
             confirmed=True,
             config=config,
         )
+
+
+def test_download_station_config_resolves_host_aliases_and_value_types() -> None:
+    settings = download_station_client.resolve_download_station_config(
+        {
+            "download_station_host": "nas.example.invalid",
+            "download_station_account": " nas-user ",
+            "download_station_password": " nas-secret ",
+            "download_station_completed_share": "downloads",
+            "download_station_verify_tls": "off",
+            "download_station_timeout_seconds": "3.5",
+        }
+    )
+
+    assert settings.base_url == "https://nas.example.invalid"
+    assert settings.account == "nas-user"
+    assert settings.password == "nas-secret"
+    assert settings.destination == "downloads"
+    assert settings.verify_tls is False
+    assert settings.timeout_seconds == 3.5
+
+
+def test_download_station_client_validation_is_token_safe() -> None:
+    assert (
+        download_station_client.validate_source_uri(" https://example.test/file.torrent ")
+        == "https://example.test/file.torrent"
+    )
+    assert download_station_client.validate_source_uri("magnet:?xt=urn:btih:abc") == "magnet:?xt=urn:btih:abc"
+
+    with pytest.raises(ValueError, match="source_uri"):
+        download_station_client.validate_source_uri(" ")
+    with pytest.raises(ValueError, match="http"):
+        download_station_client.validate_source_uri("ftp://example.test/file.torrent")
+
+    with pytest.raises(download_station_client.DownloadStationError) as exc_info:
+        download_station_client.resolve_download_station_config(
+            {
+                "download_station_url": "file:///tmp/download-station",
+                "download_station_account": "u",
+                "download_station_password": "secret",
+            }
+        )
+    assert exc_info.value.reason == "invalid_config"
+    assert "secret" not in str(exc_info.value)
 
 
 def test_poll_download_station_task_maps_completed_files_without_secret(tmp_path: Path) -> None:
