@@ -2583,7 +2583,11 @@ Every cross-surface change should pass the relevant subset:
   test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped, and
   `make test-e2e-ipad-music-bed-sync` passed 1/1 with 0 failures and 0 skipped,
   giving fresh unattended evidence before any iPad Pro or Living Room TV
-  physical-device deployment.
+  physical-device deployment. On July 3, after the sequence dwell pinback fix at
+  `0e7609dc9`, the live simulator evidence was refreshed again:
+  `make test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped,
+  followed by `make test-e2e-ipad-music-bed-sync` passing 1/1 with 0 failures
+  and 0 skipped, without touching physical devices.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

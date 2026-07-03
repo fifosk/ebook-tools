@@ -234,7 +234,17 @@ sentence for metadata hydration, then retry through the shared
 tvOS chunk metadata hydration before the Music-bed gate expects
 `reader=playing`.
 
-Latest Apple playback simulator evidence from June 30, 2026 for commit
+Latest Apple playback simulator evidence from July 3, 2026 for commit
+`0e7609dc9`: after the sequence dwell pinback fix, `make
+test-e2e-tvos-music-bed-sync` passed on Apple TV 4K (3rd generation) with
+1 passed / 0 failed / 0 skipped, writing
+`test-results/tvos-e2e-report.md`; `make test-e2e-ipad-music-bed-sync` then
+passed on iPad Pro 13-inch (M5) with 1 passed / 0 failed / 0 skipped, writing
+`test-results/ipad-e2e-report.md`. These runs covered the reader-owned
+Music-bed pause/play/pause path and the iPad already-playing/sentence-transition
+Music-bed guard without touching physical devices.
+
+Earlier Apple playback simulator evidence from June 30, 2026 for commit
 `ef64d866`: `make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K
 (3rd generation) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in about
 185.7s after the Now Playing, playback-state helper, and E2E login contract
@@ -812,6 +822,13 @@ test-e2e-tvos-music-bed-sync`. The tvOS simulator journey passed with one test,
 zero failures, and zero skipped tests, including the Music-bed remote
 pause/play/pause path after the setup-recovery timers were guarded against real
 reader transport commands. The run did not touch a physical Apple TV.
+
+Latest Music-bed candidate evidence from July 3, 2026:
+after the TV sequence dwell pinback checkpoint `0e7609dc9`, the live simulator
+gates were run directly: `make test-e2e-tvos-music-bed-sync` passed 1/1 with
+0 failures and 0 skipped, then `make test-e2e-ipad-music-bed-sync` passed 1/1
+with 0 failures and 0 skipped. The run intentionally stayed on simulators and
+did not install to iPad, iPhone, or Apple TV hardware.
 
 Golden-pipeline preflight evidence from the same date at commit `5263d452`:
 `make apple-runtime-fast-forward`, `make apple-runtime-ssh-check`, and
