@@ -2649,7 +2649,12 @@ Every cross-surface change should pass the relevant subset:
   `0e7609dc9`, the live simulator evidence was refreshed again:
   `make test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped,
   followed by `make test-e2e-ipad-music-bed-sync` passing 1/1 with 0 failures
-  and 0 skipped, without touching physical devices.
+  and 0 skipped, without touching physical devices. The next Living Room
+  regression investigation found pause-confirmed interactive autoplay recovery
+  looping after MusicKit pause adoption; Job and Library now clear those pending
+  retry tokens after confirmed reader pauses, and the sequence dwell callback
+  invalidates stale audio-ready subscriptions before pinning the muted player
+  so delayed completions cannot restore audio during Translation handoff.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

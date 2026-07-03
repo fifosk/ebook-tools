@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "reader-pause-confirmation-clears-autoplay",
+            title: "TV pauses stop retry loops",
+            detail: "Job and Library playback now clear pending interactive autoplay after confirmed reader pauses, and sequence dwell cancels stale audio-ready callbacks before pinning the muted player so TV pauses and Translation handoffs settle cleanly."
+        ),
+        AppChangelogEntry(
             id: "backend-youtube-library-helper",
             title: "YouTube NAS picker is leaner",
             detail: "Backend YouTube NAS path normalization, linked-job indexing, and video-row serialization now live in a focused helper, keeping Web Video Dubbing and Apple YouTube Dub source pickers aligned outside the route handler."

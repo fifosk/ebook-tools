@@ -263,6 +263,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         sequenceController.onPauseForDwell = { [weak self] boundaryTime in
             guard let self else { return }
             interactivePlayerViewModelLogger.debug("Dwell started, pausing audio")
+            self.cancelPendingAudioReadySubscription()
             self.audioCoordinator.pauseForDwell(atBoundary: boundaryTime)
         }
 

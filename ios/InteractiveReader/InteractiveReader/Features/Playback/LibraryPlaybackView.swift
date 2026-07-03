@@ -271,14 +271,6 @@ struct LibraryPlaybackView: View {
         guard reason != "libraryAudioState" else { return }
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard !clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason) else { return }
-        guard let pendingSentence = pendingInteractiveAutoplaySentence else { return }
-        guard viewModel.jobContext != nil else { return }
-        if !viewModel.audioCoordinator.isPlaybackRequested,
-           !viewModel.audioCoordinator.isPlaying,
-           lastReaderTransportAction == "pause" {
-            clearPendingInteractiveAutoplay(reason: "\(reason)StoppedReader")
-            return
-        }
         #if os(tvOS)
         if ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil {
             clearPendingInteractiveAutoplay(reason: "\(reason)LocalPauseHold")
@@ -287,12 +279,21 @@ struct LibraryPlaybackView: View {
         guard lastReaderTransportAction != "pause",
               !musicOwnership.isPausedByReaderTransport,
               !musicOwnership.isReaderTransportPauseGuardActive,
-              !musicOwnership.isManuallyPaused
+              !musicOwnership.isManuallyPaused,
+              ProcessInfo.processInfo.systemUptime >= localReaderTransportPauseHoldUntil
         else {
             _ = clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "\(reason)PausedReader")
             return
         }
         #endif
+        guard let pendingSentence = pendingInteractiveAutoplaySentence else { return }
+        guard viewModel.jobContext != nil else { return }
+        if !viewModel.audioCoordinator.isPlaybackRequested,
+           !viewModel.audioCoordinator.isPlaying,
+           lastReaderTransportAction == "pause" {
+            clearPendingInteractiveAutoplay(reason: "\(reason)StoppedReader")
+            return
+        }
         guard !viewModel.audioCoordinator.isPlaying ||
             viewModel.audioCoordinator.nowPlayingPlayer == nil
         else { return }

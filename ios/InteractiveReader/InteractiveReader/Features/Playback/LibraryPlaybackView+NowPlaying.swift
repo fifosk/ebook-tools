@@ -459,6 +459,7 @@ extension LibraryPlaybackView {
                     #if DEBUG
                     e2eReaderPauseConfirmationCount += 1
                     #endif
+                    clearPendingInteractiveAutoplay(reason: "\(source)PauseConfirmed")
                     playbackTransportDebugLog(
                         "[PlaybackTransport] Library confirmed reader pause source=\(source) requested=false playing=false musicPlaying=\(musicOwnership.isPlaying) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying)"
                     )

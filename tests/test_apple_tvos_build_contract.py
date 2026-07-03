@@ -166,6 +166,51 @@ LINGUIST_BUBBLE_VIEW = (
     / "Shared"
     / "LinguistBubbleView.swift"
 )
+INTERACTIVE_PLAYER_VIEW_MODEL = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "InteractivePlayer"
+    / "InteractivePlayerViewModel.swift"
+)
+JOB_PLAYBACK_VIEW = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "JobPlaybackView.swift"
+)
+JOB_PLAYBACK_NOW_PLAYING = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "JobPlaybackView+NowPlaying.swift"
+)
+LIBRARY_PLAYBACK_VIEW = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "LibraryPlaybackView.swift"
+)
+LIBRARY_PLAYBACK_NOW_PLAYING = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "LibraryPlaybackView+NowPlaying.swift"
+)
 
 
 def _function_body(source: str, signature: str) -> str:
@@ -403,6 +448,51 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     assert interactive_play.index("audioCoordinator.reassertAudioSession(force: true)") < interactive_play.index(
         "viewModel.seekPlayback(to: seekTime, in: chunk)"
     )
+
+
+def test_reader_music_bed_pause_clears_autoplay_and_sequence_handoffs() -> None:
+    view_model_source = INTERACTIVE_PLAYER_VIEW_MODEL.read_text(encoding="utf-8")
+    dwell_callback = view_model_source.split(
+        "sequenceController.onPauseForDwell = { [weak self] boundaryTime in",
+        1,
+    )[1].split("\n        }", 1)[0]
+    assert "self.cancelPendingAudioReadySubscription()" in dwell_callback
+    assert "self.audioCoordinator.pauseForDwell(atBoundary: boundaryTime)" in dwell_callback
+    assert dwell_callback.index("self.cancelPendingAudioReadySubscription()") < dwell_callback.index(
+        "self.audioCoordinator.pauseForDwell(atBoundary: boundaryTime)"
+    )
+
+    job_source = JOB_PLAYBACK_VIEW.read_text(encoding="utf-8")
+    library_source = LIBRARY_PLAYBACK_VIEW.read_text(encoding="utf-8")
+    for source, audio_state_reason, paused_reason in [
+        (job_source, 'guard reason != "jobAudioState" else { return }', '"\\(reason)PausedReader"'),
+        (library_source, 'guard reason != "libraryAudioState" else { return }', '"\\(reason)PausedReader"'),
+    ]:
+        recovery_body = _function_body(source, "private func recoverPendingInteractiveAutoplayIfNeeded")
+        assert audio_state_reason in recovery_body
+        assert "guard lastReaderTransportAction != \"pause\"" in recovery_body
+        assert "!musicOwnership.isPausedByReaderTransport" in recovery_body
+        assert "!musicOwnership.isReaderTransportPauseGuardActive" in recovery_body
+        assert "!musicOwnership.isManuallyPaused" in recovery_body
+        assert "ProcessInfo.processInfo.systemUptime >= localReaderTransportPauseHoldUntil" in recovery_body
+        assert paused_reason in recovery_body
+        assert recovery_body.index("guard lastReaderTransportAction != \"pause\"") < recovery_body.index(
+            "guard let pendingSentence = pendingInteractiveAutoplaySentence"
+        )
+
+    for source_path, prefix in [
+        (JOB_PLAYBACK_NOW_PLAYING, "Job"),
+        (LIBRARY_PLAYBACK_NOW_PLAYING, "Library"),
+    ]:
+        pause_body = _function_body(
+            source_path.read_text(encoding="utf-8"),
+            "func confirmReaderTransportPauseAfterCommand",
+        )
+        clear_call = 'clearPendingInteractiveAutoplay(reason: "\\(source)PauseConfirmed")'
+        confirmed_log = f"[PlaybackTransport] {prefix} confirmed reader pause"
+        assert clear_call in pause_body
+        assert confirmed_log in pause_body
+        assert pause_body.index(clear_call) < pause_body.index(confirmed_log)
 
 
 def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
