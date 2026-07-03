@@ -389,104 +389,108 @@ struct MusicBedSyncE2EControls: View {
 
     var body: some View {
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
-            HStack(spacing: 10) {
-                Button("E2E Music Pause") {
-                    musicOwnership.simulateObservedNonPlayingPauseForE2E()
-                }
-                .accessibilityIdentifier("e2eMusicBedPauseButton")
-                .accessibilityLabel("e2eMusicBedPauseButton")
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Button("E2E Music Pause") {
+                        musicOwnership.simulateObservedNonPlayingPauseForE2E()
+                    }
+                    .accessibilityIdentifier("e2eMusicBedPauseButton")
+                    .accessibilityLabel("e2eMusicBedPauseButton")
 
-                Button("E2E Music Play") {
-                    musicOwnership.simulateReadingBedPlayForE2E()
-                }
-                .accessibilityIdentifier("e2eMusicBedPlayButton")
-                .accessibilityLabel("e2eMusicBedPlayButton")
+                    Button("E2E Music Play") {
+                        musicOwnership.simulateReadingBedPlayForE2E()
+                    }
+                    .accessibilityIdentifier("e2eMusicBedPlayButton")
+                    .accessibilityLabel("e2eMusicBedPlayButton")
 
-                Button("E2E Observed Pause") {
-                    musicOwnership.simulateObservedNonPlayingPauseForE2E()
-                }
-                .accessibilityIdentifier("e2eObservedMusicPauseButton")
-                .accessibilityLabel("e2eObservedMusicPauseButton")
+                    Button("E2E Observed Pause") {
+                        musicOwnership.simulateObservedNonPlayingPauseForE2E()
+                    }
+                    .accessibilityIdentifier("e2eObservedMusicPauseButton")
+                    .accessibilityLabel("e2eObservedMusicPauseButton")
 
-                Button("E2E Interactive Start") {
-                    MusicBedSyncE2EState.interactiveStartCommandCount += 1
-                    onInteractiveStartCommand()
-                }
-                .accessibilityIdentifier("e2eInteractiveStartButton")
-                .accessibilityLabel("e2eInteractiveStartButton")
+                    Button("E2E Interactive Start") {
+                        MusicBedSyncE2EState.interactiveStartCommandCount += 1
+                        onInteractiveStartCommand()
+                    }
+                    .accessibilityIdentifier("e2eInteractiveStartButton")
+                    .accessibilityLabel("e2eInteractiveStartButton")
 
-                Button("E2E Reader Play") {
-                    onReaderPlayCommand()
-                }
-                .accessibilityIdentifier("e2eReaderPlayCommandButton")
-                .accessibilityLabel("e2eReaderPlayCommandButton")
+                    Button("E2E Reader Play") {
+                        onReaderPlayCommand()
+                    }
+                    .accessibilityIdentifier("e2eReaderPlayCommandButton")
+                    .accessibilityLabel("e2eReaderPlayCommandButton")
 
-                Button("E2E Reader Pause") {
-                    onReaderPauseCommand()
-                }
-                .accessibilityIdentifier("e2eReaderPauseCommandButton")
-                .accessibilityLabel("e2eReaderPauseCommandButton")
+                    Button("E2E Reader Pause") {
+                        onReaderPauseCommand()
+                    }
+                    .accessibilityIdentifier("e2eReaderPauseCommandButton")
+                    .accessibilityLabel("e2eReaderPauseCommandButton")
 
-                Button("E2E Reader Toggle") {
-                    onReaderToggleCommand()
-                }
-                .accessibilityIdentifier("e2eReaderToggleCommandButton")
-                .accessibilityLabel("e2eReaderToggleCommandButton")
+                    Button("E2E Reader Toggle") {
+                        onReaderToggleCommand()
+                    }
+                    .accessibilityIdentifier("e2eReaderToggleCommandButton")
+                    .accessibilityLabel("e2eReaderToggleCommandButton")
 
-                Button("E2E Keyboard Space") {
-                    NotificationCenter.default.post(name: .keyboardShortcutPlayPause, object: nil)
-                }
-                .accessibilityIdentifier("e2eKeyboardSpaceCommandButton")
-                .accessibilityLabel("e2eKeyboardSpaceCommandButton")
+                    Button("E2E Keyboard Space") {
+                        NotificationCenter.default.post(name: .keyboardShortcutPlayPause, object: nil)
+                    }
+                    .accessibilityIdentifier("e2eKeyboardSpaceCommandButton")
+                    .accessibilityLabel("e2eKeyboardSpaceCommandButton")
 
-                Button("E2E Keyboard Left") {
-                    NotificationCenter.default.post(name: .keyboardShortcutPrevious, object: nil)
-                }
-                .accessibilityIdentifier("e2eKeyboardLeftCommandButton")
-                .accessibilityLabel("e2eKeyboardLeftCommandButton")
+                    Button("E2E Keyboard Left") {
+                        NotificationCenter.default.post(name: .keyboardShortcutPrevious, object: nil)
+                    }
+                    .accessibilityIdentifier("e2eKeyboardLeftCommandButton")
+                    .accessibilityLabel("e2eKeyboardLeftCommandButton")
 
-                Button("E2E Keyboard Right") {
-                    NotificationCenter.default.post(name: .keyboardShortcutNext, object: nil)
-                }
-                .accessibilityIdentifier("e2eKeyboardRightCommandButton")
-                .accessibilityLabel("e2eKeyboardRightCommandButton")
+                    Button("E2E Keyboard Right") {
+                        NotificationCenter.default.post(name: .keyboardShortcutNext, object: nil)
+                    }
+                    .accessibilityIdentifier("e2eKeyboardRightCommandButton")
+                    .accessibilityLabel("e2eKeyboardRightCommandButton")
 
-                Button("E2E Keyboard Lookup") {
-                    NotificationCenter.default.post(name: .keyboardShortcutLookup, object: nil)
-                }
-                .accessibilityIdentifier("e2eKeyboardLookupCommandButton")
-                .accessibilityLabel("e2eKeyboardLookupCommandButton")
+                    Button("E2E Keyboard Lookup") {
+                        NotificationCenter.default.post(name: .keyboardShortcutLookup, object: nil)
+                    }
+                    .accessibilityIdentifier("e2eKeyboardLookupCommandButton")
+                    .accessibilityLabel("e2eKeyboardLookupCommandButton")
 
-                Button("E2E Auto Resume") {
-                    musicOwnership.simulateAlreadyPlayingAutoResumeForE2E()
-                }
-                .accessibilityIdentifier("e2eMusicBedAutoResumeButton")
-                .accessibilityLabel("e2eMusicBedAutoResumeButton")
+                    Button("E2E Auto Resume") {
+                        musicOwnership.simulateAlreadyPlayingAutoResumeForE2E()
+                    }
+                    .accessibilityIdentifier("e2eMusicBedAutoResumeButton")
+                    .accessibilityLabel("e2eMusicBedAutoResumeButton")
 
-                Button("E2E Reader Transition") {
-                    musicOwnership.simulateSentenceTransitionForE2E()
-                    audioCoordinator.simulateRequestedTransitionPauseForMusicBedE2E()
-                }
-                .accessibilityIdentifier("e2eReaderTransitionButton")
-                .accessibilityLabel("e2eReaderTransitionButton")
+                    Button("E2E Reader Transition") {
+                        musicOwnership.simulateSentenceTransitionForE2E()
+                        audioCoordinator.simulateRequestedTransitionPauseForMusicBedE2E()
+                    }
+                    .accessibilityIdentifier("e2eReaderTransitionButton")
+                    .accessibilityLabel("e2eReaderTransitionButton")
 
-                Button("E2E Reader Transition Resume") {
-                    audioCoordinator.simulateRequestedTransitionResumeForMusicBedE2E()
-                    musicOwnership.simulateSentenceTransitionForE2E(phase: "sentenceTransitionResume")
-                }
-                .accessibilityIdentifier("e2eReaderTransitionResumeButton")
-                .accessibilityLabel("e2eReaderTransitionResumeButton")
+                    Button("E2E Reader Transition Resume") {
+                        audioCoordinator.simulateRequestedTransitionResumeForMusicBedE2E()
+                        musicOwnership.simulateSentenceTransitionForE2E(phase: "sentenceTransitionResume")
+                    }
+                    .accessibilityIdentifier("e2eReaderTransitionResumeButton")
+                    .accessibilityLabel("e2eReaderTransitionResumeButton")
 
-                #if os(iOS)
-                Button("E2E Bubble Resume") {
-                    NotificationCenter.default.post(name: .e2eBubblePronunciationResume, object: nil)
+                    #if os(iOS)
+                    Button("E2E Bubble Resume") {
+                        NotificationCenter.default.post(name: .e2eBubblePronunciationResume, object: nil)
+                    }
+                    .accessibilityIdentifier("e2eBubblePronunciationResumeButton")
+                    .accessibilityLabel("e2eBubblePronunciationResumeButton")
+                    #endif
                 }
-                .accessibilityIdentifier("e2eBubblePronunciationResumeButton")
-                .accessibilityLabel("e2eBubblePronunciationResumeButton")
-                #endif
 
                 Text(statusText)
                     .font(.caption2.monospaced())
+                    .lineLimit(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
@@ -543,20 +547,16 @@ struct MusicBedSyncE2EControls: View {
             musicOwnership.simulateReadingBedPlayForE2E()
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 50.0) {
-            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
-            guard MusicBedSyncE2EState.interactiveStartCommandCount == 0 else { return }
-            guard musicOwnership.e2eMusicBedSyncPhase == "play" else { return }
-            MusicBedSyncE2EState.interactiveStartCommandCount += 1
-            onInteractiveStartCommand()
+            attemptInteractiveStartForE2EIfReady()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 70.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 104.0) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateObservedNonPlayingPauseForE2E()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 120.0) {
-            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
-            guard musicOwnership.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
-            musicOwnership.simulateReadingBedPlayForE2E()
+        for retryDelay in [62.0, 68.0, 72.0, 76.0, 88.0, 96.0, 100.0, 112.0, 132.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) {
+                attemptInteractiveStartForE2EIfReady()
+            }
         }
         #endif
         DispatchQueue.main.asyncAfter(deadline: .now() + 45.0) {
@@ -565,6 +565,35 @@ struct MusicBedSyncE2EControls: View {
                   !musicOwnership.isReaderTransportPauseGuardActive
             else { return }
             musicOwnership.simulateReadingBedPlayForE2E()
+        }
+    }
+
+    private func attemptInteractiveStartForE2EIfReady() {
+        guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
+        guard MusicBedSyncE2EState.interactiveStartCommandCount == 0 else { return }
+        guard musicOwnership.e2eMusicBedSyncPhase == "play" else { return }
+        MusicBedSyncE2EState.interactiveStartCommandCount += 1
+        onInteractiveStartCommand()
+        audioCoordinator.restoreVolume()
+        if audioCoordinator.isPlaybackRequested {
+            audioCoordinator.play()
+        }
+        #if os(tvOS)
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
+            guard musicOwnership.e2eObservedPauseProbeCount == 0 else { return }
+            musicOwnership.simulateObservedNonPlayingPauseForE2E()
+        }
+        #endif
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
+            guard MusicBedSyncE2EState.interactiveStartCommandCount > 0 else { return }
+            audioCoordinator.restoreVolume()
+            if audioCoordinator.isPlaybackRequested {
+                audioCoordinator.play()
+            }
         }
     }
 

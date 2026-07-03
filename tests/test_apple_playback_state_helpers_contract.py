@@ -904,6 +904,13 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     assert "audioCoordinator.nowPlayingPlayer == nil" in play_body
     assert "let chunk = selectedChunk" in play_body
     assert "prepareAudio(for: chunk, autoPlay: true)" in play_body
+    assert "isSequenceModeActive &&" in play_body
+    assert "sequenceController.isDwelling || sequenceController.isTransitioning" in play_body
+    assert "cancelPendingAudioReadySubscription()" in play_body
+    assert "sequenceController.cancelPendingAutomaticAdvanceForPause()" in play_body
+    assert play_body.index("sequenceController.cancelPendingAutomaticAdvanceForPause()") < play_body.index(
+        "audioCoordinator.clearAudioMix()"
+    )
     assert play_body.index("audioCoordinator.clearAudioMix()") < play_body.index("audioCoordinator.restoreVolume()")
     assert play_body.index("audioCoordinator.restoreVolume()") < play_body.index("audioCoordinator.play()")
     assert "audioCoordinator.play()" in play_body

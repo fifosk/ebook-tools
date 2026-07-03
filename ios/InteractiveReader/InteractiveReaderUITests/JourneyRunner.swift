@@ -667,8 +667,8 @@ final class JourneyRunner {
         let identifierQueries: [XCUIElementQuery] = [
             app.buttons.matching(identifier: identifier),
             app.popUpButtons.matching(identifier: identifier),
-            app.otherElements.matching(identifier: identifier),
             app.staticTexts.matching(identifier: identifier),
+            app.otherElements.matching(identifier: identifier),
             app.textFields.matching(identifier: identifier),
             app.secureTextFields.matching(identifier: identifier)
         ]

@@ -54,6 +54,11 @@ extension InteractivePlayerViewModel {
             prepareAudio(for: chunk, autoPlay: true)
             return
         }
+        if isSequenceModeActive &&
+            (sequenceController.isDwelling || sequenceController.isTransitioning) {
+            cancelPendingAudioReadySubscription()
+            sequenceController.cancelPendingAutomaticAdvanceForPause()
+        }
         let wasPlaybackRequested = audioCoordinator.isPlaybackRequested
         audioCoordinator.clearAudioMix()
         audioCoordinator.restoreVolume()

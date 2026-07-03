@@ -261,8 +261,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_reinforce_body
     assert "viewModel.pauseForReaderTransport()" in job_reinforce_body
     assert "confirmReaderTransportPauseAfterCommand(source: command)" in job_reinforce_body
-    assert job_reinforce_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < job_reinforce_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert job_reinforce_body.index("viewModel.pauseForReaderTransport()") < job_reinforce_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
     assert "publishReaderNowPlayingSnapshot(force: true)" in job_reinforce_body
     assert "localReaderTransportPauseHoldUntil = 0" in job_now_playing
@@ -579,8 +579,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "invalidateReaderTransportResumeTasks()" in job_perform_pause_body
     assert "viewModel.pauseForReaderTransport()" in job_perform_pause_body
     assert 'confirmReaderTransportPauseAfterCommand(source: "pauseCommand")' in job_perform_pause_body
-    assert job_perform_pause_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < job_perform_pause_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert job_perform_pause_body.index("viewModel.pauseForReaderTransport()") < job_perform_pause_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
     assert job_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") == 1
     assert job_perform_pause_body.index(
@@ -592,12 +592,17 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "[60_000_000, 180_000_000, 420_000_000]" in job_confirm_pause_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in job_confirm_pause_body
     assert 'guard lastReaderTransportAction == "pause" else { return }' in job_confirm_pause_body
-    assert "viewModel.audioCoordinator.isPlaybackRequested ||" in job_confirm_pause_body
+    assert "let readerStillActive = viewModel.audioCoordinator.isPlaybackRequested ||" in job_confirm_pause_body
     assert "viewModel.audioCoordinator.isPlaying" in job_confirm_pause_body
+    assert "let musicStillActive = musicOwnership.ownershipState == .appleMusicBed" in job_confirm_pause_body
+    assert "musicOwnership.isSystemPlaybackPlaying" in job_confirm_pause_body
+    assert "guard readerStillActive || musicStillActive else" in job_confirm_pause_body
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_confirm_pause_body
     assert "viewModel.pauseForReaderTransport()" in job_confirm_pause_body
-    assert job_confirm_pause_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < job_confirm_pause_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert "if readerStillActive" in job_confirm_pause_body
+    assert "if musicStillActive" in job_confirm_pause_body
+    assert job_confirm_pause_body.index("if readerStillActive") < job_confirm_pause_body.index(
+        "if musicStillActive"
     )
     assert "publishReaderNowPlayingSnapshot(force: true)" in job_confirm_pause_body
     assert "Job confirming reader pause source=" in job_confirm_pause_body
@@ -803,8 +808,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_reinforce_body
     assert "viewModel.pauseForReaderTransport()" in library_reinforce_body
     assert "confirmReaderTransportPauseAfterCommand(source: command)" in library_reinforce_body
-    assert library_reinforce_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < library_reinforce_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert library_reinforce_body.index("viewModel.pauseForReaderTransport()") < library_reinforce_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_reinforce_body
     assert "localReaderTransportPauseHoldUntil = 0" in library_now_playing
@@ -952,8 +957,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "invalidateReaderTransportResumeTasks()" in library_perform_pause_body
     assert "viewModel.pauseForReaderTransport()" in library_perform_pause_body
     assert 'confirmReaderTransportPauseAfterCommand(source: "pauseCommand")' in library_perform_pause_body
-    assert library_perform_pause_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < library_perform_pause_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert library_perform_pause_body.index("viewModel.pauseForReaderTransport()") < library_perform_pause_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
     assert library_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") == 1
     assert library_perform_pause_body.index(
@@ -965,12 +970,17 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "[60_000_000, 180_000_000, 420_000_000]" in library_confirm_pause_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in library_confirm_pause_body
     assert 'guard lastReaderTransportAction == "pause" else { return }' in library_confirm_pause_body
-    assert "viewModel.audioCoordinator.isPlaybackRequested ||" in library_confirm_pause_body
+    assert "let readerStillActive = viewModel.audioCoordinator.isPlaybackRequested ||" in library_confirm_pause_body
     assert "viewModel.audioCoordinator.isPlaying" in library_confirm_pause_body
+    assert "let musicStillActive = musicOwnership.ownershipState == .appleMusicBed" in library_confirm_pause_body
+    assert "musicOwnership.isSystemPlaybackPlaying" in library_confirm_pause_body
+    assert "guard readerStillActive || musicStillActive else" in library_confirm_pause_body
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_confirm_pause_body
     assert "viewModel.pauseForReaderTransport()" in library_confirm_pause_body
-    assert library_confirm_pause_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < library_confirm_pause_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert "if readerStillActive" in library_confirm_pause_body
+    assert "if musicStillActive" in library_confirm_pause_body
+    assert library_confirm_pause_body.index("if readerStillActive") < library_confirm_pause_body.index(
+        "if musicStillActive"
     )
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_confirm_pause_body
     assert "Library confirming reader pause source=" in library_confirm_pause_body
@@ -1384,7 +1394,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "#if os(tvOS)" in observed_pause_e2e_body
     assert "hasAutoResumeIntent = false" in observed_pause_e2e_body
     assert "observedPlayingAsReadingBed = false" in observed_pause_e2e_body
-    assert "16_000_000_000" in observed_pause_e2e_body
+    assert "24_000_000_000" in observed_pause_e2e_body
     assert "#else" in observed_pause_e2e_body
     assert "hasAutoResumeIntent = true" in observed_pause_e2e_body
     assert "observedPlayingAsReadingBed = true" in observed_pause_e2e_body
@@ -2095,16 +2105,26 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "let initialPauseDelay: TimeInterval = 18.0" in chrome
     assert "let initialPauseDelay: TimeInterval = 8.0" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 36.0)" in chrome
-    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 70.0)" in chrome
-    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 120.0)" in chrome
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 104.0)" in chrome
+    assert "for retryDelay in [62.0, 68.0, 72.0, 76.0, 88.0, 96.0, 100.0, 112.0, 132.0]" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in chrome
+    assert "private func attemptInteractiveStartForE2EIfReady()" in chrome
     auto_sequence_body = _function_body(chrome, "private func runAutoSequenceIfNeeded() async")
-    assert auto_sequence_body.count("guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }") >= 5
-    late_tvos_resume_body = auto_sequence_body.split(
-        "DispatchQueue.main.asyncAfter(deadline: .now() + 120.0)",
-        1,
-    )[1].split("#endif", 1)[0]
-    assert 'guard musicOwnership.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }' in late_tvos_resume_body
+    assert auto_sequence_body.count("guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }") >= 4
+    attempt_interactive_body = _function_body(chrome, "private func attemptInteractiveStartForE2EIfReady()")
+    assert "guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }" in attempt_interactive_body
+    assert "guard MusicBedSyncE2EState.interactiveStartCommandCount == 0 else { return }" in attempt_interactive_body
+    assert 'guard musicOwnership.e2eMusicBedSyncPhase == "play" else { return }' in attempt_interactive_body
+    assert "MusicBedSyncE2EState.interactiveStartCommandCount += 1" in attempt_interactive_body
+    assert "onInteractiveStartCommand()" in attempt_interactive_body
+    assert "audioCoordinator.restoreVolume()" in attempt_interactive_body
+    assert "if audioCoordinator.isPlaybackRequested" in attempt_interactive_body
+    assert "audioCoordinator.play()" in attempt_interactive_body
+    assert "Task { @MainActor in" in attempt_interactive_body
+    assert "Task.sleep(nanoseconds: 8_000_000_000)" in attempt_interactive_body
+    assert "musicOwnership.e2eObservedPauseProbeCount == 0" in attempt_interactive_body
+    assert "musicOwnership.simulateObservedNonPlayingPauseForE2E()" in attempt_interactive_body
+    assert "Task.sleep(nanoseconds: 700_000_000)" in attempt_interactive_body
     late_resume_body = auto_sequence_body.split("DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)", 1)[1].split(
         "}\n    }",
         1,

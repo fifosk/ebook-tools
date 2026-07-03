@@ -262,15 +262,9 @@ extension JobPlaybackView {
             "Job reader transport \(command, privacy: .public) rejected play reinforced pause requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying, privacy: .public)"
         )
         invalidateReaderTransportResumeTasks()
-        #if os(tvOS)
-        pauseAppleMusicBedFromReaderTransportIfNeeded()
         viewModel.pauseForReaderTransport()
-        confirmReaderTransportPauseAfterCommand(source: command)
-        #else
-        viewModel.pauseForReaderTransport()
-        confirmReaderTransportPauseAfterCommand(source: command)
         pauseAppleMusicBedFromReaderTransportIfNeeded()
-        #endif
+        confirmReaderTransportPauseAfterCommand(source: command)
         publishReaderNowPlayingSnapshot(force: true)
     }
 
@@ -434,15 +428,9 @@ extension JobPlaybackView {
         )
         invalidateReaderTransportResumeTasks()
         localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
-        #if os(tvOS)
-        pauseAppleMusicBedFromReaderTransportIfNeeded()
         viewModel.pauseForReaderTransport()
-        confirmReaderTransportPauseAfterCommand(source: "pauseCommand")
-        #else
-        viewModel.pauseForReaderTransport()
-        confirmReaderTransportPauseAfterCommand(source: "pauseCommand")
         pauseAppleMusicBedFromReaderTransportIfNeeded()
-        #endif
+        confirmReaderTransportPauseAfterCommand(source: "pauseCommand")
         publishReaderNowPlayingSnapshot(force: true)
     }
 
@@ -453,17 +441,19 @@ extension JobPlaybackView {
                 try? await Task.sleep(nanoseconds: delay)
                 guard readerTransportResumeGeneration == scheduledGeneration else { return }
                 guard lastReaderTransportAction == "pause" else { return }
-                guard viewModel.audioCoordinator.isPlaybackRequested ||
+                let readerStillActive = viewModel.audioCoordinator.isPlaybackRequested ||
                     viewModel.audioCoordinator.isPlaying
-                else {
+                let musicStillActive = musicOwnership.ownershipState == .appleMusicBed &&
+                    (musicOwnership.isPlaying || musicOwnership.isSystemPlaybackPlaying)
+                guard readerStillActive || musicStillActive else {
                     #if DEBUG
                     e2eReaderPauseConfirmationCount += 1
                     #endif
                     playbackTransportDebugLog(
-                        "[PlaybackTransport] Job confirmed reader pause source=\(source) requested=false playing=false musicPlaying=\(musicOwnership.isPlaying)"
+                        "[PlaybackTransport] Job confirmed reader pause source=\(source) requested=false playing=false musicPlaying=\(musicOwnership.isPlaying) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying)"
                     )
                     playbackLogger.info(
-                        "Job reader transport confirmed pause source=\(source, privacy: .public) requested=false playing=false musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+                        "Job reader transport confirmed pause source=\(source, privacy: .public) requested=false playing=false musicPlaying=\(musicOwnership.isPlaying, privacy: .public) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying, privacy: .public)"
                     )
                     publishReaderNowPlayingSnapshot(force: true)
                     return
@@ -474,10 +464,12 @@ extension JobPlaybackView {
                 playbackLogger.info(
                     "Job reader transport confirming pause source=\(source, privacy: .public) requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
                 )
-                #if os(tvOS)
-                pauseAppleMusicBedFromReaderTransportIfNeeded()
-                #endif
-                viewModel.pauseForReaderTransport()
+                if readerStillActive {
+                    viewModel.pauseForReaderTransport()
+                }
+                if musicStillActive {
+                    pauseAppleMusicBedFromReaderTransportIfNeeded()
+                }
                 publishReaderNowPlayingSnapshot(force: true)
             }
         }

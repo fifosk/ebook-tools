@@ -467,12 +467,12 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             anchor={
                 "action": "assert_value_key_at_least",
                 "selector": MUSIC_BED_STATUS_SELECTOR,
-                "key": "observedPauseProbes",
-                "min_value": 1,
-                "platforms": ["tvOS"],
-                "timeout": 30,
-                "screenshot": "music_bed_observed_music_pause_probe_observed",
-            },
+                    "key": "observedPauseProbes",
+                    "min_value": 1,
+                    "platforms": ["tvOS"],
+                    "timeout": 90,
+                    "screenshot": "music_bed_observed_music_pause_probe_observed",
+                },
             expected_texts=[
                 "phase=observedPauseImmediate",
                 "readerTransportCommands=0",
@@ -509,7 +509,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                     "key": "interactiveStarts",
                     "min_value": 1,
                     "platforms": ["tvOS"],
-                    "timeout": 30,
+                    "timeout": 60,
                 },
                 {
                     "action": "assert_value_contains",

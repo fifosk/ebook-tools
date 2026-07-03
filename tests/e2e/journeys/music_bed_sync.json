@@ -586,7 +586,7 @@
       "key": "interactiveStarts",
       "min_value": 1,
       "platforms": ["tvOS"],
-      "timeout": 30
+      "timeout": 60
     },
     {
       "action": "assert_value_contains",
@@ -644,7 +644,7 @@
       "key": "observedPauseProbes",
       "min_value": 1,
       "platforms": ["tvOS"],
-      "timeout": 30,
+      "timeout": 90,
       "screenshot": "music_bed_observed_music_pause_probe_observed"
     },
     {

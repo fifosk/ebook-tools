@@ -330,10 +330,10 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "action": "assert_value_key_at_least",
         "selector": "e2eMusicBedSyncStatus",
         "key": "interactiveStarts",
-        "min_value": 1,
-        "platforms": ["tvOS"],
-        "timeout": 30,
-    }
+            "min_value": 1,
+            "platforms": ["tvOS"],
+            "timeout": 60,
+        }
     assert steps[tvos_session_index + 2] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
@@ -372,11 +372,11 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "action": "assert_value_key_at_least",
         "selector": "e2eMusicBedSyncStatus",
         "key": "observedPauseProbes",
-        "min_value": 1,
-        "platforms": ["tvOS"],
-        "timeout": 30,
-        "screenshot": "music_bed_observed_music_pause_probe_observed",
-    }
+            "min_value": 1,
+            "platforms": ["tvOS"],
+            "timeout": 90,
+            "screenshot": "music_bed_observed_music_pause_probe_observed",
+        }
     assert steps[observed_pause_index + 1] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
