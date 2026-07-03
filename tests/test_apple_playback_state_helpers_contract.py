@@ -1249,6 +1249,14 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
     assert "CMTime(seconds: pinTime" in dwell_body
     assert "currentTime = pinTime" in dwell_body
     assert "boundaryTime" not in dwell_body
+    handoff_body = _function_body(coordinator, "func prepareForSequenceHandoff()")
+    assert "setVolume(0)" in handoff_body
+    assert "clearAudioMix()" in handoff_body
+    assert "removeBoundaryObserver()" in handoff_body
+    sequence_body = _source("InteractivePlayerViewModel+Sequence.swift")
+    load_track_body = _function_body(sequence_body, "func loadSequenceTrack(_ track: SequenceTrack, autoPlay: Bool, seekTime: Double? = nil) -> Double?")
+    assert "audioCoordinator.prepareForSequenceHandoff()" in load_track_body
+    assert "audioCoordinator.setVolume(0)" not in load_track_body
 
 
 def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:

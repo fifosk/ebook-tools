@@ -338,11 +338,10 @@ extension InteractivePlayerViewModel {
             return nil
         }
 
-        // Mute BEFORE loading to prevent audio bleed from the old track
-        // NOTE: We don't call pause() here because it sets isPlaybackRequested = false,
-        // which would cause the reading bed to stop during track switches.
-        // The load() call will tear down the old player anyway.
-        audioCoordinator.setVolume(0)
+        // Mute and clear stale boundary/mix state BEFORE loading to prevent
+        // old item tails from leaking through while the next track settles.
+        // This preserves isPlaybackRequested, so the reading bed stays stable.
+        audioCoordinator.prepareForSequenceHandoff()
 
         if Self.sequenceDebug {
             interactiveSequenceLogger.debug(

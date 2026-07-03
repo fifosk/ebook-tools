@@ -311,6 +311,15 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         setVolume(targetVolume)
     }
 
+    /// Silence the active item before sequence handoffs tear down, seek, or load.
+    /// Keeping this separate from pause() preserves playback intent for Music-bed
+    /// coordination while preventing stale item tails from leaking through.
+    func prepareForSequenceHandoff() {
+        setVolume(0)
+        clearAudioMix()
+        removeBoundaryObserver()
+    }
+
     func setLooping(_ loop: Bool) {
         shouldLoop = loop
     }

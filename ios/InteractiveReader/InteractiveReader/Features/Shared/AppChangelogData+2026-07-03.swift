@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-reader-audio-state-autoplay-guard",
+            title: "Reader retries avoid loops",
+            detail: "Apple Job and Library playback no longer let rapid audio-state callbacks start pending interactive autoplay recovery, leaving recovery to explicit retry and watchdog paths while Music-bed pauses settle."
+        ),
+        AppChangelogEntry(
+            id: "sequence-handoff-clears-stale-audio",
+            title: "Track switches stay silent",
+            detail: "Interactive reader sequence track switches now silence playback, clear stale fades, and remove stale boundary observers before loading the next Original or Translation item, reducing out-of-order audio tails during handoff."
+        ),
+        AppChangelogEntry(
             id: "tvos-sequence-handoff-wider-guard",
             title: "TV handoffs avoid audio slivers",
             detail: "Apple TV sequence playback now restores a wider fade and same-track trim safety margin, and ignores persistent-stall recovery during intentional handoff dwell so the next sentence cannot leak before the Translation track switch."

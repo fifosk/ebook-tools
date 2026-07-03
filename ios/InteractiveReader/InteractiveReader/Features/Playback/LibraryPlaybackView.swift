@@ -222,20 +222,15 @@ struct LibraryPlaybackView: View {
             #endif
             pendingInteractiveAutoplayID = nil
             pendingInteractiveAutoplaySentence = nil
-            pendingInteractiveAutoplayRecoverySentence = nil
-            pendingInteractiveAutoplayRecoveryAttempts = 0
+            resetPendingInteractiveAutoplayRecovery()
         } else if pendingInteractiveAutoplaySentence == nil, viewModel.audioCoordinator.isPlaying {
             pendingInteractiveAutoplayID = nil
-            pendingInteractiveAutoplayRecoverySentence = nil
-            pendingInteractiveAutoplayRecoveryAttempts = 0
+            resetPendingInteractiveAutoplayRecovery()
         }
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         refreshReaderNarrationActivityForMusicBed(reason: "libraryAudioState")
         clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "libraryAudioState")
-        #if !os(tvOS)
-        recoverPendingInteractiveAutoplayIfNeeded(reason: "libraryAudioState")
-        #endif
         recoverMutedAppleMusicBedNarrationIfNeeded(reason: "libraryAudioState")
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()
@@ -273,9 +268,7 @@ struct LibraryPlaybackView: View {
 
     private func recoverPendingInteractiveAutoplayIfNeeded(reason: String) {
         guard !isVideoPreferred else { return }
-        #if os(tvOS)
         guard reason != "libraryAudioState" else { return }
-        #endif
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard !clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason) else { return }
         guard let pendingSentence = pendingInteractiveAutoplaySentence else { return }
@@ -305,8 +298,7 @@ struct LibraryPlaybackView: View {
             _ = clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "\(reason)RecoveryExhausted")
             pendingInteractiveAutoplayID = nil
             pendingInteractiveAutoplaySentence = nil
-            pendingInteractiveAutoplayRecoverySentence = nil
-            pendingInteractiveAutoplayRecoveryAttempts = 0
+            resetPendingInteractiveAutoplayRecovery()
             return
         }
         pendingInteractiveAutoplayRecoveryAttempts += 1
@@ -342,9 +334,14 @@ struct LibraryPlaybackView: View {
         pendingInteractiveAutoplayID = nil
         pendingInteractiveAutoplaySentence = nil
         lastPendingInteractiveAutoplayRecoveryTime = 0
+        resetPendingInteractiveAutoplayRecovery()
+        return true
+    }
+
+    private func resetPendingInteractiveAutoplayRecovery() {
         pendingInteractiveAutoplayRecoverySentence = nil
         pendingInteractiveAutoplayRecoveryAttempts = 0
-        return true
+        lastPendingInteractiveAutoplayRecoveryTime = 0
     }
 
     private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String) {

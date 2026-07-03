@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple Job and Library playback no longer let audio-state callbacks start pending interactive autoplay recovery, leaving recovery to explicit retry/watchdog paths and preventing TV sessions from looping one sentence while the Music bed pause settles.
+- Apple sequence track switches now silence, clear stale fades, and remove stale boundary observers before loading the next Original/Translation item, reducing out-of-order audio tails during handoff.
 - Apple TV sequence playback now restores a wider fade/trim safety margin and ignores persistent-stall recovery during intentional handoff dwell, reducing the next-sentence sliver before Translation while avoiding forced-advance loops.
 - Apple TV Job and Library playback now cap pending interactive autoplay recovery retries for the same sentence, so a stuck resume cannot keep re-jumping the reader while the Apple Music bed pause is settling.
 - Backend Download Station status parsing, completed-file normalization, task messages, and value coercion now live in a focused acquisition helper, keeping downloader polling behavior shared by Web and Apple Create easier to test.
