@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple TV reader playback now ignores non-manual Apple Music pause observations whenever sentence audio is requested but the AVPlayer is not playing yet, preventing startup Music-bed state from stopping the first sentence.
+- Apple Narrate EPUB and YouTube Dub discovery pickers now preserve the backend acquisition-provider response order after provider inventory loads, matching Web and the shared provider catalog while keeping built-in fallback order for offline/no-inventory states.
 - Apple sequence playback now has executable Swift coverage proving cross-track handoffs hard-stop at the early boundary while same-track handoffs keep their natural segment end, protecting the TV next-sentence leak fix from future tuning regressions.
 - Apple Original/Translation sequence handoffs now apply the AVPlayer hard-stop guard at the early handoff boundary for cross-track switches, so a late boundary callback cannot leak a cut-short piece of the next sentence before Translation starts.
 - Web Narrate Ebook and Video Dubbing discovery pickers now preserve the loaded backend acquisition-provider response order instead of applying separate client-side ranks, keeping Web source lists aligned with Apple and the backend catalog.

@@ -3575,6 +3575,14 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'if normalizedMediaKind == "video", isDefaultVideoDiscoveryProviderID(normalizedProvider)' in discovery_source
     assert "return nil" in discovery_source
     assert "return normalizedProvider" in discovery_source
+    book_options_body = _swift_function_body(
+        discovery_source,
+        "static func bookDiscoveryProviderOptions(",
+    )
+    assert ".filter(isBookDiscoveryProvider)" in book_options_body
+    assert ".map {" in book_options_body
+    assert ".sorted" not in book_options_body
+    assert "bookDiscoveryProviderRank" not in discovery_source
     assert "private static let defaultBookDiscoveryProvider = AppleBookCreateDiscoveryProviderOption(" in discovery_source
     assert 'AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true)' in discovery_source
     assert 'AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg", available: true)' in discovery_source
@@ -3644,7 +3652,6 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'provider.mediaKinds.contains("book")' not in discovery_source
     assert "if let discoveryMediaKinds = provider.discoveryMediaKinds" not in discovery_source
     assert "bookDiscoveryCapabilities.contains($0)" not in discovery_source
-    assert "private static func bookDiscoveryProviderRank(" in discovery_source
     assert "private static func bookDiscoveryProviderLabel(" in discovery_source
     assert "private func discoveryProviderRank(" not in controls_source
     assert "private func discoveryProviderLabel(" not in controls_source
@@ -3931,6 +3938,14 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true)' in video_discovery_source
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)' in video_discovery_source
     assert 'label: "Default sources"' in video_discovery_source
+    video_options_body = _swift_function_body(
+        video_discovery_source,
+        "static func videoDiscoveryProviderOptions(",
+    )
+    assert ".filter(isVideoDiscoveryProvider)" in video_options_body
+    assert ".map {" in video_options_body
+    assert ".sorted" not in video_options_body
+    assert "videoDiscoveryProviderRank" not in video_discovery_source
     assert "ForEach(videoDiscoveryProviderOptions)" in youtube_discovery_source
     assert "AppleBookCreatePresentation.videoDiscoveryProviderOptions(" in youtube_source
     assert "from: acquisitionProviders" in youtube_source
@@ -3968,7 +3983,6 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'return provider.discoveryMediaKinds.contains("video")' in video_discovery_source
     assert "if let discoveryMediaKinds = provider.discoveryMediaKinds" not in video_discovery_source
     assert "videoDiscoveryCapabilities.contains($0)" not in video_discovery_source
-    assert "private static func videoDiscoveryProviderRank(" in video_discovery_source
     assert "private static func videoDiscoveryProviderLabel(" in video_discovery_source
     assert "static func videoDiscoveryProviderFallbackLabel(for providerID: String)" in video_discovery_source
     assert "private func videoDiscoveryProviderRank(" not in youtube_source

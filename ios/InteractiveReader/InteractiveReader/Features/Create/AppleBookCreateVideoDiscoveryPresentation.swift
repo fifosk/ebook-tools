@@ -55,23 +55,13 @@ extension AppleBookCreatePresentation {
         guard !providers.isEmpty else {
             return fallbackVideoDiscoveryProviders
         }
-        let providerOptions = providers
-            .sorted { left, right in
-                let leftRank = videoDiscoveryProviderRank(left.id)
-                let rightRank = videoDiscoveryProviderRank(right.id)
-                if leftRank != rightRank {
-                    return leftRank < rightRank
-                }
-                return videoDiscoveryProviderLabel(left)
-                    .localizedCaseInsensitiveCompare(videoDiscoveryProviderLabel(right)) == .orderedAscending
-            }
-            .map {
-                AppleBookCreateVideoDiscoveryProviderOption(
-                    id: $0.id,
-                    label: videoDiscoveryProviderLabel($0),
-                    available: $0.available
-                )
-            }
+        let providerOptions = providers.map {
+            AppleBookCreateVideoDiscoveryProviderOption(
+                id: $0.id,
+                label: videoDiscoveryProviderLabel($0),
+                available: $0.available
+            )
+        }
         guard let defaultOption = defaultVideoDiscoveryProviderOption(
             options: providerOptions,
             defaultProviderIds: defaultProviderIds,
@@ -380,13 +370,6 @@ extension AppleBookCreatePresentation {
 
     private static func isVideoDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
         return provider.discoveryMediaKinds.contains("video")
-    }
-
-    private static func videoDiscoveryProviderRank(_ id: String) -> Int {
-        if isDefaultVideoDiscoveryProviderID(id) {
-            return -1
-        }
-        return fallbackVideoDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
     }
 
     private static func videoDiscoveryProviderLabel(_ provider: AcquisitionProviderEntry) -> String {

@@ -60,23 +60,13 @@ extension AppleBookCreatePresentation {
         guard !providers.isEmpty else {
             return fallbackBookDiscoveryProviders
         }
-        let providerOptions = providers
-            .sorted { left, right in
-                let leftRank = bookDiscoveryProviderRank(left.id)
-                let rightRank = bookDiscoveryProviderRank(right.id)
-                if leftRank != rightRank {
-                    return leftRank < rightRank
-                }
-                return bookDiscoveryProviderLabel(left)
-                    .localizedCaseInsensitiveCompare(bookDiscoveryProviderLabel(right)) == .orderedAscending
-            }
-            .map {
-                AppleBookCreateDiscoveryProviderOption(
-                    id: $0.id,
-                    label: bookDiscoveryProviderLabel($0),
-                    available: $0.available
-                )
-            }
+        let providerOptions = providers.map {
+            AppleBookCreateDiscoveryProviderOption(
+                id: $0.id,
+                label: bookDiscoveryProviderLabel($0),
+                available: $0.available
+            )
+        }
         guard let defaultOption = defaultBookDiscoveryProviderOption(
             options: providerOptions,
             defaultProviderIds: defaultProviderIds,
@@ -380,13 +370,6 @@ extension AppleBookCreatePresentation {
 
     private static func isBookDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
         return provider.discoveryMediaKinds.contains("book")
-    }
-
-    private static func bookDiscoveryProviderRank(_ id: String) -> Int {
-        if isDefaultBookDiscoveryProviderID(id) {
-            return -1
-        }
-        return fallbackBookDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
     }
 
     private static func bookDiscoveryProviderLabel(_ provider: AcquisitionProviderEntry) -> String {

@@ -692,10 +692,10 @@ struct AppleCreationPayloadCheck {
         ]
         require(
             AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: discoveryProviders).map(\.id) == [
-                "manual_downloads",
                 "openlibrary",
+                "manual_downloads",
             ],
-            "Apple book discovery provider options should keep Web-aligned ordering and filter non-discoverable providers"
+            "Apple book discovery provider options should keep backend response ordering and filter non-discoverable providers"
         )
         require(
             AppleBookCreatePresentation.bookDiscoveryProviderOptions(
@@ -703,18 +703,18 @@ struct AppleCreationPayloadCheck {
                 defaultProviderIds: ["book": ["manual_downloads", "openlibrary"]]
             ).map(\.id) == [
                 AppleBookCreatePresentation.defaultBookDiscoveryProviderID,
-                "manual_downloads",
                 "openlibrary",
+                "manual_downloads",
             ],
             "Apple book discovery provider options should expose backend default sources when multiple defaults are available"
         )
         require(
             AppleBookCreatePresentation.videoDiscoveryProviderOptions(from: discoveryProviders).map(\.id) == [
+                "newznab_torznab",
                 "manual_downloads",
                 "youtube_search",
-                "newznab_torznab",
             ],
-            "Apple video discovery provider options should keep Web-aligned ordering and filter handoff-only providers"
+            "Apple video discovery provider options should keep backend response ordering and filter handoff-only providers"
         )
         require(
             AppleBookCreatePresentation.defaultDiscoveryProviderID(

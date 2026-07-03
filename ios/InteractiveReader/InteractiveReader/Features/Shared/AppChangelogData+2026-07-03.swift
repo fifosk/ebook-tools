@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-startup-music-pause-active-guard",
+            title: "TV startup keeps playback alive",
+            detail: "Apple TV reader playback now ignores non-manual Apple Music pause observations whenever sentence audio is requested but the AVPlayer is not playing yet, preventing startup Music-bed state from stopping the first sentence."
+        ),
+        AppChangelogEntry(
+            id: "apple-create-discovery-provider-order",
+            title: "Apple Create follows source order",
+            detail: "Apple Narrate EPUB and YouTube Dub discovery pickers now preserve the backend acquisition-provider response order after provider inventory loads, matching Web and the shared provider catalog while keeping built-in fallback order for offline/no-inventory states."
+        ),
+        AppChangelogEntry(
             id: "tvos-preaudible-music-pause-guard",
             title: "TV resume waits for narration",
             detail: "Apple TV reader playback now ignores non-manual Apple Music pause observations while sentence audio is requested but not yet audible, even after a prior pause action, preventing the bed state from stopping a resume before narration starts."

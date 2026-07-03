@@ -461,10 +461,10 @@ struct JobPlaybackView: View {
         #if os(tvOS)
         if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible {
             playbackTransportDebugLog(
-                "[PlaybackTransport] Job ignored Apple Music pause before narration audible requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+                "[PlaybackTransport] Job ignored Apple Music pause before narration active requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) audible=\(viewModel.isNarrationAudibleForReaderTransport) musicPlaying=\(musicOwnership.isPlaying)"
             )
             playbackLogger.info(
-                "Job playback ignored Apple Music pause before narration audible requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+                "Job playback ignored Apple Music pause before narration active requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) audible=\(viewModel.isNarrationAudibleForReaderTransport, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
             )
             resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)
             publishReaderNowPlayingSnapshot(force: true)
@@ -491,10 +491,10 @@ struct JobPlaybackView: View {
         #if os(tvOS)
         if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible {
             playbackTransportDebugLog(
-                "[PlaybackTransport] Job ignored adopted Apple Music pause before narration audible source=\(source ?? "unknown") requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+                "[PlaybackTransport] Job ignored adopted Apple Music pause before narration active source=\(source ?? "unknown") requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) audible=\(viewModel.isNarrationAudibleForReaderTransport) musicPlaying=\(musicOwnership.isPlaying)"
             )
             playbackLogger.info(
-                "Job playback ignored adopted Apple Music pause before narration audible source=\(source ?? "unknown", privacy: .public) requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+                "Job playback ignored adopted Apple Music pause before narration active source=\(source ?? "unknown", privacy: .public) requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) audible=\(viewModel.isNarrationAudibleForReaderTransport, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
             )
             resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)
             return
@@ -680,8 +680,7 @@ struct JobPlaybackView: View {
         musicOwnership.ownershipState == .appleMusicBed &&
             !musicOwnership.isManuallyPaused &&
             viewModel.audioCoordinator.isPlaybackRequested &&
-            !viewModel.audioCoordinator.isPlaying &&
-            !viewModel.isNarrationAudibleForReaderTransport
+            !viewModel.audioCoordinator.isPlaying
     }
     #endif
 
