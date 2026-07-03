@@ -16,6 +16,12 @@ import requests
 from modules.services.source_discovery import safe_stat
 from modules.services.youtube_dubbing import list_downloaded_videos
 
+from .artifact_metadata import (
+    normalized_token_id as _normalized_token_id,
+    prepare_artifact_metadata,
+    source_kind,
+)
+from .discovery_values import int_value as _int_value, string_value as _string_value
 from .provider_roots import (
     resolve_books_root,
     resolve_manual_download_roots,
@@ -177,11 +183,11 @@ def prepare_acquisition_artifact(
         return AcquisitionPreparedArtifact(
             provider=provider,
             media_kind="book",
-            source_kind=_source_kind(provider, payload),
+            source_kind=source_kind(provider, payload),
             local_path=local_path,
             input_file=local_path,
             next_actions=("create_book_job", "load_content_index"),
-            metadata=_prepare_metadata(provider, "book", payload, local_path),
+            metadata=prepare_artifact_metadata(provider, "book", payload, local_path),
         )
     local_path = _resolve_video_artifact_path(provider, path_value, config)
     subtitles = _video_subtitle_hints(local_path, provider, config)
@@ -189,13 +195,13 @@ def prepare_acquisition_artifact(
     return AcquisitionPreparedArtifact(
         provider=provider,
         media_kind="video",
-        source_kind=_source_kind(provider, payload),
+        source_kind=source_kind(provider, payload),
         local_path=local_path,
         video_path=local_path,
         subtitle_path=preferred_subtitle,
         subtitles=subtitles,
         next_actions=("extract_subtitles", "create_dub_job"),
-        metadata=_prepare_metadata(provider, "video", payload, local_path),
+        metadata=prepare_artifact_metadata(provider, "video", payload, local_path),
     )
 
 
@@ -341,70 +347,6 @@ def _video_subtitle_hints(
                 for subtitle in video.subtitles
             )
     return ()
-
-
-def _source_kind(provider: str, payload: Mapping[str, Any]) -> str:
-    return _normalized_token_id(payload.get("source_kind")) or provider
-
-
-def _prepare_metadata(
-    provider: str,
-    media_kind: str,
-    payload: Mapping[str, Any],
-    local_path: str,
-) -> Mapping[str, Any]:
-    source_provider = _normalized_token_id(payload.get("source_provider")) or provider
-    acquisition_provider = _normalized_token_id(payload.get("acquisition_provider")) or provider
-    metadata: dict[str, Any] = {
-        "source_kind": _source_kind(provider, payload),
-        "source_path": local_path,
-        "source_provider": source_provider,
-        "acquisition_provider": acquisition_provider,
-    }
-    candidate_id = _prepared_candidate_id(provider, media_kind, payload)
-    if candidate_id:
-        metadata["acquisition_candidate_id"] = candidate_id
-    for key in (
-        "gutenberg_id",
-        "identifier",
-        "source_url",
-        "openlibrary_work_key",
-        "openlibrary_book_key",
-    ):
-        value = payload.get(key)
-        if value not in (None, ""):
-            metadata[key] = value
-    return metadata
-
-
-def _prepared_candidate_id(
-    provider: str,
-    media_kind: str,
-    payload: Mapping[str, Any],
-) -> str | None:
-    explicit = _string_value(payload.get("candidate_id"))
-    if explicit:
-        return explicit
-    path = _string_value(payload.get("path"))
-    if provider == "local_epub" and path:
-        return f"local_epub:{path}"
-    if provider == "nas_video" and path:
-        return f"nas_video:{path}"
-    if provider == "manual_downloads" and path:
-        return f"manual_downloads:{media_kind}:{path}"
-    gutenberg_id = _int_value(payload.get("gutenberg_id"))
-    if provider == "gutenberg" and gutenberg_id is not None:
-        return f"gutenberg:{gutenberg_id}"
-    identifier = _string_value(payload.get("identifier"))
-    if provider == "internet_archive" and identifier:
-        return f"internet_archive:{identifier}"
-    video_id = _string_value(payload.get("video_id"))
-    if provider in {"youtube_search", "youtube_url"} and video_id:
-        return f"{provider}:{video_id}"
-    guid = _string_value(payload.get("guid"))
-    if provider == "newznab_torznab" and guid:
-        return f"newznab_torznab:{guid}"
-    return None
 
 
 def _validate_gutenberg_epub_url(url: str) -> None:
@@ -562,28 +504,3 @@ def _relative_path(path: Path, root: Path) -> str:
         return path.relative_to(root).as_posix()
     except ValueError:
         return path.as_posix()
-
-
-def _int_value(value: Any) -> int | None:
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        try:
-            return int(value)
-        except ValueError:
-            return None
-    return None
-
-
-def _string_value(value: Any) -> str | None:
-    if not isinstance(value, str):
-        return None
-    stripped = value.strip()
-    return stripped or None
-
-
-def _normalized_token_id(value: Any) -> str | None:
-    raw = _string_value(value)
-    return raw.casefold() if raw else None

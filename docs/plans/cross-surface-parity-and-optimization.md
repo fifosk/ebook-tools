@@ -1480,6 +1480,11 @@ Optimization candidates:
   Public-catalog acquisition artifact tokens now carry token-safe Gutenberg or
   Internet Archive provenance into the prepare step, keeping Web/Apple Create
   template and draft metadata stable after acquire-then-prepare handoffs.
+  Prepared-artifact metadata shaping and provider-specific candidate id
+  derivation now live in `modules/services/acquisition/artifact_metadata.py`,
+  keeping Web/Apple Create handoff provenance shared while leaving download and
+  source-root path validation isolated in the acquire service for the next
+  backend cleanup slice.
   Newest-first EPUB defaults are preserved, and EPUB matching is
   case-insensitive so NAS files ending in `.EPUB` are eligible for the same
   default-source flow. `/api/pipelines/files` deletion now treats

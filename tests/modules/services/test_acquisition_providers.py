@@ -6,11 +6,12 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import get_args
+from typing import Mapping, get_args
 
 import pytest
 import requests
 
+import modules.services.acquisition.artifact_metadata as artifact_metadata
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.discovery_normalization as discovery_normalization
@@ -2540,6 +2541,68 @@ def test_prepare_acquisition_artifact_resolves_local_epub_source(tmp_path: Path)
     assert prepared.metadata["source_path"] == "Origin.epub"
     assert prepared.metadata["source_provider"] == "local_epub"
     assert prepared.metadata["acquisition_candidate_id"] == "local_epub:Origin.epub"
+
+
+def test_artifact_metadata_preserves_handoff_source_context() -> None:
+    metadata = artifact_metadata.prepare_artifact_metadata(
+        "manual_downloads",
+        "video",
+        {
+            "source_kind": " manual_download ",
+            "source_provider": " newznab_torznab ",
+            "acquisition_provider": " download_station ",
+            "path": "/downloads/Readable History.mkv",
+            "candidate_id": "newznab_torznab:readable-history",
+            "source_url": "",
+            "openlibrary_work_key": "/works/OL1W",
+        },
+        "/downloads/Readable History.mkv",
+    )
+
+    assert metadata == {
+        "source_kind": "manual_download",
+        "source_path": "/downloads/Readable History.mkv",
+        "source_provider": "newznab_torznab",
+        "acquisition_provider": "download_station",
+        "acquisition_candidate_id": "newznab_torznab:readable-history",
+        "openlibrary_work_key": "/works/OL1W",
+    }
+
+
+@pytest.mark.parametrize(
+    ("provider", "media_kind", "payload", "expected"),
+    [
+        ("local_epub", "book", {"path": "Book.epub"}, "local_epub:Book.epub"),
+        ("nas_video", "video", {"path": "/nas/Video.mkv"}, "nas_video:/nas/Video.mkv"),
+        (
+            "manual_downloads",
+            "video",
+            {"path": "/downloads/Video.mkv"},
+            "manual_downloads:video:/downloads/Video.mkv",
+        ),
+        ("gutenberg", "book", {"gutenberg_id": "84"}, "gutenberg:84"),
+        (
+            "internet_archive",
+            "book",
+            {"identifier": "public-book"},
+            "internet_archive:public-book",
+        ),
+        ("youtube_search", "video", {"video_id": "abc123"}, "youtube_search:abc123"),
+        (
+            "newznab_torznab",
+            "video",
+            {"guid": "indexer-guid"},
+            "newznab_torznab:indexer-guid",
+        ),
+    ],
+)
+def test_artifact_metadata_derives_candidate_ids(
+    provider: str,
+    media_kind: str,
+    payload: Mapping[str, object],
+    expected: str,
+) -> None:
+    assert artifact_metadata.prepared_candidate_id(provider, media_kind, payload) == expected
 
 
 def test_prepare_acquisition_artifact_uses_safe_stat_for_local_sources(
