@@ -1484,7 +1484,11 @@ Optimization candidates:
   derivation now live in `modules/services/acquisition/artifact_metadata.py`,
   keeping Web/Apple Create handoff provenance shared while leaving download and
   source-root path validation isolated in the acquire service for the next
-  backend cleanup slice.
+  backend cleanup slice. Public-catalog EPUB URL validation, default filename
+  derivation, and download-size limits now live in
+  `modules/services/acquisition/artifact_epubs.py` with direct helper coverage,
+  leaving `acquire.py` focused on orchestration, the actual streamed write, and
+  backend-visible destination verification.
   Newest-first EPUB defaults are preserved, and EPUB matching is
   case-insensitive so NAS files ending in `.EPUB` are eligible for the same
   default-source flow. `/api/pipelines/files` deletion now treats

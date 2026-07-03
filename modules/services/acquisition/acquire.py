@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
-import re
 import stat as stat_module
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import urljoin
 
 import requests
 
 from modules.services.source_discovery import safe_stat
 from modules.services.youtube_dubbing import list_downloaded_videos
 
+from .artifact_epubs import (
+    download_limit as _download_limit,
+    filename_from_epub_url as _filename_from_epub_url,
+    normalise_epub_name as _normalise_epub_name,
+    validate_epub_url_for_provider as _validate_epub_url_for_provider,
+)
 from .artifact_metadata import (
     normalized_token_id as _normalized_token_id,
     prepare_artifact_metadata,
@@ -30,16 +35,6 @@ from .provider_roots import (
 from .tokens import decode_acquisition_token, encode_acquisition_token
 
 
-_ALLOWED_GUTENBERG_HOSTS = {
-    "gutenberg.org",
-    "www.gutenberg.org",
-    "gutenberg.pglaf.org",
-}
-_ALLOWED_INTERNET_ARCHIVE_HOSTS = {
-    "archive.org",
-    "www.archive.org",
-}
-_DEFAULT_DOWNLOAD_LIMIT_BYTES = 100 * 1024 * 1024
 _VIDEO_SUFFIXES = {
     ".mp4",
     ".m4v",
@@ -349,49 +344,6 @@ def _video_subtitle_hints(
     return ()
 
 
-def _validate_gutenberg_epub_url(url: str) -> None:
-    parsed = urlparse(url)
-    hostname = (parsed.hostname or "").casefold()
-    if parsed.scheme not in {"http", "https"} or hostname not in _ALLOWED_GUTENBERG_HOSTS:
-        raise ValueError("candidate EPUB URL is not an allowed Gutenberg URL")
-    if ".epub" not in unquote(parsed.path).casefold():
-        raise ValueError("candidate EPUB URL does not point to an EPUB file")
-
-
-def _validate_internet_archive_epub_url(
-    url: str,
-    archive_identifier: str | None,
-) -> None:
-    parsed = urlparse(url)
-    hostname = (parsed.hostname or "").casefold()
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError("candidate EPUB URL is not an allowed Internet Archive URL")
-    if hostname not in _ALLOWED_INTERNET_ARCHIVE_HOSTS and not hostname.endswith(".archive.org"):
-        raise ValueError("candidate EPUB URL is not an allowed Internet Archive URL")
-    path = unquote(parsed.path)
-    if ".epub" not in path.casefold():
-        raise ValueError("candidate EPUB URL does not point to an EPUB file")
-    if archive_identifier and hostname in _ALLOWED_INTERNET_ARCHIVE_HOSTS:
-        expected_prefix = f"/download/{archive_identifier}/"
-        if not path.startswith(expected_prefix):
-            raise ValueError("candidate EPUB URL is not an allowed Internet Archive item URL")
-
-
-def _validate_epub_url_for_provider(
-    *,
-    provider: str | None,
-    url: str,
-    archive_identifier: str | None = None,
-) -> None:
-    if provider == "gutenberg":
-        _validate_gutenberg_epub_url(url)
-        return
-    if provider == "internet_archive":
-        _validate_internet_archive_epub_url(url, archive_identifier)
-        return
-    raise ValueError(f"provider {provider or '<missing>'} does not support acquire")
-
-
 def _download_to_path(
     url: str,
     destination: Path,
@@ -449,43 +401,6 @@ def _download_to_path(
     finally:
         if response is not None:
             response.close()
-
-
-def _download_limit(config: Mapping[str, Any]) -> int:
-    value = config.get("acquisition_download_max_bytes")
-    if value is None:
-        return _DEFAULT_DOWNLOAD_LIMIT_BYTES
-    try:
-        return max(1, int(value))
-    except (TypeError, ValueError):
-        return _DEFAULT_DOWNLOAD_LIMIT_BYTES
-
-
-def _normalise_epub_name(filename: str | None) -> str:
-    raw_name = Path(filename or "acquired.epub").name or "acquired.epub"
-    stem = Path(raw_name).stem
-    safe_stem = re.sub(r"[^0-9A-Za-z._ -]", "_", stem).strip(" ._-") or "acquired"
-    if raw_name.casefold().endswith(".epub"):
-        return f"{safe_stem}.epub"
-    return f"{safe_stem}.epub"
-
-
-def _filename_from_epub_url(
-    url: str,
-    provider: str | None,
-    gutenberg_id: int | None,
-    archive_identifier: str | None,
-) -> str:
-    parsed = urlparse(url)
-    name = Path(unquote(parsed.path)).name
-    if name and ".epub" in name.casefold():
-        stem = name[: name.casefold().find(".epub")]
-        return f"{stem}.epub"
-    if provider == "gutenberg" and gutenberg_id is not None:
-        return f"gutenberg-{gutenberg_id}.epub"
-    if provider == "internet_archive" and archive_identifier:
-        return f"{archive_identifier}.epub"
-    return "acquired.epub"
 
 
 def _reserve_destination_path(directory: Path, filename: str) -> Path:

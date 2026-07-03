@@ -12,6 +12,7 @@ import pytest
 import requests
 
 import modules.services.acquisition.artifact_metadata as artifact_metadata
+import modules.services.acquisition.artifact_epubs as artifact_epubs
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.discovery_normalization as discovery_normalization
@@ -2603,6 +2604,101 @@ def test_artifact_metadata_derives_candidate_ids(
     expected: str,
 ) -> None:
     assert artifact_metadata.prepared_candidate_id(provider, media_kind, payload) == expected
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [
+        ("../Unsafe: Book?.epub", "Unsafe_ Book.epub"),
+        ("  .epub", "acquired.epub"),
+        ("manual-download", "manual-download.epub"),
+        (None, "acquired.epub"),
+    ],
+)
+def test_artifact_epubs_normalises_download_filenames(
+    filename: str | None,
+    expected: str,
+) -> None:
+    assert artifact_epubs.normalise_epub_name(filename) == expected
+
+
+@pytest.mark.parametrize(
+    ("url", "provider", "gutenberg_id", "archive_identifier", "expected"),
+    [
+        (
+            "https://www.gutenberg.org/cache/epub/84/pg84.epub3.images",
+            "gutenberg",
+            84,
+            None,
+            "pg84.epub",
+        ),
+        (
+            "https://archive.org/download/demo_public_book/files/Demo%20Book.epub",
+            "internet_archive",
+            None,
+            "demo_public_book",
+            "Demo Book.epub",
+        ),
+        (
+            "https://www.gutenberg.org/ebooks/84",
+            "gutenberg",
+            84,
+            None,
+            "gutenberg-84.epub",
+        ),
+        (
+            "https://archive.org/details/demo_public_book",
+            "internet_archive",
+            None,
+            "demo_public_book",
+            "demo_public_book.epub",
+        ),
+    ],
+)
+def test_artifact_epubs_derives_download_filenames(
+    url: str,
+    provider: str,
+    gutenberg_id: int | None,
+    archive_identifier: str | None,
+    expected: str,
+) -> None:
+    assert (
+        artifact_epubs.filename_from_epub_url(
+            url,
+            provider,
+            gutenberg_id,
+            archive_identifier,
+        )
+        == expected
+    )
+
+
+def test_artifact_epubs_validates_provider_urls_and_limits() -> None:
+    artifact_epubs.validate_epub_url_for_provider(
+        provider="gutenberg",
+        url="https://www.gutenberg.org/cache/epub/84/pg84.epub3.images",
+    )
+    artifact_epubs.validate_epub_url_for_provider(
+        provider="internet_archive",
+        url="https://archive.org/download/demo_public_book/demo_public_book.epub",
+        archive_identifier="demo_public_book",
+    )
+    assert artifact_epubs.download_limit({"acquisition_download_max_bytes": "42"}) == 42
+    assert artifact_epubs.download_limit({"acquisition_download_max_bytes": "bad"}) == (
+        100 * 1024 * 1024
+    )
+
+    with pytest.raises(ValueError, match="not an allowed Gutenberg URL"):
+        artifact_epubs.validate_epub_url_for_provider(
+            provider="gutenberg",
+            url="https://example.com/book.epub",
+        )
+    with pytest.raises(ValueError, match="not an allowed Internet Archive item URL"):
+        artifact_epubs.validate_epub_url_for_provider(
+            provider="internet_archive",
+            url="https://archive.org/download/other/demo_public_book.epub",
+            archive_identifier="demo_public_book",
+        )
 
 
 def test_prepare_acquisition_artifact_uses_safe_stat_for_local_sources(

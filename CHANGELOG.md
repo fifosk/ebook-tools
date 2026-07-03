@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Backend acquisition EPUB URL validation, download filename derivation, and download-size limits now live in a focused helper with direct coverage, keeping public-catalog acquire rules reusable for Web and Apple Create.
 - Backend acquisition prepared-artifact metadata and candidate-id shaping now live in a focused helper, keeping Web and Apple Create handoff provenance consistent without reopening download/path resolution code.
 - Apple Job and Library playback no longer let audio-state callbacks start pending interactive autoplay recovery, leaving recovery to explicit retry/watchdog paths and preventing TV sessions from looping one sentence while the Music bed pause settles.
 - Apple sequence track switches now silence, clear stale fades, and remove stale boundary observers before loading the next Original/Translation item, reducing out-of-order audio tails during handoff.
