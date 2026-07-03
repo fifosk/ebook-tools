@@ -3,36 +3,19 @@ import type { AudioTrackMetadata } from '../../api/dtos';
 import { appendAccessToken } from '../../api/client';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
 import { coerceExportPath } from '../../utils/storageResolver';
+import { buildSequencePlan, type SequenceSegment } from '../../lib/playback';
 import {
   extractOriginalUrl,
   extractTranslationUrl,
   extractCombinedUrl,
   resolveChunkKey,
-  resolveSentenceGate,
   resolveSentenceDuration,
-  resolveNumericValue,
   type SequenceTrack,
   type SelectedAudioTrack,
 } from '../../lib/media';
 
 export type { SequenceTrack, SelectedAudioTrack };
-export type SequenceSegment = {
-  track: SequenceTrack;
-  start: number;
-  end: number;
-  sentenceIndex: number;
-};
-
-function trimOverlappingSequenceSegments(segments: SequenceSegment[]): SequenceSegment[] {
-  return segments.flatMap((segment, index) => {
-    const nextSameTrack = segments.slice(index + 1).find((candidate) => candidate.track === segment.track);
-    if (!nextSameTrack) return [segment];
-    const trimmedEnd = Math.min(segment.end, nextSameTrack.start);
-    if (trimmedEnd <= segment.start) return [];
-    if (trimmedEnd >= segment.end) return [segment];
-    return [{ ...segment, end: trimmedEnd }];
-  });
-}
+export type { SequenceSegment };
 
 type SequenceState = {
   enabled: boolean;
@@ -120,133 +103,11 @@ export function useInteractiveAudioSequence({
     if (!chunk) {
       return [];
     }
-    const isSingleSentence =
-      (typeof chunk.sentenceCount === 'number' && chunk.sentenceCount === 1) ||
-      (typeof chunk.startSentence === 'number' &&
-        typeof chunk.endSentence === 'number' &&
-        chunk.startSentence === chunk.endSentence);
-    const buildFallbackSegments = (includeOriginal: boolean, includeTranslation: boolean): SequenceSegment[] => {
-      const fallback: SequenceSegment[] = [];
-      const originalDuration = audioTracks?.orig?.duration ?? null;
-      const translationDuration = audioTracks?.translation?.duration ?? audioTracks?.trans?.duration ?? null;
-      if (
-        includeOriginal &&
-        typeof originalDuration === 'number' &&
-        Number.isFinite(originalDuration) &&
-        originalDuration > 0
-      ) {
-        fallback.push({
-          track: 'original',
-          start: 0,
-          end: originalDuration,
-          sentenceIndex: 0,
-        });
-      }
-      if (
-        includeTranslation &&
-        typeof translationDuration === 'number' &&
-        Number.isFinite(translationDuration) &&
-        translationDuration > 0
-      ) {
-        fallback.push({
-          track: 'translation',
-          start: 0,
-          end: translationDuration,
-          sentenceIndex: 0,
-        });
-      }
-      return fallback;
-    };
-
-    if (!chunk.sentences || chunk.sentences.length === 0) {
-      return isSingleSentence ? buildFallbackSegments(true, true) : [];
-    }
-
-    const segments: SequenceSegment[] = [];
-    let hasOriginalGate = false;
-    let hasTranslationGate = false;
-    chunk.sentences.forEach((sentence, index) => {
-      const originalGate = resolveSentenceGate(sentence, 'original');
-      if (originalGate) {
-        hasOriginalGate = true;
-        segments.push({
-          track: 'original',
-          start: originalGate.start,
-          end: originalGate.end,
-          sentenceIndex: index,
-        });
-      }
-      const translationGate = resolveSentenceGate(sentence, 'translation');
-      if (translationGate) {
-        hasTranslationGate = true;
-        segments.push({
-          track: 'translation',
-          start: translationGate.start,
-          end: translationGate.end,
-          sentenceIndex: index,
-        });
-      }
+    return buildSequencePlan(chunk.sentences, audioTracks, {
+      sentenceCount: chunk.sentenceCount,
+      startSentence: chunk.startSentence,
+      endSentence: chunk.endSentence,
     });
-
-    // Derive gates from phaseDurations when gate data is absent
-    if (!hasOriginalGate || !hasTranslationGate) {
-      const canDerive = chunk.sentences.some((s) => {
-        return s.phaseDurations;
-      });
-      if (canDerive) {
-        let origCursor = 0;
-        let transCursor = 0;
-        chunk.sentences.forEach((sentence, index) => {
-          const phases = sentence.phaseDurations as
-            | Record<string, unknown>
-            | undefined;
-          const origDur = resolveNumericValue(phases?.original) ?? 0;
-          const transDur =
-            resolveNumericValue(phases?.translation) ??
-            resolveNumericValue(sentence.totalDuration) ??
-            0;
-          if (!hasOriginalGate && origDur > 0) {
-            segments.push({
-              track: 'original',
-              start: origCursor,
-              end: origCursor + origDur,
-              sentenceIndex: index,
-            });
-          }
-          if (!hasTranslationGate && transDur > 0) {
-            segments.push({
-              track: 'translation',
-              start: transCursor,
-              end: transCursor + transDur,
-              sentenceIndex: index,
-            });
-          }
-          origCursor += origDur;
-          transCursor += transDur;
-        });
-        hasOriginalGate = segments.some((s) => s.track === 'original');
-        hasTranslationGate = segments.some((s) => s.track === 'translation');
-      }
-    }
-
-    if (!isSingleSentence) {
-      return trimOverlappingSequenceSegments(segments);
-    }
-
-    if (!hasOriginalGate || !hasTranslationGate) {
-      const fallback = buildFallbackSegments(!hasOriginalGate, !hasTranslationGate);
-      if (fallback.length === 0) {
-        return segments;
-      }
-      if (!hasOriginalGate && fallback.some((segment) => segment.track === 'original')) {
-        segments.unshift(...fallback.filter((segment) => segment.track === 'original'));
-      }
-      if (!hasTranslationGate && fallback.some((segment) => segment.track === 'translation')) {
-        segments.push(...fallback.filter((segment) => segment.track === 'translation'));
-      }
-    }
-
-    return trimOverlappingSequenceSegments(segments);
   }, [audioTracks, chunk]);
 
   const hasOriginalSegments = useMemo(

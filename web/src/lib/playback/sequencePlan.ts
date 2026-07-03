@@ -35,6 +35,8 @@ export type ChunkMeta = {
 
 export type AudioTrackMap = Record<string, AudioTrackMetadata | null | undefined>;
 
+const SAME_TRACK_HANDOFF_GUARD_SECONDS = 0.05;
+
 // ─── Numeric helpers ──────────────────────────────────────────────────
 
 function resolveNumeric(value: unknown): number | null {
@@ -81,7 +83,10 @@ function trimOverlappingSegments(segments: SequenceSegment[]): SequenceSegment[]
   return segments.flatMap((segment, index) => {
     const nextSameTrack = segments.slice(index + 1).find((candidate) => candidate.track === segment.track);
     if (!nextSameTrack) return [segment];
-    const trimmedEnd = Math.min(segment.end, nextSameTrack.start);
+    const trimmedEnd =
+      segment.end > nextSameTrack.start
+        ? Math.min(segment.end, Math.max(segment.start, nextSameTrack.start - SAME_TRACK_HANDOFF_GUARD_SECONDS))
+        : segment.end;
     if (trimmedEnd <= segment.start) return [];
     if (trimmedEnd >= segment.end) return [segment];
     return [{ ...segment, end: trimmedEnd }];

@@ -209,13 +209,42 @@ private func runOverlappingGateTrimCheck() {
     let firstTranslation = controller.plan.first { $0.track == .translation && $0.sentenceIndex == 0 }
     requireEqual(
         firstOriginal?.end,
+        Optional(1.95),
+        "Original segment should end just before the next original start when gates overlap"
+    )
+    requireEqual(
+        firstTranslation?.end,
+        Optional(1.15),
+        "Translation segment should end just before the next translation start when gates overlap"
+    )
+}
+
+@MainActor
+private func runAdjacentGateTrimCheck() {
+    let controller = SequencePlaybackController()
+    controller.buildPlan(
+        from: [
+            sentence(originalStart: 0.0, originalEnd: 2.0, translationStart: 0.0, translationEnd: 1.2),
+            sentence(originalStart: 2.0, originalEnd: 3.0, translationStart: 1.2, translationEnd: 2.2)
+        ],
+        originalTrackURL: URL(fileURLWithPath: "/tmp/original.m4a"),
+        translationTrackURL: URL(fileURLWithPath: "/tmp/translation.m4a"),
+        originalDuration: nil,
+        translationDuration: nil,
+        mode: .sequence
+    )
+
+    let firstOriginal = controller.plan.first { $0.track == .original && $0.sentenceIndex == 0 }
+    let firstTranslation = controller.plan.first { $0.track == .translation && $0.sentenceIndex == 0 }
+    requireEqual(
+        firstOriginal?.end,
         Optional(2.0),
-        "Original segment should end at the next original start when gates overlap"
+        "Original segment should keep adjacent non-overlapping gates intact"
     )
     requireEqual(
         firstTranslation?.end,
         Optional(1.2),
-        "Translation segment should end at the next translation start when gates overlap"
+        "Translation segment should keep adjacent non-overlapping gates intact"
     )
 }
 
@@ -228,5 +257,6 @@ struct SequencePauseCancelCheck {
         runReaderTransportPauseCancellationCheck()
         runSingleTrackPlanInitialLaneCheck()
         runOverlappingGateTrimCheck()
+        runAdjacentGateTrimCheck()
     }
 }

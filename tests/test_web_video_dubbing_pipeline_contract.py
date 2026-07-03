@@ -347,6 +347,22 @@ def test_docs_publish_playback_focused_web_target() -> None:
     assert "test-web-playback-focused" in plan
 
 
+def test_interactive_audio_sequence_uses_shared_sequence_planner() -> None:
+    source = (
+        ROOT
+        / "web"
+        / "src"
+        / "components"
+        / "interactive-text"
+        / "useInteractiveAudioSequence.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "import { buildSequencePlan, type SequenceSegment } from '../../lib/playback';" in source
+    assert "return buildSequencePlan(chunk.sentences, audioTracks, {" in source
+    assert "resolveSentenceGate" not in source
+    assert "trimOverlappingSequenceSegments" not in source
+
+
 def test_app_shell_uses_granular_zustand_selectors() -> None:
     production_sources = [
         ROOT / "web" / "src" / "App.tsx",

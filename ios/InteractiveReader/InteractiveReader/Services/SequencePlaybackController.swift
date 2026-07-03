@@ -383,7 +383,15 @@ final class SequencePlaybackController: ObservableObject {
             else {
                 return segment
             }
-            let trimmedEnd = min(segment.end, nextStart)
+            let trimmedEnd: Double
+            if segment.end > nextStart {
+                trimmedEnd = min(
+                    segment.end,
+                    max(segment.start, nextStart - sameTrackHandoffGuard)
+                )
+            } else {
+                trimmedEnd = segment.end
+            }
             guard trimmedEnd > segment.start else { return nil }
             guard trimmedEnd < segment.end else { return segment }
             return SequenceSegment(
@@ -393,6 +401,14 @@ final class SequencePlaybackController: ObservableObject {
                 sentenceIndex: segment.sentenceIndex
             )
         }
+    }
+
+    private var sameTrackHandoffGuard: Double {
+        #if os(tvOS)
+        return 0.08
+        #else
+        return 0.05
+        #endif
     }
 
     private func initialTrackForMode(

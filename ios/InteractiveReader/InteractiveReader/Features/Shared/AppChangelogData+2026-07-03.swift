@@ -43,7 +43,7 @@ extension AppChangelogData {
         AppChangelogEntry(
             id: "sequence-gates-trim-overlaps",
             title: "Sequence gates avoid overlaps",
-            detail: "Web and Apple sequence playback now trim overlapping same-track sentence gates to the next sentence start, so a loose original or translation end gate cannot play a sliver of the following sentence before the handoff."
+            detail: "Web and Apple sequence playback now trim overlapping same-track sentence gates just before the next sentence start while keeping clean adjacent gates intact, so loose original or translation end gates cannot leak a buffered sliver of the following sentence before the handoff."
         ),
         AppChangelogEntry(
             id: "tvos-autoplay-audio-state-flood-guard",
