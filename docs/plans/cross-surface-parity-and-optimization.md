@@ -1291,7 +1291,12 @@ Optimization candidates:
   provider registry contract validation now lives in
   `modules/services/acquisition/provider_contract.py`, keeping provider enum
   checks and default-source eligibility validation reusable outside the
-  provider-list assembly path.
+  provider-list assembly path. Audio voice inventory now caches Piper backend
+  discovery for a short configurable TTL
+  (`EBOOK_AUDIO_PIPER_VOICE_CACHE_TTL_SECONDS`, default 60s), so repeated Web
+  and Apple Create voice-picker refreshes avoid reinstantiating the Piper
+  backend while preserving per-request response validation and token-safe route
+  telemetry.
 - Prefer precomputed or cached job summary fields for list rows while keeping
   full metadata available on detail/media routes. Status:
   `/api/pipelines/jobs` now uses compact row result summaries so list rendering

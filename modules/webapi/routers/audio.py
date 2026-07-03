@@ -37,6 +37,8 @@ logger = log_mgr.logger
 AUDIO_VOICE_INVENTORY_UNAVAILABLE_MESSAGE = "Unable to load audio voice inventory."
 AUDIO_VOICE_MATCH_UNAVAILABLE_MESSAGE = "Unable to match audio voice."
 AUDIO_SYNTHESIS_UNAVAILABLE_MESSAGE = "Unable to prepare audio synthesis."
+PIPER_VOICE_CACHE_TTL_SECONDS = 60.0
+_PIPER_VOICE_CACHE: tuple[float, Tuple[Dict[str, str], ...]] | None = None
 
 
 def _log_audio_route_result(
@@ -371,6 +373,38 @@ def _load_piper_voices() -> list[Dict[str, str]]:
         return []
 
 
+def _piper_voice_cache_ttl_seconds() -> float:
+    raw_value = os.environ.get("EBOOK_AUDIO_PIPER_VOICE_CACHE_TTL_SECONDS")
+    if raw_value is None:
+        return PIPER_VOICE_CACHE_TTL_SECONDS
+    try:
+        return max(0.0, float(raw_value))
+    except ValueError:
+        return PIPER_VOICE_CACHE_TTL_SECONDS
+
+
+def _clear_piper_voice_cache() -> None:
+    global _PIPER_VOICE_CACHE
+    _PIPER_VOICE_CACHE = None
+
+
+def _load_cached_piper_voices() -> Tuple[Dict[str, str], ...]:
+    global _PIPER_VOICE_CACHE
+    ttl_seconds = _piper_voice_cache_ttl_seconds()
+    now = time.monotonic()
+    if ttl_seconds > 0 and _PIPER_VOICE_CACHE is not None:
+        cached_at, cached_voices = _PIPER_VOICE_CACHE
+        if now - cached_at <= ttl_seconds:
+            return tuple(dict(voice) for voice in cached_voices)
+
+    loaded_voices = tuple(dict(voice) for voice in _load_piper_voices())
+    if ttl_seconds > 0:
+        _PIPER_VOICE_CACHE = (now, loaded_voices)
+    else:
+        _PIPER_VOICE_CACHE = None
+    return tuple(dict(voice) for voice in loaded_voices)
+
+
 @router.get("/voices", response_model=VoiceInventoryResponse)
 def list_available_voices() -> VoiceInventoryResponse:  # noqa: D401 - FastAPI signature
     """Return cached macOS ``say`` voices, gTTS language entries, and Piper voices."""
@@ -379,7 +413,7 @@ def list_available_voices() -> VoiceInventoryResponse:  # noqa: D401 - FastAPI s
     try:
         macos_voices = [MacOSVoice.model_validate(voice) for voice in get_say_voices()]
         gtts_languages = [GTTSLanguage.model_validate(entry) for entry in _GTTS_LANGUAGES]
-        piper_voices = [PiperVoice.model_validate(voice) for voice in _load_piper_voices()]
+        piper_voices = [PiperVoice.model_validate(voice) for voice in _load_cached_piper_voices()]
         response_payload = VoiceInventoryResponse(
             macos=macos_voices,
             gtts=gtts_languages,

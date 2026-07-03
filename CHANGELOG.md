@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- The shared `/api/audio/voices` inventory now caches Piper voice discovery briefly, keeping Web and Apple Create voice pickers lighter during repeated settings refreshes while preserving token-safe route telemetry.
 - Apple TV Music-bed handling now defers ignored non-playing callbacks while narration is active, recovering the bed instead of adopting those MusicKit interruptions as reader pauses that stop book playback.
 - Apple TV Job and Library playback no longer treat non-manual Apple Music bed non-playing state as a sentence pause while narration is active, so transient MusicKit bed interruptions recover the bed instead of stopping book playback.
 - Public-catalog EPUB acquisition now keeps collision-safe destination reservation with the shared EPUB artifact helpers, so Gutenberg and Internet Archive handoffs use the same tested filename/path rules before Create loads them.

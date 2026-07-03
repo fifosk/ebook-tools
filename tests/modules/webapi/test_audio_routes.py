@@ -240,6 +240,7 @@ class _FailingPiperBackend:
 
 @pytest.fixture()
 def audio_client(monkeypatch) -> Iterable[TestClient]:
+    audio_router._clear_piper_voice_cache()
     monkeypatch.setattr(
         "modules.webapi.routers.audio.cfg.load_configuration",
         lambda verbose=False: {"selected_voice": "macOS-auto", "macos_reading_speed": 180},
@@ -254,8 +255,11 @@ def audio_client(monkeypatch) -> Iterable[TestClient]:
     monkeypatch.setattr("modules.webapi.routers.audio.log_mgr.console_info", lambda *_, **__: None)
 
     app = create_app()
-    with TestClient(app) as client:
-        yield client
+    try:
+        with TestClient(app) as client:
+            yield client
+    finally:
+        audio_router._clear_piper_voice_cache()
 
 
 @pytest.mark.parametrize("case", _BRUNO_CASES, ids=lambda case: case["name"])
@@ -391,6 +395,63 @@ def test_list_voices_returns_cached_inventory(audio_client: TestClient, monkeypa
     payload = response.json()
     assert payload["macos"] == macos_voices
     assert payload["gtts"] == list(gtts_languages)
+
+
+def test_list_voices_reuses_cached_piper_inventory(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    load_count = 0
+
+    monkeypatch.setattr(audio_router, "get_say_voices", lambda: [])
+    monkeypatch.setattr(audio_router, "_GTTS_LANGUAGES", ())
+
+    def fake_load_piper_voices() -> list[dict[str, str]]:
+        nonlocal load_count
+        load_count += 1
+        return [{"name": "en_US-lessac-medium", "lang": "en_US", "quality": "medium"}]
+
+    monkeypatch.setattr(audio_router, "_load_piper_voices", fake_load_piper_voices)
+    audio_router._clear_piper_voice_cache()
+
+    first = audio_client.get("/api/audio/voices")
+    second = audio_client.get("/api/audio/voices")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["piper"] == [
+        {"name": "en_US-lessac-medium", "lang": "en_US", "quality": "medium"}
+    ]
+    assert second.json()["piper"] == first.json()["piper"]
+    assert load_count == 1
+
+
+def test_list_voices_can_disable_piper_inventory_cache(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    load_count = 0
+
+    monkeypatch.setenv("EBOOK_AUDIO_PIPER_VOICE_CACHE_TTL_SECONDS", "0")
+    monkeypatch.setattr(audio_router, "get_say_voices", lambda: [])
+    monkeypatch.setattr(audio_router, "_GTTS_LANGUAGES", ())
+
+    def fake_load_piper_voices() -> list[dict[str, str]]:
+        nonlocal load_count
+        load_count += 1
+        return [{"name": f"piper-{load_count}", "lang": "en_US", "quality": "medium"}]
+
+    monkeypatch.setattr(audio_router, "_load_piper_voices", fake_load_piper_voices)
+    audio_router._clear_piper_voice_cache()
+
+    first = audio_client.get("/api/audio/voices")
+    second = audio_client.get("/api/audio/voices")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["piper"][0]["name"] == "piper-1"
+    assert second.json()["piper"][0]["name"] == "piper-2"
+    assert load_count == 2
 
 
 def test_voice_inventory_openapi_marks_catalog_fields_required() -> None:

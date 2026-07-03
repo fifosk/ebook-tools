@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "audio-voices-piper-cache",
+            title: "Voice pickers refresh lighter",
+            detail: "The shared audio voice inventory now caches Piper voice discovery briefly, keeping Web and Apple Create voice pickers lighter during repeated settings refreshes while preserving token-safe route telemetry."
+        ),
+        AppChangelogEntry(
             id: "tvos-active-bed-nonplaying-defers",
             title: "TV bed dips keep reading",
             detail: "Apple TV Music-bed handling now defers ignored non-playing callbacks while narration is active, recovering the bed instead of adopting those MusicKit interruptions as reader pauses that stop book playback."
