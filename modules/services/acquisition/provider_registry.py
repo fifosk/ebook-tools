@@ -9,12 +9,9 @@ from typing import Any, Mapping
 
 from modules import config_manager as cfg
 
-from .discovery_values import (
-    ACQUISITION_CAPABILITIES,
-    ACQUISITION_MEDIA_KINDS,
-    ACQUISITION_PROVIDER_STATUSES,
-    ACQUISITION_RIGHTS,
-    unsupported_contract_values,
+from .discovery_values import ACQUISITION_MEDIA_KINDS
+from .provider_contract import (
+    validate_provider_registry_contract as _validate_provider_registry_contract,
 )
 from .provider_catalog import (
     DISCOVERY_PROVIDER_MEDIA_KINDS,
@@ -425,86 +422,3 @@ def _default_eligible_media_kinds(
         for media_kind in ACQUISITION_MEDIA_KINDS
         if provider_id in default_provider_ids.get(media_kind, ())
     )
-
-
-def _validate_provider_registry_contract(registry: AcquisitionProviderRegistry) -> None:
-    """Fail fast when backend provider metadata drifts from public API enums."""
-
-    providers_by_id = {provider.id: provider for provider in registry.providers}
-    for provider in registry.providers:
-        _ensure_provider_values(
-            provider,
-            field="media_kinds",
-            values=provider.media_kinds,
-            allowed_values=ACQUISITION_MEDIA_KINDS,
-        )
-        _ensure_provider_values(
-            provider,
-            field="capabilities",
-            values=provider.capabilities,
-            allowed_values=ACQUISITION_CAPABILITIES,
-        )
-        _ensure_provider_values(
-            provider,
-            field="rights",
-            values=provider.rights,
-            allowed_values=ACQUISITION_RIGHTS,
-        )
-        _ensure_provider_values(
-            provider,
-            field="discovery_media_kinds",
-            values=provider.discovery_media_kinds,
-            allowed_values=ACQUISITION_MEDIA_KINDS,
-        )
-        _ensure_provider_values(
-            provider,
-            field="default_eligible_media_kinds",
-            values=provider.default_eligible_media_kinds,
-            allowed_values=ACQUISITION_MEDIA_KINDS,
-        )
-        if provider.status not in ACQUISITION_PROVIDER_STATUSES:
-            raise ValueError(
-                "Unsupported acquisition provider status "
-                f"{provider.status!r} for provider {provider.id!r}."
-            )
-
-    for media_kind, default_provider_ids in registry.default_provider_ids.items():
-        if media_kind not in ACQUISITION_MEDIA_KINDS:
-            raise ValueError(
-                f"Unsupported acquisition default-provider media kind {media_kind!r}."
-            )
-        unknown_provider_ids = tuple(
-            provider_id
-            for provider_id in default_provider_ids
-            if provider_id not in providers_by_id
-        )
-        if unknown_provider_ids:
-            raise ValueError(
-                "Unknown acquisition default provider ids for "
-                f"{media_kind!r}: {', '.join(unknown_provider_ids)}."
-            )
-        ineligible_provider_ids = tuple(
-            provider_id
-            for provider_id in default_provider_ids
-            if media_kind not in providers_by_id[provider_id].default_eligible_media_kinds
-        )
-        if ineligible_provider_ids:
-            raise ValueError(
-                "Ineligible acquisition default provider ids for "
-                f"{media_kind!r}: {', '.join(ineligible_provider_ids)}."
-            )
-
-
-def _ensure_provider_values(
-    provider: AcquisitionProvider,
-    *,
-    field: str,
-    values: tuple[str, ...],
-    allowed_values: tuple[str, ...],
-) -> None:
-    unsupported = unsupported_contract_values(values, allowed_values=allowed_values)
-    if unsupported:
-        raise ValueError(
-            f"Unsupported acquisition provider {field} values for "
-            f"{provider.id!r}: {', '.join(unsupported)}."
-        )

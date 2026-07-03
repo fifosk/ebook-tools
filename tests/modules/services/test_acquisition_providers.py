@@ -14,6 +14,7 @@ import requests
 import modules.services.acquisition.artifact_metadata as artifact_metadata
 import modules.services.acquisition.artifact_epubs as artifact_epubs
 import modules.services.acquisition.artifact_paths as artifact_paths
+import modules.services.acquisition.provider_contract as provider_contract
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.discovery_normalization as discovery_normalization
@@ -947,6 +948,28 @@ def test_provider_registry_rejects_ineligible_default_provider_ids() -> None:
 
     with pytest.raises(ValueError, match="Ineligible acquisition default provider ids"):
         acquisition_provider_registry._validate_provider_registry_contract(registry)
+
+
+def test_provider_contract_helper_rejects_status_drift() -> None:
+    registry = acquisition_provider_registry.AcquisitionProviderRegistry(
+        providers=(
+            acquisition_provider_registry.AcquisitionProvider(
+                id="local_epub",
+                label="Local EPUB",
+                media_kinds=("book",),
+                capabilities=("import_local",),
+                status="maybe",
+                configured=True,
+                available=True,
+                rights=("user_provided",),
+                discovery_media_kinds=("book",),
+                default_eligible_media_kinds=("book",),
+            ),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="Unsupported acquisition provider status"):
+        provider_contract.validate_provider_registry_contract(registry)
 
 
 def test_provider_registry_defaults_and_listing_share_readiness_snapshot(

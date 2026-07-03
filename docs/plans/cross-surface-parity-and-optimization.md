@@ -1266,7 +1266,11 @@ Optimization candidates:
   now live in `modules/services/acquisition/download_station_values.py`, keeping
   progress parsing, status normalization, safe completed-file extraction,
   metadata shaping, and primitive value coercion outside the Synology network
-  adapter while preserving Web/Apple downloader polling behavior.
+  adapter while preserving Web/Apple downloader polling behavior. Acquisition
+  provider registry contract validation now lives in
+  `modules/services/acquisition/provider_contract.py`, keeping provider enum
+  checks and default-source eligibility validation reusable outside the
+  provider-list assembly path.
 - Prefer precomputed or cached job summary fields for list rows while keeping
   full metadata available on detail/media routes. Status:
   `/api/pipelines/jobs` now uses compact row result summaries so list rendering
