@@ -54,18 +54,32 @@ extension AppleBookCreatePresentation {
     }
 
     private static func normalizedDownloadStationMetadataStrings(_ values: [String]) -> [String] {
-        values.compactMap { safeDownloadStationCompletedFileHint($0) }
+        uniqueDownloadStationHints(
+            values.compactMap { safeDownloadStationCompletedFileHint($0) }
+        )
     }
 
     private static func normalizedDownloadStationMetadataStrings(_ value: JSONValue?) -> [String] {
         if let array = value?.arrayValue {
-            return array.compactMap {
-                $0.stringValue.flatMap(safeDownloadStationCompletedFileHint)
-            }
+            return uniqueDownloadStationHints(
+                array.compactMap {
+                    $0.stringValue.flatMap(safeDownloadStationCompletedFileHint)
+                }
+            )
         }
         return value?.stringValue
             .flatMap(safeDownloadStationCompletedFileHint)
             .map { [$0] } ?? []
+    }
+
+    private static func uniqueDownloadStationHints(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        var results: [String] = []
+        for value in values where !seen.contains(value) {
+            seen.insert(value)
+            results.append(value)
+        }
+        return results
     }
 
     private static func safeDownloadStationCompletedFileHint(_ value: String) -> String? {

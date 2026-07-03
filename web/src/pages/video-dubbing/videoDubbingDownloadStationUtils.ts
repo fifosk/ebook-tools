@@ -27,15 +27,23 @@ export function isDownloadStationHandoffCandidate(
 }
 
 function stringArrayFromMetadataValue(value: unknown): string[] {
+  const uniqueSafeHints = (values: Array<string | null>): string[] => {
+    const seen = new Set<string>();
+    const results: string[] = [];
+    for (const value of values) {
+      const safeValue = safeCompletedFileHint(value);
+      if (safeValue && !seen.has(safeValue)) {
+        seen.add(safeValue);
+        results.push(safeValue);
+      }
+    }
+    return results;
+  };
   if (Array.isArray(value)) {
-    return value
-      .map((entry) => normalizeTextValue(entry))
-      .map(safeCompletedFileHint)
-      .filter((entry): entry is string => entry !== null);
+    return uniqueSafeHints(value.map((entry) => normalizeTextValue(entry)));
   }
   const single = normalizeTextValue(value);
-  const safeSingle = safeCompletedFileHint(single);
-  return safeSingle ? [safeSingle] : [];
+  return uniqueSafeHints([single]);
 }
 
 function safeCompletedFileHint(value: string | null): string | null {

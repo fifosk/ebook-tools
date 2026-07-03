@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Web Video Dubbing and Apple YouTube Dub now de-duplicate safe Download Station completed-file hints while preserving first-seen order, matching the backend completion metadata contract.
 - Acquisition job polling now de-duplicates legacy Download Station completed-file metadata after sanitization, so older jobs and mocked poll results present the same single finished artifact list as live backend polling.
 - Download Station polling now collapses repeated completed-file aliases after safe manual-download root normalization, keeping Web and Apple video source handoff from showing the same finished artifact more than once.
 - When tvOS delivers the first Play/Pause edge to Apple Music, the reader now latches the shared pause and notifies Job or Library narration before suppressing the Music surface, so one press has a better chance to stop both audio layers together.

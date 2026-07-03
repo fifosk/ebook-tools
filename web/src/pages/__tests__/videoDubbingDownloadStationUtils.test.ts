@@ -93,6 +93,7 @@ describe('videoDubbingDownloadStationUtils', () => {
         completed_files: [
           'https://indexer.example.invalid/download?id=7&apikey=secret',
           '../escape.mkv',
+          '/downloads/top-level.mkv',
           '/downloads/top-level.mkv'
         ],
         metadata: { completed_files: ['/downloads/metadata.mkv'] }
@@ -104,6 +105,7 @@ describe('videoDubbingDownloadStationUtils', () => {
           completed_files: [
             'magnet:?xt=urn:btih:private',
             'file:///tmp/local.mkv',
+            '/downloads/metadata.mkv',
             '/downloads/metadata.mkv'
           ]
         }

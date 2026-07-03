@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "download-station-client-hint-dedupe",
+            title: "Create handoff hints stay singular",
+            detail: "Web Video Dubbing and Apple YouTube Dub now de-duplicate safe Download Station completed-file hints while preserving first-seen order, matching the backend completion metadata contract."
+        ),
+        AppChangelogEntry(
             id: "download-station-route-metadata-dedupe",
             title: "Downloader metadata avoids repeats",
             detail: "Acquisition job polling now de-duplicates legacy Download Station completed-file metadata after sanitization, so older jobs and mocked poll results present the same single finished artifact list as live backend polling."

@@ -3812,6 +3812,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "private static func downloadStationCompletedFileHints(" in download_station_source
     assert "var hints = normalizedDownloadStationMetadataStrings(job.completedFiles)" in download_station_source
     assert "private static func safeDownloadStationCompletedFileHint(_ value: String) -> String?" in download_station_source
+    assert "private static func uniqueDownloadStationHints(_ values: [String]) -> [String]" in download_station_source
+    assert "var seen = Set<String>()" in download_station_source
     assert 'lowercased.hasPrefix("magnet:")' in download_station_source
     assert 'lowercased.hasPrefix("file:")' in download_station_source
     assert 'lowercased.contains("://")' in download_station_source
