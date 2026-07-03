@@ -13,6 +13,7 @@ import requests
 
 import modules.services.acquisition.artifact_metadata as artifact_metadata
 import modules.services.acquisition.artifact_epubs as artifact_epubs
+import modules.services.acquisition.artifact_paths as artifact_paths
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.discovery_normalization as discovery_normalization
@@ -2701,6 +2702,45 @@ def test_artifact_epubs_validates_provider_urls_and_limits() -> None:
         )
 
 
+def test_artifact_paths_resolves_relative_book_sources(tmp_path: Path) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    (books_root / "Origin.EPUB").write_text("demo", encoding="utf-8")
+
+    assert artifact_paths.resolve_book_artifact_path(
+        "local_epub",
+        "Origin.EPUB",
+        {"ebooks_dir": str(books_root)},
+    ) == "Origin.EPUB"
+
+
+def test_artifact_paths_resolves_manual_video_sources(tmp_path: Path) -> None:
+    manual_root = tmp_path / "manual"
+    manual_root.mkdir()
+    video_path = manual_root / "Readable History.MKV"
+    video_path.write_bytes(b"video")
+
+    assert artifact_paths.resolve_video_artifact_path(
+        "manual_downloads",
+        video_path.as_posix(),
+        {"manual_download_root": str(manual_root)},
+    ) == video_path.as_posix()
+
+
+def test_artifact_paths_rejects_outside_roots(tmp_path: Path) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    outside = tmp_path / "outside.epub"
+    outside.write_text("demo", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="outside configured source roots"):
+        artifact_paths.resolve_book_artifact_path(
+            "local_epub",
+            outside.as_posix(),
+            {"ebooks_dir": str(books_root)},
+        )
+
+
 def test_prepare_acquisition_artifact_uses_safe_stat_for_local_sources(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -2726,7 +2766,7 @@ def test_prepare_acquisition_artifact_uses_safe_stat_for_local_sources(
     monkeypatch.setattr(Path, "exists", fail_exists)
     monkeypatch.setattr(Path, "is_file", fail_is_file)
     monkeypatch.setattr(
-        acquisition_acquire,
+        artifact_paths,
         "safe_stat",
         lambda path: source.stat() if path == source.resolve() else None,
     )
@@ -2757,7 +2797,7 @@ def test_prepare_acquisition_artifact_reports_vanished_local_source(
     )
 
     monkeypatch.setattr(
-        acquisition_acquire,
+        artifact_paths,
         "safe_stat",
         lambda path: None if path == source.resolve() else path.stat(),
     )

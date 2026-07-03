@@ -1482,10 +1482,12 @@ Optimization candidates:
   template and draft metadata stable after acquire-then-prepare handoffs.
   Prepared-artifact metadata shaping and provider-specific candidate id
   derivation now live in `modules/services/acquisition/artifact_metadata.py`,
-  keeping Web/Apple Create handoff provenance shared while leaving download and
-  source-root path validation isolated in the acquire service for the next
-  backend cleanup slice. Public-catalog EPUB URL validation, default filename
-  derivation, and download-size limits now live in
+  keeping Web/Apple Create handoff provenance shared. Prepared book/video
+  artifact source-root path validation now lives in
+  `modules/services/acquisition/artifact_paths.py`, so Create handoffs share
+  one tested local-source resolver while `acquire.py` keeps download
+  orchestration and destination verification. Public-catalog EPUB URL
+  validation, default filename derivation, and download-size limits now live in
   `modules/services/acquisition/artifact_epubs.py` with direct helper coverage,
   leaving `acquire.py` focused on orchestration, the actual streamed write, and
   backend-visible destination verification.
