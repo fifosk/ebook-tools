@@ -1744,6 +1744,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "#if os(tvOS)" in ignored_observed_pause_body
     assert "ownershipState == .appleMusicBed" in ignored_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
+    assert "observedPlayingAsReadingBed" in ignored_observed_pause_body
+    assert "hasAutoResumeIntent" in ignored_observed_pause_body
     assert "!isReaderNarrationActiveForMusicBed" not in ignored_observed_pause_body
     assert "!isManuallyPaused" not in ignored_observed_pause_body
     assert "!isPausedByReaderTransport" in ignored_observed_pause_body

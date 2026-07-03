@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-tv-music-bed-stale-activity-pause",
+            title: "TV pause catches stale reader activity",
+            detail: "Apple TV now adopts an ignored Apple Music non-playing callback as a reader pause when the Music bed was already known to be active, so a stale reader-active flag cannot leave sentence narration running after the first pause press."
+        ),
+        AppChangelogEntry(
             id: "apple-music-bed-reader-active-bridge",
             title: "Music-bed pause sees reader intent",
             detail: "Apple Job and Library playback now refresh the Music-bed reader-active bridge from the requested-play state before Music surface changes and reader transport commands, so a single pause can combine Apple Music bed and sentence audio even during autoplay or track handoff timing gaps."
