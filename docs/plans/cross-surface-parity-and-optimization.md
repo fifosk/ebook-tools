@@ -803,7 +803,9 @@ Current Apple UI partially exposes:
   handlers depend on provider payload assembly. The same catalog now owns the
   canonical acquisition-provider ordering used by the provider registry payload,
   keeping Web and Apple Create source pickers aligned as new providers are
-  added. Backend acquisition
+  added. Web Narrate Ebook and Video Dubbing now preserve that loaded backend
+  provider response order instead of applying separate client-side ranks, while
+  keeping their familiar fallback order before provider inventory loads. Backend acquisition
   discovery now dispatches provider calls through a registry-aligned routing
   table with direct coverage, keeping Web/Apple-visible provider metadata in
   lockstep with backend handlers. Default sources readiness now lives in

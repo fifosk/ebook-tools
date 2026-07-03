@@ -35,7 +35,6 @@ const EBOOK_DISCOVERY_PROVIDERS: FallbackBookDiscoveryProvider[] = [
   }
 ];
 
-const EBOOK_DISCOVERY_PROVIDER_ORDER = EBOOK_DISCOVERY_PROVIDERS.map((entry) => entry.id);
 const EBOOK_DISCOVERY_PROVIDER_LABELS = new Map(
   EBOOK_DISCOVERY_PROVIDERS.map((entry) => [entry.id, entry.label])
 );
@@ -53,13 +52,6 @@ export function buildBookNarrationDiscoveryProviderOptions(
   }
   const providerOptions = providers
     .filter(isBookDiscoveryProvider)
-    .sort((left, right) => {
-      const rankDifference = discoveryProviderRank(left.id) - discoveryProviderRank(right.id);
-      if (rankDifference !== 0) {
-        return rankDifference;
-      }
-      return discoveryProviderLabel(left).localeCompare(discoveryProviderLabel(right));
-    })
     .map((entry) => ({
       id: entry.id,
       label: discoveryProviderLabel(entry),
@@ -179,11 +171,6 @@ export function filterBookNarrationDiscoveryCandidates(
         || candidate.capabilities.includes('metadata')
     );
   });
-}
-
-function discoveryProviderRank(id: string) {
-  const index = EBOOK_DISCOVERY_PROVIDER_ORDER.indexOf(id);
-  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
 
 function discoveryProviderLabel(provider: AcquisitionProvider) {

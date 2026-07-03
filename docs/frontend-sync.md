@@ -518,8 +518,10 @@ Follow the suggested remediations to restore parity:
   jobs. Before loading a new Original/Translation sequence item, Apple must mute
   and pause the active player while preserving reader playback intent, keep the
   outgoing segment's `forwardPlaybackEndTime` guard latched until the old item is
-  replaced, then clear stale fade/boundary observers so late ready or seek
-  callbacks cannot unmute or advance the previous item tail. Persistent-stall
+  replaced, and for cross-track switches clamp that guard to the early handoff
+  boundary instead of the nominal segment end. It can then clear stale
+  fade/boundary observers so late ready or seek callbacks cannot unmute or
+  advance the previous item tail. Persistent-stall
   recovery must not force-advance while the sequence controller is intentionally
   dwelling or transitioning; those states are handoff protection, not stuck
   playback. Async fade installation must also verify the AVPlayer item is still

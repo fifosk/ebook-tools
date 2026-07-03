@@ -59,9 +59,9 @@ describe('useVideoDubbingAcquisitionProviders', () => {
     await waitFor(() => expect(result.current.videoDiscoveryProviderOptions).toHaveLength(3));
     expect(result.current.acquisitionProviderError).toBeNull();
     expect(result.current.videoDiscoveryProviderOptions).toEqual([
-      { id: 'manual_downloads', label: 'Manual downloads', available: true },
       { id: 'youtube_url', label: 'YouTube URL', available: true },
-      { id: 'youtube_search', label: 'YouTube search', available: true }
+      { id: 'youtube_search', label: 'YouTube search', available: true },
+      { id: 'manual_downloads', label: 'Manual downloads', available: true }
     ]);
     expect(result.current.preferredVideoDiscoveryProvider).toBe('youtube_search');
     expect(result.current.isSelectedVideoDiscoveryProviderAvailable).toBe(true);

@@ -79,7 +79,7 @@ describe('bookNarrationDiscoveryProviders', () => {
     ]);
   });
 
-  it('keeps backend book providers in stable UI order and preserves backend labels for unknown catalogs', () => {
+  it('keeps loaded backend book providers in response order and preserves backend labels for unknown catalogs', () => {
     const options = buildBookNarrationDiscoveryProviderOptions([
       provider({ id: 'partner_catalog', label: 'Partner Catalog', capabilities: ['search', 'metadata'] }),
       provider({ id: 'manual_downloads', label: 'Manual folder', media_kinds: ['book', 'video'] }),
@@ -88,9 +88,9 @@ describe('bookNarrationDiscoveryProviders', () => {
     ]);
 
     expect(options).toEqual([
+      { id: 'partner_catalog', label: 'Partner Catalog', unavailableMessage: null },
       { id: 'manual_downloads', label: 'Manual downloads', unavailableMessage: null },
-      { id: 'gutenberg', label: 'Gutenberg', unavailableMessage: null },
-      { id: 'partner_catalog', label: 'Partner Catalog', unavailableMessage: null }
+      { id: 'gutenberg', label: 'Gutenberg', unavailableMessage: null }
     ]);
   });
 
@@ -205,8 +205,8 @@ describe('bookNarrationDiscoveryProviders', () => {
       book: ['local_epub', 'internet_archive']
     })).toEqual([
       { id: 'local_epub', label: 'Local EPUBs', unavailableMessage: null },
-      { id: 'manual_downloads', label: 'Manual downloads', unavailableMessage: null },
-      { id: 'internet_archive', label: 'Internet Archive', unavailableMessage: null }
+      { id: 'internet_archive', label: 'Internet Archive', unavailableMessage: null },
+      { id: 'manual_downloads', label: 'Manual downloads', unavailableMessage: null }
     ]);
     expect(resolveDefaultBookDiscoveryProvider({
       defaultProviderIds: { book: ['internet_archive', 'local_epub'] },
@@ -229,7 +229,7 @@ describe('bookNarrationDiscoveryProviders', () => {
 
     expect(buildBookNarrationDiscoveryProviderOptions(providers, {
       book: ['partner_catalog', 'local_epub']
-    }).map((entry) => entry.id)).toEqual(['local_epub', 'partner_catalog']);
+    }).map((entry) => entry.id)).toEqual(['partner_catalog', 'local_epub']);
     expect(resolveDefaultBookDiscoveryProvider({
       defaultProviderIds: { book: ['partner_catalog', 'local_epub'] },
       providers,

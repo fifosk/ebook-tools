@@ -80,7 +80,7 @@ describe('videoDubbingDiscovery', () => {
     ]);
   });
 
-  it('keeps backend video providers in stable UI order and excludes acquire-only providers', () => {
+  it('keeps loaded backend video providers in response order and excludes acquire-only providers', () => {
     const options = buildVideoDiscoveryProviderOptions([
       provider({
         id: 'download_station',
@@ -99,12 +99,12 @@ describe('videoDubbingDiscovery', () => {
     ]);
 
     expect(options).toEqual([
-      { id: 'nas_video', label: 'NAS videos', available: true },
-      { id: 'manual_downloads', label: 'Manual downloads', available: true },
       { id: 'youtube_url', label: 'YouTube URL', available: true },
       { id: 'youtube_search', label: 'YouTube search', available: true },
-      { id: 'newznab_torznab', label: 'Indexers', available: true },
-      { id: 'other_video', label: 'Other Video', available: true }
+      { id: 'other_video', label: 'Other Video', available: true },
+      { id: 'manual_downloads', label: 'Manual downloads', available: true },
+      { id: 'nas_video', label: 'NAS videos', available: true },
+      { id: 'newznab_torznab', label: 'Indexers', available: true }
     ]);
   });
 
@@ -166,7 +166,7 @@ describe('videoDubbingDiscovery', () => {
       { video: ['youtube_url', 'nas_video'] }
     );
 
-    expect(options.map((entry) => entry.id)).toEqual(['nas_video', 'youtube_url']);
+    expect(options.map((entry) => entry.id)).toEqual(['youtube_url', 'nas_video']);
     expect(resolveDefaultVideoDiscoveryProvider({
       defaultProviderIds: { video: ['youtube_url', 'nas_video'] },
       options,
@@ -206,7 +206,7 @@ describe('videoDubbingDiscovery', () => {
     ];
     const options = buildVideoDiscoveryProviderOptions(providers, { video: ['youtube_url', 'nas_video'] });
 
-    expect(options.map((entry) => entry.id)).toEqual(['nas_video', 'youtube_url']);
+    expect(options.map((entry) => entry.id)).toEqual(['youtube_url', 'nas_video']);
     expect(resolveDefaultVideoDiscoveryProvider({
       defaultProviderIds: { video: ['youtube_url', 'nas_video'] },
       options,
@@ -232,7 +232,7 @@ describe('videoDubbingDiscovery', () => {
     ];
     const options = buildVideoDiscoveryProviderOptions(providers, { video: ['partner_video', 'nas_video'] });
 
-    expect(options.map((entry) => entry.id)).toEqual(['nas_video', 'partner_video']);
+    expect(options.map((entry) => entry.id)).toEqual(['partner_video', 'nas_video']);
     expect(resolveDefaultVideoDiscoveryProvider({
       defaultProviderIds: { video: ['partner_video', 'nas_video'] },
       options,

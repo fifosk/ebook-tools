@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple Original/Translation sequence handoffs now apply the AVPlayer hard-stop guard at the early handoff boundary for cross-track switches, so a late boundary callback cannot leak a cut-short piece of the next sentence before Translation starts.
+- Web Narrate Ebook and Video Dubbing discovery pickers now preserve the loaded backend acquisition-provider response order instead of applying separate client-side ranks, keeping Web source lists aligned with Apple and the backend catalog.
 - Backend acquisition provider ordering now lives in the shared provider catalog and the registry emits providers in that canonical order, keeping Web and Apple Create source pickers aligned.
 - Apple Original/Translation dwell handoffs now detach the outgoing AVPlayer item while muted when the next playable segment switches tracks, cutting off buffered next-sentence tails before Translation starts without clearing reader playback intent.
 - Apple Job and Library Music-bed transport now share the same pause confirmation, playback recovery, and deferred Music resume probe timings through the reader transport resolver, reducing surface drift while tuning TV pause/resume behavior.

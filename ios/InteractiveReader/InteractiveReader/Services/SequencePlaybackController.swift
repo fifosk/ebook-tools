@@ -546,6 +546,15 @@ final class SequencePlaybackController: ObservableObject {
         max(segment.start + 0.01, segment.end - boundaryHeadroom(for: segment))
     }
 
+    /// Hard-stop time for AVPlayer's current item.
+    /// Cross-track handoffs need the same early stop as the observer boundary so
+    /// a late callback cannot let the continuous source roll into the next
+    /// sentence before the new Original/Translation track is loaded.
+    private func segmentEndGuardTime(for segment: SequenceSegment) -> Double {
+        let isTrackSwitch = nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false
+        return isTrackSwitch ? boundaryTriggerTime(for: segment) : segment.end
+    }
+
     private func dwellPinTime(for segment: SequenceSegment) -> Double {
         max(segment.start, min(segment.end - dwellPinBackoff(for: segment), boundaryTriggerTime(for: segment)))
     }
@@ -554,9 +563,10 @@ final class SequencePlaybackController: ObservableObject {
         guard let segment = currentSegment else { return }
         // Install boundary slightly before segment end to beat HDMI buffer latency.
         let boundaryTime = boundaryTriggerTime(for: segment)
+        let guardTime = segmentEndGuardTime(for: segment)
         logBoundary("Installing boundary at \(String(format: "%.3f", boundaryTime)) (end=\(String(format: "%.3f", segment.end))) for seg[\(currentSegmentIndex)] \(segment.track.rawValue)")
         onInstallBoundary?(boundaryTime)
-        onApplySegmentEndGuard?(segment.end)
+        onApplySegmentEndGuard?(guardTime)
 
         // Apply decode-level fade-out so the source is already silent at the
         // early handoff boundary used by the observer/fallback path. The

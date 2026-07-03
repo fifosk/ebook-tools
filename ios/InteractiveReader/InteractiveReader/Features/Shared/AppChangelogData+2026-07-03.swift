@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "sequence-cross-track-early-hard-stop",
+            title: "Track handoffs stop earlier",
+            detail: "Apple Original/Translation sequence handoffs now apply the AVPlayer hard-stop guard at the early handoff boundary for cross-track switches, so a late boundary callback cannot leak a cut-short next sentence before Translation starts."
+        ),
+        AppChangelogEntry(
+            id: "web-discovery-preserves-provider-order",
+            title: "Web discovery follows backend order",
+            detail: "Web Narrate Ebook and Video Dubbing discovery pickers now preserve the loaded backend acquisition-provider response order instead of applying separate client-side ranks, keeping Web source lists aligned with Apple and the backend catalog."
+        ),
+        AppChangelogEntry(
             id: "acquisition-provider-catalog-order",
             title: "Discovery sources keep order",
             detail: "Backend acquisition provider ordering now lives in the shared provider catalog and the registry emits providers in that canonical order, keeping Web and Apple Create source pickers aligned as source providers grow."

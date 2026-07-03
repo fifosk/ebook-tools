@@ -42,7 +42,6 @@ const VIDEO_DISCOVERY_PROVIDERS: Array<Pick<VideoDiscoveryProviderOption, 'id' |
   { id: 'newznab_torznab', label: 'Indexers' }
 ];
 
-const VIDEO_DISCOVERY_PROVIDER_ORDER = VIDEO_DISCOVERY_PROVIDERS.map((entry) => entry.id);
 const VIDEO_DISCOVERY_PROVIDER_LABELS = new Map(
   VIDEO_DISCOVERY_PROVIDERS.map((entry) => [entry.id, entry.label])
 );
@@ -76,13 +75,6 @@ export function buildVideoDiscoveryProviderOptions(
   }
   const providerOptions = providers
     .filter(isVideoDiscoveryProvider)
-    .sort((left, right) => {
-      const rankDifference = videoDiscoveryProviderRank(left.id) - videoDiscoveryProviderRank(right.id);
-      if (rankDifference !== 0) {
-        return rankDifference;
-      }
-      return videoDiscoveryProviderLabel(left).localeCompare(videoDiscoveryProviderLabel(right));
-    })
     .map((provider) => ({
       id: provider.id,
       label: videoDiscoveryProviderLabel(provider),
@@ -264,11 +256,6 @@ function defaultableVideoProviderIds(
     return Array.isArray(provider.default_eligible_media_kinds)
       && provider.default_eligible_media_kinds.includes('video');
   });
-}
-
-function videoDiscoveryProviderRank(id: string) {
-  const index = VIDEO_DISCOVERY_PROVIDER_ORDER.indexOf(id);
-  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
 
 function videoDiscoveryProviderLabel(provider: AcquisitionProvider) {

@@ -1203,13 +1203,17 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     assert "min(0.04, max(0.02, segment.duration * 0.04))" in pin_body
     trigger_body = _function_body(controller, "private func boundaryTriggerTime(for segment: SequenceSegment) -> Double")
     assert "segment.end - boundaryHeadroom(for: segment)" in trigger_body
+    guard_body = _function_body(controller, "private func segmentEndGuardTime(for segment: SequenceSegment) -> Double")
+    assert "nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false" in guard_body
+    assert "isTrackSwitch ? boundaryTriggerTime(for: segment) : segment.end" in guard_body
     pin_time_body = _function_body(controller, "private func dwellPinTime(for segment: SequenceSegment) -> Double")
     assert "segment.end - dwellPinBackoff(for: segment)" in pin_time_body
     assert "boundaryTriggerTime(for: segment)" in pin_time_body
     assert "min(segment.end - dwellPinBackoff(for: segment), boundaryTriggerTime(for: segment))" in pin_time_body
     install_body = _function_body(controller, "private func installBoundaryForCurrentSegment()")
     assert "boundaryTriggerTime(for: segment)" in install_body
-    assert "onApplySegmentEndGuard?(segment.end)" in install_body
+    assert "segmentEndGuardTime(for: segment)" in install_body
+    assert "onApplySegmentEndGuard?(guardTime)" in install_body
     assert "let fadeEnd = boundaryTime" in install_body
     assert "fadeEnd - fadeOutDuration(for: segment)" in install_body
     assert "onInstallBoundary?(boundaryTime)" in install_body
