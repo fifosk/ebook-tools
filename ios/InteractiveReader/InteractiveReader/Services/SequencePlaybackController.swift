@@ -17,6 +17,7 @@ struct SequenceSegment: Identifiable, Equatable {
     let start: Double
     let end: Double
     let sentenceIndex: Int
+    let allowsTightPrerollTrim: Bool
 
     var duration: Double {
         max(end - start, 0)
@@ -285,7 +286,8 @@ final class SequencePlaybackController: ObservableObject {
                     track: .original,
                     start: originalStart,
                     end: originalEnd,
-                    sentenceIndex: index
+                    sentenceIndex: index,
+                    allowsTightPrerollTrim: true
                 ))
                 origCursor = originalEnd
             } else if origDur > 0 {
@@ -294,7 +296,8 @@ final class SequencePlaybackController: ObservableObject {
                     track: .original,
                     start: origCursor,
                     end: origCursor + origDur,
-                    sentenceIndex: index
+                    sentenceIndex: index,
+                    allowsTightPrerollTrim: false
                 ))
                 origCursor += origDur
             }
@@ -308,7 +311,8 @@ final class SequencePlaybackController: ObservableObject {
                     track: .translation,
                     start: translationStart,
                     end: translationEnd,
-                    sentenceIndex: index
+                    sentenceIndex: index,
+                    allowsTightPrerollTrim: true
                 ))
                 transCursor = translationEnd
             } else if transDur > 0 {
@@ -317,7 +321,8 @@ final class SequencePlaybackController: ObservableObject {
                     track: .translation,
                     start: transCursor,
                     end: transCursor + transDur,
-                    sentenceIndex: index
+                    sentenceIndex: index,
+                    allowsTightPrerollTrim: false
                 ))
                 transCursor += transDur
             }
@@ -330,7 +335,8 @@ final class SequencePlaybackController: ObservableObject {
                     track: .original,
                     start: 0,
                     end: duration,
-                    sentenceIndex: 0
+                    sentenceIndex: 0,
+                    allowsTightPrerollTrim: false
                 ), at: 0)
             }
             if !hasTranslationSegment, let duration = translationDuration, duration > 0 {
@@ -338,7 +344,8 @@ final class SequencePlaybackController: ObservableObject {
                     track: .translation,
                     start: 0,
                     end: duration,
-                    sentenceIndex: 0
+                    sentenceIndex: 0,
+                    allowsTightPrerollTrim: false
                 ))
             }
         }
@@ -384,7 +391,9 @@ final class SequencePlaybackController: ObservableObject {
                 return segment
             }
             let trimmedEnd: Double
-            if segment.end > nextStart {
+            let gapToNextSameTrack = nextStart - segment.end
+            if segment.end > nextStart ||
+                (segment.allowsTightPrerollTrim && gapToNextSameTrack <= sameTrackPrerollSlop) {
                 trimmedEnd = min(
                     segment.end,
                     max(segment.start, nextStart - sameTrackHandoffGuard)
@@ -398,7 +407,8 @@ final class SequencePlaybackController: ObservableObject {
                 track: segment.track,
                 start: segment.start,
                 end: trimmedEnd,
-                sentenceIndex: segment.sentenceIndex
+                sentenceIndex: segment.sentenceIndex,
+                allowsTightPrerollTrim: segment.allowsTightPrerollTrim
             )
         }
     }
@@ -408,6 +418,14 @@ final class SequencePlaybackController: ObservableObject {
         return 0.08
         #else
         return 0.05
+        #endif
+    }
+
+    private var sameTrackPrerollSlop: Double {
+        #if os(tvOS)
+        return 0.12
+        #else
+        return 0.08
         #endif
     }
 

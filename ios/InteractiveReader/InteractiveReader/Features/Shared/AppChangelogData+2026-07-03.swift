@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-paused-autoplay-recovery-hard-stop",
+            title: "TV pause blocks stale retries",
+            detail: "Apple TV Job and Library playback now refuse pending interactive autoplay recovery while reader transport is in any paused Music-bed state, preventing stale retry loops after a pause command."
+        ),
+        AppChangelogEntry(
+            id: "sequence-tight-preroll-trim",
+            title: "Track handoffs trim preroll",
+            detail: "Interactive reader sequence playback now trims very tight same-track sentence gates before handoff, so a tiny preroll from the next sentence is not heard before the Translation track starts."
+        ),
+        AppChangelogEntry(
             id: "sequence-dwell-pin-at-handoff-boundary",
             title: "Reader handoffs avoid late pins",
             detail: "Interactive reader sequence dwell now pins the muted AVPlayer at or before the early handoff boundary instead of seeking closer to the nominal sentence end, reducing TV and iPad cases where a sliver of the next sentence leaks before the Translation track starts."
@@ -48,7 +58,7 @@ extension AppChangelogData {
         AppChangelogEntry(
             id: "sequence-gates-trim-overlaps",
             title: "Sequence gates avoid overlaps",
-            detail: "Web and Apple sequence playback now trim overlapping same-track sentence gates just before the next sentence start while keeping clean adjacent gates intact, so loose original or translation end gates cannot leak a buffered sliver of the following sentence before the handoff."
+            detail: "Web and Apple sequence playback now trim overlapping or tightly adjacent same-track sentence gates just before the next sentence start while keeping wider gaps intact, so loose original or translation end gates cannot leak a buffered sliver of the following sentence before the handoff."
         ),
         AppChangelogEntry(
             id: "tvos-autoplay-audio-state-flood-guard",

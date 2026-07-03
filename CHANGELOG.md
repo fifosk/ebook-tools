@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple TV Job and Library playback now refuse pending interactive autoplay recovery while reader transport is in any paused Music-bed state, preventing stale retry loops after a pause command.
+- Apple interactive reader sequence playback now trims very tight same-track sentence gates before handoff, so a tiny preroll from the next sentence is not heard before the Translation track starts.
 - Backend acquisition route telemetry, editor/admin checks, id normalization, async-provider validation, and generic public error constants now live in a focused support helper while preserving existing route test hooks.
 - Backend acquisition routes now delegate token-safe response payload construction to a focused helper module, keeping Web/Apple Create discovery, artifact, and Download Station job payload scrubbing covered outside the large router.
 - Apple interactive reader sequence dwell now pins the muted AVPlayer at or before the early handoff boundary instead of seeking closer to the nominal sentence end, reducing TV/iPad cases where a sliver of the next sentence leaks before the Translation track starts.

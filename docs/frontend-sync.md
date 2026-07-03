@@ -493,14 +493,14 @@ Follow the suggested remediations to restore parity:
   the segment boundary, pauses, and pins the sentence player at the boundary
   before seeking to the next segment so output-buffer tail audio cannot leak the
   next sentence before the handoff. Web and Apple sequence-plan builders must
-  also clamp overlapping same-track gates just before the next same-track
-  sentence start before installing boundary observers or fade windows, while
-  leaving clean adjacent gates intact. This keeps loose `originalEndGate` or
-  `endGate` values from including a buffered sliver of the following sentence
-  without clipping well-aligned jobs. Async fade installation must also verify the
-  AVPlayer item is still current before mutating `audioMix`, because remote URL
-  track loading can complete after a same-sentence Original -> Translation item
-  switch.
+  also clamp overlapping or very tightly adjacent same-track gates just before
+  the next same-track sentence start before installing boundary observers or
+  fade windows, while leaving wider non-overlapping gaps intact. This keeps
+  loose `originalEndGate` or `endGate` values from including a buffered sliver
+  of the following sentence without clipping well-separated jobs. Async fade
+  installation must also verify the AVPlayer item is still current before
+  mutating `audioMix`, because remote URL track loading can complete after a
+  same-sentence Original -> Translation item switch.
   Apple Music reading-bed mode must publish reader-owned Now Playing metadata
   and remote commands (`.appleMusicBed`) instead of yielding Control Center to
   the Music track. Job and Library playback attach the active sentence

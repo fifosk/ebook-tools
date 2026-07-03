@@ -1703,6 +1703,14 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)" in job
     job_pending_recovery_body = _function_body(job, "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)")
     assert 'guard reason != "jobAudioState" else { return }' in job_pending_recovery_body
+    assert 'lastReaderTransportAction != "pause"' in job_pending_recovery_body
+    assert "!musicOwnership.isPausedByReaderTransport" in job_pending_recovery_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in job_pending_recovery_body
+    assert "!musicOwnership.isManuallyPaused" in job_pending_recovery_body
+    assert '"\\(reason)PausedReader"' in job_pending_recovery_body
+    assert job_pending_recovery_body.index('lastReaderTransportAction != "pause"') < job_pending_recovery_body.index(
+        "now - lastPendingInteractiveAutoplayRecoveryTime >= 1.0"
+    )
     assert "now - lastPendingInteractiveAutoplayRecoveryTime >= 1.0" in job_pending_recovery_body
     assert "lastPendingInteractiveAutoplayRecoveryTime = now" in job_pending_recovery_body
     assert "clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason)" in job_pending_recovery_body
@@ -2014,6 +2022,14 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)" in library
     library_pending_recovery_body = _function_body(library, "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)")
     assert 'guard reason != "libraryAudioState" else { return }' in library_pending_recovery_body
+    assert 'lastReaderTransportAction != "pause"' in library_pending_recovery_body
+    assert "!musicOwnership.isPausedByReaderTransport" in library_pending_recovery_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in library_pending_recovery_body
+    assert "!musicOwnership.isManuallyPaused" in library_pending_recovery_body
+    assert '"\\(reason)PausedReader"' in library_pending_recovery_body
+    assert library_pending_recovery_body.index('lastReaderTransportAction != "pause"') < library_pending_recovery_body.index(
+        "now - lastPendingInteractiveAutoplayRecoveryTime >= 1.0"
+    )
     assert "now - lastPendingInteractiveAutoplayRecoveryTime >= 1.0" in library_pending_recovery_body
     assert "lastPendingInteractiveAutoplayRecoveryTime = now" in library_pending_recovery_body
     assert "clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason)" in library_pending_recovery_body

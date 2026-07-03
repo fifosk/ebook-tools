@@ -47,6 +47,13 @@ private func requireEqual<T: Equatable>(_ actual: T, _ expected: T, _ message: S
 }
 
 @MainActor
+private func requireClose(_ actual: Double?, _ expected: Double, _ message: String) {
+    guard let actual, abs(actual - expected) <= 0.000_001 else {
+        fail("\(message). Expected \(expected), got \(String(describing: actual)).")
+    }
+}
+
+@MainActor
 private func requireTrue(_ value: Bool, _ message: String) {
     if !value {
         fail(message)
@@ -108,9 +115,9 @@ private func runDwellCancellationCheck() async {
 
     controller.boundaryReached()
     requireEqual(dwellPauseCount, 1, "Boundary should enter dwell and pause audio")
-    requireEqual(
+    requireClose(
         dwellPinTime,
-        0.95,
+        0.90,
         "Boundary pause should never pin after the early boundary handoff point"
     )
     requireTrue(controller.isDwelling, "Boundary should put the controller into dwell state")
@@ -224,7 +231,7 @@ private func runOverlappingGateTrimCheck() {
 }
 
 @MainActor
-private func runAdjacentGateTrimCheck() {
+private func runTightAdjacentGateTrimCheck() {
     let controller = SequencePlaybackController()
     controller.buildPlan(
         from: [
@@ -242,13 +249,42 @@ private func runAdjacentGateTrimCheck() {
     let firstTranslation = controller.plan.first { $0.track == .translation && $0.sentenceIndex == 0 }
     requireEqual(
         firstOriginal?.end,
-        Optional(2.0),
-        "Original segment should keep adjacent non-overlapping gates intact"
+        Optional(1.95),
+        "Original segment should trim tightly adjacent gates before possible next-sentence preroll"
     )
     requireEqual(
         firstTranslation?.end,
-        Optional(1.2),
-        "Translation segment should keep adjacent non-overlapping gates intact"
+        Optional(1.15),
+        "Translation segment should trim tightly adjacent gates before possible next-sentence preroll"
+    )
+}
+
+@MainActor
+private func runWideGapGateTrimCheck() {
+    let controller = SequencePlaybackController()
+    controller.buildPlan(
+        from: [
+            sentence(originalStart: 0.0, originalEnd: 1.85, translationStart: 0.0, translationEnd: 1.05),
+            sentence(originalStart: 2.0, originalEnd: 3.0, translationStart: 1.2, translationEnd: 2.2)
+        ],
+        originalTrackURL: URL(fileURLWithPath: "/tmp/original.m4a"),
+        translationTrackURL: URL(fileURLWithPath: "/tmp/translation.m4a"),
+        originalDuration: nil,
+        translationDuration: nil,
+        mode: .sequence
+    )
+
+    let firstOriginal = controller.plan.first { $0.track == .original && $0.sentenceIndex == 0 }
+    let firstTranslation = controller.plan.first { $0.track == .translation && $0.sentenceIndex == 0 }
+    requireEqual(
+        firstOriginal?.end,
+        Optional(1.85),
+        "Original segment should keep wider non-overlapping gates intact"
+    )
+    requireEqual(
+        firstTranslation?.end,
+        Optional(1.05),
+        "Translation segment should keep wider non-overlapping gates intact"
     )
 }
 
@@ -261,6 +297,7 @@ struct SequencePauseCancelCheck {
         runReaderTransportPauseCancellationCheck()
         runSingleTrackPlanInitialLaneCheck()
         runOverlappingGateTrimCheck()
-        runAdjacentGateTrimCheck()
+        runTightAdjacentGateTrimCheck()
+        runWideGapGateTrimCheck()
     }
 }

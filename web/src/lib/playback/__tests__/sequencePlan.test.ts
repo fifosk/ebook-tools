@@ -75,8 +75,8 @@ describe('buildSequencePlan', () => {
     const plan = buildSequencePlan(sentences, null, { sentenceCount: 2 });
     expect(plan).toHaveLength(4);
     // Sentence 0: original then translation
-    expect(plan[0]).toEqual({ track: 'original', start: 0.0, end: 1.5, sentenceIndex: 0 });
-    expect(plan[1]).toEqual({ track: 'translation', start: 0.0, end: 2.0, sentenceIndex: 0 });
+    expect(plan[0]).toEqual({ track: 'original', start: 0.0, end: 1.45, sentenceIndex: 0 });
+    expect(plan[1]).toEqual({ track: 'translation', start: 0.0, end: 1.95, sentenceIndex: 0 });
     // Sentence 1: original then translation
     expect(plan[2]).toEqual({ track: 'original', start: 1.5, end: 3.0, sentenceIndex: 1 });
     expect(plan[3]).toEqual({ track: 'translation', start: 2.0, end: 4.0, sentenceIndex: 1 });
@@ -104,7 +104,7 @@ describe('buildSequencePlan', () => {
     expect(plan[3]).toEqual({ track: 'translation', start: 1.2, end: 2.2, sentenceIndex: 1 });
   });
 
-  it('keeps adjacent same-track gates intact when they do not overlap', () => {
+  it('trims tightly adjacent same-track gates before possible next-sentence preroll', () => {
     const sentences = [
       makeSentence({
         originalStartGate: 0.0,
@@ -120,8 +120,28 @@ describe('buildSequencePlan', () => {
       }),
     ];
     const plan = buildSequencePlan(sentences, null, { sentenceCount: 2 });
-    expect(plan[0]).toEqual({ track: 'original', start: 0.0, end: 2.0, sentenceIndex: 0 });
-    expect(plan[1]).toEqual({ track: 'translation', start: 0.0, end: 1.2, sentenceIndex: 0 });
+    expect(plan[0]).toEqual({ track: 'original', start: 0.0, end: 1.95, sentenceIndex: 0 });
+    expect(plan[1]).toEqual({ track: 'translation', start: 0.0, end: 1.15, sentenceIndex: 0 });
+  });
+
+  it('keeps wider same-track gate gaps intact', () => {
+    const sentences = [
+      makeSentence({
+        originalStartGate: 0.0,
+        originalEndGate: 1.85,
+        startGate: 0.0,
+        endGate: 1.05,
+      }),
+      makeSentence({
+        originalStartGate: 2.0,
+        originalEndGate: 3.0,
+        startGate: 1.2,
+        endGate: 2.2,
+      }),
+    ];
+    const plan = buildSequencePlan(sentences, null, { sentenceCount: 2 });
+    expect(plan[0]).toEqual({ track: 'original', start: 0.0, end: 1.85, sentenceIndex: 0 });
+    expect(plan[1]).toEqual({ track: 'translation', start: 0.0, end: 1.05, sentenceIndex: 0 });
   });
 
   it('derives gates from phaseDurations when gate data is absent', () => {

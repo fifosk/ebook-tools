@@ -168,8 +168,8 @@ describe('Segment advance at boundaries', () => {
   });
 
   it('does not advance outside default tolerance', () => {
-    // 1.5 - 0.03 = 1.47
-    expect(shouldAdvanceSegment(plan, 0, 1.46)).toBe(false);
+    // Trimmed first segment: 1.45 - 0.03 = 1.42
+    expect(shouldAdvanceSegment(plan, 0, 1.41)).toBe(false);
   });
 
   it('handles last segment in plan', () => {
@@ -225,11 +225,11 @@ describe('Plan from phaseDurations only', () => {
     const firstOrig = plan.find((s) => s.sentenceIndex === 0 && s.track === 'original');
     expect(firstOrig).toBeDefined();
     expect(firstOrig!.start).toBe(0.0);
-    expect(firstOrig!.end).toBe(1.5);
+    expect(firstOrig!.end).toBe(1.45);
     const firstTrans = plan.find((s) => s.sentenceIndex === 0 && s.track === 'translation');
     expect(firstTrans).toBeDefined();
     expect(firstTrans!.start).toBe(0.0);
-    expect(firstTrans!.end).toBe(2.0);
+    expect(firstTrans!.end).toBe(1.95);
     const secondOrig = plan.find((s) => s.sentenceIndex === 1 && s.track === 'original');
     expect(secondOrig).toBeDefined();
     expect(secondOrig!.start).toBeCloseTo(1.5);

@@ -274,6 +274,16 @@ struct LibraryPlaybackView: View {
         guard !clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason) else { return }
         guard let pendingSentence = pendingInteractiveAutoplaySentence else { return }
         guard viewModel.jobContext != nil else { return }
+        #if os(tvOS)
+        guard lastReaderTransportAction != "pause",
+              !musicOwnership.isPausedByReaderTransport,
+              !musicOwnership.isReaderTransportPauseGuardActive,
+              !musicOwnership.isManuallyPaused
+        else {
+            _ = clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "\(reason)PausedReader")
+            return
+        }
+        #endif
         guard !viewModel.audioCoordinator.isPlaying ||
             viewModel.audioCoordinator.nowPlayingPlayer == nil
         else { return }

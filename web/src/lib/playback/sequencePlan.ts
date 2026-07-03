@@ -18,6 +18,10 @@ export type SequenceSegment = {
   sentenceIndex: number;
 };
 
+type InternalSequenceSegment = SequenceSegment & {
+  allowsTightPrerollTrim: boolean;
+};
+
 export type TextPlayerVariantKind = 'original' | 'translation' | 'translit';
 
 export type TokenSeekTarget = {
@@ -36,6 +40,7 @@ export type ChunkMeta = {
 export type AudioTrackMap = Record<string, AudioTrackMetadata | null | undefined>;
 
 const SAME_TRACK_HANDOFF_GUARD_SECONDS = 0.05;
+const SAME_TRACK_PREROLL_SLOP_SECONDS = 0.08;
 
 // ─── Numeric helpers ──────────────────────────────────────────────────
 
@@ -79,17 +84,27 @@ function readSentenceGate(
   return { start: safeStart, end: safeEnd };
 }
 
-function trimOverlappingSegments(segments: SequenceSegment[]): SequenceSegment[] {
+function publicSegment(segment: InternalSequenceSegment, end: number = segment.end): SequenceSegment {
+  return {
+    track: segment.track,
+    start: segment.start,
+    end,
+    sentenceIndex: segment.sentenceIndex,
+  };
+}
+
+function trimOverlappingSegments(segments: InternalSequenceSegment[]): SequenceSegment[] {
   return segments.flatMap((segment, index) => {
     const nextSameTrack = segments.slice(index + 1).find((candidate) => candidate.track === segment.track);
-    if (!nextSameTrack) return [segment];
+    if (!nextSameTrack) return [publicSegment(segment)];
+    const gapToNextSameTrack = nextSameTrack.start - segment.end;
     const trimmedEnd =
-      segment.end > nextSameTrack.start
+      segment.end > nextSameTrack.start ||
+      (segment.allowsTightPrerollTrim && gapToNextSameTrack <= SAME_TRACK_PREROLL_SLOP_SECONDS)
         ? Math.min(segment.end, Math.max(segment.start, nextSameTrack.start - SAME_TRACK_HANDOFF_GUARD_SECONDS))
         : segment.end;
     if (trimmedEnd <= segment.start) return [];
-    if (trimmedEnd >= segment.end) return [segment];
-    return [{ ...segment, end: trimmedEnd }];
+    return [publicSegment(segment, trimmedEnd)];
   });
 }
 
@@ -116,8 +131,8 @@ export function buildSequencePlan(
   const buildFallbackSegments = (
     includeOriginal: boolean,
     includeTranslation: boolean,
-  ): SequenceSegment[] => {
-    const fallback: SequenceSegment[] = [];
+  ): InternalSequenceSegment[] => {
+    const fallback: InternalSequenceSegment[] = [];
     const originalDuration = audioTracks?.orig?.duration ?? null;
     const translationDuration =
       audioTracks?.translation?.duration ?? audioTracks?.trans?.duration ?? null;
@@ -127,7 +142,13 @@ export function buildSequencePlan(
       Number.isFinite(originalDuration) &&
       originalDuration > 0
     ) {
-      fallback.push({ track: 'original', start: 0, end: originalDuration, sentenceIndex: 0 });
+      fallback.push({
+        track: 'original',
+        start: 0,
+        end: originalDuration,
+        sentenceIndex: 0,
+        allowsTightPrerollTrim: false,
+      });
     }
     if (
       includeTranslation &&
@@ -135,16 +156,24 @@ export function buildSequencePlan(
       Number.isFinite(translationDuration) &&
       translationDuration > 0
     ) {
-      fallback.push({ track: 'translation', start: 0, end: translationDuration, sentenceIndex: 0 });
+      fallback.push({
+        track: 'translation',
+        start: 0,
+        end: translationDuration,
+        sentenceIndex: 0,
+        allowsTightPrerollTrim: false,
+      });
     }
     return fallback;
   };
 
   if (!sentences || sentences.length === 0) {
-    return isSingleSentence ? buildFallbackSegments(true, true) : [];
+    return isSingleSentence
+      ? buildFallbackSegments(true, true).map((segment) => publicSegment(segment))
+      : [];
   }
 
-  const segments: SequenceSegment[] = [];
+  const segments: InternalSequenceSegment[] = [];
   let hasOriginalSegment = false;
   let hasTranslationSegment = false;
   let origCursor = 0;
@@ -160,7 +189,12 @@ export function buildSequencePlan(
 
     if (originalGate) {
       hasOriginalSegment = true;
-      segments.push({ track: 'original', ...originalGate, sentenceIndex: index });
+      segments.push({
+        track: 'original',
+        ...originalGate,
+        sentenceIndex: index,
+        allowsTightPrerollTrim: true,
+      });
       origCursor = originalGate.end;
     } else if (origDur > 0) {
       hasOriginalSegment = true;
@@ -169,13 +203,19 @@ export function buildSequencePlan(
         start: origCursor,
         end: origCursor + origDur,
         sentenceIndex: index,
+        allowsTightPrerollTrim: false,
       });
       origCursor += origDur;
     }
 
     if (translationGate) {
       hasTranslationSegment = true;
-      segments.push({ track: 'translation', ...translationGate, sentenceIndex: index });
+      segments.push({
+        track: 'translation',
+        ...translationGate,
+        sentenceIndex: index,
+        allowsTightPrerollTrim: true,
+      });
       transCursor = translationGate.end;
     } else if (transDur > 0) {
       hasTranslationSegment = true;
@@ -184,6 +224,7 @@ export function buildSequencePlan(
         start: transCursor,
         end: transCursor + transDur,
         sentenceIndex: index,
+        allowsTightPrerollTrim: false,
       });
       transCursor += transDur;
     }

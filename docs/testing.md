@@ -735,10 +735,11 @@ batch skipping. `check_apple_sentence_position_provider.sh` also verifies
 single-track time-to-sentence anchoring from translation/original gate timings,
 so bookmark or scrubber seeks refresh the same visible sentence anchor before
 the next keyboard/remote skip. `check_apple_sequence_pause_cancel.sh` now
-also verifies that overlapping same-track gates trim just before the next
-same-track sentence while clean adjacent gates stay exact, keeping sequence
-handoff output-buffer guards inside the reusable pipeline. The same pytest
-contract now parses the Xcode project and requires `AudioModeManager.swift` plus
+also verifies that overlapping or tightly adjacent same-track gates trim just
+before the next same-track sentence while wider non-overlapping gaps stay exact,
+keeping sequence handoff output-buffer guards inside the reusable pipeline. The
+same pytest contract now parses the Xcode project and requires
+`AudioModeManager.swift` plus
 `InteractivePlayerView+Tracks.swift` in both the iOS/iPadOS
 `InteractiveReader` app target and the tvOS `InteractiveReaderTV` app target,
 so shared track/timing fixes cannot quietly ship to iPad without also compiling
