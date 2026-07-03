@@ -495,12 +495,25 @@ def validate_log(
 def diagnostic_hints(text: str, *, mode: str, missing: list[str]) -> list[str]:
     if not missing:
         return []
+    hints: list[str] = []
+    if "pending interactive autoplay looped while Music bed reported paused" in missing:
+        hints.append(
+            "autoplay recovery loop detected; confirm the device is running a build where "
+            "Job/Library audio-state callbacks do not call pending-autoplay recovery, then "
+            "pull a fresh-only log after reproducing once"
+        )
+    if "reader received consecutive broker pauses without an intervening reader play" in missing:
+        hints.append(
+            "consecutive broker pauses detected; inspect whether stale Apple Music state "
+            "made the second remote press resolve as pause instead of resume"
+        )
     if any(re.search(pattern, text, flags=re.MULTILINE) for pattern in PLAYBACK_TRANSPORT_BREADCRUMB_PATTERNS):
-        return []
-    return [
+        return hints
+    hints.append(
         "log has no playback transport breadcrumbs; reproduce in a DEBUG Apple build, "
         "then run make apple-device-pull-and-verify-playback-transport-log without relaunching"
-    ]
+    )
+    return hints
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:

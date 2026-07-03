@@ -488,6 +488,45 @@ def test_diagnostic_hint_stays_quiet_for_specific_playback_transport_gaps() -> N
     assert hints == []
 
 
+def test_diagnostic_hint_explains_autoplay_recovery_loop() -> None:
+    missing = ["pending interactive autoplay looped while Music bed reported paused"]
+
+    hints = module.diagnostic_hints(
+        PAUSE_RESUME_LOG
+        + """
+1782670002.000 [PlaybackTransport] Job recovering pending interactive autoplay reason=jobAudioState sentence=2657
+1782670002.150 [PlaybackTransport] Job accepted Apple Music pause as reader transport source=musicSurface requested=true playing=true musicPlaying=false readerPause=false
+""",
+        mode="pause-resume",
+        missing=missing,
+    )
+
+    assert hints == [
+        "autoplay recovery loop detected; confirm the device is running a build where "
+        "Job/Library audio-state callbacks do not call pending-autoplay recovery, then "
+        "pull a fresh-only log after reproducing once"
+    ]
+
+
+def test_diagnostic_hint_explains_consecutive_broker_pause_regression() -> None:
+    missing = ["reader received consecutive broker pauses without an intervening reader play"]
+
+    hints = module.diagnostic_hints(
+        PAUSE_LOG
+        + """
+1782670010.000 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670010.020 [PlaybackTransport] Library forced pause source=brokerPause requested=true playing=true musicPlaying=true systemMusicPlaying=false
+""",
+        mode="pause-resume",
+        missing=missing,
+    )
+
+    assert hints == [
+        "consecutive broker pauses detected; inspect whether stale Apple Music state "
+        "made the second remote press resolve as pause instead of resume"
+    ]
+
+
 def test_default_log_path_matches_pull_helper() -> None:
     assert module.default_log_path("Living Room") == (
         module.REPO_ROOT / "test-results" / "apple-device-playback-transport-Living-Room.log"

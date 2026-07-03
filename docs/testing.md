@@ -1302,6 +1302,10 @@ retry and watchdog recovery remain available, but `jobAudioState` /
 jumps while Music-bed pause adoption is settling. Reader-owned pause commands
 must also clear the pending autoplay token before pausing narration, so later
 audio-state or MusicKit surface callbacks have no stale request to recover.
+The CLI hint for that failure is intentionally operational: first confirm the
+device is running a build with the audio-state recovery guard, then pull a
+fresh-only log after one repro so old cached failures do not mask the new
+candidate.
 `apple-device-pull-and-verify-playback-transport-log` and the combined
 reader-repro pull target first preserve the
 previous latest pulled file as
