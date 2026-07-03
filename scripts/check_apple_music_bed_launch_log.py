@@ -196,6 +196,11 @@ NARRATION_PAUSE_SETTLED_RE = re.compile(
 )
 
 
+TRANSPORT_EVENT_LINE_RE = re.compile(
+    r"^(?:.*?\s)?(?P<surface>Job|Library) (?P<event>.+)$"
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -279,6 +284,31 @@ def _pause_episode_violations(text: str) -> list[str]:
     return violations
 
 
+def _consecutive_broker_pause_violations(text: str) -> list[str]:
+    last_pause_surface: str | None = None
+    for line in text.splitlines():
+        match = TRANSPORT_EVENT_LINE_RE.match(line.strip())
+        if not match:
+            continue
+        surface = match.group("surface")
+        event = match.group("event")
+        if (
+            "reader transport forced play source=brokerResume" in event
+            or "reader transport play command requested=" in event
+            or "restoring narration playback request source=" in event
+        ):
+            last_pause_surface = None
+            continue
+        if "reader transport forced pause source=brokerPause" not in event:
+            continue
+        if last_pause_surface == surface:
+            return [
+                "reader received consecutive broker pauses without an intervening reader play"
+            ]
+        last_pause_surface = surface
+    return []
+
+
 def _reader_progress_violations(text: str) -> list[str]:
     samples: list[tuple[str, float, float, float]] = []
     for match in NOW_PLAYING_TRANSPORT_RE.finditer(text):
@@ -345,6 +375,7 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
     if mode in {"pause-release", "guarded-play", "pause-resume"}:
         missing.extend(_pause_guard_violations(text))
         missing.extend(_pause_episode_violations(text))
+        missing.extend(_consecutive_broker_pause_violations(text))
     return missing
 
 

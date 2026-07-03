@@ -264,6 +264,59 @@ InteractiveReaderTV[101] Apple Music playback surface changed reason=resume revi
     ]
 
 
+def test_pause_resume_rejects_consecutive_broker_pauses_without_reader_play(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        PAUSE_RELEASE_LOG
+        + """
+InteractiveReaderTV[101] Library broker tvOS Play/Pause command
+InteractiveReaderTV[101] Library reader transport forced pause source=brokerPause requested=true playing=true musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport pause command requested=true playing=true musicPlaying=false
+InteractiveReaderTV[101] Library reader transport confirmed pause source=brokerPause requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Library broker tvOS Play/Pause command
+InteractiveReaderTV[101] Library reader transport forced pause source=brokerPause requested=true playing=true musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport pause command requested=true playing=true musicPlaying=false
+InteractiveReaderTV[101] Library reader transport confirmed pause source=brokerPause requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Library reader transport forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport play command requested=true playing=true musicPlaying=false
+InteractiveReaderTV[101] Apple Music playback surface changed reason=resume revision=10
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert missing == [
+        "reader received consecutive broker pauses without an intervening reader play"
+    ]
+
+
+def test_pause_resume_allows_broker_pause_after_reader_play(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        PAUSE_RELEASE_LOG
+        + """
+InteractiveReaderTV[101] Library broker tvOS Play/Pause command
+InteractiveReaderTV[101] Library reader transport forced pause source=brokerPause requested=true playing=true musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport pause command requested=true playing=true musicPlaying=false
+InteractiveReaderTV[101] Library reader transport confirmed pause source=brokerPause requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Library reader transport forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport play command requested=true playing=true musicPlaying=false
+InteractiveReaderTV[101] Apple Music playback surface changed reason=resume revision=10
+InteractiveReaderTV[101] Library broker tvOS Play/Pause command
+InteractiveReaderTV[101] Library reader transport forced pause source=brokerPause requested=true playing=true musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport pause command requested=true playing=true musicPlaying=false
+InteractiveReaderTV[101] Library reader transport confirmed pause source=brokerPause requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Library reader transport forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport play command requested=true playing=true musicPlaying=false
+InteractiveReaderTV[101] Apple Music playback surface changed reason=resume revision=11
+""",
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="pause-resume") == []
+
+
 def test_guarded_play_requires_reader_pause_guard_evidence(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(PAUSE_RELEASE_LOG, encoding="utf-8")
