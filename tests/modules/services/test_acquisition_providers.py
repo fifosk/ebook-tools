@@ -554,11 +554,21 @@ def test_acquisition_url_safety_helpers_share_sensitive_policy() -> None:
     assert looks_sensitive_key("privateKey")
     assert looks_sensitive_key("csrfHeader")
     assert looks_sensitive_key("credential")
+    assert looks_sensitive_key("Signature")
+    assert looks_sensitive_key("X-Amz-Signature")
+    assert looks_sensitive_key("AWSAccessKeyId")
+    assert looks_sensitive_key("sig")
     assert not looks_sensitive_key("title")
+    assert not looks_sensitive_key("signal_strength")
     assert strip_sensitive_url_parts(
         "https://user:pass@indexer.example.invalid/get?"
         "id=7&passkey=secret#name=demo&access_token=secret"
     ) == "https://indexer.example.invalid/get?id=7#name=demo"
+    assert strip_sensitive_url_parts(
+        "https://cdn.example.invalid/subtitle.srt?"
+        "response-content-type=text/plain&X-Amz-Credential=credential"
+        "&X-Amz-Signature=signature&AWSAccessKeyId=access-key&sig=signed"
+    ) == "https://cdn.example.invalid/subtitle.srt?response-content-type=text%2Fplain"
 
 
 def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> None:
@@ -3017,7 +3027,7 @@ def test_acquisition_tokens_reject_secret_bearing_payloads() -> None:
             }
         )
 
-    for query_key in ("passkey", "authkey", "rsskey"):
+    for query_key in ("passkey", "authkey", "rsskey", "signature", "sig", "X-Amz-Signature"):
         with pytest.raises(ValueError, match="sensitive URL query field"):
             encode_acquisition_token(
                 {

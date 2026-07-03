@@ -7,6 +7,8 @@ from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit, urlunsplit
 
 PUBLIC_URL_SCHEMES = {"http", "https", "magnet"}
 SENSITIVE_KEY_MARKERS = (
+    "access_key",
+    "accesskey",
     "api_key",
     "apikey",
     "auth_key",
@@ -26,15 +28,24 @@ SENSITIVE_KEY_MARKERS = (
     "rss_key",
     "rsskey",
     "secret",
+    "signature",
     "sessioncookie",
     "sid",
     "token",
 )
+SENSITIVE_KEYS = {
+    "sig",
+    "x_amz_credential",
+    "x_amz_signature",
+    "x_amz_security_token",
+}
 
 
 def looks_sensitive_key(key: str) -> bool:
     normalized = key.replace("-", "_").casefold()
-    return any(marker in normalized for marker in SENSITIVE_KEY_MARKERS)
+    return normalized in SENSITIVE_KEYS or any(
+        marker in normalized for marker in SENSITIVE_KEY_MARKERS
+    )
 
 
 def is_public_url(parsed: SplitResult) -> bool:
