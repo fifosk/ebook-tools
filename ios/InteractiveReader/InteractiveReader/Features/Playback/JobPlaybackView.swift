@@ -678,10 +678,10 @@ struct JobPlaybackView: View {
     #if os(tvOS)
     private var shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible: Bool {
         musicOwnership.ownershipState == .appleMusicBed &&
+            !musicOwnership.isManuallyPaused &&
             viewModel.audioCoordinator.isPlaybackRequested &&
             !viewModel.audioCoordinator.isPlaying &&
-            !viewModel.isNarrationAudibleForReaderTransport &&
-            lastReaderTransportAction != "pause"
+            !viewModel.isNarrationAudibleForReaderTransport
     }
     #endif
 

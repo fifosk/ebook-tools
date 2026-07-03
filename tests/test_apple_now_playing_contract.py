@@ -239,7 +239,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job_pre_audible_pause_body
     assert "!viewModel.audioCoordinator.isPlaying" in job_pre_audible_pause_body
     assert "!viewModel.isNarrationAudibleForReaderTransport" in job_pre_audible_pause_body
-    assert 'lastReaderTransportAction != "pause"' in job_pre_audible_pause_body
+    assert "!musicOwnership.isManuallyPaused" in job_pre_audible_pause_body
+    assert 'lastReaderTransportAction != "pause"' not in job_pre_audible_pause_body
     assert job_mirror_pause_decision_body.index("if musicOwnership.isPausedByReaderTransport") < job_mirror_pause_decision_body.index(
         "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay"
     )
@@ -858,7 +859,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.isPlaybackRequested" in library_pre_audible_pause_body
     assert "!viewModel.audioCoordinator.isPlaying" in library_pre_audible_pause_body
     assert "!viewModel.isNarrationAudibleForReaderTransport" in library_pre_audible_pause_body
-    assert 'lastReaderTransportAction != "pause"' in library_pre_audible_pause_body
+    assert "!musicOwnership.isManuallyPaused" in library_pre_audible_pause_body
+    assert 'lastReaderTransportAction != "pause"' not in library_pre_audible_pause_body
     library_mirror_pause_decision_body = _function_body(library_playback, "private var shouldMirrorAppleMusicPauseToNarration")
     assert "#if os(tvOS)" in library_mirror_pause_decision_body
     assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in library_mirror_pause_decision_body

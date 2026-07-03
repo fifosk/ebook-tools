@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-preaudible-music-pause-guard",
+            title: "TV resume waits for narration",
+            detail: "Apple TV reader playback now ignores non-manual Apple Music pause observations while sentence audio is requested but not yet audible, even after a prior pause action, preventing the bed state from stopping a resume before narration starts."
+        ),
+        AppChangelogEntry(
             id: "tvos-startup-music-pause-ignored",
             title: "TV startup ignores Music pause",
             detail: "Apple TV reader playback now ignores Apple Music pause observations while narration is requested but not yet audible, keeping the initial sentence start alive instead of treating the bed state as a reader pause."
