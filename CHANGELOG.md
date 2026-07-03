@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple interactive reader sequence dwell now pins the muted AVPlayer at or before the early handoff boundary instead of seeking closer to the nominal sentence end, reducing TV/iPad cases where a sliver of the next sentence leaks before the Translation track starts.
 - Apple TV Job and Library playback now treat pending interactive autoplay as part of the deferred Music-bed resume window, so a stale non-playing Music callback no longer cancels narration into a retry loop.
 - Apple TV foreground Siri Remote Play/Pause presses now bypass the broker-echo rejection before force-pause resolution, so a real Living Room pause can stop sentence narration and the Apple Music bed on the first press.
 - The Apple pipeline now has a `verify-apple-music-bed-candidate-dry-run` target that checks iPad and tvOS Music-bed journey wiring together without credentials or simulator boots before the live candidate gate.

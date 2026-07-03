@@ -495,7 +495,7 @@ final class SequencePlaybackController: ObservableObject {
     }
 
     private func dwellPinTime(for segment: SequenceSegment) -> Double {
-        max(segment.start, segment.end - dwellPinBackoff)
+        max(segment.start, min(segment.end - dwellPinBackoff, boundaryTriggerTime(for: segment)))
     }
 
     private func installBoundaryForCurrentSegment() {

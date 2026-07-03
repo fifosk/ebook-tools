@@ -349,6 +349,7 @@ def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> No
     assert "controller.boundaryReached()" in swift_check
     assert "controller.cancelPendingAutomaticAdvanceForPause()" in swift_check
     assert "controller.cancelPendingAutomaticAdvanceForReaderTransportPause()" in swift_check
+    assert "Boundary pause should never pin after the early boundary handoff point" in swift_check
     assert "Cancelled dwell should not advance after its timer fires" in swift_check
     assert "Pause cancellation should clear an in-flight transition" in swift_check
     assert "Reader transport pause should clear an in-flight transition" in swift_check
@@ -1178,6 +1179,8 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     assert "segment.end - boundaryHeadroom" in trigger_body
     pin_time_body = _function_body(controller, "private func dwellPinTime(for segment: SequenceSegment) -> Double")
     assert "segment.end - dwellPinBackoff" in pin_time_body
+    assert "boundaryTriggerTime(for: segment)" in pin_time_body
+    assert "min(segment.end - dwellPinBackoff, boundaryTriggerTime(for: segment))" in pin_time_body
     install_body = _function_body(controller, "private func installBoundaryForCurrentSegment()")
     assert "boundaryTriggerTime(for: segment)" in install_body
     assert "let fadeEnd = boundaryTime" in install_body

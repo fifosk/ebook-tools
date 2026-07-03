@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "sequence-dwell-pin-at-handoff-boundary",
+            title: "Reader handoffs avoid late pins",
+            detail: "Interactive reader sequence dwell now pins the muted AVPlayer at or before the early handoff boundary instead of seeking closer to the nominal sentence end, reducing TV and iPad cases where a sliver of the next sentence leaks before the Translation track starts."
+        ),
+        AppChangelogEntry(
             id: "acquisition-readable-source-paths",
             title: "Discovery paths stay readable",
             detail: "Backend acquisition providers now keep source labels for unavailable local EPUB and NAS video roots while only publishing source paths for roots that are currently readable, so Web and Apple Create avoid stale picker paths during NAS outages."
