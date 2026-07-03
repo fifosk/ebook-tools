@@ -1603,6 +1603,27 @@ def test_discover_manual_download_videos_does_not_recover_partial_files(tmp_path
     assert not (manual_root / "Almost Ready.mp4").exists()
 
 
+def test_discover_manual_download_videos_skip_zero_byte_placeholders(tmp_path: Path) -> None:
+    manual_root = tmp_path / "manual"
+    manual_root.mkdir()
+    placeholder = manual_root / "Placeholder.mp4"
+    complete = manual_root / "Complete.mp4"
+    placeholder.write_bytes(b"")
+    complete.write_bytes(b"video")
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="",
+        provider="manual_downloads",
+        config={"manual_download_root": str(manual_root)},
+    )
+
+    assert result.providers_queried == ("manual_downloads",)
+    assert [candidate.local_path for candidate in result.candidates] == [
+        complete.as_posix()
+    ]
+
+
 def test_discover_manual_download_videos_are_newest_first_across_roots(tmp_path: Path) -> None:
     old_root = tmp_path / "old-root"
     new_root = tmp_path / "new-root"
@@ -1705,6 +1726,27 @@ def test_discover_nas_video_candidates_does_not_recover_partial_files(tmp_path: 
     assert result.candidates == ()
     assert partial_path.exists()
     assert not (video_root / "NAS Clip.mkv").exists()
+
+
+def test_discover_nas_video_candidates_skip_zero_byte_placeholders(tmp_path: Path) -> None:
+    video_root = tmp_path / "videos"
+    video_root.mkdir()
+    placeholder = video_root / "NAS Placeholder.mkv"
+    complete = video_root / "NAS Complete.mkv"
+    placeholder.write_bytes(b"")
+    complete.write_bytes(b"video")
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="nas",
+        provider="nas_video",
+        config={"youtube_video_root": str(video_root)},
+    )
+
+    assert result.providers_queried == ("nas_video",)
+    assert [candidate.local_path for candidate in result.candidates] == [
+        complete.as_posix()
+    ]
 
 
 def test_discover_gutenberg_normalizes_public_domain_epub_metadata() -> None:

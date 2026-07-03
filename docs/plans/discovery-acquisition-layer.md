@@ -386,6 +386,9 @@ Acquisition task fields:
    - Status: Apple YouTube Dub can search the same `manual_downloads` video
      candidates and fill the existing video/subtitle fields from local paths
      and discovered subtitle hints.
+   - Status: NAS and manual-download video discovery skip zero-byte video
+     placeholders as well as `.part` files, matching the EPUB placeholder guard
+     before Web/Apple source pickers see incomplete artifacts.
    - Status: Newznab/Torznab search is implemented behind explicit indexer
      config as metadata-only, review-only discovery. Results expose safe title,
      date, size, category, and swarm metadata while raw NZB/torrent URLs and

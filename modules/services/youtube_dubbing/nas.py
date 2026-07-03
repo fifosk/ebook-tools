@@ -117,6 +117,9 @@ def list_downloaded_videos(
                 continue
             if ".dub" in path.stem.lower():
                 continue
+            if entry_stat.st_size <= 0:
+                logger.debug("Skipping zero-byte NAS video placeholder %s", path)
+                continue
 
             video_candidates.append((path, entry_stat))
 

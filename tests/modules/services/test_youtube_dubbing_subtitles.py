@@ -89,6 +89,17 @@ def test_list_downloaded_videos_includes_generic_mkv_and_subtitles(tmp_path: Pat
     assert any(sub.path == subtitle_path.resolve() for sub in entry.subtitles)
 
 
+def test_list_downloaded_videos_skips_zero_byte_video_placeholders(tmp_path: Path) -> None:
+    placeholder = tmp_path / "empty-download.mp4"
+    complete = tmp_path / "complete-download.mp4"
+    placeholder.write_bytes(b"")
+    complete.write_bytes(b"video")
+
+    videos = list_downloaded_videos(tmp_path)
+
+    assert [video.path.name for video in videos] == ["complete-download.mp4"]
+
+
 def test_list_downloaded_videos_uses_tolerant_stat_for_root_and_entries(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
