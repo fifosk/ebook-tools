@@ -734,12 +734,25 @@ the `2219 -> 2220` case, so single-track playback cannot silently regress into
 batch skipping. `check_apple_sentence_position_provider.sh` also verifies
 single-track time-to-sentence anchoring from translation/original gate timings,
 so bookmark or scrubber seeks refresh the same visible sentence anchor before
-the next keyboard/remote skip. The same pytest contract now parses the Xcode
-project and requires `AudioModeManager.swift` plus
+the next keyboard/remote skip. `check_apple_sequence_pause_cancel.sh` now
+also verifies that overlapping same-track gates trim just before the next
+same-track sentence while clean adjacent gates stay exact, keeping sequence
+handoff output-buffer guards inside the reusable pipeline. The same pytest
+contract now parses the Xcode project and requires `AudioModeManager.swift` plus
 `InteractivePlayerView+Tracks.swift` in both the iOS/iPadOS
 `InteractiveReader` app target and the tvOS `InteractiveReaderTV` app target,
 so shared track/timing fixes cannot quietly ship to iPad without also compiling
 into Apple TV.
+
+Latest local Apple contract evidence from July 3, 2026:
+`make test-changed` passed from the ebook-tools checkout at commit `b1b355adb`
+after the sequence handoff guard contract was added. The selector chose
+`test-apple-playback-state-swift` and `test-apple-contracts`, covering the
+Swift playback helper harnesses, 550 Apple contract pytest checks,
+language-catalog validation, Apple journey validation, runtime/creation
+payload checks, macOS iPad-style and unattended-device helper contracts,
+iOS/tvOS build helper contracts, and the shared-pipeline manifest helper. The
+run did not boot simulators, load remote secrets, or touch physical devices.
 
 Latest shared-pipeline contract evidence from June 28, 2026:
 `make apple-pipeline-contracts` passed from the ebook-tools checkout at commit
