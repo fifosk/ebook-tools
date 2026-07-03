@@ -187,6 +187,9 @@ remain inside the intended hold window. It also keeps MusicKit play-observation 
 active until reader transport explicitly resumes, with repeated confirmation
 checks so a stray or delayed Apple Music resume after reader-owned pause is
 re-paused instead of restarting narration or promoting fullscreen Music artwork.
+Manual Apple Music bed pauses are treated as explicit reader pause intent and
+must bypass the post-resume stale-pause filter; passive observed-pause probes
+should still mirror without incrementing the user transport-command counter.
 Reader-owned pause paths also re-check the sentence coordinator shortly after
 broker, Music-surface, and rejected-play pause acceptance; if narration still
 reports `requested` or `playing`, the reader issues another transport pause and

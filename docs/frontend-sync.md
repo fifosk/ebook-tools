@@ -443,7 +443,8 @@ Follow the suggested remediations to restore parity:
   recovery so the first remote pause cannot stop only Music, let the watchdog re-pause narration before returning for
   the Music pause guard, pause the tvOS Music player immediately on reader-owned
   pauses, convert manual Music-surface pauses in `appleMusicBed` into the same
-  reader transport pause path, preserve fullscreen-artwork suppression while resuming Apple Music as
+  reader transport pause path and let that explicit manual pause bypass the
+  post-resume stale-pause filter, preserve fullscreen-artwork suppression while resuming Apple Music as
   a bed under narration, preserve the remembered Apple Music selection for the next reader resume, and clear
   stale pause-ignore state on reader resume so
   Apple Music cannot immediately resume narration or promote fullscreen artwork.

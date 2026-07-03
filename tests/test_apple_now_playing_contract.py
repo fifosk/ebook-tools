@@ -208,6 +208,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "return !(viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)" in job_stale_pause_body
     assert "return hasPendingReaderMusicResume" not in job_stale_pause_body
     job_honor_adoption_body = _function_body(job_playback, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
+    assert 'reason == "manualPause", source == "musicSurface"' in job_honor_adoption_body
     assert 'reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying"' in job_honor_adoption_body
     assert 'source == "active observed non-playing"' in job_honor_adoption_body
     assert 'source == "persistent observed non-playing"' in job_honor_adoption_body
@@ -581,7 +582,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     job_perform_pause_body = _function_body(job_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "invalidateReaderTransportResumeTasks()" in job_perform_pause_body
     assert "viewModel.pauseForReaderTransport()" in job_perform_pause_body
-    assert 'confirmReaderTransportPauseAfterCommand(source: "pauseCommand")' in job_perform_pause_body
+    assert "confirmReaderTransportPauseAfterCommand(source: lastReaderTransportSource)" in job_perform_pause_body
     assert job_perform_pause_body.index("viewModel.pauseForReaderTransport()") < job_perform_pause_body.index(
         "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
@@ -756,6 +757,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "if isWithinPostPlayEchoWindow" in library_stale_pause_body
     assert "guard !viewModel.isNarrationAudibleForReaderTransport else { return false }" in library_stale_pause_body
     library_honor_adoption_body = _function_body(library_playback, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
+    assert 'reason == "manualPause", source == "musicSurface"' in library_honor_adoption_body
     assert 'reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying"' in library_honor_adoption_body
     assert 'source == "active observed non-playing"' in library_honor_adoption_body
     assert 'source == "persistent observed non-playing"' in library_honor_adoption_body
@@ -962,7 +964,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     library_perform_pause_body = _function_body(library_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "invalidateReaderTransportResumeTasks()" in library_perform_pause_body
     assert "viewModel.pauseForReaderTransport()" in library_perform_pause_body
-    assert 'confirmReaderTransportPauseAfterCommand(source: "pauseCommand")' in library_perform_pause_body
+    assert "confirmReaderTransportPauseAfterCommand(source: lastReaderTransportSource)" in library_perform_pause_body
     assert library_perform_pause_body.index("viewModel.pauseForReaderTransport()") < library_perform_pause_body.index(
         "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
@@ -1285,7 +1287,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "func refreshMusicPlaybackSurfaceSuppression(reason: String)" in music
     pause_body = _function_body(music, "func pause(userInitiated: Bool = true)")
     assert "if userInitiated, ownershipState == .appleMusicBed" in pause_body
-    assert 'adoptPauseAsReaderTransport(reason: "manualPause", source: "music surface")' in pause_body
+    assert 'adoptPauseAsReaderTransport(reason: "manualPause", source: "musicSurface")' in pause_body
     assert pause_body.index("adoptPauseAsReaderTransport") < pause_body.index("cancelReaderTransportResumeTask")
     assert "private func cancelReaderTransportResumeTask(reason: String)" in music
     assert "private func isExpectedReaderTransportResumeCurrent(_ expectedBarrier: Int?) -> Bool" in music

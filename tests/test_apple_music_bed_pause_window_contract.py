@@ -66,6 +66,7 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in mirror_decision_body, label
         assert 'if lastReaderTransportAction == "play"' not in mirror_decision_body, label
         honor_adoption_body = _function_body(source, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
+        assert 'reason == "manualPause", source == "musicSurface"' in honor_adoption_body, label
         assert 'source == "active observed non-playing"' in honor_adoption_body, label
         assert 'source == "persistent observed non-playing"' in honor_adoption_body, label
         assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in stale_gate_body, label

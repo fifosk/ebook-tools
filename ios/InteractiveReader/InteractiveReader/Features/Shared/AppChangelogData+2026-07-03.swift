@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-music-bed-manual-pause-skips-stale-filter",
+            title: "Music-bed pause stays single-press",
+            detail: "Apple TV now treats a manual Apple Music bed pause as an explicit reader pause even during the post-resume stale-event window, keeping one Play/Pause press from stopping only the bed while sentence narration continues."
+        ),
+        AppChangelogEntry(
             id: "apple-golden-pipeline-music-bed-candidate",
             title: "Golden gate includes Music-bed checks",
             detail: "Golden Apple pipeline verification now runs the serial iPad plus tvOS Music-bed candidate gate after the dogfood pipeline, keeping pause/resume and lookup regressions inside the no-physical-deploy readiness recipe."

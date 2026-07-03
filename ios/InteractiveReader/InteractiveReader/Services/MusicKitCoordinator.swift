@@ -520,7 +520,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     func pause(userInitiated: Bool = true) {
         if userInitiated, ownershipState == .appleMusicBed {
-            adoptPauseAsReaderTransport(reason: "manualPause", source: "music surface")
+            adoptPauseAsReaderTransport(reason: "manualPause", source: "musicSurface")
             return
         }
         cancelReaderTransportResumeTask(reason: userInitiated ? "manualPause" : "pause")
