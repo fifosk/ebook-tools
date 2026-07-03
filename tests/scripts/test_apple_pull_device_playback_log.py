@@ -58,6 +58,8 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     assert '--baseline-log "$(APPLE_DEVICE_PLAYBACK_BASELINE_LOG)"' in makefile
     assert "$(MAKE) apple-device-pull-playback-log" in makefile
     assert "$(MAKE) apple-device-verify-playback-transport-log" in makefile
+    assert "$(MAKE) apple-device-verify-playback-transport-pause-resume-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1" in makefile
+    assert "$(MAKE) apple-device-verify-playback-resume-offset-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1" in makefile
     assert (
         "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
         "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=pause-resume"

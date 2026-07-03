@@ -664,8 +664,8 @@ apple-device-pull-and-verify-playback-resume-offset-log:
 
 apple-device-pull-and-verify-reader-repro-log:
 	$(MAKE) apple-device-pull-playback-log
-	$(MAKE) apple-device-verify-playback-transport-pause-resume-log
-	$(MAKE) apple-device-verify-playback-resume-offset-log
+	$(MAKE) apple-device-verify-playback-transport-pause-resume-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1
+	$(MAKE) apple-device-verify-playback-resume-offset-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1
 
 apple-device-verify-playback-transport-log:
 	$(PYTHON) scripts/check_apple_playback_transport_log.py \

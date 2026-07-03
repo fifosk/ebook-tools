@@ -1211,8 +1211,8 @@ make apple-device-pull-and-verify-reader-repro-log \
 ```
 
 That comprehensive reader-repro target is stricter than the single-purpose
-shortcuts: it expects the same cached app log to prove pause/resume transport
-and exact resume-offset application.
+shortcuts: it expects the same fresh suffix of the cached app log to prove
+pause/resume transport and exact resume-offset application.
 Validate the pulled fallback evidence with:
 
 ```bash
@@ -1259,7 +1259,8 @@ audio-state observer as a pending-autoplay recovery source; scheduled autoplay
 retry and watchdog recovery remain available, but `jobAudioState` /
 `libraryAudioState` bursts should not be able to enqueue repeated sentence
 jumps while Music-bed pause adoption is settling.
-`apple-device-pull-and-verify-playback-transport-log` first preserves the
+`apple-device-pull-and-verify-playback-transport-log` and the combined
+reader-repro pull target first preserve the
 previous latest pulled file as
 `test-results/apple-device-playback-transport-<device>.previous.log`, then runs
 the validator in fresh-only mode against the suffix after that baseline. Use the

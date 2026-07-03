@@ -436,8 +436,14 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
         "apple-device-pull-and-verify-reader-repro-log:", 1
     )[1].split("\n\n", 1)[0]
     assert "$(MAKE) apple-device-pull-playback-log" in pull_verify_reader_repro_target
-    assert "$(MAKE) apple-device-verify-playback-transport-pause-resume-log" in pull_verify_reader_repro_target
-    assert "$(MAKE) apple-device-verify-playback-resume-offset-log" in pull_verify_reader_repro_target
+    assert (
+        "$(MAKE) apple-device-verify-playback-transport-pause-resume-log "
+        "APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1"
+    ) in pull_verify_reader_repro_target
+    assert (
+        "$(MAKE) apple-device-verify-playback-resume-offset-log "
+        "APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1"
+    ) in pull_verify_reader_repro_target
     assert "apple-device-verify-playback-transport-log:" in makefile
     playback_transport_log_target = makefile.split(
         "apple-device-verify-playback-transport-log:", 1

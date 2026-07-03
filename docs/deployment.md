@@ -476,7 +476,8 @@ make apple-device-pull-and-verify-reader-repro-log \
   APPLE_DEVICE_ID="Living Room"
 ```
 
-That target is expected to fail if either the Music-bed pause/resume path or
+That target verifies both modes against the fresh suffix after the pre-pull
+baseline and is expected to fail if either the Music-bed pause/resume path or
 the exact resume-offset path lacks token-safe evidence in the captured session.
 Each pull writes the familiar latest
 `test-results/apple-device-playback-transport-<device>.log` and preserves a

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-reader-repro-log-fresh-window",
+            title: "Reader repro logs stay fresh",
+            detail: "The combined Apple playback reader-repro helper now verifies pause/resume and resume-offset evidence against the fresh pulled log suffix, matching the single-purpose transport checks."
+        ),
+        AppChangelogEntry(
             id: "apple-playback-log-fresh-window",
             title: "Device playback logs verify fresh repros",
             detail: "Apple playback-log pull-and-verify now preserves the previous local device log and checks only the fresh suffix, so old Living Room or Cinema failures no longer mask the current hardware repro."
