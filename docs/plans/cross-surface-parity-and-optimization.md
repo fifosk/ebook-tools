@@ -1227,7 +1227,10 @@ Optimization candidates:
   for success/error outcomes without logging user ids or job ids. Pipeline media
   manifests now record token-safe duration and aggregate category/file/chunk
   counts for completed and live manifest routes without logging job ids, user
-  ids, auth headers, tokens, or file names. Sentence-image single and batch
+  ids, auth headers, tokens, or file names. Pipeline media manifests and
+  single-chunk lookups also share audio/timing track serialization helpers, so
+  chunk sidecars and generated job payloads canonicalize track aliases and
+  timing versions the same way for Web and Apple playback. Sentence-image single and batch
   metadata lookups now record the same token-safe media-route duration
   telemetry and aggregate count/missing logs without logging job ids, user ids,
   auth headers, tokens, paths, filenames, or raw sentence content. Sentence

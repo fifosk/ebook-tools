@@ -258,6 +258,108 @@ def _sort_media_chunks(chunks: Sequence[PipelineMediaChunk]) -> List[PipelineMed
     ]
 
 
+def _register_audio_track(
+    audio_tracks_payload: Dict[str, Dict[str, Any]],
+    raw_key: Any,
+    raw_value: Any,
+) -> None:
+    if not isinstance(raw_key, str):
+        return
+    key = raw_key.strip()
+    if not key:
+        return
+    key = canonical_audio_track_key(key)
+
+    entry: Dict[str, Any] = {}
+    if isinstance(raw_value, str):
+        value = raw_value.strip()
+        if not value:
+            return
+        entry["path"] = value
+    elif isinstance(raw_value, Mapping):
+        path_value = raw_value.get("path")
+        url_value = raw_value.get("url")
+        duration_value = raw_value.get("duration")
+        sample_rate_value = raw_value.get("sampleRate")
+        if isinstance(path_value, str) and path_value.strip():
+            entry["path"] = path_value.strip()
+        if isinstance(url_value, str) and url_value.strip():
+            entry["url"] = url_value.strip()
+        try:
+            entry["duration"] = round(float(duration_value), 6)
+        except (TypeError, ValueError):
+            pass
+        try:
+            entry["sampleRate"] = int(sample_rate_value)
+        except (TypeError, ValueError):
+            pass
+    if not entry:
+        return
+
+    existing = audio_tracks_payload.get(key, {})
+    merged = dict(existing)
+    merged.update(entry)
+    audio_tracks_payload[key] = merged
+
+
+def _ingest_audio_tracks(audio_tracks_payload: Dict[str, Dict[str, Any]], candidate: Any) -> None:
+    if isinstance(candidate, Mapping):
+        for track_key, track_value in candidate.items():
+            _register_audio_track(audio_tracks_payload, track_key, track_value)
+    elif isinstance(candidate, Sequence) and not isinstance(candidate, (str, bytes)):
+        for entry in candidate:
+            if not isinstance(entry, Mapping):
+                continue
+            track_key = entry.get("key") or entry.get("kind")
+            track_value = entry.get("url") or entry.get("path")
+            if track_value is None:
+                track_value = entry.get("source")
+            _register_audio_track(audio_tracks_payload, track_key, track_value)
+
+
+def _build_audio_tracks_payload(
+    summary: Mapping[str, Any],
+    chunk: Mapping[str, Any],
+) -> Dict[str, Dict[str, Any]]:
+    audio_tracks_payload: Dict[str, Dict[str, Any]] = {}
+    _ingest_audio_tracks(audio_tracks_payload, summary.get("audio_tracks"))
+    _ingest_audio_tracks(audio_tracks_payload, summary.get("audioTracks"))
+    _ingest_audio_tracks(audio_tracks_payload, chunk.get("audio_tracks"))
+    _ingest_audio_tracks(audio_tracks_payload, chunk.get("audioTracks"))
+    return audio_tracks_payload
+
+
+def _build_timing_tracks_payload(
+    summary: Mapping[str, Any],
+    chunk: Mapping[str, Any],
+) -> Optional[Dict[str, List[Dict[str, Any]]]]:
+    raw_timing = summary.get("timing_tracks") or summary.get("timingTracks")
+    if raw_timing is None:
+        raw_timing = chunk.get("timing_tracks") or chunk.get("timingTracks")
+    if not isinstance(raw_timing, Mapping):
+        return None
+
+    timing_tracks_payload: Dict[str, List[Dict[str, Any]]] = {}
+    for track_key, track_entries in raw_timing.items():
+        if isinstance(track_key, str) and isinstance(track_entries, list):
+            timing_tracks_payload[canonical_timing_track_key(track_key)] = copy.deepcopy(track_entries)
+    return timing_tracks_payload
+
+
+def _resolve_timing_version(
+    summary: Mapping[str, Any],
+    chunk: Mapping[str, Any],
+    timing_tracks_payload: Optional[Mapping[str, Sequence[Mapping[str, Any]]]],
+) -> Optional[str]:
+    raw_timing_version = (
+        summary.get("timing_version")
+        or summary.get("timingVersion")
+        or chunk.get("timing_version")
+        or chunk.get("timingVersion")
+    )
+    return str(raw_timing_version).strip() if raw_timing_version else ("2" if timing_tracks_payload else None)
+
+
 def _build_media_file(
     job_id: str,
     entry: Mapping[str, Any],
@@ -441,84 +543,9 @@ def _serialize_media_entries(
                 if start is not None and end is not None and end > start:
                     sentence_count = end - start
 
-            audio_tracks_payload: Dict[str, Dict[str, Any]] = {}
-
-            def _register_track(raw_key: Any, raw_value: Any) -> None:
-                if not isinstance(raw_key, str):
-                    return
-                key = raw_key.strip()
-                if not key:
-                    return
-                key = canonical_audio_track_key(key)
-
-                entry: Dict[str, Any] = {}
-                if isinstance(raw_value, str):
-                    value = raw_value.strip()
-                    if not value:
-                        return
-                    entry["path"] = value
-                elif isinstance(raw_value, Mapping):
-                    path_value = raw_value.get("path")
-                    url_value = raw_value.get("url")
-                    duration_value = raw_value.get("duration")
-                    sample_rate_value = raw_value.get("sampleRate")
-                    if isinstance(path_value, str) and path_value.strip():
-                        entry["path"] = path_value.strip()
-                    if isinstance(url_value, str) and url_value.strip():
-                        entry["url"] = url_value.strip()
-                    try:
-                        entry["duration"] = round(float(duration_value), 6)
-                    except (TypeError, ValueError):
-                        pass
-                    try:
-                        entry["sampleRate"] = int(sample_rate_value)
-                    except (TypeError, ValueError):
-                        pass
-                if not entry:
-                    return
-
-                existing = audio_tracks_payload.get(key, {})
-                merged = dict(existing)
-                merged.update(entry)
-                audio_tracks_payload[key] = merged
-
-            def _ingest_tracks(candidate: Any) -> None:
-                if isinstance(candidate, Mapping):
-                    for track_key, track_value in candidate.items():
-                        _register_track(track_key, track_value)
-                elif isinstance(candidate, Sequence) and not isinstance(candidate, (str, bytes)):
-                    for entry in candidate:
-                        if not isinstance(entry, Mapping):
-                            continue
-                        track_key = entry.get("key") or entry.get("kind")
-                        track_value = entry.get("url") or entry.get("path")
-                        if track_value is None:
-                            track_value = entry.get("source")
-                        _register_track(track_key, track_value)
-
-            _ingest_tracks(summary.get("audio_tracks"))
-            _ingest_tracks(summary.get("audioTracks"))
-            _ingest_tracks(chunk.get("audio_tracks"))
-            _ingest_tracks(chunk.get("audioTracks"))
-
-            timing_tracks_payload: Optional[Dict[str, List[Dict[str, Any]]]] = None
-            raw_timing = summary.get("timing_tracks") or summary.get("timingTracks")
-            if raw_timing is None:
-                raw_timing = chunk.get("timing_tracks") or chunk.get("timingTracks")
-            if isinstance(raw_timing, Mapping):
-                timing_tracks_payload = {}
-                for track_key, track_entries in raw_timing.items():
-                    if isinstance(track_key, str) and isinstance(track_entries, list):
-                        timing_tracks_payload[canonical_timing_track_key(track_key)] = copy.deepcopy(track_entries)
-
-            # Extract timing version (v2 = pre-scaled timing from backend)
-            raw_timing_version = (
-                summary.get("timing_version")
-                or summary.get("timingVersion")
-                or chunk.get("timing_version")
-                or chunk.get("timingVersion")
-            )
-            timing_version = str(raw_timing_version).strip() if raw_timing_version else ("2" if timing_tracks_payload else None)
+            audio_tracks_payload = _build_audio_tracks_payload(summary, chunk)
+            timing_tracks_payload = _build_timing_tracks_payload(summary, chunk)
+            timing_version = _resolve_timing_version(summary, chunk, timing_tracks_payload)
 
             chunk_records.append(
                 PipelineMediaChunk(
@@ -655,84 +682,9 @@ def _serialize_chunk_entry(
         if start is not None and end is not None and end > start:
             sentence_count = end - start
 
-    audio_tracks_payload: Dict[str, Dict[str, Any]] = {}
-
-    def _register_track(raw_key: Any, raw_value: Any) -> None:
-        if not isinstance(raw_key, str):
-            return
-        key = raw_key.strip()
-        if not key:
-            return
-        key = canonical_audio_track_key(key)
-
-        entry: Dict[str, Any] = {}
-        if isinstance(raw_value, str):
-            value = raw_value.strip()
-            if not value:
-                return
-            entry["path"] = value
-        elif isinstance(raw_value, Mapping):
-            path_value = raw_value.get("path")
-            url_value = raw_value.get("url")
-            duration_value = raw_value.get("duration")
-            sample_rate_value = raw_value.get("sampleRate")
-            if isinstance(path_value, str) and path_value.strip():
-                entry["path"] = path_value.strip()
-            if isinstance(url_value, str) and url_value.strip():
-                entry["url"] = url_value.strip()
-            try:
-                entry["duration"] = round(float(duration_value), 6)
-            except (TypeError, ValueError):
-                pass
-            try:
-                entry["sampleRate"] = int(sample_rate_value)
-            except (TypeError, ValueError):
-                pass
-        if not entry:
-            return
-
-        existing = audio_tracks_payload.get(key, {})
-        merged = dict(existing)
-        merged.update(entry)
-        audio_tracks_payload[key] = merged
-
-    def _ingest_tracks(candidate: Any) -> None:
-        if isinstance(candidate, Mapping):
-            for track_key, track_value in candidate.items():
-                _register_track(track_key, track_value)
-        elif isinstance(candidate, Sequence) and not isinstance(candidate, (str, bytes)):
-            for entry in candidate:
-                if not isinstance(entry, Mapping):
-                    continue
-                track_key = entry.get("key") or entry.get("kind")
-                track_value = entry.get("url") or entry.get("path")
-                if track_value is None:
-                    track_value = entry.get("source")
-                _register_track(track_key, track_value)
-
-    _ingest_tracks(summary.get("audio_tracks"))
-    _ingest_tracks(summary.get("audioTracks"))
-    _ingest_tracks(chunk.get("audio_tracks"))
-    _ingest_tracks(chunk.get("audioTracks"))
-
-    timing_tracks_payload: Optional[Dict[str, List[Dict[str, Any]]]] = None
-    raw_timing = summary.get("timing_tracks") or summary.get("timingTracks")
-    if raw_timing is None:
-        raw_timing = chunk.get("timing_tracks") or chunk.get("timingTracks")
-    if isinstance(raw_timing, Mapping):
-        timing_tracks_payload = {}
-        for track_key, track_entries in raw_timing.items():
-            if isinstance(track_key, str) and isinstance(track_entries, list):
-                timing_tracks_payload[canonical_timing_track_key(track_key)] = copy.deepcopy(track_entries)
-
-    # Extract timing version (v2 = pre-scaled timing from backend)
-    raw_timing_version = (
-        summary.get("timing_version")
-        or summary.get("timingVersion")
-        or chunk.get("timing_version")
-        or chunk.get("timingVersion")
-    )
-    timing_version = str(raw_timing_version).strip() if raw_timing_version else ("2" if timing_tracks_payload else None)
+    audio_tracks_payload = _build_audio_tracks_payload(summary, chunk)
+    timing_tracks_payload = _build_timing_tracks_payload(summary, chunk)
+    timing_version = _resolve_timing_version(summary, chunk, timing_tracks_payload)
 
     return PipelineMediaChunk(
         chunk_id=str(summary.get("chunk_id")) if summary.get("chunk_id") else None,

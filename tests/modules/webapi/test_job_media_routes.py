@@ -423,9 +423,17 @@ def test_get_job_media_canonicalizes_audio_track_aliases(api_app) -> None:
     )
     metadata_path = file_locator.resolve_path(job_id, "metadata/chunk_aliases.json")
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    (metadata_path.parent / "job.json").write_text("{}", encoding="utf-8")
     metadata_path.write_text(
         """
         {
+          "audioTracks": {
+            "originalAudio": {
+              "url": "https://cdn.example.invalid/sidecar-original.mp3",
+              "duration": 0.75,
+              "sampleRate": "48000"
+            }
+          },
           "sentences": [
             {
               "sentence_number": 1,
@@ -486,6 +494,8 @@ def test_get_job_media_canonicalizes_audio_track_aliases(api_app) -> None:
     chunk = media_response.json()["chunks"][0]
     assert set(chunk["audioTracks"]) == {"orig", "translation", "orig_trans"}
     assert chunk["audioTracks"]["orig"]["url"].endswith("/original.mp3")
+    assert chunk["audioTracks"]["orig"]["duration"] == 0.8
+    assert chunk["audioTracks"]["orig"]["sampleRate"] == 48000
     assert chunk["audioTracks"]["translation"]["url"].endswith("/translated.mp3")
     assert chunk["audioTracks"]["orig_trans"]["path"] == "media/chunk-aliases/mix.mp3"
     assert set(chunk["timingTracks"]) == {"original", "translation"}
@@ -495,8 +505,9 @@ def test_get_job_media_canonicalizes_audio_track_aliases(api_app) -> None:
     assert "mix" not in chunk["audioTracks"]
 
     assert chunk_response.status_code == 200
-    assert set(chunk_response.json()["audioTracks"]) == {"orig", "translation", "orig_trans"}
-    assert set(chunk_response.json()["timingTracks"]) == {"original", "translation"}
+    chunk_detail = chunk_response.json()
+    assert chunk_detail["audioTracks"] == chunk["audioTracks"]
+    assert set(chunk_detail["timingTracks"]) == {"original", "translation"}
 
 
 def test_get_job_media_records_safe_timing(

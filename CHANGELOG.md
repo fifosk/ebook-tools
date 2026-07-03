@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Pipeline media manifest and single-chunk routes now share one audio/timing track serialization helper, keeping Web and Apple playback aligned when chunk sidecars and generated job payloads both describe tracks.
 - Apple TV Job and Library playback now ignore active adopted Apple Music bed pauses while narration is still requested, preventing transient MusicKit non-playing callbacks from stopping the reader after startup or resume.
 - Audio match and synthesis metadata now reuse the cached macOS voice inventory behind `/api/audio/voices`, keeping Web and Apple Create voice previews lighter and skipping malformed cached rows without leaking voice metadata.
 - The shared `/api/audio/voices` inventory now caches Piper voice discovery briefly, keeping Web and Apple Create voice pickers lighter during repeated settings refreshes while preserving token-safe route telemetry.
