@@ -354,6 +354,31 @@ def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> No
     assert "Reader transport pause should clear an in-flight transition" in swift_check
     assert "runSingleTrackPlanInitialLaneCheck()" in swift_check
     assert "Translation-only plan should point at the first translation segment" in swift_check
+    assert "runOverlappingGateTrimCheck()" in swift_check
+    assert "runAdjacentGateTrimCheck()" in swift_check
+    assert "should end just before the next original start when gates overlap" in swift_check
+    assert "should keep adjacent non-overlapping gates intact" in swift_check
+
+
+def test_sequence_overlap_trimming_leaves_a_handoff_guard() -> None:
+    controller = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "SequencePlaybackController.swift"
+    ).read_text(encoding="utf-8")
+
+    trim_body = _function_body(controller, "private func trimOverlappingSegments(_ segments: [SequenceSegment]) -> [SequenceSegment]")
+    assert "segment.end > nextStart" in trim_body
+    assert "nextStart - sameTrackHandoffGuard" in trim_body
+    assert "trimmedEnd = segment.end" in trim_body
+    assert trim_body.index("segment.end > nextStart") < trim_body.index("nextStart - sameTrackHandoffGuard")
+    guard_body = _function_body(controller, "private var sameTrackHandoffGuard: Double")
+    assert "#if os(tvOS)" in guard_body
+    assert "return 0.08" in guard_body
+    assert "return 0.05" in guard_body
 
 
 def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> None:
