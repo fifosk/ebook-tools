@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-07-02
+Last updated: 2026-07-03
 
 ## Goal
 
@@ -1262,7 +1262,11 @@ Optimization candidates:
   generic public error constants now live in
   `modules/webapi/routers/acquisition_route_support.py`, keeping those shared
   route invariants reusable while the router still exposes the compatibility
-  hooks covered by the WebAPI tests.
+  hooks covered by the WebAPI tests. Download Station task status/value helpers
+  now live in `modules/services/acquisition/download_station_values.py`, keeping
+  progress parsing, status normalization, safe completed-file extraction,
+  metadata shaping, and primitive value coercion outside the Synology network
+  adapter while preserving Web/Apple downloader polling behavior.
 - Prefer precomputed or cached job summary fields for list rows while keeping
   full metadata available on detail/media routes. Status:
   `/api/pipelines/jobs` now uses compact row result summaries so list rendering

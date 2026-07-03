@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-download-station-status-helper",
+            title: "Downloader polling is leaner",
+            detail: "Backend Download Station status parsing, completed-file normalization, task messages, and value coercion now live in a focused acquisition helper, keeping downloader polling behavior shared by Web and Apple Create easier to test."
+        ),
+        AppChangelogEntry(
             id: "tvos-pause-hold-clears-autoplay",
             title: "TV pause holds stop retries",
             detail: "Apple TV Job and Library playback now clear pending interactive autoplay when the reader is stopped inside the pause-hold window, preventing late MusicKit state from restarting the same sentence after a pause."

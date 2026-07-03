@@ -15,6 +15,7 @@ import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.discovery_normalization as discovery_normalization
 import modules.services.acquisition.download_station as download_station
+import modules.services.acquisition.download_station_values as download_station_values
 import modules.services.acquisition.file_sources as file_sources
 import modules.services.acquisition.gutenberg_discovery as gutenberg_discovery
 import modules.services.acquisition.indexer_discovery as indexer_discovery
@@ -1180,7 +1181,7 @@ def test_acquisition_helpers_use_provider_roots_directly() -> None:
     assert acquisition_acquire.resolve_books_root is provider_roots.resolve_books_root
     assert acquisition_acquire.resolve_video_root is provider_roots.resolve_video_root
     assert acquisition_acquire.resolve_manual_download_roots is provider_roots.resolve_manual_download_roots
-    assert download_station.resolve_manual_download_roots is provider_roots.resolve_manual_download_roots
+    assert download_station_values.resolve_manual_download_roots is provider_roots.resolve_manual_download_roots
 
 
 def test_acquisition_provider_requires_download_station_credentials(monkeypatch) -> None:

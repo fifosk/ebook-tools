@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Backend Download Station status parsing, completed-file normalization, task messages, and value coercion now live in a focused acquisition helper, keeping downloader polling behavior shared by Web and Apple Create easier to test.
 - Apple TV Job and Library playback now clear pending interactive autoplay when the reader is stopped inside the pause-hold window, preventing late MusicKit state from restarting the same sentence after a pause.
 - Apple TV sequence handoffs now trigger earlier while keeping the fade ramp start stable, reducing the short next-sentence leak before the Translation track switch without widening the audible fade tail.
 - Apple TV Job and Library playback now refuse pending interactive autoplay recovery while reader transport is in any paused Music-bed state, preventing stale retry loops after a pause command.
