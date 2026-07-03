@@ -632,9 +632,15 @@ def test_music_bed_candidate_gate_runs_ipad_then_tvos_without_deploy() -> None:
         "test-e2e-tvos-music-bed-sync"
     )
     assert target_line in makefile
+    dry_run_line = (
+        "verify-apple-music-bed-candidate-dry-run: test-e2e-ipad-music-bed-sync-dry-run "
+        "test-e2e-tvos-music-bed-sync-dry-run"
+    )
+    assert dry_run_line in makefile
 
     phony = makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
     assert "verify-apple-music-bed-candidate" in phony
+    assert "verify-apple-music-bed-candidate-dry-run" in phony
 
     target = makefile.split("verify-apple-music-bed-candidate:", 1)[1].split("\n\n", 1)[0]
     assert target.index("test-e2e-ipad-music-bed-sync") < target.index("test-e2e-tvos-music-bed-sync")
@@ -644,6 +650,18 @@ def test_music_bed_candidate_gate_runs_ipad_then_tvos_without_deploy() -> None:
     assert "apple_unattended_device_update.sh" not in target
     assert "apple-device-full-entitlement-stable-install" not in target
     assert "devicectl" not in target
+
+    dry_run_target = makefile.split("verify-apple-music-bed-candidate-dry-run:", 1)[1].split("\n\n", 1)[0]
+    assert dry_run_target.index("test-e2e-ipad-music-bed-sync-dry-run") < dry_run_target.index(
+        "test-e2e-tvos-music-bed-sync-dry-run"
+    )
+    assert "test-e2e-ipad-music-bed-sync " not in dry_run_target
+    assert "test-e2e-tvos-music-bed-sync " not in dry_run_target
+    assert "apple-device-update" not in dry_run_target
+    assert "run_app_device_deploy.py" not in dry_run_target
+    assert "apple_unattended_device_update.sh" not in dry_run_target
+    assert "apple-device-full-entitlement-stable-install" not in dry_run_target
+    assert "devicectl" not in dry_run_target
 
 
 def test_living_room_candidate_gate_runs_shared_pipeline_and_music_bed_without_deploy() -> None:
@@ -989,6 +1007,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-orchestration-dry-runs",
         "make apple-runtime-ssh-check",
         "make verify-apple-shared-pipeline",
+        "make verify-apple-music-bed-candidate-dry-run",
         "make verify-apple-living-room-candidate",
         "make verify-apple-dogfood-pipeline",
         "make verify-apple-golden-pipeline",

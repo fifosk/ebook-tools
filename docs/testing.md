@@ -612,9 +612,11 @@ fast-forwarded, because that check compares the local and remote Git state.
 `verify-apple-dogfood-pipeline` layers the local Web/Apple cross-surface
 checkpoint before `verify-apple-shared-pipeline`, keeping the reusable pipeline
 and repo-owned surface gates together without touching physical devices.
-`verify-apple-music-bed-candidate` runs the real iPad Music-bed journey followed
-by the real tvOS Music-bed journey serially, so keyboard/lookup and remote
-transport checks do not compete for simulator timing. `verify-apple-living-room-candidate`
+`verify-apple-music-bed-candidate-dry-run` validates the iPad and tvOS Music-bed
+journey wiring without credentials or simulator boots. `verify-apple-music-bed-candidate`
+runs the real iPad Music-bed journey followed by the real tvOS Music-bed journey
+serially, so keyboard/lookup and remote transport checks do not compete for
+simulator timing. `verify-apple-living-room-candidate`
 composes the shared non-physical gate with that serial Music-bed candidate check,
 giving Living Room Apple TV changes a single cross-surface check before an
 explicit hardware deploy request. When
@@ -746,6 +748,8 @@ simulators, load remote secrets for credential-free validation, or touch
 physical devices.
 
 Music-bed and Living Room Apple TV candidate gates:
+`make verify-apple-music-bed-candidate-dry-run` validates the same registered
+iPad/tvOS Music-bed journey wiring without credentials or simulator boots.
 `make verify-apple-music-bed-candidate` runs the real iPad Music-bed XCUITest
 journey and then the real tvOS Music-bed XCUITest journey
 (`make test-e2e-ipad-music-bed-sync` then `make test-e2e-tvos-music-bed-sync`).
