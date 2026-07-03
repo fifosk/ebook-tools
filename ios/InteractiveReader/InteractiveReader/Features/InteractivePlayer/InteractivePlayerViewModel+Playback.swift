@@ -779,7 +779,7 @@ extension InteractivePlayerViewModel {
                 // Small delay after seek completes to ensure proper rendering
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
                     guard let self else { return }
-                    self.audioCoordinator.clearAudioMix()
+                    self.audioCoordinator.clearSequenceAudioGuards()
                     self.sequenceController.endTransition(expectedTime: target.time)
                     // Restore volume to target level (respects music mix setting)
                     self.audioCoordinator.restoreVolume()
@@ -867,12 +867,12 @@ extension InteractivePlayerViewModel {
                     self.audioCoordinator.seek(to: time) { [weak self] _ in
                         guard let self else { return }
                         guard token == self.currentTransitionToken else { return }
-                        self.audioCoordinator.clearAudioMix()
+                        self.audioCoordinator.clearSequenceAudioGuards()
                         self.finalizeSameTrackTokenSeek(at: time, autoPlay: autoPlay)
                     }
                     return
                 }
-                self.audioCoordinator.clearAudioMix()
+                self.audioCoordinator.clearSequenceAudioGuards()
                 self.finalizeSameTrackTokenSeek(at: time, autoPlay: autoPlay)
             }
         }

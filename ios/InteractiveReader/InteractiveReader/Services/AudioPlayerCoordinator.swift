@@ -321,7 +321,20 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         // Leave the current item's fade mix attached until the seek/load has
         // landed. Clearing it here can briefly unmute buffered tail audio from
         // the old segment on real tvOS output.
+        setSegmentForwardEndTime(nil)
         removeBoundaryObserver()
+    }
+
+    /// Clamp the current AVPlayerItem to the active sequence segment boundary.
+    /// Boundary observers can arrive late on real tvOS output; a forward end
+    /// time gives AVPlayer its own hard stop before the next sentence can leak.
+    func setSegmentForwardEndTime(_ time: Double?) {
+        guard let item = player?.currentItem else { return }
+        guard let time, time.isFinite, time > 0 else {
+            item.forwardPlaybackEndTime = .invalid
+            return
+        }
+        item.forwardPlaybackEndTime = CMTime(seconds: time, preferredTimescale: 600)
     }
 
     func setLooping(_ loop: Bool) {
@@ -850,6 +863,12 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     /// Remove any audio mix from the current item (restores normal playback volume).
     func clearAudioMix() {
         player?.currentItem?.audioMix = nil
+    }
+
+    /// Remove sequence-only audio guards from the current item.
+    func clearSequenceAudioGuards() {
+        clearAudioMix()
+        setSegmentForwardEndTime(nil)
     }
 
     private func installTimeObserver(on player: AVPlayer) {

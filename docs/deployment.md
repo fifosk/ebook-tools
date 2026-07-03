@@ -489,6 +489,12 @@ pull-and-verify targets validate only the fresh suffix after that baseline by
 default, which keeps stale failures from an older Living Room/Cinema repro from
 masking the current hardware session. Standalone verify targets still check the
 full file unless `APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1` is set.
+DEBUG app-cache playback logs start with a token-safe
+`[PlaybackTransportBuild]` header that includes release, bundle, branch, and git
+commit. For a specific test candidate, pass
+`APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT=<sha>` to the pull-and-verify or
+standalone verify target so a stale physical install is rejected before transport
+breadcrumbs are interpreted.
 The cached transport verifier is intentionally narrower than the launch-console
 checker: it proves reader transport accepted pause/resume and rejects the legacy
 hardware echo resume sources before explicit reader play, without requiring

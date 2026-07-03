@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "sequence-hard-segment-end-guard",
+            title: "Reader handoffs stop at segment end",
+            detail: "Interactive reader sequence playback now gives AVPlayer a hard per-segment end time and uses smaller TV boundary/fade windows, reducing clipped sentence endings while blocking a next-sentence sliver before the Original/Translation switch."
+        ),
+        AppChangelogEntry(
             id: "tvos-autoplay-clear-before-recovery",
             title: "TV playback retries stay paused",
             detail: "Job and Library audio-state callbacks now clear pending autoplay before Music-bed recovery runs, and tvOS track switches use a wider boundary/fade guard so the next sentence is less likely to leak before Translation starts."
@@ -13,7 +18,7 @@ extension AppChangelogData {
         AppChangelogEntry(
             id: "playback-transport-build-header",
             title: "Device logs show build",
-            detail: "DEBUG Apple playback transport logs now include a token-safe release, bundle, and branch header before reader events, making physical TV/iPad repro captures easier to match to the deployed checkpoint."
+            detail: "DEBUG Apple playback transport logs now include a token-safe release, bundle, branch, and commit header before reader events, making physical TV/iPad repro captures easier to match to the deployed checkpoint."
         ),
         AppChangelogEntry(
             id: "sequence-fade-survives-handoff-seek",

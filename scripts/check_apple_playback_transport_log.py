@@ -167,6 +167,13 @@ AUTOPLAY_RECOVERY_LINE_PATTERN = re.compile(
     r"recovering pending interactive autoplay .* sentence=(?P<sentence>\d+)"
 )
 
+PLAYBACK_BUILD_HEADER_PATTERN = re.compile(
+    r"^\d+(?:\.\d+)? \[PlaybackTransportBuild\] (?P<metadata>.+)$",
+    flags=re.MULTILINE,
+)
+
+PLAYBACK_BUILD_COMMIT_PATTERN = re.compile(r"(?:^|\s)commit=(?P<commit>[A-Za-z0-9._-]+)(?:\s|$)")
+
 
 MUSIC_SURFACE_PAUSE_LINE_PATTERN = re.compile(
     r"^(?P<time>\d+(?:\.\d+)?) \[PlaybackTransport\] (?P<surface>Job|Library) "
@@ -399,6 +406,27 @@ def _autoplay_recovery_loop_violations(text: str) -> list[str]:
     return []
 
 
+def _build_commit_violations(text: str, required_commit: str | None) -> list[str]:
+    required = (required_commit or "").strip()
+    if not required:
+        return []
+    commits: list[str] = []
+    for match in PLAYBACK_BUILD_HEADER_PATTERN.finditer(text):
+        commit_match = PLAYBACK_BUILD_COMMIT_PATTERN.search(match.group("metadata"))
+        if commit_match:
+            commits.append(commit_match.group("commit"))
+    if not commits:
+        return ["playback build header commit missing"]
+    latest = commits[-1]
+    if latest == "unknown":
+        return ["playback build header commit is unknown"]
+    if latest.startswith(required) or required.startswith(latest):
+        return []
+    return [
+        f"playback build header commit {latest} does not match required {required}"
+    ]
+
+
 def _resume_offset_violations(text: str) -> list[str]:
     violations: list[str] = []
     if re.search(
@@ -465,6 +493,7 @@ def validate_log(
     mode: str,
     fresh_only: bool = False,
     baseline_path: Path | None = None,
+    required_commit: str | None = None,
 ) -> list[str]:
     try:
         text = _read_fresh_text(path, fresh_only=fresh_only, baseline_path=baseline_path)
@@ -489,6 +518,7 @@ def validate_log(
         missing.extend(_stale_pause_ignore_violations(text))
     elif mode == "resume-offset":
         missing.extend(_resume_offset_violations(text))
+    missing.extend(_build_commit_violations(text, required_commit))
     return missing
 
 
@@ -548,6 +578,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=os.environ.get("APPLE_DEVICE_PLAYBACK_BASELINE_LOG", ""),
         help="Previous pulled playback log used by --fresh-only.",
     )
+    parser.add_argument(
+        "--require-commit",
+        default=os.environ.get("APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT", ""),
+        help="Require the latest [PlaybackTransportBuild] header to match this git commit prefix.",
+    )
     return parser.parse_args(argv)
 
 
@@ -560,6 +595,7 @@ def main(argv: list[str] | None = None) -> int:
         mode=args.mode,
         fresh_only=args.fresh_only,
         baseline_path=baseline_path,
+        required_commit=args.require_commit,
     )
     if missing:
         try:

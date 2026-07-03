@@ -484,7 +484,7 @@ def test_diagnostic_hint_treats_build_header_as_not_enough_transport_evidence() 
     missing = ["reader transport accepted pause"]
 
     hints = module.diagnostic_hints(
-        "1782670000.000 [PlaybackTransportBuild] release=2026.07.03.001 marketing=2026.7.3 bundle=20260703001 branch=main\n",
+        "1782670000.000 [PlaybackTransportBuild] release=2026.07.03.001 marketing=2026.7.3 bundle=20260703001 branch=main commit=482baa85d000\n",
         mode="pause-release",
         missing=missing,
     )
@@ -493,6 +493,41 @@ def test_diagnostic_hint_treats_build_header_as_not_enough_transport_evidence() 
         "log has no playback transport breadcrumbs; reproduce in a DEBUG Apple build, "
         "then run make apple-device-pull-and-verify-playback-transport-log without relaunching"
     ]
+
+
+def test_required_build_commit_accepts_matching_header(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        "1782670000.000 [PlaybackTransportBuild] release=2026.07.03.001 marketing=2026.7.3 bundle=20260703001 branch=main commit=482baa85d000\n"
+        + PAUSE_LOG,
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="pause-release", required_commit="482baa85d") == []
+
+
+def test_required_build_commit_rejects_mismatched_header(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        "1782670000.000 [PlaybackTransportBuild] release=2026.07.03.001 marketing=2026.7.3 bundle=20260703001 branch=main commit=deadbeef0000\n"
+        + PAUSE_LOG,
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release", required_commit="482baa85d")
+
+    assert missing == [
+        "playback build header commit deadbeef0000 does not match required 482baa85d"
+    ]
+
+
+def test_required_build_commit_reports_missing_header_commit(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(PAUSE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-release", required_commit="482baa85d")
+
+    assert missing == ["playback build header commit missing"]
 
 
 def test_diagnostic_hint_stays_quiet_for_specific_playback_transport_gaps() -> None:

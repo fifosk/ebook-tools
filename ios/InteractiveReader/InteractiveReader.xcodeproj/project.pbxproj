@@ -1709,35 +1709,37 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		B7C8D9E0F1A2B3C4D5E6F701 /* Set Git Branch */ = {
+		B7C8D9E0F1A2B3C4D5E6F701 /* Set Git Build Metadata */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 			);
-			name = "Set Git Branch";
+			name = "Set Git Build Metadata";
 			outputPaths = (
 				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/branch.stamp",
+				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/commit.stamp",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nBRANCH=$(git -C \"${SRCROOT}\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\")\nPLIST_CANDIDATES=(\n  \"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Info.plist\"\n  \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n  \"${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}/Info.plist\"\n)\nfor PLIST in \"${PLIST_CANDIDATES[@]}\"; do\n  if [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_BRANCH ${BRANCH}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_BRANCH string ${BRANCH}\" \"$PLIST\"\n    break\n  fi\ndone\nSTAMP=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/branch.stamp\"\nmkdir -p \"$(dirname \"$STAMP\")\"\necho \"${BRANCH}\" > \"$STAMP\"\n";
+			shellScript = "set -e\nBRANCH=$(git -C \"${SRCROOT}\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\")\nCOMMIT=$(git -C \"${SRCROOT}\" rev-parse --short=12 HEAD 2>/dev/null || echo \"unknown\")\nPLIST_CANDIDATES=(\n  \"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Info.plist\"\n  \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n  \"${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}/Info.plist\"\n)\nfor PLIST in \"${PLIST_CANDIDATES[@]}\"; do\n  if [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_BRANCH ${BRANCH}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_BRANCH string ${BRANCH}\" \"$PLIST\"\n    /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_COMMIT ${COMMIT}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_COMMIT string ${COMMIT}\" \"$PLIST\"\n    break\n  fi\ndone\nSTAMP_DIR=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}\"\nmkdir -p \"${STAMP_DIR}\"\necho \"${BRANCH}\" > \"${STAMP_DIR}/branch.stamp\"\necho \"${COMMIT}\" > \"${STAMP_DIR}/commit.stamp\"\n";
 		};
-		B7C8D9E0F1A2B3C4D5E6F702 /* Set Git Branch (tvOS) */ = {
+		B7C8D9E0F1A2B3C4D5E6F702 /* Set Git Build Metadata (tvOS) */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 			);
-			name = "Set Git Branch (tvOS)";
+			name = "Set Git Build Metadata (tvOS)";
 			outputPaths = (
 				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/branch.stamp",
+				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/commit.stamp",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nBRANCH=$(git -C \"${SRCROOT}\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\")\nPLIST_CANDIDATES=(\n  \"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Info.plist\"\n  \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n  \"${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}/Info.plist\"\n)\nfor PLIST in \"${PLIST_CANDIDATES[@]}\"; do\n  if [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_BRANCH ${BRANCH}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_BRANCH string ${BRANCH}\" \"$PLIST\"\n    break\n  fi\ndone\nSTAMP=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/branch.stamp\"\nmkdir -p \"$(dirname \"$STAMP\")\"\necho \"${BRANCH}\" > \"$STAMP\"\n";
+			shellScript = "set -e\nBRANCH=$(git -C \"${SRCROOT}\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\")\nCOMMIT=$(git -C \"${SRCROOT}\" rev-parse --short=12 HEAD 2>/dev/null || echo \"unknown\")\nPLIST_CANDIDATES=(\n  \"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Info.plist\"\n  \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n  \"${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}/Info.plist\"\n)\nfor PLIST in \"${PLIST_CANDIDATES[@]}\"; do\n  if [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_BRANCH ${BRANCH}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_BRANCH string ${BRANCH}\" \"$PLIST\"\n    /usr/libexec/PlistBuddy -c \"Set :EBOOK_TOOLS_COMMIT ${COMMIT}\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :EBOOK_TOOLS_COMMIT string ${COMMIT}\" \"$PLIST\"\n    break\n  fi\ndone\nSTAMP_DIR=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}\"\nmkdir -p \"${STAMP_DIR}\"\necho \"${BRANCH}\" > \"${STAMP_DIR}/branch.stamp\"\necho \"${COMMIT}\" > \"${STAMP_DIR}/commit.stamp\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

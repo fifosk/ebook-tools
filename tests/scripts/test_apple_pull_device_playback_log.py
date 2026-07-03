@@ -49,12 +49,14 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     assert "APPLE_DEVICE_PLAYBACK_BASELINE_LOG ?=" in makefile
     assert "APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY ?= 0" in makefile
     assert "APPLE_PLAYBACK_TRANSPORT_LOG_MODE ?= pause-release" in makefile
+    assert "APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT ?=" in makefile
     assert "scripts/apple_pull_device_playback_log.sh" in makefile
     assert "scripts/check_apple_playback_transport_log.py" in makefile
     assert '--output "$(APPLE_DEVICE_PLAYBACK_LOG)"' in makefile
     assert '--baseline-output "$(APPLE_DEVICE_PLAYBACK_BASELINE_LOG)"' in makefile
     assert "APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1" in makefile
     assert "--fresh-only" in makefile
+    assert '--require-commit "$(APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT)"' in makefile
     assert '--baseline-log "$(APPLE_DEVICE_PLAYBACK_BASELINE_LOG)"' in makefile
     assert "$(MAKE) apple-device-pull-playback-log" in makefile
     assert "$(MAKE) apple-device-verify-playback-transport-log" in makefile
@@ -89,10 +91,20 @@ def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_player
     assert "marketing=\\(AppVersion.marketingVersion)" in shortcuts
     assert "bundle=\\(AppVersion.bundleVersion)" in shortcuts
     assert "branch=\\(AppVersion.branch)" in shortcuts
+    assert "commit=\\(AppVersion.commit)" in shortcuts
     assert "writeSessionHeaderIfNeeded(fileURL)" in shortcuts
     assert "size.intValue > 512_000" in shortcuts
     assert "Apple Music reader transport pause adopted source=" in music
     assert "playbackTransportDebugLog(" in music
+
+    app_version = _source(APP / "Features" / "Shared" / "AppVersion.swift")
+    assert 'readInfoValue("EBOOK_TOOLS_COMMIT")' in app_version
+    assert 'ProcessInfo.processInfo.environment["EBOOK_TOOLS_COMMIT"]' in app_version
+
+    ios_plist = _source(APP / "Supporting" / "Info.plist")
+    tvos_plist = _source(APP / "Supporting" / "Info-tvOS.plist")
+    assert "EBOOK_TOOLS_COMMIT" in ios_plist
+    assert "EBOOK_TOOLS_COMMIT" in tvos_plist
 
     for source, label in (
         (job, "Job"),

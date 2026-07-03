@@ -198,6 +198,9 @@ final class SequencePlaybackController: ObservableObject {
     /// Parameters: (fadeStartTime, fadeEndTime) in seconds within the audio file.
     /// This prevents audio bleed through HDMI output buffers.
     var onApplySegmentFade: ((Double, Double) -> Void)?
+    /// Called to clamp the current audio item at the exact segment end.
+    /// This provides a player-level hard stop if boundary observers arrive late.
+    var onApplySegmentEndGuard: ((Double) -> Void)?
     /// Called when the controller resets, to clear fade mix and boundary observer
     /// from the audio player (prevents stale fade-outs silencing audio in non-sequence modes).
     var onCleanupAudioEffects: (() -> Void)?
@@ -486,9 +489,9 @@ final class SequencePlaybackController: ObservableObject {
         let isTrackSwitch = nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false
         #if os(tvOS)
         if isTrackSwitch {
-            return min(0.95, max(0.30, segment.duration * 0.34))
+            return min(0.34, max(0.10, segment.duration * 0.12))
         }
-        return min(0.72, max(0.18, segment.duration * 0.24))
+        return min(0.24, max(0.08, segment.duration * 0.10))
         #else
         if isTrackSwitch {
             return min(0.12, max(0.05, segment.duration * 0.10))
@@ -503,9 +506,9 @@ final class SequencePlaybackController: ObservableObject {
         let isTrackSwitch = nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false
         #if os(tvOS)
         if isTrackSwitch {
-            return min(0.58, max(0.20, segment.duration * 0.24))
+            return min(0.20, max(0.06, segment.duration * 0.08))
         }
-        return min(0.44, max(0.14, segment.duration * 0.18))
+        return min(0.16, max(0.05, segment.duration * 0.07))
         #else
         if isTrackSwitch {
             return min(0.20, max(0.07, segment.duration * 0.12))
@@ -553,10 +556,12 @@ final class SequencePlaybackController: ObservableObject {
         let boundaryTime = boundaryTriggerTime(for: segment)
         logBoundary("Installing boundary at \(String(format: "%.3f", boundaryTime)) (end=\(String(format: "%.3f", segment.end))) for seg[\(currentSegmentIndex)] \(segment.track.rawValue)")
         onInstallBoundary?(boundaryTime)
+        onApplySegmentEndGuard?(segment.end)
 
         // Apply decode-level fade-out so the source is already silent at the
-        // same early handoff boundary used by the observer/fallback path. Using
-        // segment.end here leaves a non-zero tail during the tvOS buffer window.
+        // early handoff boundary used by the observer/fallback path. The
+        // player-level end guard above handles the hard stop, letting this fade
+        // stay short enough to avoid clipping normal sentence endings.
         let fadeEnd = boundaryTime
         let fadeStart = max(segment.start + 0.01, fadeEnd - fadeOutDuration(for: segment))
         onApplySegmentFade?(fadeStart, fadeEnd)

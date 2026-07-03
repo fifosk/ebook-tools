@@ -1183,15 +1183,15 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     headroom_body = _function_body(controller, "private func boundaryHeadroom(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in headroom_body
     assert "nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false" in headroom_body
-    assert "min(0.95, max(0.30, segment.duration * 0.34))" in headroom_body
-    assert "min(0.72, max(0.18, segment.duration * 0.24))" in headroom_body
+    assert "min(0.34, max(0.10, segment.duration * 0.12))" in headroom_body
+    assert "min(0.24, max(0.08, segment.duration * 0.10))" in headroom_body
     assert "min(0.12, max(0.05, segment.duration * 0.10))" in headroom_body
     assert "min(0.08, max(0.03, segment.duration * 0.08))" in headroom_body
     fade_body = _function_body(controller, "private func fadeOutDuration(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in fade_body
     assert "nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false" in fade_body
-    assert "min(0.58, max(0.20, segment.duration * 0.24))" in fade_body
-    assert "min(0.44, max(0.14, segment.duration * 0.18))" in fade_body
+    assert "min(0.20, max(0.06, segment.duration * 0.08))" in fade_body
+    assert "min(0.16, max(0.05, segment.duration * 0.07))" in fade_body
     assert "min(0.20, max(0.07, segment.duration * 0.12))" in fade_body
     assert "min(0.16, max(0.05, segment.duration * 0.10))" in fade_body
     next_body = _function_body(controller, "private func nextPlayableSegment(after segment: SequenceSegment) -> SequenceSegment?")
@@ -1209,6 +1209,7 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     assert "min(segment.end - dwellPinBackoff(for: segment), boundaryTriggerTime(for: segment))" in pin_time_body
     install_body = _function_body(controller, "private func installBoundaryForCurrentSegment()")
     assert "boundaryTriggerTime(for: segment)" in install_body
+    assert "onApplySegmentEndGuard?(segment.end)" in install_body
     assert "let fadeEnd = boundaryTime" in install_body
     assert "fadeEnd - fadeOutDuration(for: segment)" in install_body
     assert "onInstallBoundary?(boundaryTime)" in install_body
@@ -1256,10 +1257,19 @@ def test_segment_fade_is_bound_to_current_player_item() -> None:
     assert "setVolume(0)" in handoff_body
     assert "player?.pause()" in handoff_body
     assert "isPlaying = false" in handoff_body
+    assert "setSegmentForwardEndTime(nil)" in handoff_body
     assert "clearAudioMix()" not in handoff_body
     assert "removeBoundaryObserver()" in handoff_body
     assert "isPlaybackRequested = false" not in handoff_body
     assert "AudioPlaybackRegistry.shared.endPlayback" not in handoff_body
+
+    end_guard_body = _function_body(coordinator, "func setSegmentForwardEndTime(_ time: Double?)")
+    assert "item.forwardPlaybackEndTime = .invalid" in end_guard_body
+    assert "CMTime(seconds: time, preferredTimescale: 600)" in end_guard_body
+
+    guard_cleanup_body = _function_body(coordinator, "func clearSequenceAudioGuards()")
+    assert "clearAudioMix()" in guard_cleanup_body
+    assert "setSegmentForwardEndTime(nil)" in guard_cleanup_body
 
 
 def test_music_bed_audio_state_clears_pending_autoplay_before_recovery() -> None:
@@ -1313,11 +1323,11 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
         1,
     )[0]
     assert "self.audioCoordinator.prepareForSequenceHandoff()" in resume_dwell_body
-    assert "self.audioCoordinator.clearAudioMix()" in resume_dwell_body
+    assert "self.audioCoordinator.clearSequenceAudioGuards()" in resume_dwell_body
     assert resume_dwell_body.index("self.audioCoordinator.seek(to: time)") < resume_dwell_body.index(
-        "self.audioCoordinator.clearAudioMix()"
+        "self.audioCoordinator.clearSequenceAudioGuards()"
     )
-    assert resume_dwell_body.index("self.audioCoordinator.clearAudioMix()") < resume_dwell_body.index(
+    assert resume_dwell_body.index("self.audioCoordinator.clearSequenceAudioGuards()") < resume_dwell_body.index(
         "self.sequenceController.endTransition(expectedTime: time)"
     )
 
@@ -1325,8 +1335,8 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
         sequence_body,
         "private func finishSequenceTransition",
     )
-    assert "audioCoordinator.clearAudioMix()" in finish_body
-    assert finish_body.index("audioCoordinator.clearAudioMix()") < finish_body.index(
+    assert "audioCoordinator.clearSequenceAudioGuards()" in finish_body
+    assert finish_body.index("audioCoordinator.clearSequenceAudioGuards()") < finish_body.index(
         "sequenceController.endTransition(expectedTime: stableExpectedTime)"
     )
 
@@ -1336,11 +1346,11 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
         1,
     )[0]
     assert "audioCoordinator.prepareForSequenceHandoff()" in same_track_skip
-    assert "self.audioCoordinator.clearAudioMix()" in same_track_skip
+    assert "self.audioCoordinator.clearSequenceAudioGuards()" in same_track_skip
     assert same_track_skip.index("audioCoordinator.prepareForSequenceHandoff()") < same_track_skip.index(
         "audioCoordinator.seek(to: target.time)"
     )
-    assert same_track_skip.index("self.audioCoordinator.clearAudioMix()") < same_track_skip.index(
+    assert same_track_skip.index("self.audioCoordinator.clearSequenceAudioGuards()") < same_track_skip.index(
         "self.sequenceController.endTransition(expectedTime: target.time)"
     )
 

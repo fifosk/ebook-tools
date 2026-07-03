@@ -1317,9 +1317,12 @@ standalone verify target when you intentionally want to re-check the whole
 cached file.
 Fresh DEBUG playback-transport logs also include a token-safe
 `[PlaybackTransportBuild]` header with release, marketing version, bundle build,
-and branch. Treat that header as device-build evidence only; the verifier still
-requires later `[PlaybackTransport]` event breadcrumbs before accepting a pause,
-resume, or resume-offset repro.
+branch, and git commit. Treat that header as device-build evidence only; the
+verifier still requires later `[PlaybackTransport]` event breadcrumbs before
+accepting a pause, resume, or resume-offset repro. When validating a known
+candidate, set `APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT=<sha>` so
+`apple-device-pull-and-verify-playback-transport-log` fails immediately if the
+device log came from an older install.
 For pause-only captures, the pulled playback-log checker evaluates every
 Music/app pause handoff as a numbered pause episode. If any episode does not
 contain active narration-pause evidence and settled

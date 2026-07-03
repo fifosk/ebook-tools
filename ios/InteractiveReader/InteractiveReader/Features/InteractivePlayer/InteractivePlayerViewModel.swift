@@ -243,6 +243,11 @@ final class InteractivePlayerViewModel: ObservableObject {
             self.audioCoordinator.applySegmentFadeOut(fadeStartTime: fadeStart, fadeEndTime: fadeEnd)
         }
 
+        sequenceController.onApplySegmentEndGuard = { [weak self] endTime in
+            guard let self else { return }
+            self.audioCoordinator.setSegmentForwardEndTime(endTime)
+        }
+
         // Wire boundary observer callback back to sequence controller
         audioCoordinator.onBoundaryReached = { [weak self] in
             guard let self else { return }
@@ -253,7 +258,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         // (prevents stale fade-out from silencing audio in singleTrack mode)
         sequenceController.onCleanupAudioEffects = { [weak self] in
             guard let self else { return }
-            self.audioCoordinator.clearAudioMix()
+            self.audioCoordinator.clearSequenceAudioGuards()
             self.audioCoordinator.removeBoundaryObserver()
         }
 
@@ -280,7 +285,7 @@ final class InteractivePlayerViewModel: ObservableObject {
                 self.audioCoordinator.seek(to: time) { [weak self] _ in
                     guard let self else { return }
                     // End transition and resume playback after seek completes
-                    self.audioCoordinator.clearAudioMix()
+                    self.audioCoordinator.clearSequenceAudioGuards()
                     self.sequenceController.endTransition(expectedTime: time)
                     // Restore volume before playing — pauseForDwell mutes to prevent bleed
                     self.audioCoordinator.restoreVolume()

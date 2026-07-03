@@ -451,6 +451,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "$(PYTHON) scripts/check_apple_playback_transport_log.py" in playback_transport_log_target
     assert '--device "$(APPLE_DEVICE_ID)"' in playback_transport_log_target
     assert '--mode "$(APPLE_PLAYBACK_TRANSPORT_LOG_MODE)"' in playback_transport_log_target
+    assert '--require-commit "$(APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT)"' in playback_transport_log_target
     assert "apple-device-verify-playback-resume-offset-log:" in makefile
     testing_doc = TESTING_DOC.read_text(encoding="utf-8")
     deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")

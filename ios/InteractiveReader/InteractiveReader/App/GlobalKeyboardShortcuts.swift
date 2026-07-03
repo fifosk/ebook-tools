@@ -167,6 +167,7 @@ private final class PlaybackTransportDebugLogger {
             "marketing=\(AppVersion.marketingVersion)",
             "bundle=\(AppVersion.bundleVersion)",
             "branch=\(AppVersion.branch)",
+            "commit=\(AppVersion.commit)",
         ].joined(separator: " ")
         let line = "\(timestamp) [PlaybackTransportBuild] \(metadata)\n"
         guard let data = line.data(using: .utf8) else { return }

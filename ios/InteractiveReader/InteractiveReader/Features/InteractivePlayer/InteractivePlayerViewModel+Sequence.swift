@@ -488,7 +488,7 @@ extension InteractivePlayerViewModel {
         } else {
             stableExpectedTime = expectedTime
         }
-        audioCoordinator.clearAudioMix()
+        audioCoordinator.clearSequenceAudioGuards()
         sequenceController.endTransition(expectedTime: stableExpectedTime)
         readyCancellable?.cancel()
         readyCancellable = nil

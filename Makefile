@@ -88,6 +88,7 @@ APPLE_DEVICE_PLAYBACK_LOG ?=
 APPLE_DEVICE_PLAYBACK_BASELINE_LOG ?=
 APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY ?= 0
 APPLE_PLAYBACK_TRANSPORT_LOG_MODE ?= pause-release
+APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT ?=
 APPLE_MUSIC_BED_LAUNCH_LOG_MODE ?= startup
 CHECKPOINT_BASE ?= origin/$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
 CHECKPOINT_OUTPUT_DIR ?= test-results/git-checkpoints
@@ -675,6 +676,7 @@ apple-device-verify-playback-transport-log:
 		--device "$(APPLE_DEVICE_ID)" \
 		--mode "$(APPLE_PLAYBACK_TRANSPORT_LOG_MODE)" \
 		$(if $(filter 1 YES yes true TRUE,$(APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY)),--fresh-only) \
+		$(if $(strip $(APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT)),--require-commit "$(APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT)") \
 		$(if $(strip $(APPLE_DEVICE_PLAYBACK_BASELINE_LOG)),--baseline-log "$(APPLE_DEVICE_PLAYBACK_BASELINE_LOG)") \
 		$(if $(strip $(APPLE_DEVICE_PLAYBACK_LOG)),"$(APPLE_DEVICE_PLAYBACK_LOG)")
 

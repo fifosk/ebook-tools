@@ -39,9 +39,26 @@ enum AppVersion {
         return "unknown"
     }
 
+    static var commit: String {
+        let candidates: [String?] = [
+            readInfoValue("EBOOK_TOOLS_COMMIT"),
+            ProcessInfo.processInfo.environment["EBOOK_TOOLS_COMMIT"],
+        ]
+
+        for candidate in candidates {
+            let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !trimmed.isEmpty else { continue }
+            guard !trimmed.hasPrefix("$(") else { continue }
+            return trimmed
+        }
+
+        return "unknown"
+    }
+
     static var buildLabel: String {
         let branchLabel = branch == "unknown" ? "branch unknown" : branch
-        return "bundle \(marketingVersion) (\(bundleVersion)) · \(branchLabel)"
+        let commitLabel = commit == "unknown" ? "commit unknown" : commit
+        return "bundle \(marketingVersion) (\(bundleVersion)) · \(branchLabel) · \(commitLabel)"
     }
 
     private static func readInfoValue(_ key: String) -> String? {
