@@ -1259,6 +1259,10 @@ Optimization candidates:
   and denial-message helpers now live in
   `modules/webapi/routers/library_access.py` with direct coverage, keeping the
   shared Web/Apple Library authorization contract outside the broad route file.
+  Library media manifest URL normalization, chunk audio/timing-track shaping,
+  and diagnostics counters now live in
+  `modules/webapi/routers/library_media.py` with direct coverage, keeping the
+  shared Web/Apple playback media contract outside the broad route file.
   Acquisition provider/discovery/acquire routes are now also pinned in the
   global observability contract, so the shared Web/Apple Create discovery layer
   cannot lose its route-duration histogram while still keeping provider tokens,

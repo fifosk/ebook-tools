@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-library-media-response-helper",
+            title: "Library media contract is leaner",
+            detail: "Backend Library media URL normalization, audio/timing-track shaping, and playback diagnostics now live in a focused helper with direct coverage, keeping Web and Apple playback manifests aligned outside the large Library router."
+        ),
+        AppChangelogEntry(
             id: "tvos-cross-track-handoff-and-pause-latch",
             title: "TV pauses and handoffs latch",
             detail: "Apple TV interactive reader pauses now reinforce the reader-owned Apple Music bed pause immediately, and Original-to-Translation sequence handoffs use wider cross-track boundary/fade headroom so the next sentence is not heard before the track switch."

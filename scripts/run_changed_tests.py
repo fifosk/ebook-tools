@@ -410,6 +410,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/webapi/test_job_media_routes.py",
             "tests/modules/webapi/test_job_timing_route.py",
             "tests/modules/webapi/test_library_media_file_download.py",
+            "tests/modules/webapi/test_library_media_helpers.py",
             "tests/modules/webapi/test_library_media_route.py",
             "tests/modules/webapi/test_media_common.py",
         ),
@@ -424,7 +425,9 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
         (
             "modules/webapi/routers/library.py",
             "modules/webapi/routers/library_access.py",
+            "modules/webapi/routers/library_media.py",
             "tests/modules/webapi/test_library_access.py",
+            "tests/modules/webapi/test_library_media_helpers.py",
             "tests/modules/webapi/test_library_items_route.py",
         ),
         (

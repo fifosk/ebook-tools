@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Backend Library media response shaping now lives in a focused helper with direct coverage for file URL normalization, audio/timing-track preservation, and diagnostics counters shared by Web and Apple playback.
 - Apple TV interactive reader pauses now reinforce the reader-owned Apple Music bed pause immediately, and Original-to-Translation sequence handoffs use wider cross-track boundary/fade headroom so the next sentence is not heard before the track switch.
 - Web Job Progress action and job-kind decisions now live in a focused helper with Vitest coverage, keeping pause/resume/restart/delete and Library move gating easier to compare with Apple Jobs/Library actions.
 - Apple iPad Music-bed debug controls now route E2E Space through the shared keyboard broker before falling back to notifications, matching the real hardware-key resume path after lookup-bubble pronunciation pauses.
