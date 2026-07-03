@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Backend NAS/manual video discovery now keeps bounded newest matches with binary insertion instead of sorting the retained list after every candidate, reducing per-file work for Web Video Dubbing and Apple YouTube Dub source pickers on large download folders.
 - Backend source pickers now prune visible symlinks whose resolved targets live under hidden folders or files, keeping Web and Apple Create EPUB, subtitle, and video discovery from surfacing hidden staging/import artifacts through friendly NAS links.
 - Apple YouTube Dub template saves now recover the discovery provider from source, acquisition, or source-kind provenance when older prepared video handoffs lack a top-level provider, preserving token-free source context for Web/Apple apply-save loops.
 - Apple TV now adopts an ignored Apple Music non-playing callback as a reader pause when the Music bed was already known to be active, so a stale reader-active flag cannot leave sentence narration running after the first pause press.

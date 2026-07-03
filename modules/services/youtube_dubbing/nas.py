@@ -171,12 +171,35 @@ def _append_bounded_newest_video(
     video: YoutubeNasVideo,
     max_results: int | None,
 ) -> None:
-    videos.append(video)
     if max_results is None:
+        videos.append(video)
         return
-    videos.sort(key=lambda entry: (-entry.modified_at.timestamp(), entry.path.as_posix().casefold()))
+    video_key = _newest_video_sort_key(video)
+    if len(videos) >= max_results and video_key >= _newest_video_sort_key(videos[-1]):
+        return
+    insert_at = _bisect_right_videos(videos, video_key)
+    videos.insert(insert_at, video)
     if len(videos) > max_results:
         del videos[max_results:]
+
+
+def _bisect_right_videos(
+    videos: List[YoutubeNasVideo],
+    video_key: tuple[float, str],
+) -> int:
+    lower = 0
+    upper = len(videos)
+    while lower < upper:
+        middle = (lower + upper) // 2
+        if video_key < _newest_video_sort_key(videos[middle]):
+            upper = middle
+        else:
+            lower = middle + 1
+    return lower
+
+
+def _newest_video_sort_key(video: YoutubeNasVideo) -> tuple[float, str]:
+    return (-video.modified_at.timestamp(), video.path.as_posix().casefold())
 
 
 def _probe_subtitle_streams(video_path: Path) -> List[dict]:

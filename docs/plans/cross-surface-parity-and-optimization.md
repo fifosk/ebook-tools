@@ -1507,11 +1507,15 @@ Optimization candidates:
   download finalization now applies the same stale-entry tolerance when sorting
   downloaded subtitle files, partial recovery files, and muxed output files, so
   a transient NAS directory race can still fall back to a usable downloaded
-  artifact instead of losing a completed download. Downloaded-video cleanup
-  uses the same stale-entry tolerance while discovering adjacent subtitle
-  artifacts before folder removal. Already-vanished NAS video and subtitle
-  sidecar selections with valid suffixes now return structured `missing`
-  results instead of picker-breaking 404s. The shared source-discovery walker
+  artifact instead of losing a completed download. NAS/manual video discovery
+  now keeps bounded newest video matches with binary insertion instead of
+  sorting the retained list after every candidate, reducing per-file picker
+  overhead on large download folders while preserving newest-first stable path
+  ordering. Downloaded-video cleanup uses the same stale-entry tolerance while
+  discovering adjacent subtitle artifacts before folder removal.
+  Already-vanished NAS video and subtitle sidecar selections with valid
+  suffixes now return structured `missing` results instead of picker-breaking
+  404s. The shared source-discovery walker
   now also rejects hidden descendant path components even when a filesystem
   walk unexpectedly yields them, keeping Web and Apple source pickers from
   surfacing hidden NAS staging folders if `os.walk` output is stale or unusual.

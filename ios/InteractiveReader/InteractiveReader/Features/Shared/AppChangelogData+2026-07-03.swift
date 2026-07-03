@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-video-discovery-bounded-insert",
+            title: "Video source scans are lighter",
+            detail: "Backend NAS/manual video discovery now keeps bounded newest matches with binary insertion instead of sorting after every candidate, reducing picker work for Web Video Dubbing and Apple YouTube Dub on large download folders."
+        ),
+        AppChangelogEntry(
             id: "backend-source-picker-hidden-symlink-targets",
             title: "Source pickers hide staging links",
             detail: "Backend source discovery now prunes visible symlinks whose resolved targets live under hidden folders or files, keeping Web and Apple Create EPUB, subtitle, and video pickers from surfacing hidden NAS staging artifacts."

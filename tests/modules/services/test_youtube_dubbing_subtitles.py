@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -227,6 +228,46 @@ def test_list_downloaded_videos_limit_keeps_newer_late_folder_candidate(tmp_path
     videos = list_downloaded_videos(tmp_path, max_results=1)
 
     assert [video.path.name for video in videos] == ["fresh.mp4"]
+
+
+def test_bounded_newest_video_insert_binary_searches_existing_matches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base_time = datetime(2026, 7, 1, tzinfo=timezone.utc)
+    videos = [
+        _nas_mod.YoutubeNasVideo(
+            path=tmp_path / f"video-{index:02d}.mp4",
+            size_bytes=10,
+            modified_at=base_time - timedelta(seconds=index),
+            subtitles=[],
+            source="nas_video",
+        )
+        for index in range(64)
+    ]
+    inserted = _nas_mod.YoutubeNasVideo(
+        path=tmp_path / "inserted.mp4",
+        size_bytes=10,
+        modified_at=base_time + timedelta(minutes=1),
+        subtitles=[],
+        source="nas_video",
+    )
+    original_key = _nas_mod._newest_video_sort_key
+    key_calls = 0
+
+    def counted_key(video):
+        nonlocal key_calls
+        key_calls += 1
+        return original_key(video)
+
+    monkeypatch.setattr(_nas_mod, "_newest_video_sort_key", counted_key)
+
+    _nas_mod._append_bounded_newest_video(videos, inserted, 64)
+
+    assert videos[0].path.name == "inserted.mp4"
+    assert len(videos) == 64
+    assert "video-63.mp4" not in {video.path.name for video in videos}
+    assert key_calls < 16
 
 
 def test_list_downloaded_videos_zero_limit_skips_scan(tmp_path: Path) -> None:
