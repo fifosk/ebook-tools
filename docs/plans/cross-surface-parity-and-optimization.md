@@ -800,7 +800,10 @@ Current Apple UI partially exposes:
   provider discoverability now lives in
   `modules/services/acquisition/provider_catalog.py`, so discovery routing and
   the provider registry share provider/media-kind support without making
-  handlers depend on provider payload assembly. Backend acquisition
+  handlers depend on provider payload assembly. The same catalog now owns the
+  canonical acquisition-provider ordering used by the provider registry payload,
+  keeping Web and Apple Create source pickers aligned as new providers are
+  added. Backend acquisition
   discovery now dispatches provider calls through a registry-aligned routing
   table with direct coverage, keeping Web/Apple-visible provider metadata in
   lockstep with backend handlers. Default sources readiness now lives in

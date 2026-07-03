@@ -39,8 +39,10 @@ from .provider_registry import (
 )
 from .provider_catalog import (
     ACQUISITION_PROVIDER_LABELS,
+    ACQUISITION_PROVIDER_ORDER,
     DISCOVERY_PROVIDER_MEDIA_KINDS,
     acquisition_provider_label,
+    acquisition_provider_sort_key,
     discovery_media_kinds_for,
 )
 
@@ -57,6 +59,7 @@ __all__ = [
     "ACQUISITION_CAPABILITIES",
     "ACQUISITION_MEDIA_KINDS",
     "ACQUISITION_PROVIDER_LABELS",
+    "ACQUISITION_PROVIDER_ORDER",
     "ACQUISITION_PROVIDER_STATUSES",
     "ACQUISITION_RIGHTS",
     "DISCOVERY_PROVIDER_MEDIA_KINDS",
@@ -64,6 +67,7 @@ __all__ = [
     "DownloadStationError",
     "acquire_acquisition_candidate",
     "acquisition_provider_label",
+    "acquisition_provider_sort_key",
     "default_discovery_provider_ids",
     "discovery_media_kinds_for",
     "discover_acquisition_candidates",

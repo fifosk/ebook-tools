@@ -15,6 +15,7 @@ from .provider_contract import (
 from .provider_catalog import (
     DISCOVERY_PROVIDER_MEDIA_KINDS,
     acquisition_provider_label,
+    acquisition_provider_sort_key,
     discovery_media_kinds_for,
     normalized_provider_id as _normalized_provider_id,
 )
@@ -325,14 +326,19 @@ def list_acquisition_providers(
         ),
     )
     providers = tuple(
-        replace(
-            provider,
-            default_eligible_media_kinds=_default_eligible_media_kinds(
-                provider.id,
-                readiness.default_provider_ids,
+        sorted(
+            (
+                replace(
+                    provider,
+                    default_eligible_media_kinds=_default_eligible_media_kinds(
+                        provider.id,
+                        readiness.default_provider_ids,
+                    ),
+                )
+                for provider in providers
             ),
+            key=lambda provider: acquisition_provider_sort_key(provider.id),
         )
-        for provider in providers
     )
 
     registry = AcquisitionProviderRegistry(

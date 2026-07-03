@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "acquisition-provider-catalog-order",
+            title: "Discovery sources keep order",
+            detail: "Backend acquisition provider ordering now lives in the shared provider catalog and the registry emits providers in that canonical order, keeping Web and Apple Create source pickers aligned as source providers grow."
+        ),
+        AppChangelogEntry(
             id: "sequence-cross-track-dwell-detaches-old-item",
             title: "Track handoffs drop buffered tails",
             detail: "Apple Original/Translation dwell handoffs now detach the muted outgoing AVPlayer item when the next playable segment switches tracks, cutting off buffered next-sentence tails before Translation starts without clearing reader playback intent."

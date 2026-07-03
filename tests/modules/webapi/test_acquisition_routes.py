@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.discovery_normalization as discovery_normalization
+import modules.services.acquisition.provider_catalog as provider_catalog
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
     RequestUserContext,
@@ -188,6 +189,9 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
         "video": ["nas_video", "youtube_search"],
     }
     assert "youtube_url" not in payload["default_provider_ids"]["video"]
+    assert [provider["id"] for provider in payload["providers"]] == list(
+        provider_catalog.ACQUISITION_PROVIDER_ORDER
+    )
     provider_ids = {provider["id"] for provider in payload["providers"]}
     assert {
         "local_epub",

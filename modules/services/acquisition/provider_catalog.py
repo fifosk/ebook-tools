@@ -17,6 +17,20 @@ DISCOVERY_PROVIDER_MEDIA_KINDS: Mapping[str, tuple[str, ...]] = {
     "youtube_url": ("video",),
 }
 
+ACQUISITION_PROVIDER_ORDER: tuple[str, ...] = (
+    "local_epub",
+    "nas_video",
+    "manual_downloads",
+    "youtube_url",
+    "youtube_search",
+    "download_station",
+    "newznab_torznab",
+    "openlibrary",
+    "zlibrary_attended",
+    "gutenberg",
+    "internet_archive",
+)
+
 ACQUISITION_PROVIDER_LABELS: Mapping[str, str] = {
     "download_station": "Synology Download Station",
     "gutenberg": "Project Gutenberg/Gutendex",
@@ -31,9 +45,26 @@ ACQUISITION_PROVIDER_LABELS: Mapping[str, str] = {
     "zlibrary_attended": "Z-Library attended import",
 }
 
+_ACQUISITION_PROVIDER_ORDER_INDEX = {
+    provider_id: index for index, provider_id in enumerate(ACQUISITION_PROVIDER_ORDER)
+}
+
 
 def normalized_provider_id(value: str | None) -> str:
     return str(value or "").strip().casefold()
+
+
+def acquisition_provider_sort_key(provider_id: str | None) -> tuple[int, str]:
+    """Return a stable cross-surface ordering key for acquisition providers."""
+
+    normalized = normalized_provider_id(provider_id)
+    return (
+        _ACQUISITION_PROVIDER_ORDER_INDEX.get(
+            normalized,
+            len(_ACQUISITION_PROVIDER_ORDER_INDEX),
+        ),
+        normalized,
+    )
 
 
 def discovery_media_kinds_for(provider_id: str) -> tuple[str, ...]:

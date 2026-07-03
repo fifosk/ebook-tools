@@ -767,6 +767,18 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     }
 
     assert advertised == DISCOVERY_PROVIDER_MEDIA_KINDS
+    assert tuple(provider.id for provider in registry.providers) == (
+        provider_catalog.ACQUISITION_PROVIDER_ORDER
+    )
+    assert set(provider_catalog.ACQUISITION_PROVIDER_ORDER) == set(
+        provider_catalog.ACQUISITION_PROVIDER_LABELS
+    )
+    assert provider_catalog.acquisition_provider_sort_key(
+        " LOCAL_EPUB "
+    ) < provider_catalog.acquisition_provider_sort_key("youtube_search")
+    assert provider_catalog.acquisition_provider_sort_key(
+        "unknown_provider"
+    ) > provider_catalog.acquisition_provider_sort_key("internet_archive")
     assert discovery_media_kinds_for(" LOCAL_EPUB ") == ("book",)
     assert discovery_media_kinds_for("Manual_Downloads") == ("book", "video")
     assert discovery_media_kinds_for("youtube_url") == ("video",)
@@ -784,6 +796,7 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
         for provider in registry.providers
     } == {provider.id: provider.label for provider in registry.providers}
     assert "acquisition_provider_label" in provider_registry_source
+    assert "acquisition_provider_sort_key" in provider_registry_source
     assert 'label="Local EPUB library"' not in provider_registry_source
     assert 'label="Synology Download Station"' not in provider_registry_source
     assert registry.default_provider_ids == {
