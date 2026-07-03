@@ -176,43 +176,18 @@ def _find_sentence_entry(
     return None
 
 
-def _collect_context_sentence_texts(
+def _collect_sentence_texts(
     *,
     loader: MetadataLoader,
     job_root: Path,
-    sentence_number: int,
-    count: int,
+    sentence_numbers: Sequence[int],
 ) -> list[str]:
-    if count <= 0:
-        return []
     cache: dict[str, Mapping[str, Any]] = {}
     collected: list[str] = []
 
-    start = max(sentence_number - count, 1)
-    for number in range(start, sentence_number):
-        chunk = _resolve_chunk_for_sentence(loader, number)
-        if not isinstance(chunk, Mapping):
+    for number in sentence_numbers:
+        if number <= 0:
             continue
-        metadata_path = chunk.get("metadata_path")
-        if not isinstance(metadata_path, str) or not metadata_path.strip():
-            continue
-        key = metadata_path.strip()
-        payload = cache.get(key)
-        if payload is None:
-            loaded = _read_chunk_payload(job_root=job_root, metadata_path=key)
-            if loaded is None:
-                continue
-            cache[key] = loaded
-            payload = loaded
-        entry = _find_sentence_entry(chunk_payload=payload, sentence_number=number)
-        if not isinstance(entry, Mapping):
-            continue
-        text = _extract_sentence_text(entry)
-        if text:
-            collected.append(text)
-
-    end = sentence_number + count
-    for number in range(sentence_number + 1, end + 1):
         chunk = _resolve_chunk_for_sentence(loader, number)
         if not isinstance(chunk, Mapping):
             continue
@@ -235,6 +210,24 @@ def _collect_context_sentence_texts(
             collected.append(text)
 
     return collected
+
+
+def _collect_context_sentence_texts(
+    *,
+    loader: MetadataLoader,
+    job_root: Path,
+    sentence_number: int,
+    count: int,
+) -> list[str]:
+    if count <= 0:
+        return []
+    before = range(max(sentence_number - count, 1), sentence_number)
+    after = range(sentence_number + 1, sentence_number + count + 1)
+    return _collect_sentence_texts(
+        loader=loader,
+        job_root=job_root,
+        sentence_numbers=[*before, *after],
+    )
 
 
 def _collect_sentence_range_texts(
@@ -246,31 +239,11 @@ def _collect_sentence_range_texts(
 ) -> list[str]:
     if end_sentence < start_sentence:
         return []
-    cache: dict[str, Mapping[str, Any]] = {}
-    collected: list[str] = []
-
-    for number in range(max(1, start_sentence), end_sentence + 1):
-        chunk = _resolve_chunk_for_sentence(loader, number)
-        if not isinstance(chunk, Mapping):
-            continue
-        metadata_path = chunk.get("metadata_path")
-        if not isinstance(metadata_path, str) or not metadata_path.strip():
-            continue
-        key = metadata_path.strip()
-        payload = cache.get(key)
-        if payload is None:
-            loaded = _read_chunk_payload(job_root=job_root, metadata_path=key)
-            if loaded is None:
-                continue
-            cache[key] = loaded
-            payload = loaded
-        entry = _find_sentence_entry(chunk_payload=payload, sentence_number=number)
-        if not isinstance(entry, Mapping):
-            continue
-        text = _extract_sentence_text(entry)
-        if text:
-            collected.append(text)
-    return collected
+    return _collect_sentence_texts(
+        loader=loader,
+        job_root=job_root,
+        sentence_numbers=range(max(1, start_sentence), end_sentence + 1),
+    )
 
 
 def _load_image_manifest(job_root: Path) -> Optional[Mapping[str, Any]]:

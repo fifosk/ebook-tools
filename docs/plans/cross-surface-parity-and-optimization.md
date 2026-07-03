@@ -1241,7 +1241,10 @@ Optimization candidates:
   auth headers, tokens, paths, filenames, or raw sentence content. Sentence
   image regeneration also returns generic DrawThings failure details, keeping
   image node URLs, prompts, sampler names, paths, and raw exception strings out
-  of Web/Apple-facing responses. Library
+  of Web/Apple-facing responses. Sentence-image prompt rebuilds now share one
+  ordered chunk-text collection helper for context-window and batch-range
+  prompts, reusing chunk payload reads while preserving valid sentence text
+  ordering for Web MyPainter and Apple playback image metadata consumers. Library
   media manifests now use the same token-safe aggregate route telemetry for
   success, missing-item, and error paths, without logging job ids, user ids,
   auth headers, tokens, NAS paths, or filenames. Offline export create/download

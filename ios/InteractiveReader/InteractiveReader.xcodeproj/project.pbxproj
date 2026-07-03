@@ -440,6 +440,8 @@
 		APPCHD72001A0002 /* AppChangelogData+2026-07-02.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD72002A0001 /* AppChangelogData+2026-07-02.swift */; };
 		APPCHD73001A0001 /* AppChangelogData+2026-07-03.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD73002A0001 /* AppChangelogData+2026-07-03.swift */; };
 		APPCHD73001A0002 /* AppChangelogData+2026-07-03.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD73002A0001 /* AppChangelogData+2026-07-03.swift */; };
+		APPCHD74001A0001 /* AppChangelogData+2026-07-04.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD74002A0001 /* AppChangelogData+2026-07-04.swift */; };
+		APPCHD74001A0002 /* AppChangelogData+2026-07-04.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD74002A0001 /* AppChangelogData+2026-07-04.swift */; };
 		APPCHSUM001A0001 /* AppChangelogSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHSUM002A0001 /* AppChangelogSummaryView.swift */; };
 		APPCHSUM001A0002 /* AppChangelogSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHSUM002A0001 /* AppChangelogSummaryView.swift */; };
 		APPVERS001A0001 /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPVERS002A0001 /* AppVersion.swift */; };
@@ -857,6 +859,7 @@
 		APPCHD71002A0001 /* AppChangelogData+2026-07-01.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-07-01.swift"; sourceTree = "<group>"; };
 		APPCHD72002A0001 /* AppChangelogData+2026-07-02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-07-02.swift"; sourceTree = "<group>"; };
 		APPCHD73002A0001 /* AppChangelogData+2026-07-03.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-07-03.swift"; sourceTree = "<group>"; };
+		APPCHD74002A0001 /* AppChangelogData+2026-07-04.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-07-04.swift"; sourceTree = "<group>"; };
 		APPCHSUM002A0001 /* AppChangelogSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChangelogSummaryView.swift; sourceTree = "<group>"; };
 		APPVERS002A0001 /* AppVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersion.swift; sourceTree = "<group>"; };
 		F3C1A2B4D5E6F7A8B9C0D1E2 /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
@@ -1419,6 +1422,7 @@
 				APPCHD71002A0001 /* AppChangelogData+2026-07-01.swift */,
 				APPCHD72002A0001 /* AppChangelogData+2026-07-02.swift */,
 				APPCHD73002A0001 /* AppChangelogData+2026-07-03.swift */,
+				APPCHD74002A0001 /* AppChangelogData+2026-07-04.swift */,
 				APPCHSUM002A0001 /* AppChangelogSummaryView.swift */,
 				MEDIASEARCH002A0001 /* MediaSearchView.swift */,
 				MEDSRCHCTRL002A0001 /* MediaSearchControls.swift */,
@@ -1779,6 +1783,7 @@
 				APPCHD71001A0002 /* AppChangelogData+2026-07-01.swift in Sources */,
 				APPCHD72001A0002 /* AppChangelogData+2026-07-02.swift in Sources */,
 				APPCHD73001A0002 /* AppChangelogData+2026-07-03.swift in Sources */,
+				APPCHD74001A0002 /* AppChangelogData+2026-07-04.swift in Sources */,
 				APPCHSUM001A0002 /* AppChangelogSummaryView.swift in Sources */,
 				A1B2C3D4E5F60718293A4E63 /* OfflineSyncBadge.swift in Sources */,
 				F1A2B3C4D5E6F708192A3B4D /* AppleSignInCoordinator.swift in Sources */,
@@ -2089,6 +2094,7 @@
 				APPCHD71001A0001 /* AppChangelogData+2026-07-01.swift in Sources */,
 				APPCHD72001A0001 /* AppChangelogData+2026-07-02.swift in Sources */,
 				APPCHD73001A0001 /* AppChangelogData+2026-07-03.swift in Sources */,
+				APPCHD74001A0001 /* AppChangelogData+2026-07-04.swift in Sources */,
 				APPCHSUM001A0001 /* AppChangelogSummaryView.swift in Sources */,
 				A1B2C3D4E5F60718293A4E64 /* OfflineSyncBadge.swift in Sources */,
 				F1A2B3C4D5E6F708192A3B4E /* AppleSignInCoordinator.swift in Sources */,
@@ -2413,7 +2419,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260703001;
+				CURRENT_PROJECT_VERSION = 20260704001;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -2424,7 +2430,7 @@
 					"@executable_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/InteractiveReader/Features/Playback";
-				MARKETING_VERSION = 2026.7.3;
+				MARKETING_VERSION = 2026.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.tvos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
@@ -2560,7 +2566,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260703001;
+				CURRENT_PROJECT_VERSION = 20260704001;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -2570,7 +2576,7 @@
 					"@executable_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/InteractiveReader/Features/Playback";
-				MARKETING_VERSION = 2026.7.3;
+				MARKETING_VERSION = 2026.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE = YES;
@@ -2588,7 +2594,7 @@
 					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 					CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260703001;
+				CURRENT_PROJECT_VERSION = 20260704001;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = InteractiveReader/Supporting/Info.plist;
@@ -2598,7 +2604,7 @@
 					"@executable_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/InteractiveReader/Features/Playback";
-				MARKETING_VERSION = 2026.7.3;
+				MARKETING_VERSION = 2026.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE = YES;
@@ -2616,7 +2622,7 @@
 					ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 					CODE_SIGN_ENTITLEMENTS = "InteractiveReader/Supporting/InteractiveReader-tvOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260703001;
+				CURRENT_PROJECT_VERSION = 20260704001;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "InteractiveReader/Supporting/Info-tvOS.plist";
@@ -2627,7 +2633,7 @@
 					"@executable_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/InteractiveReader/Features/Playback";
-				MARKETING_VERSION = 2026.7.3;
+				MARKETING_VERSION = 2026.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.tvos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
@@ -2643,7 +2649,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260703001;
+				CURRENT_PROJECT_VERSION = 20260704001;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -2654,7 +2660,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2026.7.3;
+				MARKETING_VERSION = 2026.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.NotificationServiceExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2669,7 +2675,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260703001;
+				CURRENT_PROJECT_VERSION = 20260704001;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationServiceExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "InteractiveReader Notifications";
@@ -2680,7 +2686,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2026.7.3;
+				MARKETING_VERSION = 2026.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.NotificationServiceExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2694,11 +2700,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260703001;
+				CURRENT_PROJECT_VERSION = 20260704001;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 2026.7.3;
+				MARKETING_VERSION = 2026.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -2712,11 +2718,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260703001;
+				CURRENT_PROJECT_VERSION = 20260704001;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 2026.7.3;
+				MARKETING_VERSION = 2026.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -2730,10 +2736,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260703001;
+				CURRENT_PROJECT_VERSION = 20260704001;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 2026.7.3;
+				MARKETING_VERSION = 2026.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.TVUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
@@ -2750,10 +2756,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260703001;
+				CURRENT_PROJECT_VERSION = 20260704001;
 				DEVELOPMENT_TEAM = 3Y7288895K;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 2026.7.3;
+				MARKETING_VERSION = 2026.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.InteractiveReader.TVUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;

@@ -49,6 +49,24 @@ class _FakeMetadataLoader:
         ]
 
 
+class _MultiChunkMetadataLoader:
+    def iter_chunks(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "range_fragment": "1-3",
+                "start_sentence": 1,
+                "end_sentence": 3,
+                "metadata_path": "metadata/chunk_a.json",
+            },
+            {
+                "range_fragment": "4-5",
+                "start_sentence": 4,
+                "end_sentence": 5,
+                "metadata_path": "metadata/chunk_b.json",
+            },
+        ]
+
+
 class _FailingDrawThingsClient:
     def txt2img(self, _request):
         raise DrawThingsError(
@@ -222,6 +240,83 @@ def test_sentence_image_batch_lookup_logs_token_safe_aggregate_timing(
     assert "sensitive-user-id" not in rendered_logs
     assert "sentence_00001.png" not in rendered_logs
     _assert_sentence_image_metric(metrics_response.text, "sentence_image_batch")
+
+
+def test_sentence_image_text_collection_reuses_chunk_payloads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loader = _MultiChunkMetadataLoader()
+    payloads = {
+        "metadata/chunk_a.json": {
+            "sentences": [
+                {"sentence_number": 1, "original": {"text": "One."}},
+                {"sentence_number": 2, "original": {"text": "Two."}},
+                {"sentence_number": 3, "original": {"text": "   "}},
+            ]
+        },
+        "metadata/chunk_b.json": {
+            "sentences": [
+                {"sentence_number": 4, "original": {"text": "Four."}},
+                {"sentence_number": 5, "original": {"text": "Five."}},
+            ]
+        },
+    }
+    reads: list[str] = []
+
+    def fake_read_chunk_payload(*, job_root: Path, metadata_path: str):
+        reads.append(metadata_path)
+        return payloads.get(metadata_path)
+
+    monkeypatch.setattr(images, "_read_chunk_payload", fake_read_chunk_payload)
+
+    assert images._collect_sentence_texts(
+        loader=loader,
+        job_root=tmp_path,
+        sentence_numbers=[-1, 1, 2, 3, 4, 99, 5],
+    ) == ["One.", "Two.", "Four.", "Five."]
+    assert reads == ["metadata/chunk_a.json", "metadata/chunk_b.json"]
+
+
+def test_sentence_image_context_and_range_collection_share_ordered_helper(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loader = _MultiChunkMetadataLoader()
+    payloads = {
+        "metadata/chunk_a.json": {
+            "sentences": [
+                {"sentence_number": 1, "original": {"text": "One."}},
+                {"sentence_number": 2, "original": {"text": "Two."}},
+                {"sentence_number": 3, "original": {"text": "Three."}},
+            ]
+        },
+        "metadata/chunk_b.json": {
+            "sentences": [
+                {"sentence_number": 4, "original": {"text": "Four."}},
+                {"sentence_number": 5, "original": {"text": "Five."}},
+            ]
+        },
+    }
+
+    monkeypatch.setattr(
+        images,
+        "_read_chunk_payload",
+        lambda *, job_root, metadata_path: payloads.get(metadata_path),
+    )
+
+    assert images._collect_context_sentence_texts(
+        loader=loader,
+        job_root=tmp_path,
+        sentence_number=3,
+        count=2,
+    ) == ["One.", "Two.", "Four.", "Five."]
+    assert images._collect_sentence_range_texts(
+        loader=loader,
+        job_root=tmp_path,
+        start_sentence=-2,
+        end_sentence=4,
+    ) == ["One.", "Two.", "Three.", "Four."]
 
 
 def test_sentence_image_regenerate_drawthings_error_is_token_safe(
