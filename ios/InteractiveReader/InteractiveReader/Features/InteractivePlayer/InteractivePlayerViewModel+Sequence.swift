@@ -338,10 +338,10 @@ extension InteractivePlayerViewModel {
             return nil
         }
 
-        // Mute and clear stale boundary/mix state BEFORE loading to prevent
-        // old item tails from leaking through while the next track settles.
-        // This preserves isPlaybackRequested, so the reading bed stays stable.
-        audioCoordinator.prepareForSequenceHandoff()
+        // Mute before loading, but keep the old segment's hard end guard until
+        // the old item is torn down so buffered next-sentence audio cannot leak
+        // during Original/Translation track switches.
+        audioCoordinator.prepareForSequenceHandoff(clearSegmentEndGuard: false)
 
         if Self.sequenceDebug {
             interactiveSequenceLogger.debug(

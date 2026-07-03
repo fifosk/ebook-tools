@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "sequence-track-switch-keeps-hard-stop",
+            title: "Track switches hold the stop",
+            detail: "Apple Original/Translation track switches now keep the outgoing segment's AVPlayer hard-stop guard latched until the old audio item is replaced, reducing next-sentence audio slivers before Translation starts without clipping same-track seeks."
+        ),
+        AppChangelogEntry(
             id: "playback-log-current-commit-shortcuts",
             title: "Device log checks pin the build",
             detail: "Apple device playback-log pull-and-verify now has current-commit shortcuts for pause, pause/resume, resume-offset, and combined reader repro captures, so physical tests reject stale installs without manually passing a SHA."

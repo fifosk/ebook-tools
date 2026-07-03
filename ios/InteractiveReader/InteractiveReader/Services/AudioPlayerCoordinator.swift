@@ -314,14 +314,16 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     /// Silence the active item before sequence handoffs tear down, seek, or load.
     /// Keeping this separate from pause() preserves playback intent for Music-bed
     /// coordination while preventing stale item tails from leaking through.
-    func prepareForSequenceHandoff() {
+    func prepareForSequenceHandoff(clearSegmentEndGuard: Bool = true) {
         setVolume(0)
         player?.pause()
         isPlaying = false
         // Leave the current item's fade mix attached until the seek/load has
         // landed. Clearing it here can briefly unmute buffered tail audio from
         // the old segment on real tvOS output.
-        setSegmentForwardEndTime(nil)
+        if clearSegmentEndGuard {
+            setSegmentForwardEndTime(nil)
+        }
         removeBoundaryObserver()
     }
 

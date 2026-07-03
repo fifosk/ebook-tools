@@ -502,9 +502,9 @@ Follow the suggested remediations to restore parity:
   Apple Music before the app-level reader callback. Sequence dwell should keep
   reader playback intent alive for the bed, but on tvOS it mutes and applies
   segment-proportional boundary headroom, fade, and pin-backoff windows before
-  seeking to the next segment. The balanced tvOS windows cap at 0.72s headroom,
-  0.44s fade, and 0.20s dwell pin-backoff, while cross-track Original/Translation
-  switches can widen to 0.95s headroom and 0.58s fade because the continuous
+  seeking to the next segment. The balanced tvOS windows cap at 0.24s headroom,
+  0.16s fade, and 0.20s dwell pin-backoff, while cross-track Original/Translation
+  switches can widen to 0.34s headroom and 0.20s fade because the continuous
   source file would otherwise expose the next same-track sentence before the
   handoff lands. The tvOS guard must stay wider than iOS/iPadOS
   because physical HDMI output can still drain buffered next-sentence audio
@@ -516,9 +516,10 @@ Follow the suggested remediations to restore parity:
   intact. This keeps loose `originalEndGate` or `endGate` values from including
   a buffered sliver of the following sentence without clipping well-separated
   jobs. Before loading a new Original/Translation sequence item, Apple must mute
-  and pause the active player while preserving reader playback intent, then
-  clear stale fade/boundary observers so late ready or seek callbacks cannot
-  unmute or advance the previous item tail. Persistent-stall
+  and pause the active player while preserving reader playback intent, keep the
+  outgoing segment's `forwardPlaybackEndTime` guard latched until the old item is
+  replaced, then clear stale fade/boundary observers so late ready or seek
+  callbacks cannot unmute or advance the previous item tail. Persistent-stall
   recovery must not force-advance while the sequence controller is intentionally
   dwelling or transitioning; those states are handoff protection, not stuck
   playback. Async fade installation must also verify the AVPlayer item is still

@@ -1253,10 +1253,14 @@ def test_segment_fade_is_bound_to_current_player_item() -> None:
     assert "current item changed" in fade_body
     assert fade_body.index("guard self.player?.currentItem === item else") < fade_body.index("item.audioMix = mix")
 
-    handoff_body = _function_body(coordinator, "func prepareForSequenceHandoff()")
+    handoff_body = _function_body(
+        coordinator,
+        "func prepareForSequenceHandoff(clearSegmentEndGuard: Bool = true)",
+    )
     assert "setVolume(0)" in handoff_body
     assert "player?.pause()" in handoff_body
     assert "isPlaying = false" in handoff_body
+    assert "if clearSegmentEndGuard" in handoff_body
     assert "setSegmentForwardEndTime(nil)" in handoff_body
     assert "clearAudioMix()" not in handoff_body
     assert "removeBoundaryObserver()" in handoff_body
@@ -1309,13 +1313,16 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
     assert "CMTime(seconds: pinTime" in dwell_body
     assert "currentTime = pinTime" in dwell_body
     assert "boundaryTime" not in dwell_body
-    handoff_body = _function_body(coordinator, "func prepareForSequenceHandoff()")
+    handoff_body = _function_body(
+        coordinator,
+        "func prepareForSequenceHandoff(clearSegmentEndGuard: Bool = true)",
+    )
     assert "setVolume(0)" in handoff_body
     assert "clearAudioMix()" not in handoff_body
     assert "removeBoundaryObserver()" in handoff_body
     sequence_body = _source("InteractivePlayerViewModel+Sequence.swift")
     load_track_body = _function_body(sequence_body, "func loadSequenceTrack(_ track: SequenceTrack, autoPlay: Bool, seekTime: Double? = nil) -> Double?")
-    assert "audioCoordinator.prepareForSequenceHandoff()" in load_track_body
+    assert "audioCoordinator.prepareForSequenceHandoff(clearSegmentEndGuard: false)" in load_track_body
     assert "audioCoordinator.setVolume(0)" not in load_track_body
     view_model = _source("InteractivePlayerViewModel.swift")
     resume_dwell_body = view_model.split("sequenceController.onResumeAfterDwell = {", 1)[1].split(
