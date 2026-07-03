@@ -331,7 +331,10 @@ Follow the suggested remediations to restore parity:
   are for real startup stalls, not for re-jumping the same sentence while the
   user has intentionally paused playback, and tvOS Job/Library shells should cap
   repeated recovery attempts for the same pending sentence before clearing the
-  pending autoplay state.
+  pending autoplay state. After a reader-owned pause clears pending autoplay,
+  Job and Library shells keep a short suppression latch so later watchdog or
+  MusicKit state churn cannot resurrect the same sentence while pause
+  confirmation settles.
   Slider/search/bookmark jumps in single-track mode set an explicit sentence
   anchor as soon as the jump is requested and keep that anchor alive through
   metadata/audio settling, so the first post-jump skip cannot use stale
@@ -343,9 +346,11 @@ Follow the suggested remediations to restore parity:
   lock until live
   audio reaches the target sentence; otherwise a stale AVPlayer chunk-edge
   sample can redraw the wrong row before the next skip command. Once live
-  playback reaches the anchored sentence, the anchor must be consumed/cleared so
-  the first following translated sentence is rendered from live audio time
-  instead of being pulled back to the stale resume or jump target.
+  playback reaches the anchored sentence, the anchor must be consumed/cleared;
+  if the live timing track later differs from an older recent anchor by more
+  than one sentence after the short settling window, skip navigation must trust
+  the live timeline instead of being pulled back to the stale resume or jump
+  target.
   `check_playback_mode_switch_integration` covers this with the `2225 -> 2226`
   translation-only fixture. On tvOS, the Interactive Reader focus handlers own
   focused footer left/right remote movement and route it through the same

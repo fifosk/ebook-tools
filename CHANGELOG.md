@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple Job and Library playback now suppress pending interactive-autoplay recovery through the reader pause hold, single-track skip navigation drops stale slider/jump anchors after the live timeline settles, and tvOS same-track trimming is less aggressive so Translation handoffs keep sentence tails without reviving pause loops.
 - Apple Job and Library playback now clear pending interactive-autoplay retries after confirmed reader pauses, and sequence dwell cancels stale audio-ready callbacks before pinning the muted player, preventing TV pause loops and next-sentence slivers during Translation handoff.
 - Backend YouTube NAS library path normalization, linked-job indexing, and video-row serialization now live in a focused helper shared by Web Video Dubbing and Apple YouTube Dub source pickers.
 - Backend Library media response shaping now lives in a focused helper with direct coverage for file URL normalization, audio/timing-track preservation, and diagnostics counters shared by Web and Apple playback.

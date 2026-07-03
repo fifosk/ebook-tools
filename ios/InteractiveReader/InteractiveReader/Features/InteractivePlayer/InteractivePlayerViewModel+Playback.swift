@@ -523,14 +523,20 @@ extension InteractivePlayerViewModel {
             return
         }
 
-        let anchoredIndex = anchorSentenceNumber.flatMap {
+        let explicitAnchorIndex = anchorSentenceNumber.flatMap {
             SentencePositionProvider.sentenceIndex(in: chunk, matching: $0)
-        } ?? recentSingleTrackSentenceAnchorIndex(in: chunk)
-        let resolvedActiveIndex = anchoredIndex ?? activeSentenceIndex(
+        }
+        let timelineActiveIndex = activeSentenceIndex(
             in: chunk,
             at: currentTime,
             timelineSentences: timelineSentences,
             playbackDuration: playbackDuration
+        )
+        let resolvedActiveIndex = singleTrackNavigationIndex(
+            explicitAnchorIndex: explicitAnchorIndex,
+            recentAnchorIndex: recentSingleTrackSentenceAnchorIndex(in: chunk),
+            timelineActiveIndex: timelineActiveIndex,
+            chunk: chunk
         )
 
         guard let activeIndex = resolvedActiveIndex else {
@@ -630,6 +636,34 @@ extension InteractivePlayerViewModel {
             return index
         }
         return nearestSentenceIndex(in: chunk, at: time, timelineSentences: timelineSentences)
+    }
+
+    private func singleTrackNavigationIndex(
+        explicitAnchorIndex: Int?,
+        recentAnchorIndex: Int?,
+        timelineActiveIndex: Int?,
+        chunk: InteractiveChunk
+    ) -> Int? {
+        if let explicitAnchorIndex {
+            return explicitAnchorIndex
+        }
+        guard let recentAnchorIndex else {
+            return timelineActiveIndex
+        }
+        guard let timelineActiveIndex else {
+            return recentAnchorIndex
+        }
+        guard audioCoordinator.isPlaying else {
+            return recentAnchorIndex
+        }
+        guard abs(recentAnchorIndex - timelineActiveIndex) > 1 else {
+            return recentAnchorIndex
+        }
+        if let age = recentSingleTrackSentenceAnchorAge(in: chunk), age < 1.5 {
+            return recentAnchorIndex
+        }
+        clearRecentSingleTrackSentenceAnchor(chunkID: chunk.id)
+        return timelineActiveIndex
     }
 
     private func nearestSentenceIndex(

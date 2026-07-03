@@ -1658,6 +1658,20 @@ extension InteractivePlayerViewModel {
         return targetIndex
     }
 
+    func recentSingleTrackSentenceAnchorAge(in chunk: InteractiveChunk) -> TimeInterval? {
+        guard requestedSingleTrackMode() != nil, !isSequenceModeActive else { return nil }
+        guard let anchor = recentSingleTrackSentenceAnchor,
+              anchor.chunkID == chunk.id else {
+            return nil
+        }
+        let age = Date().timeIntervalSince(anchor.createdAt)
+        guard age <= recentSingleTrackSentenceAnchorLifetime else {
+            recentSingleTrackSentenceAnchor = nil
+            return nil
+        }
+        return age
+    }
+
     /// Perform a within-chunk seek with drift verification. Fixes audio-vs-text
     /// desync on resume: AVPlayer's seek completion can fire while the internal
     /// read head is still at an older position, so when play() resumes we can

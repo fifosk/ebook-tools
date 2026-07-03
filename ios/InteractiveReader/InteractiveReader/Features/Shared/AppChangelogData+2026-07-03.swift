@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "reader-autoplay-anchor-trim-hardening",
+            title: "Reader pauses and skips settle",
+            detail: "Job and Library playback now suppress pending autoplay recovery through reader-owned pause holds, single-track skips drop stale slider anchors after the live timeline settles, and TV handoffs keep sentence tails with a narrower same-track trim."
+        ),
+        AppChangelogEntry(
             id: "reader-pause-confirmation-clears-autoplay",
             title: "TV pauses stop retry loops",
             detail: "Job and Library playback now clear pending interactive autoplay after confirmed reader pauses, and sequence dwell cancels stale audio-ready callbacks before pinning the muted player so TV pauses and Translation handoffs settle cleanly."

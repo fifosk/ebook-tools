@@ -236,7 +236,7 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Combined-only sequence setup should derive the Translation controller lane from the second stream URL" in swift_check
     frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
     assert "Once live\n  playback reaches the anchored sentence, the anchor must be consumed/cleared" in frontend_sync
-    assert "first following translated sentence is rendered from live audio time" in frontend_sync
+    assert "skip navigation must trust\n  the live timeline" in frontend_sync
     assert "chunk/batch setup must preserve that single-track audio mode" in frontend_sync
     assert "separate Original and Translation audio lanes without a combined\n  option" in frontend_sync
     assert "keeping all renderable transcript tracks visible" in frontend_sync
@@ -386,11 +386,11 @@ def test_sequence_overlap_trimming_leaves_a_handoff_guard() -> None:
     assert trim_body.index("segment.end > nextStart") < trim_body.index("nextStart - sameTrackHandoffGuard")
     guard_body = _function_body(controller, "private var sameTrackHandoffGuard: Double")
     assert "#if os(tvOS)" in guard_body
-    assert "return 0.90" in guard_body
+    assert "return 0.22" in guard_body
     assert "return 0.08" in guard_body
     preroll_body = _function_body(controller, "private var sameTrackPrerollSlop: Double")
     assert "#if os(tvOS)" in preroll_body
-    assert "return 1.45" in preroll_body
+    assert "return 0.50" in preroll_body
     assert "return 0.14" in preroll_body
 
 

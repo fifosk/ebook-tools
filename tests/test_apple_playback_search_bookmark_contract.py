@@ -642,9 +642,11 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
         1,
     )[0]
     assert "anchorSentenceNumber: Int? = nil" in skip_body
-    assert "let anchoredIndex = anchorSentenceNumber.flatMap" in skip_body
+    assert "let explicitAnchorIndex = anchorSentenceNumber.flatMap" in skip_body
     assert "SentencePositionProvider.sentenceIndex(in: chunk, matching: $0)" in skip_body
-    assert "let resolvedActiveIndex = anchoredIndex ?? activeSentenceIndex(" in skip_body
+    assert "let timelineActiveIndex = activeSentenceIndex(" in skip_body
+    assert "let resolvedActiveIndex = singleTrackNavigationIndex(" in skip_body
+    assert "recentAnchorIndex: recentSingleTrackSentenceAnchorIndex(in: chunk)" in skip_body
     assert "activeSentenceIndex(" in skip_body
     assert "let targetIndex = activeIndex + 1" in skip_body
     assert "let targetIndex = activeIndex - 1" in skip_body

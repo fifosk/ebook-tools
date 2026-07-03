@@ -45,6 +45,7 @@ struct JobPlaybackView: View {
     @State var lastPendingInteractiveAutoplayRecoveryTime: TimeInterval = 0
     @State var pendingInteractiveAutoplayRecoverySentence: Int?
     @State var pendingInteractiveAutoplayRecoveryAttempts = 0
+    @State var pendingInteractiveAutoplaySuppressedUntil: TimeInterval = 0
     @State var nowPlayingReassertionTask: Task<Void, Never>?
     @State var lastReaderTransportCommandTime: TimeInterval = 0
     @State var lastReaderTransportAction = "none"
@@ -280,6 +281,10 @@ struct JobPlaybackView: View {
         guard !isVideoPreferred else { return }
         guard reason != "jobAudioState" else { return }
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        if ProcessInfo.processInfo.systemUptime < pendingInteractiveAutoplaySuppressedUntil {
+            clearPendingInteractiveAutoplay(reason: "\(reason)Suppressed")
+            return
+        }
         guard !clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason) else { return }
         #if os(tvOS)
         if ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil {
@@ -352,6 +357,15 @@ struct JobPlaybackView: View {
 
     func clearPendingInteractiveAutoplay(reason: String) {
         guard pendingInteractiveAutoplaySentence != nil || pendingInteractiveAutoplayID != nil else { return }
+        if reason.lowercased().contains("pause") ||
+            reason.lowercased().contains("readertransport") ||
+            reason.lowercased().contains("suppressed") ||
+            lastReaderTransportAction == "pause" {
+            pendingInteractiveAutoplaySuppressedUntil = max(
+                pendingInteractiveAutoplaySuppressedUntil,
+                ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
+            )
+        }
         playbackTransportDebugLog(
             "[PlaybackTransport] Job clearing pending interactive autoplay reason=\(reason) readerPaused=true"
         )
