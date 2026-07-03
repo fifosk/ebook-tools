@@ -516,8 +516,9 @@ Follow the suggested remediations to restore parity:
   intact. This keeps loose `originalEndGate` or `endGate` values from including
   a buffered sliver of the following sentence without clipping well-separated
   jobs. Before loading a new Original/Translation sequence item, Apple must mute
-  the active player and clear stale fade/boundary observers so late ready or
-  seek callbacks cannot unmute the previous item tail. Persistent-stall
+  and pause the active player while preserving reader playback intent, then
+  clear stale fade/boundary observers so late ready or seek callbacks cannot
+  unmute or advance the previous item tail. Persistent-stall
   recovery must not force-advance while the sequence controller is intentionally
   dwelling or transitioning; those states are handoff protection, not stuck
   playback. Async fade installation must also verify the AVPlayer item is still

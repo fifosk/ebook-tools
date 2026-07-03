@@ -316,6 +316,8 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     /// coordination while preventing stale item tails from leaking through.
     func prepareForSequenceHandoff() {
         setVolume(0)
+        player?.pause()
+        isPlaying = false
         clearAudioMix()
         removeBoundaryObserver()
     }

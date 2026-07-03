@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "sequence-handoff-pauses-old-item",
+            title: "Track handoffs stay quiet",
+            detail: "Sequence handoffs now pause the muted previous AVPlayer item while preserving reader playback intent, reducing stale next-sentence tails before Original/Translation switches without stopping the Apple Music bed."
+        ),
+        AppChangelogEntry(
             id: "reader-autoplay-anchor-trim-hardening",
             title: "Reader pauses and skips settle",
             detail: "Job and Library playback now suppress pending autoplay recovery through reader-owned pause holds, single-track skips drop stale slider anchors after the live timeline settles, and TV handoffs keep sentence tails with a narrower same-track trim."

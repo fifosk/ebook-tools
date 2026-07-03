@@ -1247,6 +1247,15 @@ def test_segment_fade_is_bound_to_current_player_item() -> None:
     assert "current item changed" in fade_body
     assert fade_body.index("guard self.player?.currentItem === item else") < fade_body.index("item.audioMix = mix")
 
+    handoff_body = _function_body(coordinator, "func prepareForSequenceHandoff()")
+    assert "setVolume(0)" in handoff_body
+    assert "player?.pause()" in handoff_body
+    assert "isPlaying = false" in handoff_body
+    assert "clearAudioMix()" in handoff_body
+    assert "removeBoundaryObserver()" in handoff_body
+    assert "isPlaybackRequested = false" not in handoff_body
+    assert "AudioPlaybackRegistry.shared.endPlayback" not in handoff_body
+
 
 def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
     coordinator = (
