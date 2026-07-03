@@ -982,6 +982,11 @@ final class MusicKitCoordinator: ObservableObject {
             if shouldAdoptIgnoredObservedNonPlayingAsReaderPause {
                 logger.info("Apple Music ignored non-playing converted to reader transport pause during tvOS reading bed")
                 shouldIgnoreNextNonPlayingStatus = false
+            } else if shouldDeferObservedNonPlayingDuringActiveReadingBed {
+                shouldIgnoreNextNonPlayingStatus = false
+                deferObservedNonPlayingDuringActiveReadingBed(reason: "ignoredObservedNonPlaying")
+                logger.info("Apple Music ignored non-playing deferred during active reading bed")
+                return
             } else {
                 shouldIgnoreNextNonPlayingStatus = false
                 return
@@ -1024,9 +1029,9 @@ final class MusicKitCoordinator: ObservableObject {
     private var shouldAdoptIgnoredObservedNonPlayingAsReaderPause: Bool {
         #if os(tvOS)
         return ownershipState == .appleMusicBed &&
+            !isReaderNarrationActiveForMusicBed &&
             !isPausedByReaderTransport &&
             (
-                isReaderNarrationActiveForMusicBed ||
                 observedPlayingAsReadingBed ||
                 hasAutoResumeIntent
             )

@@ -1317,7 +1317,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
     assert "observedPlayingAsReadingBed" in ignored_observed_pause_body
     assert "hasAutoResumeIntent" in ignored_observed_pause_body
-    assert "!isReaderNarrationActiveForMusicBed" not in ignored_observed_pause_body
+    assert "!isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
     assert "!isManuallyPaused" not in ignored_observed_pause_body
     assert "!isPausedByReaderTransport" in ignored_observed_pause_body
     assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in observed_non_playing_body

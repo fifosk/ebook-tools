@@ -1407,9 +1407,10 @@ Optimization candidates:
   missing artifacts when a file vanishes after discovery instead of racing on
   direct `Path.exists()` / `Path.is_file()` checks.
   Bounded `/api/pipelines/files` calls now trim output entries with the same
-  low-payload limit used for EPUBs, keeping Web and Apple Create source pickers
-  from receiving every completed output folder on large shared roots while
-  preserving the legacy full output list for unbounded callers.
+  low-payload limit and bounded insertion helper used for EPUBs, keeping Web
+  and Apple Create source pickers from receiving every completed output folder
+  on large shared roots while preserving the legacy full output list for
+  unbounded callers.
   Reviewed public-catalog EPUB acquisition now also reserves destination
   filenames with the same tolerant stat helper instead of `Path.exists()`, so
   Web/Apple Create acquisition can choose a collision-safe `-N` filename even
@@ -2665,7 +2666,12 @@ Every cross-surface change should pass the relevant subset:
   looping after MusicKit pause adoption; Job and Library now clear those pending
   retry tokens after confirmed reader pauses, and the sequence dwell callback
   invalidates stale audio-ready subscriptions before pinning the muted player
-  so delayed completions cannot restore audio during Translation handoff.
+  so delayed completions cannot restore audio during Translation handoff. The
+  follow-up Living Room investigation found active MusicKit non-playing callbacks
+  being adopted as reader pauses after resume; tvOS now defers ignored active-bed
+  non-playing evidence into recovery while narration is active, and
+  `make test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped
+  on July 3 without physical deployment.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

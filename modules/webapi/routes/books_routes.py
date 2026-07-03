@@ -44,6 +44,7 @@ from ...services.pipeline_service import PipelineService
 from ...services.source_discovery import (
     DiscoveredSourceFile,
     append_bounded_newest_source_file,
+    append_bounded_sorted,
     iter_visible_source_files,
     newest_source_file_sort_key,
     safe_iterdir,
@@ -254,10 +255,13 @@ def _append_bounded_output_entry(
     entry: PipelineFileEntry,
     limit: int,
 ) -> None:
-    entries.append(entry)
-    entries.sort(key=_output_sort_key)
-    if len(entries) > limit:
-        entries.pop()
+    append_bounded_sorted(
+        entries,
+        entry,
+        limit,
+        entry_key=_output_sort_key(entry),
+        key=_output_sort_key,
+    )
 
 
 def _list_output_entries(root: Path, *, limit: int | None = None) -> List[PipelineFileEntry]:

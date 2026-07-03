@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -498,6 +498,43 @@ def test_pipeline_file_picker_accepts_bounded_picker_limit(
     assert "Public/newer.epub" not in rendered_logs
     assert "aaa-newer-output" not in rendered_logs
     assert "office-ipad-user" not in rendered_logs
+
+
+def test_bounded_pipeline_output_insert_uses_shared_binary_insertion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base_time = datetime(2026, 1, 1, 12, 0, 0)
+    entries = [
+        books_routes.PipelineFileEntry(
+            name=f"output-{index:02d}",
+            path=f"output-{index:02d}",
+            type="directory",
+            modified_at=base_time + timedelta(seconds=index),
+        )
+        for index in range(63, -1, -1)
+    ]
+    inserted = books_routes.PipelineFileEntry(
+        name="output-inserted",
+        path="output-inserted",
+        type="directory",
+        modified_at=base_time + timedelta(seconds=64),
+    )
+    key_calls = 0
+    original_sort_key = books_routes._output_sort_key
+
+    def counted_sort_key(entry: books_routes.PipelineFileEntry) -> tuple[float, str]:
+        nonlocal key_calls
+        key_calls += 1
+        return original_sort_key(entry)
+
+    monkeypatch.setattr(books_routes, "_output_sort_key", counted_sort_key)
+
+    books_routes._append_bounded_output_entry(entries, inserted, 64)
+
+    assert entries[0].path == "output-inserted"
+    assert len(entries) == 64
+    assert "output-00" not in {entry.path for entry in entries}
+    assert key_calls < 16
 
 
 def test_pipeline_file_picker_rejects_invalid_picker_limit(tmp_path: Path) -> None:

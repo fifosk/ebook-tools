@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-active-bed-nonplaying-defers",
+            title: "TV bed dips keep reading",
+            detail: "Apple TV Music-bed handling now defers ignored non-playing callbacks while narration is active, recovering the bed instead of adopting those MusicKit interruptions as reader pauses that stop book playback."
+        ),
+        AppChangelogEntry(
             id: "tvos-nonmanual-music-bed-stop-keeps-reader",
             title: "TV bed hiccups keep reading",
             detail: "Apple TV Job and Library playback no longer treat non-manual Apple Music bed non-playing state as a sentence pause while narration is active, so transient MusicKit bed interruptions recover the bed instead of stopping book playback."
@@ -13,7 +18,7 @@ extension AppChangelogData {
         AppChangelogEntry(
             id: "backend-bounded-source-picker-helper",
             title: "Source pickers share ordering",
-            detail: "Backend EPUB, manual-download, and acquisition candidate pickers now share one bounded newest-first insertion helper, reducing ordering drift while keeping large NAS source scans lightweight."
+            detail: "Backend EPUB, output-folder, manual-download, and acquisition candidate pickers now share one bounded newest-first insertion helper, reducing ordering drift while keeping large NAS source scans lightweight."
         ),
         AppChangelogEntry(
             id: "tvos-startup-music-pause-active-guard",

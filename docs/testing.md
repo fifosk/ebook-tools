@@ -164,7 +164,9 @@ requested reader sentence-transition pause and asserts `transitionPauses>=1`,
 `music=playing` together. That catches the iPad case where Apple Music dips
 between sentence tracks while the reader still intends playback. The iPad/iPhone
 coordinator path must defer transient active-reading-bed non-playing observations
-without adopting the reader-pause path; if MusicKit remains stopped after the
+without adopting the reader-pause path; ignored non-playing callbacks follow the
+same deferral while narration is active, so stale MusicKit interruptions recover
+the bed instead of stopping the reader. If MusicKit remains stopped after the
 settle window, the active-narration recovery path may resume the bed.
 The same iPad branch also has a debug-only lookup-bubble pronunciation probe:
 it starts platform speech from a ready MyLinguist bubble, pauses through the
@@ -1314,6 +1316,10 @@ The CLI hint for that failure is intentionally operational: first confirm the
 device is running a build with the audio-state recovery guard, then pull a
 fresh-only log after one repro so old cached failures do not mask the new
 candidate.
+The checker also rejects `Apple Music reader transport pause adopted
+source=active observed non-playing` followed by active Job/Library pause
+acceptance, because active narration should defer and recover ignored Music-bed
+interruptions instead of converting them into reader transport pauses.
 `apple-device-pull-and-verify-playback-transport-log` and the combined
 reader-repro pull target first preserve the
 previous latest pulled file as

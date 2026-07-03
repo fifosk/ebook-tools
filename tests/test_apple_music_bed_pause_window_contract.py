@@ -177,6 +177,7 @@ def test_tvos_active_music_pause_keeps_reader_transport() -> None:
     assert "ownershipState == .appleMusicBed" in ignored_gate_body
     assert "!isPausedByReaderTransport" in ignored_gate_body
     assert "isReaderNarrationActiveForMusicBed" in ignored_gate_body
+    assert "!isReaderNarrationActiveForMusicBed" in ignored_gate_body
     assert "observedPlayingAsReadingBed" in ignored_gate_body
     assert "hasAutoResumeIntent" in ignored_gate_body
     assert "shouldAdoptObservedNonPlayingImmediately" in defer_body
