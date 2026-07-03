@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-startup-music-pause-ignored",
+            title: "TV startup ignores Music pause",
+            detail: "Apple TV reader playback now ignores Apple Music pause observations while narration is requested but not yet audible, keeping the initial sentence start alive instead of treating the bed state as a reader pause."
+        ),
+        AppChangelogEntry(
+            id: "playback-log-build-stamp-fallback",
+            title: "Device logs keep git stamps",
+            detail: "Apple playback transport logs now fall back to bundled branch and commit stamp files when Info.plist build metadata is unavailable at runtime, making physical TV captures easier to match to the installed checkpoint."
+        ),
+        AppChangelogEntry(
             id: "tvos-requested-playback-recovers-before-pause",
             title: "TV startup keeps narration alive",
             detail: "Apple TV Play/Pause events that arrive while sentence playback is requested but not yet audible now recover the reader instead of pausing it because the Apple Music bed is already playing."

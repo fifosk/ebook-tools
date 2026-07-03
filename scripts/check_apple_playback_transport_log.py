@@ -202,6 +202,14 @@ REQUESTED_ONLY_BROKER_PAUSE_LINE_PATTERN = re.compile(
 )
 
 
+REQUESTED_ONLY_MUSIC_SURFACE_PAUSE_LINE_PATTERN = re.compile(
+    r"^\d+(?:\.\d+)? \[PlaybackTransport\] (?P<surface>Job|Library) "
+    r"accepted Apple Music pause as reader transport source=musicSurface "
+    r"requested=true playing=false musicPlaying=false readerPause=false$",
+    flags=re.MULTILINE,
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -464,6 +472,14 @@ def _requested_only_broker_pause_violations(text: str) -> list[str]:
     return []
 
 
+def _requested_only_music_surface_pause_violations(text: str) -> list[str]:
+    if REQUESTED_ONLY_MUSIC_SURFACE_PAUSE_LINE_PATTERN.search(text):
+        return [
+            "Apple Music surface pause stopped requested narration before audio became audible"
+        ]
+    return []
+
+
 def _build_commit_violations(text: str, required_commit: str | None) -> list[str]:
     required = (required_commit or "").strip()
     if not required:
@@ -573,6 +589,7 @@ def validate_log(
         missing.extend(_autoplay_recovery_loop_violations(text))
         missing.extend(_active_music_nonplaying_adoption_violations(text))
         missing.extend(_requested_only_broker_pause_violations(text))
+        missing.extend(_requested_only_music_surface_pause_violations(text))
     if mode == "pause-resume":
         missing.extend(_dead_resume_violations(text))
         missing.extend(_consecutive_broker_pause_violations(text))

@@ -26,6 +26,7 @@ enum AppVersion {
     static var branch: String {
         let candidates: [String?] = [
             readInfoValue("EBOOK_TOOLS_BRANCH"),
+            readBundleTextResource("branch", fileExtension: "stamp"),
             ProcessInfo.processInfo.environment["EBOOK_TOOLS_BRANCH"],
         ]
 
@@ -42,6 +43,7 @@ enum AppVersion {
     static var commit: String {
         let candidates: [String?] = [
             readInfoValue("EBOOK_TOOLS_COMMIT"),
+            readBundleTextResource("commit", fileExtension: "stamp"),
             ProcessInfo.processInfo.environment["EBOOK_TOOLS_COMMIT"],
         ]
 
@@ -64,6 +66,13 @@ enum AppVersion {
     private static func readInfoValue(_ key: String) -> String? {
         Bundle.main.object(forInfoDictionaryKey: key) as? String
             ?? Bundle.main.infoDictionary?[key] as? String
+    }
+
+    private static func readBundleTextResource(_ name: String, fileExtension: String) -> String? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: fileExtension),
+              let value = try? String(contentsOf: url, encoding: .utf8)
+        else { return nil }
+        return value
     }
 }
 

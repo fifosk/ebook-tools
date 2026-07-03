@@ -114,6 +114,14 @@ REQUESTED_ONLY_BROKER_PAUSE_LOG = """
 """
 
 
+REQUESTED_ONLY_MUSIC_SURFACE_PAUSE_LOG = """
+1783106391.702 [PlaybackTransportBuild] release=2026.07.03.001 marketing=2026.7.3 bundle=20260703001 branch=unknown commit=unknown
+1783106391.702 [PlaybackTransport] Job accepted Apple Music pause as reader transport source=musicSurface requested=true playing=false musicPlaying=false readerPause=false
+1783106391.712 [PlaybackTransport] Apple Music reader transport pause reinforced reason=musicSurface
+1783106391.868 [PlaybackTransport] Job confirmed reader pause source=musicSurface requested=false playing=false musicPlaying=false systemMusicPlaying=false
+"""
+
+
 def test_pause_release_playback_transport_log_validation_passes(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(PAUSE_LOG, encoding="utf-8")
@@ -418,6 +426,24 @@ def test_pause_release_rejects_requested_only_broker_pause_before_audio_audible(
     missing = module.validate_log(log, mode="pause-release")
 
     assert "broker pause stopped requested narration before audio became audible" in missing
+
+
+def test_pause_resume_rejects_music_surface_pause_before_audio_audible(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(PAUSE_LOG + REQUESTED_ONLY_MUSIC_SURFACE_PAUSE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert "Apple Music surface pause stopped requested narration before audio became audible" in missing
+
+
+def test_pause_release_rejects_music_surface_pause_before_audio_audible(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(PAUSE_LOG + REQUESTED_ONLY_MUSIC_SURFACE_PAUSE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert "Apple Music surface pause stopped requested narration before audio became audible" in missing
 
 
 def test_fresh_only_ignores_stale_baseline_failures(tmp_path: Path) -> None:

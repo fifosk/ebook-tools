@@ -211,18 +211,35 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "onReaderPauseCommand: { pauseReaderNowPlayingTransport() }" in job_playback
     job_adoption_body = _function_body(job_playback, "private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil)")
     assert "#if os(tvOS)" in job_adoption_body
+    assert "if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible" in job_adoption_body
+    assert "ignored adopted Apple Music pause before narration audible" in job_adoption_body
     assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in job_adoption_body
     assert "!shouldHonorAppleMusicPauseAdoptionImmediately(reason: reason, source: source)" in job_adoption_body
     assert "ignored stale adopted Apple Music pause after reader play" in job_adoption_body
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)" in job_adoption_body
     assert "musicOwnership.resumeReadingBedForReaderTransport()" not in job_adoption_body
     assert "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else" not in job_adoption_body
+    assert job_adoption_body.index("if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible") < job_adoption_body.index(
+        "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay"
+    )
     assert job_adoption_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < job_adoption_body.index(
         "mirrorAppleMusicPauseToReaderTransport(source: \"musicAdoption\")"
     )
     job_mirror_pause_decision_body = _function_body(job_playback, "private var shouldMirrorAppleMusicPauseToNarration")
     assert "#if os(tvOS)" in job_mirror_pause_decision_body
     assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in job_mirror_pause_decision_body
+    job_music_surface_body = _function_body(job_playback, "private func handleMusicKitPlaybackSurfaceChange()")
+    assert "if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible" in job_music_surface_body
+    assert "ignored Apple Music pause before narration audible" in job_music_surface_body
+    assert job_music_surface_body.index("if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible") < job_music_surface_body.index(
+        "if shouldMirrorAppleMusicPauseToNarration"
+    )
+    job_pre_audible_pause_body = _function_body(job_playback, "private var shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible")
+    assert "musicOwnership.ownershipState == .appleMusicBed" in job_pre_audible_pause_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in job_pre_audible_pause_body
+    assert "!viewModel.audioCoordinator.isPlaying" in job_pre_audible_pause_body
+    assert "!viewModel.isNarrationAudibleForReaderTransport" in job_pre_audible_pause_body
+    assert 'lastReaderTransportAction != "pause"' in job_pre_audible_pause_body
     assert job_mirror_pause_decision_body.index("if musicOwnership.isPausedByReaderTransport") < job_mirror_pause_decision_body.index(
         "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay"
     )
@@ -816,15 +833,32 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "onReaderPauseCommand: { pauseReaderNowPlayingTransport() }" in library_playback
     library_adoption_body = _function_body(library_playback, "private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil)")
     assert "#if os(tvOS)" in library_adoption_body
+    assert "if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible" in library_adoption_body
+    assert "ignored adopted Apple Music pause before narration audible" in library_adoption_body
     assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in library_adoption_body
     assert "!shouldHonorAppleMusicPauseAdoptionImmediately(reason: reason, source: source)" in library_adoption_body
     assert "ignored stale adopted Apple Music pause after reader play" in library_adoption_body
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)" in library_adoption_body
     assert "musicOwnership.resumeReadingBedForReaderTransport()" not in library_adoption_body
     assert "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else" not in library_adoption_body
+    assert library_adoption_body.index("if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible") < library_adoption_body.index(
+        "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay"
+    )
     assert library_adoption_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < library_adoption_body.index(
         "mirrorAppleMusicPauseToReaderTransport(source: \"musicAdoption\")"
     )
+    library_music_surface_body = _function_body(library_playback, "private func handleMusicKitPlaybackSurfaceChange()")
+    assert "if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible" in library_music_surface_body
+    assert "ignored Apple Music pause before narration audible" in library_music_surface_body
+    assert library_music_surface_body.index("if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible") < library_music_surface_body.index(
+        "if shouldMirrorAppleMusicPauseToNarration"
+    )
+    library_pre_audible_pause_body = _function_body(library_playback, "private var shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible")
+    assert "musicOwnership.ownershipState == .appleMusicBed" in library_pre_audible_pause_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in library_pre_audible_pause_body
+    assert "!viewModel.audioCoordinator.isPlaying" in library_pre_audible_pause_body
+    assert "!viewModel.isNarrationAudibleForReaderTransport" in library_pre_audible_pause_body
+    assert 'lastReaderTransportAction != "pause"' in library_pre_audible_pause_body
     library_mirror_pause_decision_body = _function_body(library_playback, "private var shouldMirrorAppleMusicPauseToNarration")
     assert "#if os(tvOS)" in library_mirror_pause_decision_body
     assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in library_mirror_pause_decision_body

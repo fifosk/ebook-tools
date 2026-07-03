@@ -108,6 +108,8 @@ def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_player
 
     app_version = _source(APP / "Features" / "Shared" / "AppVersion.swift")
     assert 'readInfoValue("EBOOK_TOOLS_COMMIT")' in app_version
+    assert 'readBundleTextResource("commit", fileExtension: "stamp")' in app_version
+    assert 'readBundleTextResource("branch", fileExtension: "stamp")' in app_version
     assert 'ProcessInfo.processInfo.environment["EBOOK_TOOLS_COMMIT"]' in app_version
 
     ios_plist = _source(APP / "Supporting" / "Info.plist")
