@@ -1139,6 +1139,16 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     )
     assert "viewModel.playForReaderTransport()" in resume_reader_transport_body
     assert "resumeAppleMusicBedForReaderTransportIfNeeded()" in resume_reader_transport_body
+    pause_music_body = _function_body(
+        interactive_input,
+        "private func pauseAppleMusicBedForReaderTransportIfNeeded()",
+    )
+    assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in pause_music_body
+    assert "musicCoordinator.pauseReadingBedForReaderTransport()" in pause_music_body
+    assert 'musicCoordinator.reinforceReadingBedPauseForReaderTransport(reason: "interactiveReaderTransportPause")' in pause_music_body
+    assert pause_music_body.index("musicCoordinator.pauseReadingBedForReaderTransport()") < pause_music_body.index(
+        'musicCoordinator.reinforceReadingBedPauseForReaderTransport(reason: "interactiveReaderTransportPause")'
+    )
     assert "musicCoordinator.pauseReadingBedForReaderTransport()" in interactive_input
     assert "musicCoordinator.resumeReadingBedForReaderTransport()" in interactive_input
     assert "e2eBubbleResumeLayer" in interactive_layout

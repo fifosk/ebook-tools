@@ -497,9 +497,11 @@ Follow the suggested remediations to restore parity:
   Apple Music before the app-level reader callback. Sequence dwell should keep
   reader playback intent alive for the bed, but on tvOS it mutes and applies
   segment-proportional boundary headroom, fade, and pin-backoff windows before
-  seeking to the next segment; the current tvOS windows cap at 0.66s headroom,
-  0.38s fade, and 0.16s dwell pin-backoff so the handoff is earlier than the
-  iPad path without returning to the old tail-clipping trims. The tvOS guard must stay wider than iOS/iPadOS
+  seeking to the next segment. The balanced tvOS windows cap at 0.66s headroom,
+  0.38s fade, and 0.16s dwell pin-backoff, while cross-track Original/Translation
+  switches can widen to 0.82s headroom and 0.48s fade because the continuous
+  source file would otherwise expose the next same-track sentence before the
+  handoff lands. The tvOS guard must stay wider than iOS/iPadOS
   because physical HDMI output can still drain buffered next-sentence audio
   after AVPlayer pauses; single-track iPad/iPhone behavior should not inherit
   that extra trim.
@@ -610,6 +612,10 @@ Follow the suggested remediations to restore parity:
   AVPlayer `playing` callbacks while playback is no longer requested. Mirrored
   Music play should resume narration through the reader transport helper rather
   than the raw audio coordinator so the narration/bed mix volume is restored.
+  Direct interactive reader tvOS pauses should reinforce the Apple Music bed's
+  reader-owned pause immediately after stopping narration; debug simulator
+  journeys keep the synthetic `pauseReadingBedForReaderTransport` hook so the
+  unattended Music-bed gate still asserts the same transport state.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

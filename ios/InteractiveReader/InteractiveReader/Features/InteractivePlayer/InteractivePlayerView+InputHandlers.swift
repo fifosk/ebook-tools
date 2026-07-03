@@ -274,7 +274,17 @@ extension InteractivePlayerView {
 
     private func pauseAppleMusicBedForReaderTransportIfNeeded() {
         guard shouldCoordinateAppleMusicBedWithReaderTransport else { return }
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
+            musicCoordinator.pauseReadingBedForReaderTransport()
+            return
+        }
+        #endif
+        #if os(tvOS)
+        musicCoordinator.reinforceReadingBedPauseForReaderTransport(reason: "interactiveReaderTransportPause")
+        #else
         musicCoordinator.pauseReadingBedForReaderTransport()
+        #endif
     }
 
     private func resumeAppleMusicBedForReaderTransportIfNeeded() {

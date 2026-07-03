@@ -1177,12 +1177,21 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
 
     headroom_body = _function_body(controller, "private func boundaryHeadroom(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in headroom_body
+    assert "nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false" in headroom_body
+    assert "min(0.82, max(0.22, segment.duration * 0.28))" in headroom_body
     assert "min(0.66, max(0.14, segment.duration * 0.21))" in headroom_body
+    assert "min(0.12, max(0.05, segment.duration * 0.10))" in headroom_body
     assert "min(0.08, max(0.03, segment.duration * 0.08))" in headroom_body
     fade_body = _function_body(controller, "private func fadeOutDuration(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in fade_body
+    assert "nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false" in fade_body
+    assert "min(0.48, max(0.16, segment.duration * 0.20))" in fade_body
     assert "min(0.38, max(0.11, segment.duration * 0.16))" in fade_body
+    assert "min(0.20, max(0.07, segment.duration * 0.12))" in fade_body
     assert "min(0.16, max(0.05, segment.duration * 0.10))" in fade_body
+    next_body = _function_body(controller, "private func nextPlayableSegment(after segment: SequenceSegment) -> SequenceSegment?")
+    assert "shouldSkipTrack?(candidate.track) == true" in next_body
+    assert "return candidate" in next_body
     pin_body = _function_body(controller, "private func dwellPinBackoff(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in pin_body
     assert "min(0.16, max(0.045, segment.duration * 0.055))" in pin_body

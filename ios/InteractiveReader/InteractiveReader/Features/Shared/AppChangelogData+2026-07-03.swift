@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-cross-track-handoff-and-pause-latch",
+            title: "TV pauses and handoffs latch",
+            detail: "Apple TV interactive reader pauses now reinforce the reader-owned Apple Music bed pause immediately, and Original-to-Translation sequence handoffs use wider cross-track boundary/fade headroom so the next sentence is not heard before the track switch."
+        ),
+        AppChangelogEntry(
             id: "ipad-e2e-space-resume-uses-broker",
             title: "iPad bubble resume test matches keys",
             detail: "The iPad Music-bed debug chrome now routes its E2E Space command through the shared keyboard broker before falling back to a notification, matching the real hardware-key path after lookup-bubble pronunciation pauses."

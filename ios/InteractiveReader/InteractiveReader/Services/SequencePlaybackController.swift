@@ -483,9 +483,16 @@ final class SequencePlaybackController: ObservableObject {
     /// can over-trim short sentences and make transitions sound clipped. Scale
     /// the headroom to the active segment and cap it at the old worst case.
     private func boundaryHeadroom(for segment: SequenceSegment) -> Double {
+        let isTrackSwitch = nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false
         #if os(tvOS)
+        if isTrackSwitch {
+            return min(0.82, max(0.22, segment.duration * 0.28))
+        }
         return min(0.66, max(0.14, segment.duration * 0.21))
         #else
+        if isTrackSwitch {
+            return min(0.12, max(0.05, segment.duration * 0.10))
+        }
         return min(0.08, max(0.03, segment.duration * 0.08))
         #endif
     }
@@ -493,11 +500,32 @@ final class SequencePlaybackController: ObservableObject {
     /// Duration of the fade-out ramp applied at the decode level (seconds).
     /// This must be long enough to cover HDMI output buffer depth (~100-300ms).
     private func fadeOutDuration(for segment: SequenceSegment) -> Double {
+        let isTrackSwitch = nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false
         #if os(tvOS)
+        if isTrackSwitch {
+            return min(0.48, max(0.16, segment.duration * 0.20))
+        }
         return min(0.38, max(0.11, segment.duration * 0.16))
         #else
+        if isTrackSwitch {
+            return min(0.20, max(0.07, segment.duration * 0.12))
+        }
         return min(0.16, max(0.05, segment.duration * 0.10))
         #endif
+    }
+
+    private func nextPlayableSegment(after segment: SequenceSegment) -> SequenceSegment? {
+        guard let index = plan.firstIndex(where: { $0.id == segment.id }) else { return nil }
+        var nextIndex = index + 1
+        while nextIndex < plan.count {
+            let candidate = plan[nextIndex]
+            if shouldSkipTrack?(candidate.track) == true {
+                nextIndex += 1
+                continue
+            }
+            return candidate
+        }
+        return nil
     }
 
     /// How far before segment.end a muted dwell seek should land.
