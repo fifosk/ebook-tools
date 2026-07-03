@@ -444,7 +444,7 @@ extension LibraryPlaybackView {
     func confirmReaderTransportPauseAfterCommand(source: String) {
         let scheduledGeneration = readerTransportResumeGeneration
         Task { @MainActor in
-            for delay in [60_000_000, 180_000_000, 420_000_000] as [UInt64] {
+            for delay in [60_000_000, 180_000_000, 420_000_000, 900_000_000, 1_500_000_000] as [UInt64] {
                 try? await Task.sleep(nanoseconds: delay)
                 guard readerTransportResumeGeneration == scheduledGeneration else { return }
                 guard lastReaderTransportAction == "pause" else { return }

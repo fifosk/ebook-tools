@@ -589,7 +589,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "publishReaderNowPlayingSnapshot(force: true)"
     )
     job_confirm_pause_body = _function_body(job_now_playing, "func confirmReaderTransportPauseAfterCommand(source: String)")
-    assert "[60_000_000, 180_000_000, 420_000_000]" in job_confirm_pause_body
+    assert "[60_000_000, 180_000_000, 420_000_000, 900_000_000, 1_500_000_000]" in job_confirm_pause_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in job_confirm_pause_body
     assert 'guard lastReaderTransportAction == "pause" else { return }' in job_confirm_pause_body
     assert "let readerStillActive = viewModel.audioCoordinator.isPlaybackRequested ||" in job_confirm_pause_body
@@ -967,7 +967,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "publishReaderNowPlayingSnapshot(force: true)"
     )
     library_confirm_pause_body = _function_body(library_now_playing, "func confirmReaderTransportPauseAfterCommand(source: String)")
-    assert "[60_000_000, 180_000_000, 420_000_000]" in library_confirm_pause_body
+    assert "[60_000_000, 180_000_000, 420_000_000, 900_000_000, 1_500_000_000]" in library_confirm_pause_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in library_confirm_pause_body
     assert 'guard lastReaderTransportAction == "pause" else { return }' in library_confirm_pause_body
     assert "let readerStillActive = viewModel.audioCoordinator.isPlaybackRequested ||" in library_confirm_pause_body
@@ -1394,7 +1394,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "#if os(tvOS)" in observed_pause_e2e_body
     assert "hasAutoResumeIntent = false" in observed_pause_e2e_body
     assert "observedPlayingAsReadingBed = false" in observed_pause_e2e_body
-    assert "24_000_000_000" in observed_pause_e2e_body
+    assert "36_000_000_000" in observed_pause_e2e_body
     assert "#else" in observed_pause_e2e_body
     assert "hasAutoResumeIntent = true" in observed_pause_e2e_body
     assert "observedPlayingAsReadingBed = true" in observed_pause_e2e_body

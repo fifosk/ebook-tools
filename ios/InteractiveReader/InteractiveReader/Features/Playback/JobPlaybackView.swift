@@ -365,7 +365,9 @@ struct JobPlaybackView: View {
     }
 
     private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil) {
-        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        guard musicOwnership.ownershipState == .appleMusicBed ||
+                musicOwnership.ownershipState == .appleMusic
+        else { return }
         guard musicOwnership.isPausedByReaderTransport else { return }
         #if os(tvOS)
         if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay,
@@ -546,12 +548,19 @@ struct JobPlaybackView: View {
     }
 
     private var shouldMirrorAppleMusicPlayToNarration: Bool {
-        musicOwnership.isPlaying &&
-            !musicOwnership.isManuallyPaused &&
-            !musicOwnership.isPausedByReaderTransport &&
-            !musicOwnership.isReaderTransportPauseGuardActive &&
-            !viewModel.audioCoordinator.isPlaybackRequested &&
-            !viewModel.audioCoordinator.isPlaying
+        guard musicOwnership.isPlaying,
+              !musicOwnership.isManuallyPaused,
+              !musicOwnership.isPausedByReaderTransport,
+              !musicOwnership.isReaderTransportPauseGuardActive
+        else {
+            return false
+        }
+        if !viewModel.audioCoordinator.isPlaybackRequested &&
+            !viewModel.audioCoordinator.isPlaying {
+            return true
+        }
+        return viewModel.audioCoordinator.isPlaybackRequested &&
+            !viewModel.isNarrationAudibleForReaderTransport
     }
 
     #if os(tvOS)

@@ -1230,6 +1230,9 @@ final class MusicKitCoordinator: ObservableObject {
         cancelReaderTransportResumeTask(reason: reason)
         cancelPlaybackSurfaceReassertions()
         cancelObservedNonPlayingPause()
+        if ownershipState == .appleMusic {
+            ownershipState = .appleMusicBed
+        }
         logger.info(
             "Apple Music reader transport pause adopted source=\(source, privacy: .public) reason=\(reason, privacy: .public)"
         )
@@ -1483,7 +1486,7 @@ final class MusicKitCoordinator: ObservableObject {
         }
         #if os(tvOS)
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 24_000_000_000)
+            try? await Task.sleep(nanoseconds: 36_000_000_000)
             guard self.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
             self.simulateReadingBedPlayForE2E()
         }
