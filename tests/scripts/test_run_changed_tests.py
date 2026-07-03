@@ -100,6 +100,15 @@ def test_select_targets_for_apple_surface_changes() -> None:
     assert select_targets(["scripts/check_apple_music_bed_launch_log.py"]) == [
         "test-apple-contracts"
     ]
+    assert select_targets(["scripts/apple_pull_device_playback_log.sh"]) == [
+        "test-apple-contracts"
+    ]
+    assert select_targets(["scripts/apple_build_macos_ipad_style.sh"]) == [
+        "test-apple-contracts"
+    ]
+    assert select_targets(["scripts/apple_find_provisioning_profile.py"]) == [
+        "test-apple-contracts"
+    ]
     assert select_targets(["scripts/check_apple_shared_pipeline_helper.sh"]) == [
         "test-apple-contracts",
         "apple-pipeline-orchestration-dry-runs",

@@ -321,6 +321,10 @@ covered by the Apple gate. Mac Studio runtime helper changes, including
 `scripts/check_mac_studio_runtime_checkout.sh` and
 `scripts/fast_forward_mac_studio_runtime_checkout.sh`, also route to the Apple
 contract lane because they guard the golden pipeline source-sync handoff.
+Repo-owned Apple helper edits such as the playback-log puller, macOS
+iPad-style build helper, and provisioning-profile finder also route to
+`test-apple-contracts`, keeping physical-evidence and local-surface helper
+contracts covered before manual device work.
 Discovery/acquisition plan, provider, schema, and route changes route to
 `test-backend-acquisition`, `test-web-create-intake-focused`,
 `test-web-video-dubbing-focused`, and
