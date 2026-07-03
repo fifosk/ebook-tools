@@ -1230,6 +1230,12 @@ play` breadcrumb is accepted only after the same resume episode has restored
 narration or accepted reader playback; if stale Music pause suppression appears
 before reader playback has recovered, the verifier fails with
 `stale Apple Music pause was ignored before reader playback recovered`.
+It also rejects a dense burst of `recovering pending interactive autoplay`
+breadcrumbs for the same sentence when a Music-surface pause appears in the
+same short window, reporting
+`pending interactive autoplay looped while Music bed reported paused`; that is
+the Living Room signature where stale Music-bed state cancels narration into an
+autoplay retry loop.
 For pause-only captures, the pulled playback-log checker evaluates every
 Music/app pause handoff as a numbered pause episode. If any episode does not
 contain active narration-pause evidence and settled

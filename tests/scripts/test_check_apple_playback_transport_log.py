@@ -329,6 +329,48 @@ def test_pause_resume_rejects_stale_pause_ignore_before_reader_playback_recovers
     ]
 
 
+def test_pause_resume_rejects_pending_autoplay_music_pause_loop(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        PAUSE_RESUME_LOG
+        + """
+1782670002.000 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.050 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.100 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.150 [PlaybackTransport] Library accepted Apple Music pause as reader transport source=musicSurface requested=true playing=true musicPlaying=false readerPause=false
+1782670002.160 [PlaybackTransport] Library confirmed reader pause source=musicSurface requested=false playing=false musicPlaying=false
+1782670002.200 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.250 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.300 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.350 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.400 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert missing == [
+        "pending interactive autoplay looped while Music bed reported paused"
+    ]
+
+
+def test_pause_resume_allows_single_pending_autoplay_recovery(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        PAUSE_RESUME_LOG
+        + """
+1782670002.000 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.150 [PlaybackTransport] Library accepted Apple Music pause as reader transport source=musicSurface requested=true playing=true musicPlaying=false readerPause=false
+1782670002.160 [PlaybackTransport] Library confirmed reader pause source=musicSurface requested=false playing=false musicPlaying=false
+1782670004.200 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=43
+""",
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="pause-resume") == []
+
+
 def test_pause_resume_accepts_restored_narration_request_after_dead_broker_resume(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(

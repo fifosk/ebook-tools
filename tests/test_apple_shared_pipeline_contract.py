@@ -448,11 +448,13 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "standalone `readerPause=true`" in testing_doc
     assert "`pause episode N did not ...` diagnostic" in testing_doc
     assert "stale Apple Music pause was ignored before reader playback recovered" in testing_doc
+    assert "pending interactive autoplay looped while Music bed reported paused" in testing_doc
     assert "every pause episode" in deployment_doc
     assert "next transport command" in deployment_doc
     assert "`requested=true` or\n`playing=true`" in deployment_doc
     assert "lone `readerPause=true` flag is not enough" in deployment_doc
     assert "stale Apple Music pause was ignored before reader playback recovered" in deployment_doc
+    assert "pending interactive autoplay looped while Music bed reported paused" in deployment_doc
     assert "apple-device-pull-and-verify-playback-resume-offset-log" in testing_doc
     assert "apple-device-verify-music-bed-reader-progress-log" in testing_doc
     assert "fallback=sentenceStart" in testing_doc

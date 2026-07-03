@@ -494,6 +494,11 @@ between two intentional pause episodes. If a stale Apple Music pause is ignored
 before that reader playback recovery evidence appears, validation fails with
 `stale Apple Music pause was ignored before reader playback recovered`, because
 that breadcrumb can otherwise hide the two-press pause/resume regression.
+The same check now rejects dense `recovering pending interactive autoplay`
+bursts for one sentence when a Music-surface pause lands in that short window,
+reporting `pending interactive autoplay looped while Music bed reported paused`
+for the Living Room failure mode where stale Music-bed state cancels narration
+into an autoplay retry loop.
 
 ### Makefile Shortcuts
 

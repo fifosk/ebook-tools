@@ -162,6 +162,19 @@ SEQUENCE_TIME_SEEK_ACCEPTED_LINE_PATTERN = re.compile(
 )
 
 
+AUTOPLAY_RECOVERY_LINE_PATTERN = re.compile(
+    r"^(?P<time>\d+(?:\.\d+)?) \[PlaybackTransport\] (?P<surface>Job|Library) "
+    r"recovering pending interactive autoplay .* sentence=(?P<sentence>\d+)"
+)
+
+
+MUSIC_SURFACE_PAUSE_LINE_PATTERN = re.compile(
+    r"^(?P<time>\d+(?:\.\d+)?) \[PlaybackTransport\] (?P<surface>Job|Library) "
+    r"accepted Apple Music pause as reader transport source=musicSurface "
+    r"requested=true playing=true musicPlaying=false"
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -313,6 +326,47 @@ def _stale_pause_ignore_violations(text: str) -> list[str]:
     return []
 
 
+def _autoplay_recovery_loop_violations(text: str) -> list[str]:
+    recoveries: list[tuple[float, str, str]] = []
+    music_surface_pause_times: dict[str, list[float]] = {}
+    for line in text.splitlines():
+        recovery_match = AUTOPLAY_RECOVERY_LINE_PATTERN.match(line)
+        if recovery_match:
+            recoveries.append(
+                (
+                    float(recovery_match.group("time")),
+                    recovery_match.group("surface"),
+                    recovery_match.group("sentence"),
+                )
+            )
+            continue
+        music_pause_match = MUSIC_SURFACE_PAUSE_LINE_PATTERN.match(line)
+        if music_pause_match:
+            music_surface_pause_times.setdefault(music_pause_match.group("surface"), []).append(
+                float(music_pause_match.group("time"))
+            )
+
+    for index, (start_time, surface, sentence) in enumerate(recoveries):
+        window_end = start_time + 2.0
+        recovery_count = 0
+        for recovery_time, recovery_surface, recovery_sentence in recoveries[index:]:
+            if recovery_time > window_end:
+                break
+            if recovery_surface == surface and recovery_sentence == sentence:
+                recovery_count += 1
+        if recovery_count < 8:
+            continue
+        has_music_pause = any(
+            start_time <= pause_time <= window_end
+            for pause_time in music_surface_pause_times.get(surface, [])
+        )
+        if has_music_pause:
+            return [
+                "pending interactive autoplay looped while Music bed reported paused"
+            ]
+    return []
+
+
 def _resume_offset_violations(text: str) -> list[str]:
     violations: list[str] = []
     if re.search(
@@ -390,6 +444,7 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
     if mode != "resume-offset":
         missing.extend(_pause_guard_violations(text))
         missing.extend(_pause_episode_violations(text))
+        missing.extend(_autoplay_recovery_loop_violations(text))
     if mode == "pause-resume":
         missing.extend(_dead_resume_violations(text))
         missing.extend(_consecutive_broker_pause_violations(text))
