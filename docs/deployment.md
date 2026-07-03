@@ -481,7 +481,13 @@ the exact resume-offset path lacks token-safe evidence in the captured session.
 Each pull writes the familiar latest
 `test-results/apple-device-playback-transport-<device>.log` and preserves a
 timestamped sibling archive, with the raw CoreDevice copy log archived beside it,
-so repeated repro pulls do not discard useful evidence.
+so repeated repro pulls do not discard useful evidence. Before overwriting the
+latest log, the pull helper also saves
+`test-results/apple-device-playback-transport-<device>.previous.log`. The
+pull-and-verify targets validate only the fresh suffix after that baseline by
+default, which keeps stale failures from an older Living Room/Cinema repro from
+masking the current hardware session. Standalone verify targets still check the
+full file unless `APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1` is set.
 The cached transport verifier is intentionally narrower than the launch-console
 checker: it proves reader transport accepted pause/resume and rejects the legacy
 hardware echo resume sources before explicit reader play, without requiring

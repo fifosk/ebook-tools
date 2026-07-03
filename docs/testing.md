@@ -1259,6 +1259,12 @@ audio-state observer as a pending-autoplay recovery source; scheduled autoplay
 retry and watchdog recovery remain available, but `jobAudioState` /
 `libraryAudioState` bursts should not be able to enqueue repeated sentence
 jumps while Music-bed pause adoption is settling.
+`apple-device-pull-and-verify-playback-transport-log` first preserves the
+previous latest pulled file as
+`test-results/apple-device-playback-transport-<device>.previous.log`, then runs
+the validator in fresh-only mode against the suffix after that baseline. Use the
+standalone verify target when you intentionally want to re-check the whole
+cached file.
 For pause-only captures, the pulled playback-log checker evaluates every
 Music/app pause handoff as a numbered pause episode. If any episode does not
 contain active narration-pause evidence and settled

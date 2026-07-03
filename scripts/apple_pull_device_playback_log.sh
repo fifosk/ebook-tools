@@ -6,11 +6,12 @@ DEVICECTL="${DEVICECTL:-/Applications/Xcode.app/Contents/Developer/usr/bin/devic
 DEVICE_ID="${APPLE_DEVICE_ID:-}"
 DEVICE_PROFILE="${APPLE_DEVICE_PROFILE:-ipad}"
 OUTPUT_PATH="${APPLE_DEVICE_PLAYBACK_LOG:-}"
+BASELINE_PATH="${APPLE_DEVICE_PLAYBACK_BASELINE_LOG:-}"
 TIMEOUT="${APPLE_DEVICE_COPY_TIMEOUT:-60}"
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/apple_pull_device_playback_log.sh --device DEVICE [--profile ipad|iphone|appletv] [--output PATH]
+Usage: scripts/apple_pull_device_playback_log.sh --device DEVICE [--profile ipad|iphone|appletv] [--output PATH] [--baseline-output PATH]
 
 Pulls the DEBUG playback transport breadcrumb file from a physical Apple app
 container after a manual repro. The file is token-safe and contains transport
@@ -18,7 +19,8 @@ state only, not book text or media titles.
 
 Environment equivalents:
   APPLE_DEVICE_ID, APPLE_DEVICE_PROFILE, APPLE_DEVICE_PLAYBACK_LOG,
-  APPLE_DEVICE_COPY_TIMEOUT, APPLE_DEVICE_LOG_TIMESTAMP, DEVICECTL
+  APPLE_DEVICE_PLAYBACK_BASELINE_LOG, APPLE_DEVICE_COPY_TIMEOUT,
+  APPLE_DEVICE_LOG_TIMESTAMP, DEVICECTL
 USAGE
 }
 
@@ -34,6 +36,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --output)
       OUTPUT_PATH="${2:-}"
+      shift 2
+      ;;
+    --baseline-output)
+      BASELINE_PATH="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -76,12 +82,20 @@ fi
 if [[ -z "${OUTPUT_PATH}" ]]; then
   OUTPUT_PATH="${ROOT_DIR}/test-results/apple-device-playback-transport-${safe_device}.log"
 fi
+if [[ -z "${BASELINE_PATH}" ]]; then
+  BASELINE_PATH="${OUTPUT_PATH%.log}.previous.log"
+fi
 JSON_PATH="${OUTPUT_PATH%.log}.json"
 COREDEVICE_LOG="${OUTPUT_PATH%.log}.coredevice.log"
 LOG_TIMESTAMP="${APPLE_DEVICE_LOG_TIMESTAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
 LOG_ARCHIVE="${OUTPUT_PATH%.log}-${LOG_TIMESTAMP}.log"
 COREDEVICE_LOG_ARCHIVE="${OUTPUT_PATH%.log}-${LOG_TIMESTAMP}.coredevice.log"
 mkdir -p "$(dirname "${OUTPUT_PATH}")"
+mkdir -p "$(dirname "${BASELINE_PATH}")"
+
+if [[ -f "${OUTPUT_PATH}" && "${BASELINE_PATH}" != "${OUTPUT_PATH}" ]]; then
+  cp "${OUTPUT_PATH}" "${BASELINE_PATH}"
+fi
 
 "${DEVICECTL}" device copy from \
   --device "${DEVICE_ID}" \
@@ -99,6 +113,9 @@ if [[ -f "${COREDEVICE_LOG}" ]]; then
 fi
 
 echo "Playback transport log pulled for ${DEVICE_ID} (${SAFE_PROFILE}): ${OUTPUT_PATH}"
+if [[ -f "${BASELINE_PATH}" ]]; then
+  echo "Playback transport baseline log: ${BASELINE_PATH}"
+fi
 echo "Playback transport log archive: ${LOG_ARCHIVE}"
 if [[ -f "${COREDEVICE_LOG_ARCHIVE}" ]]; then
   echo "Playback transport CoreDevice archive: ${COREDEVICE_LOG_ARCHIVE}"

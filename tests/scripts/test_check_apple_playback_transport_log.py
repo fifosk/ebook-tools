@@ -355,6 +355,38 @@ def test_pause_resume_rejects_pending_autoplay_music_pause_loop(tmp_path: Path) 
     ]
 
 
+def test_fresh_only_ignores_stale_baseline_failures(tmp_path: Path) -> None:
+    baseline = tmp_path / "playback.previous.log"
+    log = tmp_path / "playback.log"
+    stale_failure = (
+        PAUSE_RESUME_LOG
+        + """
+1782670002.000 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.050 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.100 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.150 [PlaybackTransport] Library accepted Apple Music pause as reader transport source=musicSurface requested=true playing=true musicPlaying=false readerPause=false
+1782670002.160 [PlaybackTransport] Library confirmed reader pause source=musicSurface requested=false playing=false musicPlaying=false
+1782670002.200 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.250 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.300 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.350 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.400 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+"""
+    )
+    baseline.write_text(stale_failure, encoding="utf-8")
+    log.write_text(stale_failure + PAUSE_RESUME_LOG, encoding="utf-8")
+
+    assert module.validate_log(log, mode="pause-resume") == [
+        "pending interactive autoplay looped while Music bed reported paused"
+    ]
+    assert module.validate_log(
+        log,
+        mode="pause-resume",
+        fresh_only=True,
+        baseline_path=baseline,
+    ) == []
+
+
 def test_pause_resume_rejects_job_audio_state_autoplay_music_pause_loop(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(
@@ -459,4 +491,12 @@ def test_diagnostic_hint_stays_quiet_for_specific_playback_transport_gaps() -> N
 def test_default_log_path_matches_pull_helper() -> None:
     assert module.default_log_path("Living Room") == (
         module.REPO_ROOT / "test-results" / "apple-device-playback-transport-Living-Room.log"
+    )
+
+
+def test_default_baseline_log_path_matches_pull_helper() -> None:
+    log = module.REPO_ROOT / "test-results" / "apple-device-playback-transport-Living-Room.log"
+
+    assert module.default_baseline_log_path(log) == (
+        module.REPO_ROOT / "test-results" / "apple-device-playback-transport-Living-Room.previous.log"
     )

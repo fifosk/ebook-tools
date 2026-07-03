@@ -191,6 +191,38 @@ def default_log_path(device: str | None) -> Path:
     return REPO_ROOT / "test-results" / f"apple-device-playback-transport-{_safe_device_id(device)}.log"
 
 
+def default_baseline_log_path(path: Path) -> Path:
+    if path.suffix == ".log":
+        return path.with_name(f"{path.stem}.previous.log")
+    return path.with_name(f"{path.name}.previous")
+
+
+def _fresh_suffix_after_baseline(text: str, baseline_text: str) -> str:
+    baseline_lines = baseline_text.splitlines(keepends=True)
+    if not baseline_lines:
+        return text
+    current_lines = text.splitlines(keepends=True)
+    if len(current_lines) < len(baseline_lines):
+        return text
+    if current_lines[: len(baseline_lines)] != baseline_lines:
+        return text
+    return "".join(current_lines[len(baseline_lines) :])
+
+
+def _read_fresh_text(path: Path, *, fresh_only: bool, baseline_path: Path | None) -> str:
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if not fresh_only:
+        return text
+    resolved_baseline = baseline_path or default_baseline_log_path(path)
+    try:
+        baseline_text = resolved_baseline.read_text(encoding="utf-8", errors="replace")
+    except FileNotFoundError:
+        return text
+    except OSError:
+        return text
+    return _fresh_suffix_after_baseline(text, baseline_text)
+
+
 def _missing_requirements(text: str, requirements: tuple[tuple[str, tuple[str, ...]], ...]) -> list[str]:
     missing: list[str] = []
     for label, patterns in requirements:
@@ -427,9 +459,15 @@ def _resume_retry_track_flip_violations(text: str) -> list[str]:
     return []
 
 
-def validate_log(path: Path, *, mode: str) -> list[str]:
+def validate_log(
+    path: Path,
+    *,
+    mode: str,
+    fresh_only: bool = False,
+    baseline_path: Path | None = None,
+) -> list[str]:
     try:
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = _read_fresh_text(path, fresh_only=fresh_only, baseline_path=baseline_path)
     except FileNotFoundError:
         return [f"playback transport log does not exist: {path}"]
     except OSError as exc:
@@ -482,16 +520,37 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
             "resume-offset checks saved in-sentence resume offsets."
         ),
     )
+    parser.add_argument(
+        "--fresh-only",
+        action="store_true",
+        default=os.environ.get("APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY", "").strip().lower()
+        in {"1", "true", "yes"},
+        help=(
+            "Validate only the suffix after the previous local pull baseline. "
+            "The default baseline is <log>.previous.log."
+        ),
+    )
+    parser.add_argument(
+        "--baseline-log",
+        default=os.environ.get("APPLE_DEVICE_PLAYBACK_BASELINE_LOG", ""),
+        help="Previous pulled playback log used by --fresh-only.",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(list(argv or sys.argv[1:]))
     path = Path(args.log) if args.log else default_log_path(args.device.strip() or None)
-    missing = validate_log(path, mode=args.mode)
+    baseline_path = Path(args.baseline_log) if args.baseline_log.strip() else None
+    missing = validate_log(
+        path,
+        mode=args.mode,
+        fresh_only=args.fresh_only,
+        baseline_path=baseline_path,
+    )
     if missing:
         try:
-            text = path.read_text(encoding="utf-8", errors="replace")
+            text = _read_fresh_text(path, fresh_only=args.fresh_only, baseline_path=baseline_path)
         except OSError:
             text = ""
         print(f"Apple playback transport log validation failed for {path}", file=sys.stderr)
@@ -500,7 +559,8 @@ def main(argv: list[str] | None = None) -> int:
         for hint in diagnostic_hints(text, mode=args.mode, missing=missing):
             print(f"- hint: {hint}", file=sys.stderr)
         return 1
-    print(f"Apple playback transport log validation passed: {path} mode={args.mode}")
+    fresh_label = " fresh-only" if args.fresh_only else ""
+    print(f"Apple playback transport log validation passed: {path} mode={args.mode}{fresh_label}")
     return 0
 
 

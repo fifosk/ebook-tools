@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-playback-log-fresh-window",
+            title: "Device playback logs verify fresh repros",
+            detail: "Apple playback-log pull-and-verify now preserves the previous local device log and checks only the fresh suffix, so old Living Room or Cinema failures no longer mask the current hardware repro."
+        ),
+        AppChangelogEntry(
             id: "tvos-sequence-handoff-tail-trim",
             title: "TV track switches trim audio bleed",
             detail: "Apple TV interactive reader sequence playback now mutes and fades sentence boundaries earlier and ignores stale fade work after an AVPlayer item changes, reducing cut-short next-sentence audio before the translation track starts."

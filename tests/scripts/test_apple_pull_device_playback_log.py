@@ -23,6 +23,10 @@ def test_pull_helper_reads_debug_playback_transport_cache_from_app_container() -
     assert 'BUNDLE_ID="com.example.InteractiveReader"' in script
     assert "apple-device-playback-transport-${safe_device}.log" in script
     assert "APPLE_DEVICE_LOG_TIMESTAMP" in script
+    assert "APPLE_DEVICE_PLAYBACK_BASELINE_LOG" in script
+    assert 'BASELINE_PATH="${OUTPUT_PATH%.log}.previous.log"' in script
+    assert 'cp "${OUTPUT_PATH}" "${BASELINE_PATH}"' in script
+    assert "Playback transport baseline log:" in script
     assert 'LOG_ARCHIVE="${OUTPUT_PATH%.log}-${LOG_TIMESTAMP}.log"' in script
     assert 'COREDEVICE_LOG_ARCHIVE="${OUTPUT_PATH%.log}-${LOG_TIMESTAMP}.coredevice.log"' in script
     assert 'cp "${OUTPUT_PATH}" "${LOG_ARCHIVE}"' in script
@@ -42,10 +46,16 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     assert "apple-device-verify-playback-transport-pause-resume-log" in makefile
     assert "apple-device-verify-playback-resume-offset-log" in makefile
     assert "APPLE_DEVICE_PLAYBACK_LOG ?=" in makefile
+    assert "APPLE_DEVICE_PLAYBACK_BASELINE_LOG ?=" in makefile
+    assert "APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY ?= 0" in makefile
     assert "APPLE_PLAYBACK_TRANSPORT_LOG_MODE ?= pause-release" in makefile
     assert "scripts/apple_pull_device_playback_log.sh" in makefile
     assert "scripts/check_apple_playback_transport_log.py" in makefile
     assert '--output "$(APPLE_DEVICE_PLAYBACK_LOG)"' in makefile
+    assert '--baseline-output "$(APPLE_DEVICE_PLAYBACK_BASELINE_LOG)"' in makefile
+    assert "APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1" in makefile
+    assert "--fresh-only" in makefile
+    assert '--baseline-log "$(APPLE_DEVICE_PLAYBACK_BASELINE_LOG)"' in makefile
     assert "$(MAKE) apple-device-pull-playback-log" in makefile
     assert "$(MAKE) apple-device-verify-playback-transport-log" in makefile
     assert (
