@@ -497,6 +497,7 @@ def _completed_files(
         return ()
     roots = resolve_manual_download_roots(config)
     paths: list[str] = []
+    seen_paths: set[str] = set()
     for item in files:
         if not isinstance(item, Mapping):
             continue
@@ -504,7 +505,8 @@ def _completed_files(
         if not filename:
             continue
         safe_path = _safe_completed_file_path(filename, roots)
-        if safe_path:
+        if safe_path and safe_path not in seen_paths:
+            seen_paths.add(safe_path)
             paths.append(safe_path)
     return tuple(paths)
 

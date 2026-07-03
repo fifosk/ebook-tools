@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "download-station-completed-file-dedupe",
+            title: "Downloader completions stay singular",
+            detail: "Download Station polling now collapses repeated completed-file aliases after safe manual-download root normalization, keeping Web and Apple video source handoff from showing the same finished artifact more than once."
+        ),
+        AppChangelogEntry(
             id: "apple-music-bed-adoption-reader-first",
             title: "Music-bed pause reaches narration first",
             detail: "When tvOS delivers the first Play/Pause edge to Apple Music, the reader now latches the shared pause and notifies Job or Library narration before suppressing the Music surface, so one press has a better chance to stop both audio layers together."

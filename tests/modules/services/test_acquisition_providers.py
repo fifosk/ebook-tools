@@ -3530,6 +3530,12 @@ def test_poll_download_station_task_maps_completed_files_without_secret(tmp_path
                                     "additional": {
                                         "file": [
                                             {"filename": "Demo.mkv"},
+                                            {"filename": "Demo.mkv"},
+                                            {
+                                                "name": (
+                                                    completed_root / "Demo.mkv"
+                                                ).as_posix()
+                                            },
                                             {"filename": "/outside/Other.mkv"},
                                             {
                                                 "filename": (

@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Download Station polling now collapses repeated completed-file aliases after safe manual-download root normalization, keeping Web and Apple video source handoff from showing the same finished artifact more than once.
+- When tvOS delivers the first Play/Pause edge to Apple Music, the reader now latches the shared pause and notifies Job or Library narration before suppressing the Music surface, so one press has a better chance to stop both audio layers together.
 - Backend NAS/manual video discovery now keeps bounded newest matches with binary insertion instead of sorting the retained list after every candidate, reducing per-file work for Web Video Dubbing and Apple YouTube Dub source pickers on large download folders.
 - Backend source pickers now prune visible symlinks whose resolved targets live under hidden folders or files, keeping Web and Apple Create EPUB, subtitle, and video discovery from surfacing hidden staging/import artifacts through friendly NAS links.
 - Apple YouTube Dub template saves now recover the discovery provider from source, acquisition, or source-kind provenance when older prepared video handoffs lack a top-level provider, preserving token-free source context for Web/Apple apply-save loops.
