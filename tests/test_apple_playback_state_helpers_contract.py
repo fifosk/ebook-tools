@@ -975,6 +975,26 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     assert stuck_recovery_body.index("audioCoordinator.restoreVolume()") < stuck_recovery_body.index(
         "audioCoordinator.play()"
     )
+    stale_transition_body = _function_body(
+        sequence,
+        "func recoverStaleSequenceTransitionIfPlaybackIsActive(reason: String)",
+    )
+    assert "isSequenceModeActive" in stale_transition_body
+    assert "sequenceController.isTransitioning" in stale_transition_body
+    assert "audioCoordinator.isPlaybackRequested" in stale_transition_body
+    assert "audioCoordinator.nowPlayingPlayer != nil" in stale_transition_body
+    assert "audioCoordinator.isPlaying || audioCoordinator.isReady" in stale_transition_body
+    assert stale_transition_body.index("cancelPendingAudioReadySubscription()") < stale_transition_body.index(
+        "audioCoordinator.clearSequenceAudioGuards()"
+    )
+    assert stale_transition_body.index("audioCoordinator.clearSequenceAudioGuards()") < stale_transition_body.index(
+        "sequenceController.endTransition(expectedTime: nil)"
+    )
+    assert stale_transition_body.index("sequenceController.endTransition(expectedTime: nil)") < stale_transition_body.index(
+        "audioCoordinator.restoreVolume()"
+    )
+    assert "if !audioCoordinator.isPlaying" in stale_transition_body
+    assert "audioCoordinator.play()" in stale_transition_body
     audible_body = _function_body(sequence, "var isNarrationAudibleForReaderTransport: Bool")
     assert "audioCoordinator.isPlaybackRequested" in audible_body
     assert "audioCoordinator.isPlaying" in audible_body

@@ -1866,6 +1866,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "!musicOwnership.isReaderTransportPauseGuardActive" in job_muted_recovery_body
     assert "!musicOwnership.isManuallyPaused" in job_muted_recovery_body
     assert 'guard lastReaderTransportAction != "pause" else { return }' in job_muted_recovery_body
+    assert "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)" in job_muted_recovery_body
+    assert job_muted_recovery_body.index(
+        "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)"
+    ) < job_muted_recovery_body.index("guard !viewModel.isSequenceModeActive else { return }")
+    assert "Job recovered stale sequence transition" in job_muted_recovery_body
     assert "guard !viewModel.isSequenceModeActive else { return }" in job_muted_recovery_body
     assert "guard !viewModel.isSequenceTransitioning else { return }" in job_muted_recovery_body
     assert "pendingInteractiveAutoplaySentence == nil" in job_muted_recovery_body
@@ -2223,6 +2228,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "!musicOwnership.isReaderTransportPauseGuardActive" in library_muted_recovery_body
     assert "!musicOwnership.isManuallyPaused" in library_muted_recovery_body
     assert 'guard lastReaderTransportAction != "pause" else { return }' in library_muted_recovery_body
+    assert "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)" in library_muted_recovery_body
+    assert library_muted_recovery_body.index(
+        "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)"
+    ) < library_muted_recovery_body.index("guard !viewModel.isSequenceModeActive else { return }")
+    assert "Library recovered stale sequence transition" in library_muted_recovery_body
     assert "guard !viewModel.isSequenceModeActive else { return }" in library_muted_recovery_body
     assert "guard !viewModel.isSequenceTransitioning else { return }" in library_muted_recovery_body
     assert "pendingInteractiveAutoplaySentence == nil" in library_muted_recovery_body

@@ -85,6 +85,29 @@ extension InteractivePlayerViewModel {
         return true
     }
 
+    @discardableResult
+    func recoverStaleSequenceTransitionIfPlaybackIsActive(reason: String) -> Bool {
+        guard isSequenceModeActive,
+              sequenceController.isTransitioning,
+              audioCoordinator.isPlaybackRequested,
+              audioCoordinator.nowPlayingPlayer != nil,
+              audioCoordinator.isPlaying || audioCoordinator.isReady
+        else {
+            return false
+        }
+        interactiveSequenceLogger.info(
+            "Recovering stale sequence transition reason=\(reason, privacy: .public), playing=\(self.audioCoordinator.isPlaying, privacy: .public), ready=\(self.audioCoordinator.isReady, privacy: .public)"
+        )
+        cancelPendingAudioReadySubscription()
+        audioCoordinator.clearSequenceAudioGuards()
+        sequenceController.endTransition(expectedTime: nil)
+        audioCoordinator.restoreVolume()
+        if !audioCoordinator.isPlaying {
+            audioCoordinator.play()
+        }
+        return true
+    }
+
     var isNarrationAudibleForReaderTransport: Bool {
         audioCoordinator.isPlaybackRequested &&
             audioCoordinator.isPlaying &&

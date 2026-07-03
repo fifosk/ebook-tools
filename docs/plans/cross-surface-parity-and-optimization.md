@@ -966,7 +966,11 @@ Current Apple UI partially exposes:
   adopt the reader-owned pause path, but active Job and Library narration now
   reject non-manual adopted Music pauses while playback is still requested or
   audible; transient MusicKit bed interruptions stay on the recovery path so
-  book playback does not stop while the bed is being restored. Reader pauses now pause Music immediately, then release the tvOS
+  book playback does not stop while the bed is being restored. Job and Library
+  playback also recover stale sequence-controller transitions when sentence
+  audio is already requested and the AVPlayer is ready, so initial tvOS
+  autoplay cannot remain muted/transitioning while the reader appears to stop.
+  Reader pauses now pause Music immediately, then release the tvOS
   Music surface after a short held pause; reader resumes cancel that delayed
   release and clear stale MusicKit pause-ignore state so the next external pause
   cannot be discarded as if it were still app-owned. The tvOS duplicate command

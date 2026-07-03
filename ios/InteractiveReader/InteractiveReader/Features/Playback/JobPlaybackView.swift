@@ -408,6 +408,17 @@ struct JobPlaybackView: View {
               !musicOwnership.isManuallyPaused
         else { return }
         guard lastReaderTransportAction != "pause" else { return }
+        if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason) {
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Job recovered stale sequence transition reason=\(reason) playing=\(viewModel.audioCoordinator.isPlaying)"
+            )
+            playbackLogger.info(
+                "Job playback recovered stale sequence transition reason=\(reason, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public)"
+            )
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+            return
+        }
         guard !viewModel.isSequenceModeActive else { return }
         guard !viewModel.isSequenceTransitioning else { return }
         guard viewModel.audioCoordinator.isPlaybackRequested,
