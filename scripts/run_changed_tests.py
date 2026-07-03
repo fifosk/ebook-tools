@@ -258,10 +258,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "ios/InteractiveReader/InteractiveReaderUITests/JourneyRunner.swift",
             "ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift",
         ),
-        (
-            "test-e2e-ipad-music-bed-sync-dry-run",
-            "test-e2e-tvos-music-bed-sync-dry-run",
-        ),
+        ("verify-apple-music-bed-candidate-dry-run",),
     ),
     (
         (

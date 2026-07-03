@@ -68,8 +68,7 @@ def test_select_targets_for_apple_surface_changes() -> None:
     assert select_targets(["tests/e2e/journeys/music_bed_sync.json"]) == [
         "test-apple-contracts",
         "check-web-e2e-journeys",
-        "test-e2e-ipad-music-bed-sync-dry-run",
-        "test-e2e-tvos-music-bed-sync-dry-run",
+        "verify-apple-music-bed-candidate-dry-run",
     ]
     assert select_targets(["tests/e2e/journey_runner.py"]) == [
         "check-web-e2e-journeys",
@@ -160,8 +159,9 @@ def test_select_targets_runs_music_bed_dry_runs_for_reader_transport_paths() -> 
 
     for path in music_bed_paths:
         targets = select_targets([path])
-        assert "test-e2e-ipad-music-bed-sync-dry-run" in targets, path
-        assert "test-e2e-tvos-music-bed-sync-dry-run" in targets, path
+        assert "verify-apple-music-bed-candidate-dry-run" in targets, path
+        assert "test-e2e-ipad-music-bed-sync-dry-run" not in targets, path
+        assert "test-e2e-tvos-music-bed-sync-dry-run" not in targets, path
 
 
 def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> None:
@@ -170,8 +170,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
     ) == [
         "test-apple-playback-state-swift",
         "test-apple-contracts",
-        "test-e2e-ipad-music-bed-sync-dry-run",
-        "test-e2e-tvos-music-bed-sync-dry-run",
+        "verify-apple-music-bed-candidate-dry-run",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
     ]
@@ -210,8 +209,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+NowPlaying.swift"]
     ) == [
         "test-apple-contracts",
-        "test-e2e-ipad-music-bed-sync-dry-run",
-        "test-e2e-tvos-music-bed-sync-dry-run",
+        "verify-apple-music-bed-candidate-dry-run",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
     ]
@@ -219,8 +217,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackChromeViews.swift"]
     ) == [
         "test-apple-contracts",
-        "test-e2e-ipad-music-bed-sync-dry-run",
-        "test-e2e-tvos-music-bed-sync-dry-run",
+        "verify-apple-music-bed-candidate-dry-run",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
     ]
@@ -256,8 +253,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         ["ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift"]
     ) == [
         "test-apple-contracts",
-        "test-e2e-ipad-music-bed-sync-dry-run",
-        "test-e2e-tvos-music-bed-sync-dry-run",
+        "verify-apple-music-bed-candidate-dry-run",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
     ]
