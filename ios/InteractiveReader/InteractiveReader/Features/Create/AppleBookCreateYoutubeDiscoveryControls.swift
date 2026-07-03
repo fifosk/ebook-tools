@@ -67,7 +67,12 @@ struct AppleBookCreateYoutubeDiscoveryControls: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(candidate.title)
                             .font(.body)
-                        Text(AppleBookCreatePresentation.videoDiscoveryCandidateDetail(candidate))
+                        Text(
+                            AppleBookCreatePresentation.videoDiscoveryCandidateDetail(
+                                candidate,
+                                providerOptions: videoDiscoveryProviderOptions
+                            )
+                        )
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }

@@ -248,6 +248,14 @@ extension AppleBookCreatePresentation {
         return fallbackVideoDiscoveryProviders.first { $0.id == providerID }?.label ?? providerID
     }
 
+    private static func videoDiscoveryProviderLabel(
+        for providerID: String,
+        providerOptions: [AppleBookCreateVideoDiscoveryProviderOption]
+    ) -> String {
+        providerOptions.first { $0.id == providerID }?.label
+            ?? videoDiscoveryProviderFallbackLabel(for: providerID)
+    }
+
     static let defaultVideoDiscoveryProviderID = "backend_defaults"
 
     static func isDefaultVideoDiscoveryProviderID(_ providerID: String) -> Bool {
@@ -295,8 +303,11 @@ extension AppleBookCreatePresentation {
         return (trimmed as NSString).lastPathComponent
     }
 
-    static func videoDiscoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
-        var details = [videoDiscoveryProviderFallbackLabel(for: candidate.provider)]
+    static func videoDiscoveryCandidateDetail(
+        _ candidate: AcquisitionCandidate,
+        providerOptions: [AppleBookCreateVideoDiscoveryProviderOption] = []
+    ) -> String {
+        var details = [videoDiscoveryProviderLabel(for: candidate.provider, providerOptions: providerOptions)]
         if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
             details.append(localPath)
         }

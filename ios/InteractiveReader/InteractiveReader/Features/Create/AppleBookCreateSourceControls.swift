@@ -283,7 +283,12 @@ struct AppleBookCreateNarrateSourceControls: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(candidate.title)
                             .font(.body)
-                        Text(AppleBookCreatePresentation.bookDiscoveryCandidateDetail(candidate))
+                        Text(
+                            AppleBookCreatePresentation.bookDiscoveryCandidateDetail(
+                                candidate,
+                                providerOptions: discoveryProviderOptions
+                            )
+                        )
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }

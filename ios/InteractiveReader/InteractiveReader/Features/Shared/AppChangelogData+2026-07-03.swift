@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-create-custom-provider-detail-labels",
+            title: "Create provider labels stay custom",
+            detail: "Apple Create discovery detail rows now prefer the backend-advertised provider option label before falling back to built-in labels, matching Web for custom book/video source providers."
+        ),
+        AppChangelogEntry(
             id: "create-discovery-friendly-candidate-labels",
             title: "Discovery candidates read cleaner",
             detail: "Web Video Dubbing and Apple Create video/book discovery candidate details now use friendly provider labels instead of raw provider ids, matching the source pickers while preserving token-safe provenance metadata."

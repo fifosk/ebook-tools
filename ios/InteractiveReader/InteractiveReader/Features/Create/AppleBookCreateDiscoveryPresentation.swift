@@ -158,8 +158,11 @@ extension AppleBookCreatePresentation {
         } ?? []
     }
 
-    static func bookDiscoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
-        var details = [bookDiscoveryProviderFallbackLabel(for: candidate.provider)]
+    static func bookDiscoveryCandidateDetail(
+        _ candidate: AcquisitionCandidate,
+        providerOptions: [AppleBookCreateDiscoveryProviderOption] = []
+    ) -> String {
+        var details = [bookDiscoveryProviderLabel(for: candidate.provider, providerOptions: providerOptions)]
         if let contributor = candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines),
            !contributor.isEmpty {
             details.append(contributor)
@@ -271,6 +274,14 @@ extension AppleBookCreatePresentation {
             return "Default sources"
         }
         return fallbackBookDiscoveryProviders.first { $0.id == providerID }?.label ?? providerID
+    }
+
+    private static func bookDiscoveryProviderLabel(
+        for providerID: String,
+        providerOptions: [AppleBookCreateDiscoveryProviderOption]
+    ) -> String {
+        providerOptions.first { $0.id == providerID }?.label
+            ?? bookDiscoveryProviderFallbackLabel(for: providerID)
     }
 
     static func discoveryRequestProviderID(for providerID: String, mediaKind: String) -> String? {

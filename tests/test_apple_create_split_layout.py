@@ -3651,8 +3651,11 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "let queriedProviders = Set(discovery?.providersQueried ?? [])" in discovery_source
     assert "isDefaultBookDiscoveryProviderID(providerID)" in discovery_source
     assert "defaultableProviderIDs(\n                   for: \"book\"" in discovery_source
-    assert "AppleBookCreatePresentation.bookDiscoveryCandidateDetail(candidate)" in controls_source
-    assert "var details = [bookDiscoveryProviderFallbackLabel(for: candidate.provider)]" in discovery_source
+    assert "AppleBookCreatePresentation.bookDiscoveryCandidateDetail(" in controls_source
+    assert "providerOptions: discoveryProviderOptions" in controls_source
+    assert "var details = [bookDiscoveryProviderLabel(for: candidate.provider, providerOptions: providerOptions)]" in discovery_source
+    assert "private static func bookDiscoveryProviderLabel(" in discovery_source
+    assert "providerOptions.first { $0.id == providerID }?.label" in discovery_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidateAction(candidate)" in controls_source
     assert "AppleBookCreatePresentation.canSelectBookDiscoveryCandidate(candidate)" in controls_source
     assert '$0.capabilities.contains("acquire")' in discovery_source
@@ -3966,7 +3969,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "AppleBookCreatePresentation.youtubeVideoLabel(video)" in youtube_source
     assert "AppleBookCreatePresentation.youtubeSubtitleLabel(subtitle)" in youtube_source
     assert "AppleBookCreatePresentation.filenameFromPath" in youtube_support_source
-    assert "AppleBookCreatePresentation.videoDiscoveryCandidateDetail(candidate)" in youtube_discovery_source
+    assert "AppleBookCreatePresentation.videoDiscoveryCandidateDetail(" in youtube_discovery_source
+    assert "providerOptions: videoDiscoveryProviderOptions" in youtube_discovery_source
     assert 'accessibilityIdentifier("createYoutubeDiscoveryPrepareProgress")' in youtube_discovery_source
     assert ".disabled(isPreparingAcquisitionCandidate)" in youtube_discovery_source
     assert "static func videoDiscoveryCandidates(" in video_discovery_source
@@ -3989,7 +3993,9 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "static func youtubeSubtitleLabel(" in video_discovery_source
     assert "static func filenameFromPath(" in video_discovery_source
     assert "static func videoDiscoveryCandidateDetail(" in video_discovery_source
-    assert "var details = [videoDiscoveryProviderFallbackLabel(for: candidate.provider)]" in video_discovery_source
+    assert "var details = [videoDiscoveryProviderLabel(for: candidate.provider, providerOptions: providerOptions)]" in video_discovery_source
+    assert "private static func videoDiscoveryProviderLabel(" in video_discovery_source
+    assert "providerOptions.first { $0.id == providerID }?.label" in video_discovery_source
     assert "static func isDownloadStationHandoffCandidate(_ candidate: AcquisitionCandidate) -> Bool" in download_station_source
     assert 'candidate.metadata["handoff_provider"]?.stringValue?' in download_station_source
     assert '.localizedCaseInsensitiveCompare("download_station") == .orderedSame' in download_station_source
