@@ -271,7 +271,13 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/services/test_acquisition_providers.py",
             "tests/modules/webapi/test_acquisition_routes.py",
         ),
-        ("test-backend-pipeline-sources", "test-backend-acquisition"),
+        (
+            "test-backend-pipeline-sources",
+            "test-backend-acquisition",
+            "test-web-create-intake-focused",
+            "test-web-video-dubbing-focused",
+            "test-apple-create-readiness-contract",
+        ),
     ),
     (
         (

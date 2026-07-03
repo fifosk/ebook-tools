@@ -744,36 +744,57 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
     assert select_targets(["docs/plans/discovery-acquisition-layer.md"]) == [
         "test-backend-pipeline-sources",
         "test-backend-acquisition",
+        "test-web-create-intake-focused",
+        "test-web-video-dubbing-focused",
+        "test-apple-create-readiness-contract",
         "test-pipeline",
     ]
     assert select_targets(["modules/services/source_discovery.py"]) == [
         "test-backend-pipeline-sources",
         "test-backend-acquisition",
+        "test-web-create-intake-focused",
+        "test-web-video-dubbing-focused",
+        "test-apple-create-readiness-contract",
         "test-services",
     ]
     assert select_targets(["tests/modules/services/test_source_discovery.py"]) == [
         "test-backend-pipeline-sources",
         "test-backend-acquisition",
+        "test-web-create-intake-focused",
+        "test-web-video-dubbing-focused",
+        "test-apple-create-readiness-contract",
         "test-services",
     ]
     assert select_targets(["modules/services/acquisition/discovery.py"]) == [
         "test-backend-pipeline-sources",
         "test-backend-acquisition",
+        "test-web-create-intake-focused",
+        "test-web-video-dubbing-focused",
+        "test-apple-create-readiness-contract",
         "test-services",
     ]
     assert select_targets(["modules/webapi/routers/acquisition.py"]) == [
         "test-backend-pipeline-sources",
         "test-backend-acquisition",
+        "test-web-create-intake-focused",
+        "test-web-video-dubbing-focused",
+        "test-apple-create-readiness-contract",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/schemas/acquisition.py"]) == [
         "test-backend-pipeline-sources",
         "test-backend-acquisition",
+        "test-web-create-intake-focused",
+        "test-web-video-dubbing-focused",
+        "test-apple-create-readiness-contract",
         "test-webapi",
     ]
     assert select_targets(["tests/modules/webapi/test_acquisition_routes.py"]) == [
         "test-backend-pipeline-sources",
         "test-backend-acquisition",
+        "test-web-create-intake-focused",
+        "test-web-video-dubbing-focused",
+        "test-apple-create-readiness-contract",
         "test-webapi",
     ]
 

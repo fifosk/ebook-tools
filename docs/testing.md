@@ -322,9 +322,11 @@ covered by the Apple gate. Mac Studio runtime helper changes, including
 `scripts/fast_forward_mac_studio_runtime_checkout.sh`, also route to the Apple
 contract lane because they guard the golden pipeline source-sync handoff.
 Discovery/acquisition plan, provider, schema, and route changes route to
-`test-backend-acquisition`, keeping Web and Apple Create source discovery,
-prepared-artifact handoff, and token-safe provider serialization covered by the
-dedicated backend slice before simulator journeys consume those contracts.
+`test-backend-acquisition`, `test-web-create-intake-focused`,
+`test-web-video-dubbing-focused`, and
+`test-apple-create-readiness-contract`, keeping Web and Apple Create source
+discovery, prepared-artifact handoff, and token-safe provider serialization
+covered before simulator journeys consume those contracts.
 Generated-book backend route/schema/support edits route to `test-backend-create-book`,
 EPUB picker route/schema edits route to `test-backend-pipeline-sources`, and
 subtitle picker/router edits route to `test-backend-subtitle-router`, so the
