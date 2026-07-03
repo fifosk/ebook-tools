@@ -137,6 +137,12 @@ struct LibraryPlaybackView: View {
         #endif
         playbackTransportDebugLog("[PlaybackTransport] Library foreground tvOS Play/Pause command")
         playbackLogger.info("Library foreground tvOS Play/Pause command")
+        if shouldRecoverTVReaderNowPlayingRequestedPlayback() {
+            playbackTransportDebugLog("[PlaybackTransport] Library foreground tvOS Play/Pause recovering requested narration")
+            playbackLogger.info("Library foreground tvOS Play/Pause recovering requested narration")
+            forcePlayReaderNowPlayingTransport(source: "foregroundRequestedResume")
+            return
+        }
         if shouldForceTVReaderNowPlayingPause() {
             forcePauseReaderNowPlayingTransport(source: "foregroundPause")
             return
@@ -165,6 +171,12 @@ struct LibraryPlaybackView: View {
         }
         if shouldForceTVReaderNowPlayingResume(ignorePauseHold: true) {
             forcePlayReaderNowPlayingTransport(source: "brokerResume")
+            return
+        }
+        if shouldRecoverTVReaderNowPlayingRequestedPlayback() {
+            playbackTransportDebugLog("[PlaybackTransport] Library broker tvOS Play/Pause recovering requested narration")
+            playbackLogger.info("Library broker tvOS Play/Pause recovering requested narration")
+            forcePlayReaderNowPlayingTransport(source: "brokerRequestedResume")
             return
         }
         if shouldForceTVReaderNowPlayingPause() {

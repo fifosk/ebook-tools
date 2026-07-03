@@ -86,6 +86,34 @@ UNSETTLED_FIRST_PAUSE_LOG = """
 """
 
 
+ACTIVE_OBSERVED_NONPLAYING_CUT_LOG = """
+1783104500.730 [PlaybackTransport] Job forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+1783104500.741 [PlaybackTransport] Job restoring narration playback request source=brokerResume sentence=2656
+1783104500.741 [PlaybackTransport] Job resume offset requested sentence=2656 time=0.000 sequence=true
+1783104500.742 [PlaybackTransport] Interactive sequence time seek accepted sentence=2656 time=0.000 track=original
+1783104500.751 [PlaybackTransport] Job play command accepted requested=true playing=true musicPlaying=false deferredMusic=true
+1783104515.025 [PlaybackTransport] Apple Music reader transport pause adopted source=active observed non-playing reason=observedNonPlaying
+1783104515.025 [PlaybackTransport] Job accepted Apple Music pause as reader transport source=musicSurface requested=true playing=true musicPlaying=false readerPause=false
+1783104515.034 [PlaybackTransport] Apple Music reader transport pause reinforced reason=musicSurface
+1783104515.042 [PlaybackTransport] Job mirroring adopted Apple Music pause requested=false playing=false musicPlaying=false
+1783104515.042 [PlaybackTransport] Job accepted Apple Music pause as reader transport source=musicAdoption requested=false playing=false musicPlaying=false readerPause=true
+1783104515.203 [PlaybackTransport] Job confirmed reader pause source=musicAdoption requested=false playing=false musicPlaying=false systemMusicPlaying=false
+"""
+
+
+REQUESTED_ONLY_BROKER_PAUSE_LOG = """
+1783105696.887 [PlaybackTransportBuild] release=2026.07.03.001 marketing=2026.7.3 bundle=20260703001 branch=unknown commit=unknown
+1783105696.886 [PlaybackTransport] Job broker tvOS Play/Pause command
+1783105696.890 [PlaybackTransport] Job forced pause source=brokerPause requested=true playing=false musicPlaying=true systemMusicPlaying=false
+1783105696.891 [PlaybackTransport] Job pause command accepted requested=true playing=false musicPlaying=true
+1783105696.912 [PlaybackTransport] Apple Music reader transport pause adopted source=reader transport reason=readerTransportPause
+1783105696.914 [PlaybackTransport] Job reasserting reader pause after stray Apple Music play requested=false playing=false musicPlaying=true
+1783105696.914 [PlaybackTransport] Job accepted Apple Music pause as reader transport source=musicPlayReassert requested=false playing=false musicPlaying=true readerPause=false
+1783105696.946 [PlaybackTransport] Job accepted Apple Music pause as reader transport source=musicAdoption requested=false playing=false musicPlaying=false readerPause=true
+1783105697.058 [PlaybackTransport] Job confirmed reader pause source=musicAdoption requested=false playing=false musicPlaying=false systemMusicPlaying=false
+"""
+
+
 def test_pause_release_playback_transport_log_validation_passes(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(PAUSE_LOG, encoding="utf-8")
@@ -354,6 +382,42 @@ def test_pause_resume_rejects_pending_autoplay_music_pause_loop(tmp_path: Path) 
         "audio-state callback recovered pending interactive autoplay",
         "pending interactive autoplay looped while Music bed reported paused"
     ]
+
+
+def test_pause_resume_rejects_active_observed_nonplaying_cutting_narration(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(PAUSE_LOG + ACTIVE_OBSERVED_NONPLAYING_CUT_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert "active Apple Music non-playing adopted while narration was still playing" in missing
+
+
+def test_pause_release_rejects_active_observed_nonplaying_cutting_narration(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(PAUSE_LOG + ACTIVE_OBSERVED_NONPLAYING_CUT_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert "active Apple Music non-playing adopted while narration was still playing" in missing
+
+
+def test_pause_resume_rejects_requested_only_broker_pause_before_audio_audible(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(PAUSE_LOG + REQUESTED_ONLY_BROKER_PAUSE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert "broker pause stopped requested narration before audio became audible" in missing
+
+
+def test_pause_release_rejects_requested_only_broker_pause_before_audio_audible(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(PAUSE_LOG + REQUESTED_ONLY_BROKER_PAUSE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert "broker pause stopped requested narration before audio became audible" in missing
 
 
 def test_fresh_only_ignores_stale_baseline_failures(tmp_path: Path) -> None:

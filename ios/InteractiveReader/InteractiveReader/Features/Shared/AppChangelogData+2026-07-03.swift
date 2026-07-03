@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-requested-playback-recovers-before-pause",
+            title: "TV startup keeps narration alive",
+            detail: "Apple TV Play/Pause events that arrive while sentence playback is requested but not yet audible now recover the reader instead of pausing it because the Apple Music bed is already playing."
+        ),
+        AppChangelogEntry(
             id: "music-bed-nonplaying-keeps-reader",
             title: "Music bed no longer cuts narration",
             detail: "Apple TV and iPad playback now treat active Apple Music bed non-playing observations as a bed recovery problem instead of a reader pause, preventing spontaneous MusicKit state changes from cutting off sentence audio."

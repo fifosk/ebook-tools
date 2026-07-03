@@ -147,6 +147,12 @@ struct JobPlaybackView: View {
         #endif
         playbackTransportDebugLog("[PlaybackTransport] Job foreground tvOS Play/Pause command")
         playbackLogger.info("Job foreground tvOS Play/Pause command")
+        if shouldRecoverTVReaderNowPlayingRequestedPlayback() {
+            playbackTransportDebugLog("[PlaybackTransport] Job foreground tvOS Play/Pause recovering requested narration")
+            playbackLogger.info("Job foreground tvOS Play/Pause recovering requested narration")
+            forcePlayReaderNowPlayingTransport(source: "foregroundRequestedResume")
+            return
+        }
         if shouldForceTVReaderNowPlayingPause() {
             forcePauseReaderNowPlayingTransport(source: "foregroundPause")
             return
@@ -175,6 +181,12 @@ struct JobPlaybackView: View {
         }
         if shouldForceTVReaderNowPlayingResume(ignorePauseHold: true) {
             forcePlayReaderNowPlayingTransport(source: "brokerResume")
+            return
+        }
+        if shouldRecoverTVReaderNowPlayingRequestedPlayback() {
+            playbackTransportDebugLog("[PlaybackTransport] Job broker tvOS Play/Pause recovering requested narration")
+            playbackLogger.info("Job broker tvOS Play/Pause recovering requested narration")
+            forcePlayReaderNowPlayingTransport(source: "brokerRequestedResume")
             return
         }
         if shouldForceTVReaderNowPlayingPause() {

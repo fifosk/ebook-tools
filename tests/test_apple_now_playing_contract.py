@@ -170,6 +170,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "Job broker tvOS Play/Pause ignored reader transport pause echo" in job_playback
     assert "Job foreground tvOS Play/Pause ignored reader transport pause echo" not in job_playback
     assert "shouldForceTVReaderNowPlayingResume(ignorePauseHold: true)" in job_playback
+    assert 'forcePlayReaderNowPlayingTransport(source: "brokerRequestedResume")' in job_playback
+    assert 'forcePlayReaderNowPlayingTransport(source: "foregroundRequestedResume")' in job_playback
     assert "if shouldForceTVReaderNowPlayingPause()" in job_playback
     assert "shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow()" not in job_playback
     assert 'forcePlayReaderNowPlayingTransport(source: "foregroundHardwareResume")' not in job_playback
@@ -179,6 +181,18 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'forcePauseReaderNowPlayingTransport(source: "brokerPause")' in job_playback
     assert 'toggleReaderNowPlayingTransport(source: "foregroundToggle")' in job_playback
     assert 'toggleReaderNowPlayingTransport(source: "brokerToggle")' in job_playback
+    job_foreground_handler_body = _function_body(job_playback, "private func handleTVPlayPauseCommand()")
+    assert "shouldRecoverTVReaderNowPlayingRequestedPlayback()" in job_foreground_handler_body
+    assert job_foreground_handler_body.index("shouldRecoverTVReaderNowPlayingRequestedPlayback()") < job_foreground_handler_body.index(
+        "if shouldForceTVReaderNowPlayingPause()"
+    )
+    job_broker_handler_body = _function_body(job_playback, "private func handleTVBrokerPlayPauseCommand()")
+    assert job_broker_handler_body.index("shouldForceTVReaderNowPlayingResume(ignorePauseHold: true)") < job_broker_handler_body.index(
+        "shouldRecoverTVReaderNowPlayingRequestedPlayback()"
+    )
+    assert job_broker_handler_body.index("shouldRecoverTVReaderNowPlayingRequestedPlayback()") < job_broker_handler_body.index(
+        "if shouldForceTVReaderNowPlayingPause()"
+    )
     assert "@State var e2eReaderTransportCommandCount = 0" in job_playback
     assert "@State var e2eReaderPauseConfirmationCount = 0" in job_playback
     assert "e2eReaderTransportCommandCount += 1" in job_now_playing
@@ -341,6 +355,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in job_force_pause_body
     assert "shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause" in job_force_pause_body
     assert "isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive" in job_force_pause_body
+    job_requested_resume_body = _function_body(job_now_playing, "func shouldRecoverTVReaderNowPlayingRequestedPlayback()")
+    assert "musicOwnership.ownershipState == .appleMusicBed" in job_requested_resume_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in job_requested_resume_body
+    assert "!viewModel.audioCoordinator.isPlaying" in job_requested_resume_body
+    assert "!viewModel.isNarrationAudibleForReaderTransport" in job_requested_resume_body
+    assert "musicOwnership.isPlaying" in job_requested_resume_body
+    assert "!musicOwnership.isPausedByReaderTransport" in job_requested_resume_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in job_requested_resume_body
+    assert 'lastReaderTransportAction != "pause"' in job_requested_resume_body
     job_forced_transport_body = _function_body(job_now_playing, "func forcePauseReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "pause"' in job_forced_transport_body
     assert "performReaderNowPlayingPauseTransport()" in job_forced_transport_body
@@ -752,6 +775,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "Library broker tvOS Play/Pause ignored reader transport pause echo" in library_playback
     assert "Library foreground tvOS Play/Pause ignored reader transport pause echo" not in library_playback
     assert "shouldForceTVReaderNowPlayingResume(ignorePauseHold: true)" in library_playback
+    assert 'forcePlayReaderNowPlayingTransport(source: "brokerRequestedResume")' in library_playback
+    assert 'forcePlayReaderNowPlayingTransport(source: "foregroundRequestedResume")' in library_playback
     assert "if shouldForceTVReaderNowPlayingPause()" in library_playback
     assert "shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow()" not in library_playback
     assert 'forcePlayReaderNowPlayingTransport(source: "foregroundHardwareResume")' not in library_playback
@@ -761,6 +786,18 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'forcePauseReaderNowPlayingTransport(source: "brokerPause")' in library_playback
     assert 'toggleReaderNowPlayingTransport(source: "foregroundToggle")' in library_playback
     assert 'toggleReaderNowPlayingTransport(source: "brokerToggle")' in library_playback
+    library_foreground_handler_body = _function_body(library_playback, "private func handleTVPlayPauseCommand()")
+    assert "shouldRecoverTVReaderNowPlayingRequestedPlayback()" in library_foreground_handler_body
+    assert library_foreground_handler_body.index("shouldRecoverTVReaderNowPlayingRequestedPlayback()") < library_foreground_handler_body.index(
+        "if shouldForceTVReaderNowPlayingPause()"
+    )
+    library_broker_handler_body = _function_body(library_playback, "private func handleTVBrokerPlayPauseCommand()")
+    assert library_broker_handler_body.index("shouldForceTVReaderNowPlayingResume(ignorePauseHold: true)") < library_broker_handler_body.index(
+        "shouldRecoverTVReaderNowPlayingRequestedPlayback()"
+    )
+    assert library_broker_handler_body.index("shouldRecoverTVReaderNowPlayingRequestedPlayback()") < library_broker_handler_body.index(
+        "if shouldForceTVReaderNowPlayingPause()"
+    )
     assert "@State var e2eReaderTransportCommandCount = 0" in library_playback
     assert "@State var e2eReaderPauseConfirmationCount = 0" in library_playback
     assert "e2eReaderTransportCommandCount += 1" in library_now_playing
@@ -909,6 +946,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in library_force_pause_body
     assert "shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause" in library_force_pause_body
     assert "isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive" in library_force_pause_body
+    library_requested_resume_body = _function_body(library_now_playing, "func shouldRecoverTVReaderNowPlayingRequestedPlayback()")
+    assert "musicOwnership.ownershipState == .appleMusicBed" in library_requested_resume_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in library_requested_resume_body
+    assert "!viewModel.audioCoordinator.isPlaying" in library_requested_resume_body
+    assert "!viewModel.isNarrationAudibleForReaderTransport" in library_requested_resume_body
+    assert "musicOwnership.isPlaying" in library_requested_resume_body
+    assert "!musicOwnership.isPausedByReaderTransport" in library_requested_resume_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in library_requested_resume_body
+    assert 'lastReaderTransportAction != "pause"' in library_requested_resume_body
     library_forced_transport_body = _function_body(library_now_playing, "func forcePauseReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "pause"' in library_forced_transport_body
     assert "performReaderNowPlayingPauseTransport()" in library_forced_transport_body

@@ -118,6 +118,21 @@ extension JobPlaybackView {
         )
     }
 
+    func shouldRecoverTVReaderNowPlayingRequestedPlayback() -> Bool {
+        #if os(tvOS)
+        return musicOwnership.ownershipState == .appleMusicBed &&
+            viewModel.audioCoordinator.isPlaybackRequested &&
+            !viewModel.audioCoordinator.isPlaying &&
+            !viewModel.isNarrationAudibleForReaderTransport &&
+            musicOwnership.isPlaying &&
+            !musicOwnership.isPausedByReaderTransport &&
+            !musicOwnership.isReaderTransportPauseGuardActive &&
+            lastReaderTransportAction != "pause"
+        #else
+        return false
+        #endif
+    }
+
     func shouldForceTVReaderNowPlayingResume(ignorePauseHold: Bool = false) -> Bool {
         ReaderTransportCommandResolver.shouldForceNowPlayingResume(
             ownershipState: musicOwnership.ownershipState,

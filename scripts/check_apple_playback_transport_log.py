@@ -182,6 +182,26 @@ MUSIC_SURFACE_PAUSE_LINE_PATTERN = re.compile(
 )
 
 
+ACTIVE_OBSERVED_NONPLAYING_ADOPTION_LINE_PATTERN = re.compile(
+    r"^(?P<time>\d+(?:\.\d+)?) \[PlaybackTransport\] Apple Music reader transport pause adopted "
+    r"source=active observed non-playing reason=observedNonPlaying$"
+)
+
+
+ACTIVE_MUSIC_SURFACE_PAUSE_LINE_PATTERN = re.compile(
+    r"^(?P<time>\d+(?:\.\d+)?) \[PlaybackTransport\] (?P<surface>Job|Library) "
+    r"accepted Apple Music pause as reader transport source=musicSurface "
+    r"requested=true playing=true musicPlaying=false readerPause=false$"
+)
+
+
+REQUESTED_ONLY_BROKER_PAUSE_LINE_PATTERN = re.compile(
+    r"^\d+(?:\.\d+)? \[PlaybackTransport\] (?P<surface>Job|Library) forced pause "
+    r"source=brokerPause requested=true playing=false musicPlaying=true systemMusicPlaying=false$",
+    flags=re.MULTILINE,
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -418,6 +438,32 @@ def _audio_state_autoplay_recovery_violations(text: str) -> list[str]:
     return []
 
 
+def _active_music_nonplaying_adoption_violations(text: str) -> list[str]:
+    adoption_times: list[float] = []
+    for line in text.splitlines():
+        adoption_match = ACTIVE_OBSERVED_NONPLAYING_ADOPTION_LINE_PATTERN.match(line)
+        if adoption_match:
+            adoption_times.append(float(adoption_match.group("time")))
+            continue
+        pause_match = ACTIVE_MUSIC_SURFACE_PAUSE_LINE_PATTERN.match(line)
+        if not pause_match:
+            continue
+        pause_time = float(pause_match.group("time"))
+        if any(0 <= pause_time - adoption_time <= 0.25 for adoption_time in adoption_times):
+            return [
+                "active Apple Music non-playing adopted while narration was still playing"
+            ]
+    return []
+
+
+def _requested_only_broker_pause_violations(text: str) -> list[str]:
+    if REQUESTED_ONLY_BROKER_PAUSE_LINE_PATTERN.search(text):
+        return [
+            "broker pause stopped requested narration before audio became audible"
+        ]
+    return []
+
+
 def _build_commit_violations(text: str, required_commit: str | None) -> list[str]:
     required = (required_commit or "").strip()
     if not required:
@@ -525,6 +571,8 @@ def validate_log(
         missing.extend(_pause_episode_violations(text))
         missing.extend(_audio_state_autoplay_recovery_violations(text))
         missing.extend(_autoplay_recovery_loop_violations(text))
+        missing.extend(_active_music_nonplaying_adoption_violations(text))
+        missing.extend(_requested_only_broker_pause_violations(text))
     if mode == "pause-resume":
         missing.extend(_dead_resume_violations(text))
         missing.extend(_consecutive_broker_pause_violations(text))
