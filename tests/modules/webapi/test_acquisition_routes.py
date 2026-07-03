@@ -90,6 +90,19 @@ def test_acquisition_optional_provider_ids_trim_and_casefold() -> None:
     assert _normalize_optional_provider_id(None) is None
 
 
+def test_acquisition_router_uses_shared_route_support_helpers() -> None:
+    source = Path("modules/webapi/routers/acquisition.py").read_text(encoding="utf-8")
+
+    assert "_support_" not in source
+    assert "def _log_provider_route(" not in source
+    assert "def _ensure_discovery_user(" not in source
+    assert "def _normalize_async_job_provider_id(" not in source
+    assert "def _raise_bad_acquisition_route_id(" not in source
+    assert "log_provider_route as _log_provider_route" in source
+    assert "provider_list_response as _provider_list_response" in source
+    assert "discovery_response as _discovery_response" in source
+
+
 def test_acquisition_public_metadata_strips_secret_fields_and_url_queries() -> None:
     assert _public_metadata(
         {

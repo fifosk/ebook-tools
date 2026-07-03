@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-acquisition-route-support-direct",
+            title: "Discovery routes stay shared",
+            detail: "Acquisition provider routes now call the shared route support helpers directly for provider responses, discovery payloads, permission checks, telemetry, and async Download Station validation, keeping Web and Apple Create source discovery behavior easier to audit."
+        ),
+        AppChangelogEntry(
             id: "tvos-observed-nonplaying-keeps-reader",
             title: "TV bed dips keep narration",
             detail: "Apple TV Job and Library playback now keep reader narration active when MusicKit reports an observed Apple Music bed non-playing dip, even if tvOS has stale pause bookkeeping from a prior reader action."

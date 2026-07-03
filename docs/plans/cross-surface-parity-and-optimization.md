@@ -849,6 +849,11 @@ Current Apple UI partially exposes:
   code from Web and Apple Create. Acquisition `source_id` query trimming and
   de-duplication now uses the same shared request-normalization helper in the
   Web API route, leaving strict Internet Archive validation provider-scoped.
+  The acquisition Web API router now imports the shared route support helpers
+  directly for provider/discovery response shaping, permission checks, telemetry,
+  route-id validation, and Download Station provider validation, while focused
+  route coverage preserves token-safe error logging and the monkeypatchable
+  router logger used by the backend tests.
   Backend acquisition value coercion and
   identifier sanitization now live in
   `modules/services/acquisition/discovery_values.py` with focused coverage,

@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Acquisition provider routes now call the shared route support helpers directly for provider responses, discovery payloads, permission checks, telemetry, and async Download Station validation, keeping Web and Apple Create source discovery behavior easier to audit.
 - Apple TV Job and Library playback now keep reader narration active when MusicKit reports an observed Apple Music bed non-playing dip, even if tvOS has stale pause bookkeeping from a prior reader action.
 - Pipeline media manifest and single-chunk routes now share one audio/timing track serialization helper, keeping Web and Apple playback aligned when chunk sidecars and generated job payloads both describe tracks.
 - Apple TV Job and Library playback now ignore active adopted Apple Music bed pauses while narration is still requested, preventing transient MusicKit non-playing callbacks from stopping the reader after startup or resume.
