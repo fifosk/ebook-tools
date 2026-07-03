@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple Job and Library reader-owned pauses now hard-cancel pending interactive autoplay before stopping narration, so stale retry tokens cannot restart or loop playback while the Apple Music bed pause is settling.
+- Apple TV sequence playback now trims a wider same-track preroll window before Original-to-Translation handoff, reducing cut-short next-sentence audio when metadata gates leave a hidden preroll tail.
 - Backend acquisition EPUB URL validation, download filename derivation, and download-size limits now live in a focused helper with direct coverage, keeping public-catalog acquire rules reusable for Web and Apple Create.
 - Backend acquisition prepared-artifact metadata and candidate-id shaping now live in a focused helper, keeping Web and Apple Create handoff provenance consistent without reopening download/path resolution code.
 - Apple Job and Library playback no longer let audio-state callbacks start pending interactive autoplay recovery, leaving recovery to explicit retry/watchdog paths and preventing TV sessions from looping one sentence while the Music bed pause settles.

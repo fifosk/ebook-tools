@@ -381,12 +381,12 @@ def test_sequence_overlap_trimming_leaves_a_handoff_guard() -> None:
     assert trim_body.index("segment.end > nextStart") < trim_body.index("nextStart - sameTrackHandoffGuard")
     guard_body = _function_body(controller, "private var sameTrackHandoffGuard: Double")
     assert "#if os(tvOS)" in guard_body
-    assert "return 0.22" in guard_body
-    assert "return 0.05" in guard_body
+    assert "return 0.32" in guard_body
+    assert "return 0.08" in guard_body
     preroll_body = _function_body(controller, "private var sameTrackPrerollSlop: Double")
     assert "#if os(tvOS)" in preroll_body
-    assert "return 0.24" in preroll_body
-    assert "return 0.08" in preroll_body
+    assert "return 0.55" in preroll_body
+    assert "return 0.14" in preroll_body
 
 
 def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> None:

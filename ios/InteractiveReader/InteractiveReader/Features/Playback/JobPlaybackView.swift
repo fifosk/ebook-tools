@@ -335,6 +335,12 @@ struct JobPlaybackView: View {
             musicOwnership.isManuallyPaused ||
             lastReaderTransportAction == "pause"
         else { return false }
+        clearPendingInteractiveAutoplay(reason: reason)
+        return true
+    }
+
+    func clearPendingInteractiveAutoplay(reason: String) {
+        guard pendingInteractiveAutoplaySentence != nil || pendingInteractiveAutoplayID != nil else { return }
         playbackTransportDebugLog(
             "[PlaybackTransport] Job clearing pending interactive autoplay reason=\(reason) readerPaused=true"
         )
@@ -345,7 +351,6 @@ struct JobPlaybackView: View {
         pendingInteractiveAutoplaySentence = nil
         lastPendingInteractiveAutoplayRecoveryTime = 0
         resetPendingInteractiveAutoplayRecovery()
-        return true
     }
 
     private func resetPendingInteractiveAutoplayRecovery() {
@@ -517,11 +522,7 @@ struct JobPlaybackView: View {
         playbackLogger.info(
             "Job playback accepted Apple Music pause as reader transport source=\(source, privacy: .public)"
         )
-        pendingInteractiveAutoplayID = nil
-        pendingInteractiveAutoplaySentence = nil
-        lastPendingInteractiveAutoplayRecoveryTime = 0
-        pendingInteractiveAutoplayRecoverySentence = nil
-        pendingInteractiveAutoplayRecoveryAttempts = 0
+        clearPendingInteractiveAutoplay(reason: source)
         viewModel.pauseForReaderTransport()
         confirmReaderTransportPauseAfterCommand(source: source)
         musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)

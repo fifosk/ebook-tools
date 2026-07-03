@@ -437,6 +437,7 @@ extension LibraryPlaybackView {
         )
         invalidateReaderTransportResumeTasks()
         localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
+        clearPendingInteractiveAutoplay(reason: "readerTransportPause")
         viewModel.pauseForReaderTransport()
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         confirmReaderTransportPauseAfterCommand(source: lastReaderTransportSource)

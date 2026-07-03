@@ -415,17 +415,17 @@ final class SequencePlaybackController: ObservableObject {
 
     private var sameTrackHandoffGuard: Double {
         #if os(tvOS)
-        return 0.22
+        return 0.32
         #else
-        return 0.05
+        return 0.08
         #endif
     }
 
     private var sameTrackPrerollSlop: Double {
         #if os(tvOS)
-        return 0.24
+        return 0.55
         #else
-        return 0.08
+        return 0.14
         #endif
     }
 

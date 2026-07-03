@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "reader-pause-clears-autoplay-token",
+            title: "Reader pauses stop stale retries",
+            detail: "Apple Job and Library reader-owned pauses now hard-cancel pending interactive autoplay before stopping narration, so stale retry tokens cannot restart or loop playback while the Apple Music bed pause is settling."
+        ),
+        AppChangelogEntry(
+            id: "tvos-sequence-wider-preroll-trim",
+            title: "TV handoffs trim more preroll",
+            detail: "Apple TV sequence playback now trims a wider same-track preroll window before Original-to-Translation handoff, reducing cut-short next-sentence audio when metadata gates leave a hidden preroll tail."
+        ),
+        AppChangelogEntry(
             id: "apple-reader-audio-state-autoplay-guard",
             title: "Reader retries avoid loops",
             detail: "Apple Job and Library playback no longer let rapid audio-state callbacks start pending interactive autoplay recovery, leaving recovery to explicit retry and watchdog paths while Music-bed pauses settle."

@@ -117,7 +117,7 @@ private func runDwellCancellationCheck() async {
     requireEqual(dwellPauseCount, 1, "Boundary should enter dwell and pause audio")
     requireClose(
         dwellPinTime,
-        0.90,
+        0.87,
         "Boundary pause should never pin after the early boundary handoff point"
     )
     requireTrue(controller.isDwelling, "Boundary should put the controller into dwell state")
@@ -218,14 +218,14 @@ private func runOverlappingGateTrimCheck() {
 
     let firstOriginal = controller.plan.first { $0.track == .original && $0.sentenceIndex == 0 }
     let firstTranslation = controller.plan.first { $0.track == .translation && $0.sentenceIndex == 0 }
-    requireEqual(
+    requireClose(
         firstOriginal?.end,
-        Optional(1.95),
+        1.92,
         "Original segment should end just before the next original start when gates overlap"
     )
-    requireEqual(
+    requireClose(
         firstTranslation?.end,
-        Optional(1.15),
+        1.12,
         "Translation segment should end just before the next translation start when gates overlap"
     )
 }
@@ -247,14 +247,14 @@ private func runTightAdjacentGateTrimCheck() {
 
     let firstOriginal = controller.plan.first { $0.track == .original && $0.sentenceIndex == 0 }
     let firstTranslation = controller.plan.first { $0.track == .translation && $0.sentenceIndex == 0 }
-    requireEqual(
+    requireClose(
         firstOriginal?.end,
-        Optional(1.95),
+        1.92,
         "Original segment should trim tightly adjacent gates before possible next-sentence preroll"
     )
-    requireEqual(
+    requireClose(
         firstTranslation?.end,
-        Optional(1.15),
+        1.12,
         "Translation segment should trim tightly adjacent gates before possible next-sentence preroll"
     )
 }

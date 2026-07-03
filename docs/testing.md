@@ -744,6 +744,10 @@ same pytest contract now parses the Xcode project and requires
 `InteractiveReader` app target and the tvOS `InteractiveReaderTV` app target,
 so shared track/timing fixes cannot quietly ship to iPad without also compiling
 into Apple TV.
+Reader-owned pause paths must hard-cancel pending interactive autoplay before
+stopping narration, and the same-track handoff trim constants are contract-pinned
+so a wider tvOS preroll margin cannot quietly regress into next-sentence audio
+before the Original-to-Translation switch.
 
 Latest local Apple contract evidence from July 3, 2026:
 `make test-changed` passed from the ebook-tools checkout at commit `b1b355adb`
@@ -1295,7 +1299,9 @@ autoplay retry loop. On tvOS, Job and Library readers must not use the hot
 audio-state observer as a pending-autoplay recovery source; scheduled autoplay
 retry and watchdog recovery remain available, but `jobAudioState` /
 `libraryAudioState` bursts should not be able to enqueue repeated sentence
-jumps while Music-bed pause adoption is settling.
+jumps while Music-bed pause adoption is settling. Reader-owned pause commands
+must also clear the pending autoplay token before pausing narration, so later
+audio-state or MusicKit surface callbacks have no stale request to recover.
 `apple-device-pull-and-verify-playback-transport-log` and the combined
 reader-repro pull target first preserve the
 previous latest pulled file as
