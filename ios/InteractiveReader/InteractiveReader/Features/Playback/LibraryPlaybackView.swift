@@ -651,6 +651,10 @@ struct LibraryPlaybackView: View {
     }
 
     private var shouldMirrorAppleMusicPlayToNarration: Bool {
+        guard !viewModel.sequenceController.isDwelling,
+              !viewModel.isSequenceTransitioning else {
+            return false
+        }
         guard musicOwnership.isPlaying,
               !musicOwnership.isManuallyPaused,
               !musicOwnership.isPausedByReaderTransport,

@@ -981,6 +981,15 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     assert "audioCoordinator.volume > 0.001" in audible_body
     assert "!isSequenceTransitioning" in audible_body
 
+    for view_name in ("JobPlaybackView.swift", "LibraryPlaybackView.swift"):
+        view_source = _playback_source(view_name)
+        mirror_play_body = _function_body(view_source, "private var shouldMirrorAppleMusicPlayToNarration: Bool")
+        assert "viewModel.sequenceController.isDwelling" in mirror_play_body
+        assert "viewModel.isSequenceTransitioning" in mirror_play_body
+        assert mirror_play_body.index("viewModel.sequenceController.isDwelling") < mirror_play_body.index(
+            "musicOwnership.isPlaying"
+        )
+
 
 def test_initial_sequence_seek_has_startup_fallback_without_weakening_resume_seeks() -> None:
     sequence = _source("InteractivePlayerViewModel+Sequence.swift")

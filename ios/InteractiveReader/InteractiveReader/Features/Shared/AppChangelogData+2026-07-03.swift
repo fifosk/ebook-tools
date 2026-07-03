@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "music-bed-ignores-sequence-dwell",
+            title: "Music bed respects handoffs",
+            detail: "Apple Job and Library playback now ignore Apple Music bed play observations while the reader is intentionally dwelling or switching Original/Translation tracks, preventing Music from restarting the outgoing sentence before Translation begins."
+        ),
+        AppChangelogEntry(
             id: "sequence-cross-track-early-hard-stop",
             title: "Track handoffs stop earlier",
             detail: "Apple Original/Translation sequence handoffs now apply the AVPlayer hard-stop guard at the early handoff boundary for cross-track switches, so a late boundary callback cannot leak a cut-short next sentence before Translation starts."
