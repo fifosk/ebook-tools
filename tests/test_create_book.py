@@ -31,6 +31,7 @@ from modules.webapi.routes.books_routes import _list_ebook_files, _list_output_e
 import modules.webapi.routers.create_book as create_book_router
 import modules.webapi.routers.create_book_context as create_book_context
 import modules.webapi.routers.create_book_cover as create_book_cover
+import modules.webapi.routers.create_book_llm as create_book_llm
 from modules.webapi.routers.create_book import _parse_sentences, _source_book_context
 from modules.webapi.schemas.create_book import BookGenerationJobSubmission
 
@@ -1193,6 +1194,24 @@ def test_parse_sentences_ignores_non_string_items() -> None:
     }
 
     assert _parse_sentences(json.dumps(payload), 1) == ["Actual sentence."]
+
+
+def test_create_book_llm_extracts_json_object_from_wrapped_response() -> None:
+    assert create_book_llm.extract_json_object('prefix {"summary": "One"} suffix') == {
+        "summary": "One"
+    }
+    assert create_book_llm.extract_json_object('["not", "object"]') is None
+
+
+def test_create_book_llm_metadata_skips_blank_sentence_block() -> None:
+    assert create_book_llm.generate_llm_metadata(
+        book_title="Demo",
+        topic="Rain",
+        seed_genre="Poetry",
+        author="Me",
+        input_language="English",
+        sentences=[" ", ""],
+    ) == {}
 
 
 def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
