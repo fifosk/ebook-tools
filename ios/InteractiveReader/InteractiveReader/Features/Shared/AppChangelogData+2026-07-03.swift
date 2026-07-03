@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-source-picker-hidden-symlink-targets",
+            title: "Source pickers hide staging links",
+            detail: "Backend source discovery now prunes visible symlinks whose resolved targets live under hidden folders or files, keeping Web and Apple Create EPUB, subtitle, and video pickers from surfacing hidden NAS staging artifacts."
+        ),
+        AppChangelogEntry(
             id: "apple-tv-music-bed-stopped-mirror-pause",
             title: "TV pause mirrors stopped bed",
             detail: "Apple TV Job and Library playback now treat an Apple Music bed stop while sentence narration is still requested as the same reader pause command, so the first Siri Remote Play/Pause press can stop both the bed and sentence track."

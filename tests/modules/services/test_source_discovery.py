@@ -68,6 +68,48 @@ def test_walk_visible_source_files_follows_visible_symlinked_folders(tmp_path: P
     assert results[0].stat.st_size == len(b"ebook")
 
 
+def test_walk_visible_source_files_prunes_symlinked_hidden_folder_targets(tmp_path: Path) -> None:
+    hidden_target = tmp_path / ".imports"
+    hidden_target.mkdir()
+    hidden_file = hidden_target / "hidden.epub"
+    hidden_file.write_bytes(b"hidden")
+    root = tmp_path / "books"
+    root.mkdir()
+    visible_book = root / "visible.epub"
+    visible_book.write_bytes(b"visible")
+    linked = root / "Imported"
+    try:
+        linked.symlink_to(hidden_target, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlink unavailable: {exc}")
+
+    results = walk_visible_source_files(root, suffixes={".epub"})
+
+    assert [entry.path for entry in results] == [visible_book]
+
+
+def test_walk_visible_source_files_prunes_symlinked_hidden_file_targets(tmp_path: Path) -> None:
+    root = tmp_path / "books"
+    hidden_target = tmp_path / ".staging"
+    root.mkdir()
+    hidden_target.mkdir()
+    visible_target = root / "target.epub"
+    hidden_file = hidden_target / "hidden.epub"
+    visible_target.write_bytes(b"visible")
+    hidden_file.write_bytes(b"hidden")
+    visible_link = root / "visible-link.epub"
+    hidden_link = root / "hidden-link.epub"
+    try:
+        visible_link.symlink_to(visible_target)
+        hidden_link.symlink_to(hidden_file)
+    except OSError as exc:
+        pytest.skip(f"file symlink unavailable: {exc}")
+
+    results = walk_visible_source_files(root, suffixes={".epub"})
+
+    assert [entry.path for entry in results] == [visible_target, visible_link]
+
+
 def test_walk_visible_source_files_accepts_bare_suffix_filters(tmp_path: Path) -> None:
     ebook = tmp_path / "latest.EPUB"
     subtitle = tmp_path / "episode.srt"

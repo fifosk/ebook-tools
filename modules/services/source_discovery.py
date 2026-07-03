@@ -131,6 +131,11 @@ def iter_visible_source_files(
     if root_stat is None or not stat_module.S_ISDIR(root_stat.st_mode):
         return
 
+    try:
+        root_resolved = root.resolve(strict=True)
+    except OSError:
+        root_resolved = root
+
     suffix_filter = _normalized_suffix_filter(suffixes) if suffixes is not None else None
     visited_dirs: set[tuple[int, int]] = set()
     for current_root, dirnames, filenames in os.walk(
@@ -140,6 +145,9 @@ def iter_visible_source_files(
     ):
         current_path = Path(current_root)
         if _has_hidden_relative_part(current_path, root):
+            dirnames[:] = []
+            continue
+        if current_path != root and _has_hidden_symlink_target_part(current_path, root_resolved):
             dirnames[:] = []
             continue
         current_stat = safe_stat(current_path)
@@ -157,8 +165,11 @@ def iter_visible_source_files(
         for dirname in sorted(dirnames):
             if dirname.startswith("."):
                 continue
+            child_path = current_path / dirname
+            if _has_hidden_symlink_target_part(child_path, root_resolved):
+                continue
             if follow_dir_symlinks:
-                child_stat = safe_stat(current_path / dirname)
+                child_stat = safe_stat(child_path)
                 if child_stat is None or not stat_module.S_ISDIR(child_stat.st_mode):
                     continue
                 if (child_stat.st_dev, child_stat.st_ino) in visited_dirs:
@@ -171,6 +182,8 @@ def iter_visible_source_files(
                 continue
             candidate = current_path / filename
             if _has_hidden_relative_part(candidate, root):
+                continue
+            if _has_hidden_symlink_target_part(candidate, root_resolved):
                 continue
             if suffix_filter is not None and candidate.suffix.lower() not in suffix_filter:
                 continue
@@ -205,3 +218,15 @@ def _has_hidden_relative_part(path: Path, root: Path) -> bool:
     except ValueError:
         relative_parts = path.parts
     return any(part.startswith(".") for part in relative_parts if part not in {"", "."})
+
+
+def _has_hidden_symlink_target_part(path: Path, root_resolved: Path) -> bool:
+    """Return true when a symlink points at a hidden target component."""
+
+    try:
+        if not path.is_symlink():
+            return False
+        resolved_path = path.resolve(strict=True)
+    except OSError:
+        return True
+    return _has_hidden_relative_part(resolved_path, root_resolved)

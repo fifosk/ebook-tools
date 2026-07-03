@@ -1350,6 +1350,10 @@ Optimization candidates:
   backend default book/video discovery sources, so Web and Apple Create source
   pickers do not lose defaults just because a NAS root races with remount or
   cleanup.
+  Source discovery now also prunes visible symlinks whose resolved targets
+  contain hidden path components, so friendly NAS/Finder collection links still
+  work while hidden staging/import folders cannot leak back into Web or Apple
+  Create picker results through a visible alias.
   Prepared acquisition artifacts for local EPUBs, manual-download EPUBs, NAS
   videos, and manual-download videos now validate reviewed source files through
   the same tolerant stat helper, so Web/Apple Create handoffs fail as ordinary
