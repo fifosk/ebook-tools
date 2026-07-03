@@ -139,6 +139,14 @@ final class InteractivePlayerViewModel: ObservableObject {
                 self.handlePlaybackEnded()
                 return
             }
+            guard !self.sequenceController.isDwelling,
+                  !self.sequenceController.isTransitioning else {
+                interactivePlayerViewModelLogger.debug(
+                    "Persistent stall recovery ignored during sequence dwell/transition"
+                )
+                return
+            }
+            guard self.audioCoordinator.isPlaybackRequested else { return }
             interactivePlayerViewModelLogger.debug("Persistent stall recovery: force-advancing segment")
             _ = self.sequenceController.advanceToNextSegment()
         }

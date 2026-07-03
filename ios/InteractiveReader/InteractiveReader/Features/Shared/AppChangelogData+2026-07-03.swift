@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-sequence-handoff-wider-guard",
+            title: "TV handoffs avoid audio slivers",
+            detail: "Apple TV sequence playback now restores a wider fade and same-track trim safety margin, and ignores persistent-stall recovery during intentional handoff dwell so the next sentence cannot leak before the Translation track switch."
+        ),
+        AppChangelogEntry(
+            id: "tvos-autoplay-recovery-attempt-cap",
+            title: "TV autoplay retries settle",
+            detail: "Apple TV Job and Library playback now cap pending interactive autoplay recovery retries for the same sentence, so a stuck resume cannot keep re-jumping the reader while the Apple Music bed pause is settling."
+        ),
+        AppChangelogEntry(
             id: "backend-download-station-status-helper",
             title: "Downloader polling is leaner",
             detail: "Backend Download Station status parsing, completed-file normalization, task messages, and value coercion now live in a focused acquisition helper, keeping downloader polling behavior shared by Web and Apple Create easier to test."

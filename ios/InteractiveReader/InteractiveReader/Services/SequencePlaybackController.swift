@@ -415,7 +415,7 @@ final class SequencePlaybackController: ObservableObject {
 
     private var sameTrackHandoffGuard: Double {
         #if os(tvOS)
-        return 0.12
+        return 0.22
         #else
         return 0.05
         #endif
@@ -423,7 +423,7 @@ final class SequencePlaybackController: ObservableObject {
 
     private var sameTrackPrerollSlop: Double {
         #if os(tvOS)
-        return 0.12
+        return 0.24
         #else
         return 0.08
         #endif
@@ -491,7 +491,7 @@ final class SequencePlaybackController: ObservableObject {
     /// This must be long enough to cover HDMI output buffer depth (~100-300ms).
     private var fadeOutDuration: Double {
         #if os(tvOS)
-        return 0.18
+        return 0.30
         #else
         return 0.20
         #endif

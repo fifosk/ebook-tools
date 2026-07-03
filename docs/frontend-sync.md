@@ -325,7 +325,9 @@ Follow the suggested remediations to restore parity:
   pause is active, when the pause guard is active, when the Music bed is
   manually paused, or when the last reader action was pause. Recovery retries
   are for real startup stalls, not for re-jumping the same sentence while the
-  user has intentionally paused playback.
+  user has intentionally paused playback, and tvOS Job/Library shells should cap
+  repeated recovery attempts for the same pending sentence before clearing the
+  pending autoplay state.
   Slider/search/bookmark jumps in single-track mode set an explicit sentence
   anchor as soon as the jump is requested and keep that anchor alive through
   metadata/audio settling, so the first post-jump skip cannot use stale
@@ -488,19 +490,22 @@ Follow the suggested remediations to restore parity:
   handoffs from dipping the Music bed on every boundary while preserving real
   reader-owned pause semantics. On tvOS, active-reader Music non-playing
   observations adopt immediately because a physical Siri Remote pause can reach
-  Apple Music before the app-level reader callback. Sequence dwell should keep reader playback
-  intent alive for the bed, but on tvOS it mutes and fades about 420ms before
-  the segment boundary, pauses, and pins the sentence player at the boundary
-  before seeking to the next segment so output-buffer tail audio cannot leak the
-  next sentence before the handoff. Web and Apple sequence-plan builders must
-  also clamp overlapping or very tightly adjacent same-track gates just before
-  the next same-track sentence start before installing boundary observers or
-  fade windows, while leaving wider non-overlapping gaps intact. This keeps
-  loose `originalEndGate` or `endGate` values from including a buffered sliver
-  of the following sentence without clipping well-separated jobs. Async fade
-  installation must also verify the AVPlayer item is still current before
-  mutating `audioMix`, because remote URL track loading can complete after a
-  same-sentence Original -> Translation item switch.
+  Apple Music before the app-level reader callback. Sequence dwell should keep
+  reader playback intent alive for the bed, but on tvOS it mutes and fades about
+  420ms before the segment boundary with a 300ms fade ramp, pauses, and pins the
+  sentence player at the boundary before seeking to the next segment so
+  output-buffer tail audio cannot leak the next sentence before the handoff.
+  Web and Apple sequence-plan builders must also clamp overlapping or tightly
+  adjacent same-track gates with the tvOS guard margin before installing
+  boundary observers or fade windows, while leaving wider non-overlapping gaps
+  intact. This keeps loose `originalEndGate` or `endGate` values from including
+  a buffered sliver of the following sentence without clipping well-separated
+  jobs. Persistent-stall recovery must not force-advance while the sequence
+  controller is intentionally dwelling or transitioning; those states are
+  handoff protection, not stuck playback. Async fade installation must also
+  verify the AVPlayer item is still current before mutating `audioMix`, because
+  remote URL track loading can complete after a same-sentence Original ->
+  Translation item switch.
   Apple Music reading-bed mode must publish reader-owned Now Playing metadata
   and remote commands (`.appleMusicBed`) instead of yielding Control Center to
   the Music track. Job and Library playback attach the active sentence

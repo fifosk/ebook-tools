@@ -381,11 +381,11 @@ def test_sequence_overlap_trimming_leaves_a_handoff_guard() -> None:
     assert trim_body.index("segment.end > nextStart") < trim_body.index("nextStart - sameTrackHandoffGuard")
     guard_body = _function_body(controller, "private var sameTrackHandoffGuard: Double")
     assert "#if os(tvOS)" in guard_body
-    assert "return 0.12" in guard_body
+    assert "return 0.22" in guard_body
     assert "return 0.05" in guard_body
     preroll_body = _function_body(controller, "private var sameTrackPrerollSlop: Double")
     assert "#if os(tvOS)" in preroll_body
-    assert "return 0.12" in preroll_body
+    assert "return 0.24" in preroll_body
     assert "return 0.08" in preroll_body
 
 
@@ -1176,7 +1176,7 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     assert "return 0.05" in headroom_body
     fade_body = _function_body(controller, "private var fadeOutDuration: Double")
     assert "#if os(tvOS)" in fade_body
-    assert "return 0.18" in fade_body
+    assert "return 0.30" in fade_body
     assert "return 0.20" in fade_body
     pin_body = _function_body(controller, "private var dwellPinBackoff: Double")
     assert "#if os(tvOS)" in pin_body
@@ -1199,6 +1199,19 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     update_body = _function_body(controller, "func updateForTime(_ time: Double, isPlaying: Bool) -> Bool")
     assert "let fallbackBoundaryTime = boundaryTriggerTime(for: segment)" in update_body
     assert "if time >= fallbackBoundaryTime" in update_body
+    view_model = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "InteractivePlayer"
+        / "InteractivePlayerViewModel.swift"
+    ).read_text(encoding="utf-8")
+    stall_body = _function_body(view_model, "audioCoordinator.onPersistentStall = { [weak self] in")
+    assert "!self.sequenceController.isDwelling" in stall_body
+    assert "!self.sequenceController.isTransitioning" in stall_body
+    assert "Persistent stall recovery ignored during sequence dwell/transition" in stall_body
 
 
 def test_segment_fade_is_bound_to_current_player_item() -> None:
