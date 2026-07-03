@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-tv-music-bed-e2e-observed-pause-retry",
+            title: "TV music-bed tests recover probes",
+            detail: "The Apple TV music-bed simulator journey now retries its DEBUG observed-pause probe after interactive playback starts, keeping unattended validation from timing out when one delayed simulator callback is missed."
+        ),
+        AppChangelogEntry(
             id: "apple-music-bed-adopted-pause-fanout",
             title: "One pause fans out to both layers",
             detail: "Apple reader pause adoption now reclaims the Music bed when MusicKit receives the first pause edge, mirrors that adopted pause into Job and Library narration even if the system briefly owns Music, and keeps confirming both layers through the tvOS echo window."

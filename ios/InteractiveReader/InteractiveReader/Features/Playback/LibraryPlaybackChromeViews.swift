@@ -579,11 +579,8 @@ struct MusicBedSyncE2EControls: View {
             audioCoordinator.play()
         }
         #if os(tvOS)
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 8_000_000_000)
-            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
-            guard musicOwnership.e2eObservedPauseProbeCount == 0 else { return }
-            musicOwnership.simulateObservedNonPlayingPauseForE2E()
+        for observedPauseDelay in [8_000_000_000, 20_000_000_000, 36_000_000_000, 52_000_000_000] as [UInt64] {
+            scheduleObservedPauseProbeForE2EIfNeeded(after: observedPauseDelay)
         }
         #endif
         Task { @MainActor in
@@ -596,6 +593,19 @@ struct MusicBedSyncE2EControls: View {
             }
         }
     }
+
+    #if os(tvOS)
+    private func scheduleObservedPauseProbeForE2EIfNeeded(after delay: UInt64) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: delay)
+            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
+            guard MusicBedSyncE2EState.interactiveStartCommandCount > 0 else { return }
+            guard musicOwnership.e2eObservedPauseProbeCount == 0 else { return }
+            guard musicOwnership.e2eMusicBedSyncPhase == "play" else { return }
+            musicOwnership.simulateObservedNonPlayingPauseForE2E()
+        }
+    }
+    #endif
 
     private var statusText: String {
         musicOwnership.ensureReadingBedPlayStateForE2E()

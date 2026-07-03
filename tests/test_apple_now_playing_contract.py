@@ -2120,10 +2120,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "audioCoordinator.restoreVolume()" in attempt_interactive_body
     assert "if audioCoordinator.isPlaybackRequested" in attempt_interactive_body
     assert "audioCoordinator.play()" in attempt_interactive_body
-    assert "Task { @MainActor in" in attempt_interactive_body
-    assert "Task.sleep(nanoseconds: 8_000_000_000)" in attempt_interactive_body
-    assert "musicOwnership.e2eObservedPauseProbeCount == 0" in attempt_interactive_body
-    assert "musicOwnership.simulateObservedNonPlayingPauseForE2E()" in attempt_interactive_body
+    assert "for observedPauseDelay in [8_000_000_000, 20_000_000_000, 36_000_000_000, 52_000_000_000] as [UInt64]" in attempt_interactive_body
+    assert "scheduleObservedPauseProbeForE2EIfNeeded(after: observedPauseDelay)" in attempt_interactive_body
+    observed_probe_body = _function_body(chrome, "private func scheduleObservedPauseProbeForE2EIfNeeded(after delay: UInt64)")
+    assert "Task { @MainActor in" in observed_probe_body
+    assert "Task.sleep(nanoseconds: delay)" in observed_probe_body
+    assert "MusicBedSyncE2EState.interactiveStartCommandCount > 0" in observed_probe_body
+    assert "musicOwnership.e2eObservedPauseProbeCount == 0" in observed_probe_body
+    assert 'musicOwnership.e2eMusicBedSyncPhase == "play"' in observed_probe_body
+    assert "musicOwnership.simulateObservedNonPlayingPauseForE2E()" in observed_probe_body
     assert "Task.sleep(nanoseconds: 700_000_000)" in attempt_interactive_body
     late_resume_body = auto_sequence_body.split("DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)", 1)[1].split(
         "}\n    }",
