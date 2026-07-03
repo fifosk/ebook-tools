@@ -332,7 +332,9 @@ Discovery/acquisition plan, provider, schema, and route changes route to
 discovery, prepared-artifact handoff, and token-safe provider serialization
 covered before simulator journeys consume those contracts. The acquisition
 slice also covers incomplete local artifact filtering, including `.part` files
-and zero-byte video placeholders.
+and zero-byte video placeholders, plus the Default sources rule that skips
+optional YouTube/indexer searches when local NAS/manual candidates already fill
+the visible result limit.
 Shared source-discovery helper edits also route through
 `test-backend-subtitle-router` and `test-backend-youtube-dubbing-service`
 because EPUB, subtitle, manual-download, and NAS video pickers all depend on the

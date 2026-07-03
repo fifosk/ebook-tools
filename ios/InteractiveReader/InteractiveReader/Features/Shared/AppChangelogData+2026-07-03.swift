@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "acquisition-defaults-skip-filled-remotes",
+            title: "Default discovery avoids extra remotes",
+            detail: "Backend acquisition tests now pin that Web and Apple Create Default sources skip optional YouTube or indexer searches once local NAS/manual candidates fill the visible result limit."
+        ),
+        AppChangelogEntry(
             id: "apple-reader-repro-log-fresh-window",
             title: "Reader repro logs stay fresh",
             detail: "The combined Apple playback reader-repro helper now verifies pause/resume and resume-offset evidence against the fresh pulled log suffix, matching the single-purpose transport checks."

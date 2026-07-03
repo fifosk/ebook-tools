@@ -3408,6 +3408,48 @@ def test_default_video_discovery_keeps_local_candidates_when_remote_provider_fai
     ]
 
 
+def test_default_video_discovery_skips_optional_remotes_when_local_candidates_fill_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _remote_should_not_run(*args, **kwargs):
+        raise AssertionError("optional remote provider should not be queried")
+
+    video_root = tmp_path / "videos"
+    video_root.mkdir()
+    local_video = video_root / "Readable History Local.mp4"
+    local_video.write_bytes(b"video")
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "_discover_youtube_search",
+        _remote_should_not_run,
+    )
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "_discover_newznab_torznab",
+        _remote_should_not_run,
+    )
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="readable history",
+        provider=None,
+        limit=1,
+        config={
+            "youtube_video_root": str(video_root),
+            "youtube_api_key": "secret-youtube-key",
+            "newznab_url": "https://indexer.example.invalid/api",
+            "newznab_api_key": "secret-indexer-key",
+        },
+    )
+
+    assert result.providers_queried == ("nas_video",)
+    assert [candidate.provider for candidate in result.candidates] == ["nas_video"]
+    assert result.candidates[0].local_path == local_video.as_posix()
+    assert "secret-youtube-key" not in str(result)
+    assert "secret-indexer-key" not in str(result)
+
+
 def test_discover_newznab_torznab_maps_auth_errors_without_secret() -> None:
     class _FakeResponse:
         status_code = 403

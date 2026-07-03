@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 from pydantic import ValidationError
 
+import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.discovery_normalization as discovery_normalization
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
@@ -738,6 +739,66 @@ def test_acquisition_discover_route_treats_backend_defaults_provider_as_fanout(
         "Local Origin",
         "Manual Origin",
     }
+
+
+def test_acquisition_discover_route_skips_optional_remotes_when_nas_fills_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _remote_should_not_run(*args, **kwargs):
+        raise AssertionError("optional remote provider should not be queried")
+
+    video_root = tmp_path / "videos"
+    video_root.mkdir()
+    video_path = video_root / "Readable History Local.mp4"
+    video_path.write_bytes(b"video")
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "_discover_youtube_search",
+        _remote_should_not_run,
+    )
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "_discover_newznab_torznab",
+        _remote_should_not_run,
+    )
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "youtube_video_root": str(video_root),
+            "youtube_api_key": "secret-youtube-key",
+            "newznab_url": "https://indexer.example.invalid/api",
+            "newznab_api_key": "secret-indexer-key",
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover",
+                params={
+                    "media_kind": "video",
+                    "provider": "backend_defaults",
+                    "q": "readable history",
+                    "limit": "1",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["providers_queried"] == ["nas_video"]
+    assert [candidate["provider"] for candidate in payload["candidates"]] == [
+        "nas_video"
+    ]
+    assert payload["candidates"][0]["local_path"] == video_path.as_posix()
+    assert "secret-youtube-key" not in str(payload)
+    assert "secret-indexer-key" not in str(payload)
 
 
 def test_acquisition_discover_ignores_stale_source_ids_for_local_epub_provider(tmp_path: Path) -> None:
