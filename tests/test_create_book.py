@@ -29,6 +29,7 @@ from modules.webapi.dependencies import (
 )
 from modules.webapi.routes.books_routes import _list_ebook_files, _list_output_entries
 import modules.webapi.routers.create_book as create_book_router
+import modules.webapi.routers.create_book_context as create_book_context
 from modules.webapi.routers.create_book import _parse_sentences, _source_book_context
 from modules.webapi.schemas.create_book import BookGenerationJobSubmission
 
@@ -1073,6 +1074,27 @@ def test_source_book_context_normalizes_optional_continuation_fields() -> None:
         "source_book_title": "Inferno",
         "source_book_author": "Dan Brown",
     }
+
+
+def test_create_book_context_builds_fallback_summaries() -> None:
+    assert create_book_context.build_summary("Rain", "Poetry") == "Poetry story about Rain."
+    assert create_book_context.build_summary("", "Mystery") == "Mystery story."
+    assert create_book_context.build_summary("Symbols", "") == "Story about Symbols."
+    assert (
+        create_book_context.build_summary("", "")
+        == "Synthetic book generated via create-book workflow."
+    )
+
+
+def test_create_book_context_limits_llm_summary_length() -> None:
+    source = "One. Two. Three. Four. Five should be dropped."
+    assert create_book_context.limit_summary_length(source) == "One. Two. Three. Four."
+
+    long_summary = " ".join(["word"] * 180)
+    limited = create_book_context.limit_summary_length(long_summary)
+
+    assert len(limited) <= create_book_context.SUMMARY_MAX_CHARACTERS
+    assert limited.endswith("\u2026")
 
 
 def test_parse_sentences_rejects_json_string_payload() -> None:

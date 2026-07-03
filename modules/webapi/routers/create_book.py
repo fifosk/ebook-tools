@@ -50,6 +50,12 @@ from ..dependencies import (
 from ..auth_utils import extract_session_token
 from ..route_telemetry import log_started_route_result
 from ..schemas import PipelineSubmissionResponse
+from .create_book_context import (
+    build_summary as _build_summary,
+    limit_summary_length as _limit_summary_length,
+    normalize_optional_text as _normalize_optional_text,
+    source_book_context as _source_book_context,
+)
 from .create_book_options import _build_creation_options, _coerce_float, _coerce_int
 from ..schemas.create_book import (
     BookCreationOptionsResponse,
@@ -69,14 +75,6 @@ _PLACEHOLDER_SENTENCES = frozenset(
     }
 )
 _MAX_METADATA_SENTENCES = 50
-_SUMMARY_MAX_SENTENCES = 4
-_SUMMARY_MAX_CHARACTERS = 600
-_SOURCE_BOOK_CONTEXT_FIELDS = (
-    "source_book_title",
-    "source_book_author",
-    "source_book_genre",
-    "source_book_summary",
-)
 
 logger = log_mgr.get_logger()
 
@@ -126,36 +124,8 @@ def _slugify(value: str) -> str:
     return normalised or "book"
 
 
-def _build_summary(topic: str, genre: str) -> str:
-    topic_text = topic.strip()
-    genre_text = genre.strip()
-    if topic_text and genre_text:
-        return f"{genre_text} story about {topic_text}."
-    if genre_text:
-        return f"{genre_text} story."
-    if topic_text:
-        return f"Story about {topic_text}."
-    return "Synthetic book generated via create-book workflow."
-
-
 def _collapse_whitespace(value: str) -> str:
     return re.sub(r"\s+", " ", (value or "").strip()).strip()
-
-
-def _normalize_optional_text(value: object) -> str | None:
-    if not isinstance(value, str):
-        return None
-    cleaned = value.strip()
-    return cleaned or None
-
-
-def _source_book_context(payload: object) -> dict[str, str]:
-    context: dict[str, str] = {}
-    for field_name in _SOURCE_BOOK_CONTEXT_FIELDS:
-        value = _normalize_optional_text(getattr(payload, field_name, None))
-        if value:
-            context[field_name] = value
-    return context
 
 
 def _extract_json_object(payload: str) -> dict[str, Any] | None:
@@ -174,31 +144,6 @@ def _extract_json_object(payload: str) -> dict[str, Any] | None:
         except json.JSONDecodeError:
             return None
     return parsed if isinstance(parsed, dict) else None
-
-
-def _limit_summary_length(summary: str) -> str:
-    cleaned = summary.strip()
-    if not cleaned:
-        return cleaned
-
-    primary_paragraph = cleaned.split("\n\n", 1)[0].strip()
-    sentences = re.split(r"(?<=[.!?])\s+", primary_paragraph)
-
-    limited_sentences: list[str] = []
-    for sentence in sentences:
-        stripped = sentence.strip()
-        if not stripped:
-            continue
-        limited_sentences.append(stripped)
-        if len(limited_sentences) >= _SUMMARY_MAX_SENTENCES:
-            break
-
-    short_summary = " ".join(limited_sentences) if limited_sentences else primary_paragraph
-    if len(short_summary) <= _SUMMARY_MAX_CHARACTERS:
-        return short_summary
-
-    truncated = short_summary[: _SUMMARY_MAX_CHARACTERS - 1].rsplit(" ", 1)[0]
-    return truncated + "…"
 
 
 def _generate_llm_metadata(

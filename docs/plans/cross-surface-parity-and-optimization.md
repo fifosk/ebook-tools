@@ -2004,7 +2004,10 @@ After Narrate Ebook:
   continuation-style jobs can start with explicit source metadata. The Create
   Book backend now normalizes that source context once per request and reuses it
   for sentence prompts, metadata, config, and pipeline snapshots so Web previews
-  and Apple job submissions stay aligned; Narrate EPUB can delete selected
+  and Apple job submissions stay aligned; generated-book source-context and
+  summary shaping now live in `modules/webapi/routers/create_book_context.py`
+  with focused coverage, keeping prepare and enqueue metadata behavior reusable
+  outside the large Create router. Narrate EPUB can delete selected
   backend EPUB sources through the same `/api/pipelines/files` cleanup endpoint
   Web uses; `/api/books/jobs` enqueue tests now pin the trimmed source-context
   snapshot before the background worker starts. Apple Create readiness preflight
