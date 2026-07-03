@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-youtube-library-helper",
+            title: "YouTube NAS picker is leaner",
+            detail: "Backend YouTube NAS path normalization, linked-job indexing, and video-row serialization now live in a focused helper, keeping Web Video Dubbing and Apple YouTube Dub source pickers aligned outside the route handler."
+        ),
+        AppChangelogEntry(
             id: "backend-library-media-response-helper",
             title: "Library media contract is leaner",
             detail: "Backend Library media URL normalization, audio/timing-track shaping, and playback diagnostics now live in a focused helper with direct coverage, keeping Web and Apple playback manifests aligned outside the large Library router."

@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import regex
 import time
-from datetime import datetime
 from pathlib import Path
-from typing import Mapping, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from modules import logging_manager as log_mgr
 from modules.services.job_manager import PipelineJobManager
-from modules.services.job_manager.metadata import PipelineJobMetadata
 from modules.services.source_discovery import safe_stat
 from modules.services.youtube_subtitles import (
     SubtitleKind,
@@ -50,7 +47,6 @@ from ...schemas import (
     YoutubeDubResponse,
     YoutubeNasLibraryResponse,
     YoutubeNasSubtitlePayload,
-    YoutubeNasVideoPayload,
     YoutubeInlineSubtitleListResponse,
     YoutubeSubtitleExtractionRequest,
     YoutubeSubtitleExtractionResponse,
@@ -61,6 +57,7 @@ from ...schemas import (
 )
 
 from .parsing import parse_timestamp, parse_time_offset, parse_end_time, parse_tempo_value
+from . import youtube_library
 
 router = APIRouter()
 logger = log_mgr.get_logger().getChild("webapi.subtitles.youtube")
@@ -146,97 +143,12 @@ def _serialize_youtube_tracks(listing) -> YoutubeSubtitleListResponse:
     )
 
 
-def _looks_like_youtube_subtitle(path: Path) -> bool:
-    """Heuristic to detect YouTube-sourced subtitles from the filename."""
-
-    name = path.name.lower()
-    stem = path.stem.lower()
-    normalized = name.replace("_", "-")
-    if normalized.endswith("-yt.srt"):
-        return True
-    if stem.endswith("_yt") or stem.endswith("-yt"):
-        return True
-    # Match YouTube video id enclosed in brackets, e.g., [kZ5Jq2Is888]
-    return bool(regex.search(r"\[[a-z0-9_-]{8,15}\]", name, flags=regex.IGNORECASE))
-
-
-def _normalize_path_token(path: Path) -> Optional[str]:
-    try:
-        return path.expanduser().resolve().as_posix()
-    except Exception:
-        try:
-            return path.expanduser().as_posix()
-        except Exception:
-            return None
-
-
-def _index_youtube_video_job_metadata(
-    job_metadata: Mapping[str, PipelineJobMetadata],
-    *,
-    allowed_tokens: Optional[set[str]] = None,
-) -> dict[str, set[str]]:
-    jobs_by_video: dict[str, set[str]] = {}
-    allowed_names = {Path(token).name for token in allowed_tokens or set()}
-    for job in job_metadata.values():
-        payload = job.request_payload or job.resume_context or {}
-        if not isinstance(payload, Mapping):
-            continue
-        video_path = payload.get("video_path") or payload.get("input_file")
-        if not video_path:
-            continue
-        candidate_path = Path(str(video_path))
-        if allowed_names and candidate_path.name not in allowed_names:
-            continue
-        token = _normalize_path_token(candidate_path)
-        if not token:
-            continue
-        if allowed_tokens is not None and token not in allowed_tokens:
-            continue
-        jobs_by_video.setdefault(token, set()).add(job.job_id)
-    return jobs_by_video
-
-
-def _index_youtube_video_jobs(
-    job_manager: PipelineJobManager,
-    request_user: Optional[RequestUserContext],
-    *,
-    allowed_tokens: Optional[set[str]] = None,
-) -> dict[str, set[str]]:
-    if allowed_tokens is not None and not allowed_tokens:
-        return {}
-    try:
-        job_metadata = job_manager.list_metadata(
-            user_id=request_user.user_id if request_user else None,
-            user_role=request_user.user_role if request_user else None,
-            job_type="youtube_dub",
-        )
-    except Exception:
-        logger.warning("Unable to enumerate jobs while tagging YouTube videos")
-        return {}
-    return _index_youtube_video_job_metadata(job_metadata, allowed_tokens=allowed_tokens)
-
-
-def _serialize_nas_video(entry, *, linked_jobs: Optional[set[str]] = None) -> YoutubeNasVideoPayload:
-    subtitles = [
-        YoutubeNasSubtitlePayload(
-            path=sub.path.as_posix(),
-            filename=sub.path.name,
-            language=sub.language,
-            format=sub.format,
-        )
-        for sub in getattr(entry, "subtitles", []) or []
-    ]
-    job_ids = sorted(linked_jobs) if linked_jobs else []
-    return YoutubeNasVideoPayload(
-        path=entry.path.as_posix(),
-        filename=entry.path.name,
-        folder=entry.path.parent.as_posix(),
-        size_bytes=entry.size_bytes,
-        modified_at=entry.modified_at,
-        subtitles=subtitles,
-        source=getattr(entry, "source", None) or "youtube",
-        linked_job_ids=job_ids,
-    )
+# Compatibility aliases for older route-level helper imports.
+_looks_like_youtube_subtitle = youtube_library.looks_like_youtube_subtitle
+_normalize_path_token = youtube_library.normalize_path_token
+_index_youtube_video_job_metadata = youtube_library.index_youtube_video_job_metadata
+_index_youtube_video_jobs = youtube_library.index_youtube_video_jobs
+_serialize_nas_video = youtube_library.serialize_nas_video
 
 
 @router.get("/youtube/subtitles", response_model=YoutubeSubtitleListResponse)
@@ -398,20 +310,12 @@ def list_youtube_library(
     except FileNotFoundError as exc:
         _log_youtube_library_route("not_found", started_at)
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    video_entries = [(video, _normalize_path_token(video.path)) for video in videos]
-    video_tokens = {token for _, token in video_entries if token}
-    linked_jobs = _index_youtube_video_jobs(
-        job_manager,
-        request_user,
-        allowed_tokens=video_tokens,
+    payload = youtube_library.serialize_nas_video_library(
+        videos,
+        job_manager=job_manager,
+        request_user=request_user,
+        logger=logger,
     )
-    payload = [
-        _serialize_nas_video(
-            video,
-            linked_jobs=linked_jobs.get(token, set()) if token else set(),
-        )
-        for video, token in video_entries
-    ]
     _log_youtube_library_route(
         "success",
         started_at,
@@ -545,11 +449,12 @@ def delete_youtube_video(
 
     _ensure_editor(request_user)
     video_path = Path(payload.video_path).expanduser()
-    token = _normalize_path_token(video_path)
-    linked_jobs = _index_youtube_video_jobs(
+    token = youtube_library.normalize_path_token(video_path)
+    linked_jobs = youtube_library.index_youtube_video_jobs(
         job_manager,
         request_user,
         allowed_tokens={token} if token else set(),
+        logger=logger,
     )
     if token and linked_jobs.get(token):
         raise HTTPException(

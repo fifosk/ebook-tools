@@ -20,6 +20,7 @@ from modules.webapi.dependencies import (
     get_youtube_dubbing_service,
 )
 from modules.webapi.routers.subtitle_utils import youtube_routes
+from modules.webapi.routers.subtitle_utils import youtube_library
 
 pytestmark = pytest.mark.webapi
 
@@ -154,9 +155,9 @@ def test_youtube_video_job_index_prefilters_by_discovered_filename(
         normalized_calls.append(path.as_posix())
         return path.as_posix()
 
-    monkeypatch.setattr(youtube_routes, "_normalize_path_token", fake_normalize)
+    monkeypatch.setattr(youtube_library, "normalize_path_token", fake_normalize)
 
-    indexed = youtube_routes._index_youtube_video_job_metadata(
+    indexed = youtube_library.index_youtube_video_job_metadata(
         metadata,
         allowed_tokens={"/nas/Show/video-a.mp4"},
     )
@@ -291,14 +292,14 @@ def test_youtube_library_normalizes_discovered_video_paths_once(
         subtitles=[],
     )
     normalize_calls: list[str] = []
-    real_normalize = youtube_routes._normalize_path_token
+    real_normalize = youtube_library.normalize_path_token
 
     def recording_normalize(path: Path) -> str | None:
         normalize_calls.append(path.as_posix())
         return real_normalize(path)
 
     monkeypatch.setattr(youtube_routes, "list_downloaded_videos", lambda root: [video])
-    monkeypatch.setattr(youtube_routes, "_normalize_path_token", recording_normalize)
+    monkeypatch.setattr(youtube_library, "normalize_path_token", recording_normalize)
     app.dependency_overrides[get_pipeline_job_manager] = lambda: manager
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="alice",

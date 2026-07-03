@@ -1334,6 +1334,11 @@ Optimization candidates:
   before path normalization, reuses each discovered video token while building
   response rows, reuses each walked folder stat while ranking videos by effective
   recency, and empty NAS listings skip job metadata reads entirely.
+  YouTube NAS video path normalization, linked-job metadata indexing, and
+  response-row serialization now live in
+  `modules/webapi/routers/subtitle_utils/youtube_library.py`, keeping the Web
+  Video Dubbing and Apple YouTube Dub source-picker contract outside the route
+  handler while preserving token-safe route telemetry.
   YouTube NAS subtitle deletion now validates the selected video through the
   shared tolerant stat helper before deleting sidecars, and changed-test
   selection routes YouTube/NAS route or service edits through the focused
