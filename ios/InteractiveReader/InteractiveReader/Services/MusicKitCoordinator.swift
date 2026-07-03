@@ -1255,9 +1255,15 @@ final class MusicKitCoordinator: ObservableObject {
         beginReaderTransportPauseHold()
         isPlaying = false
         updateMusicPlaybackSurfaceSuppression(reason: reason)
+        #if os(tvOS)
+        readerTransportPauseAdoptionRevision &+= 1
+        notifyReaderTransportPauseAdoptionIfNeeded(reason: reason, source: source)
+        pauseSystemPlayerForReaderTransport(reason: reason)
+        #else
         pauseSystemPlayerForReaderTransport(reason: reason)
         readerTransportPauseAdoptionRevision &+= 1
         notifyReaderTransportPauseAdoptionIfNeeded(reason: reason, source: source)
+        #endif
         markPlaybackSurfaceDidChange(reason: reason)
         scheduleReaderTransportPauseConfirmation()
     }

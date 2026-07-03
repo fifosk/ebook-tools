@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-music-bed-adoption-reader-first",
+            title: "Music-bed pause reaches narration first",
+            detail: "When tvOS delivers the first Play/Pause edge to Apple Music, the reader now latches the shared pause and notifies Job or Library narration before suppressing the Music surface, so one press has a better chance to stop both audio layers together."
+        ),
+        AppChangelogEntry(
             id: "backend-video-discovery-bounded-insert",
             title: "Video source scans are lighter",
             detail: "Backend NAS/manual video discovery now keeps bounded newest matches with binary insertion instead of sorting after every candidate, reducing picker work for Web Video Dubbing and Apple YouTube Dub on large download folders."
