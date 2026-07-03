@@ -1215,7 +1215,9 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     assert "onInstallBoundary?(boundaryTime)" in install_body
     assert "onApplySegmentFade?(fadeStart, fadeEnd)" in install_body
     boundary_body = _function_body(controller, "func boundaryReached()")
-    assert "onPauseForDwell?(dwellPinTime(for: segment))" in boundary_body
+    assert "let nextSegment = nextPlayableSegment(after: segment)" in boundary_body
+    assert "let shouldDetachCurrentItem = nextSegment.map { $0.track != segment.track } ?? false" in boundary_body
+    assert "onPauseForDwell?(dwellPinTime(for: segment), shouldDetachCurrentItem)" in boundary_body
     update_body = _function_body(controller, "func updateForTime(_ time: Double, isPlaying: Bool) -> Bool")
     assert "let fallbackBoundaryTime = boundaryTriggerTime(for: segment)" in update_body
     assert "if time >= fallbackBoundaryTime" in update_body
@@ -1267,6 +1269,21 @@ def test_segment_fade_is_bound_to_current_player_item() -> None:
     assert "isPlaybackRequested = false" not in handoff_body
     assert "AudioPlaybackRegistry.shared.endPlayback" not in handoff_body
 
+    dwell_body = _function_body(
+        coordinator,
+        "func pauseForDwell(atBoundary pinTime: Double?, detachCurrentItem: Bool = false)",
+    )
+    assert "if detachCurrentItem" in dwell_body
+    assert "detachCurrentItemForSequenceDwell()" in dwell_body
+    assert "isPlaybackRequested = false" not in dwell_body
+
+    detach_body = _function_body(coordinator, "private func detachCurrentItemForSequenceDwell()")
+    assert "queuePlayer.removeAllItems()" in detach_body
+    assert "player?.replaceCurrentItem(with: nil)" in detach_body
+    assert "removeBoundaryObserver()" in detach_body
+    assert "isPlaybackRequested = false" not in detach_body
+    assert "AudioPlaybackRegistry.shared.endPlayback" not in detach_body
+
     end_guard_body = _function_body(coordinator, "func setSegmentForwardEndTime(_ time: Double?)")
     assert "item.forwardPlaybackEndTime = .invalid" in end_guard_body
     assert "CMTime(seconds: time, preferredTimescale: 600)" in end_guard_body
@@ -1308,8 +1325,13 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
         / "AudioPlayerCoordinator.swift"
     ).read_text(encoding="utf-8")
 
-    dwell_body = _function_body(coordinator, "func pauseForDwell(atBoundary pinTime: Double?)")
+    dwell_body = _function_body(
+        coordinator,
+        "func pauseForDwell(atBoundary pinTime: Double?, detachCurrentItem: Bool = false)",
+    )
     assert "guard let pinTime" in dwell_body
+    assert "if detachCurrentItem" in dwell_body
+    assert "detachCurrentItemForSequenceDwell()" in dwell_body
     assert "CMTime(seconds: pinTime" in dwell_body
     assert "currentTime = pinTime" in dwell_body
     assert "boundaryTime" not in dwell_body

@@ -453,13 +453,13 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
 def test_reader_music_bed_pause_clears_autoplay_and_sequence_handoffs() -> None:
     view_model_source = INTERACTIVE_PLAYER_VIEW_MODEL.read_text(encoding="utf-8")
     dwell_callback = view_model_source.split(
-        "sequenceController.onPauseForDwell = { [weak self] boundaryTime in",
+        "sequenceController.onPauseForDwell = { [weak self] boundaryTime, shouldDetachCurrentItem in",
         1,
     )[1].split("\n        }", 1)[0]
     assert "self.cancelPendingAudioReadySubscription()" in dwell_callback
-    assert "self.audioCoordinator.pauseForDwell(atBoundary: boundaryTime)" in dwell_callback
+    assert "detachCurrentItem: shouldDetachCurrentItem" in dwell_callback
     assert dwell_callback.index("self.cancelPendingAudioReadySubscription()") < dwell_callback.index(
-        "self.audioCoordinator.pauseForDwell(atBoundary: boundaryTime)"
+        "self.audioCoordinator.pauseForDwell("
     )
 
     job_source = JOB_PLAYBACK_VIEW.read_text(encoding="utf-8")

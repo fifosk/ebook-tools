@@ -268,9 +268,14 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     /// Pause for a sequence dwell and pin the playhead inside the current segment while muted.
     /// tvOS can otherwise drain or seek onto a few buffered frames after the boundary callback,
     /// which sounds like a tiny piece of the next sentence before the handoff completes.
-    func pauseForDwell(atBoundary pinTime: Double?) {
+    func pauseForDwell(atBoundary pinTime: Double?, detachCurrentItem: Bool = false) {
         pauseForDwell()
         guard let pinTime, pinTime.isFinite, pinTime >= 0 else { return }
+        if detachCurrentItem {
+            currentTime = pinTime
+            detachCurrentItemForSequenceDwell()
+            return
+        }
         let cmTime = CMTime(seconds: pinTime, preferredTimescale: 600)
         player?.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
         currentTime = pinTime
@@ -325,6 +330,24 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             setSegmentForwardEndTime(nil)
         }
         removeBoundaryObserver()
+    }
+
+    /// Stop the old sequence item at a cross-track dwell boundary without
+    /// clearing reader playback intent. Muting and pausing alone can still let
+    /// tvOS drain a tiny decoded tail from the previous continuous narration
+    /// file before the next Original/Translation item is loaded.
+    private func detachCurrentItemForSequenceDwell() {
+        setVolume(0)
+        player?.pause()
+        if let queuePlayer = player as? AVQueuePlayer {
+            queuePlayer.removeAllItems()
+        } else {
+            player?.replaceCurrentItem(with: nil)
+        }
+        removeBoundaryObserver()
+        isPlaying = false
+        isReady = false
+        activeURL = nil
     }
 
     /// Clamp the current AVPlayerItem to the active sequence segment boundary.

@@ -104,10 +104,12 @@ private func runDwellCancellationCheck() async {
     var trackSwitchCount = 0
     var resumeAfterDwellCount = 0
     var dwellPinTime: Double?
+    var shouldDetachCurrentItem: Bool?
 
-    controller.onPauseForDwell = { pinTime in
+    controller.onPauseForDwell = { pinTime, detachCurrentItem in
         dwellPauseCount += 1
         dwellPinTime = pinTime
+        shouldDetachCurrentItem = detachCurrentItem
     }
     controller.onCleanupAudioEffects = { cleanupCount += 1 }
     controller.onTrackSwitch = { _, _ in trackSwitchCount += 1 }
@@ -119,6 +121,11 @@ private func runDwellCancellationCheck() async {
         dwellPinTime,
         0.828,
         "Boundary pause should never pin after the early boundary handoff point"
+    )
+    requireEqual(
+        shouldDetachCurrentItem,
+        true,
+        "Cross-track dwell should detach the outgoing AVPlayer item"
     )
     requireTrue(controller.isDwelling, "Boundary should put the controller into dwell state")
 

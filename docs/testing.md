@@ -747,13 +747,16 @@ into Apple TV.
 Reader-owned pause paths must hard-cancel pending interactive autoplay before
 stopping narration, and the same-track handoff trim constants are contract-pinned
 so a wider tvOS preroll margin cannot quietly regress into next-sentence audio
-before the Original-to-Translation switch. Job and Library audio-state callbacks
-must clear pending autoplay when the reader is paused before any Music-bed
-recovery path runs, leaving automatic retry to explicit watchdog recovery only.
+before the Original-to-Translation switch. Cross-track dwell must detach the
+muted outgoing AVPlayer item while preserving reader playback intent, so tvOS
+cannot drain buffered original-sentence audio before Translation loads. Job and
+Library audio-state callbacks must clear pending autoplay when the reader is
+paused before any Music-bed recovery path runs, leaving automatic retry to
+explicit watchdog recovery only.
 
 Latest local Apple contract evidence from July 3, 2026:
-`make test-changed` passed from the ebook-tools checkout at commit `b1b355adb`
-after the sequence handoff guard contract was added. The selector chose
+`make test-changed` passed from the ebook-tools checkout after the cross-track
+dwell-detach guard was added. The selector chose
 `test-apple-playback-state-swift` and `test-apple-contracts`, covering the
 Swift playback helper harnesses, 550 Apple contract pytest checks,
 language-catalog validation, Apple journey validation, runtime/creation

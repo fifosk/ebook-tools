@@ -183,7 +183,7 @@ final class SequencePlaybackController: ObservableObject {
     /// Carries a safe in-segment pin time so the audio player can pin the muted
     /// playhead before the intended boundary on output-buffer-heavy devices.
     /// This prevents audio bleed from the next sentence
-    var onPauseForDwell: ((Double?) -> Void)?
+    var onPauseForDwell: ((Double?, Bool) -> Void)?
     /// Called after dwell completes to resume playback for same-track advances
     /// (track switches resume via onTrackSwitch callback instead)
     var onResumeAfterDwell: ((Double) -> Void)?
@@ -583,7 +583,9 @@ final class SequencePlaybackController: ObservableObject {
 
         // Pause during dwell and pin inside the current segment, never exactly
         // at the next sentence boundary.
-        onPauseForDwell?(dwellPinTime(for: segment))
+        let nextSegment = nextPlayableSegment(after: segment)
+        let shouldDetachCurrentItem = nextSegment.map { $0.track != segment.track } ?? false
+        onPauseForDwell?(dwellPinTime(for: segment), shouldDetachCurrentItem)
 
         // Schedule dwell completion
         dwellWorkItem?.cancel()

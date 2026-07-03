@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "sequence-cross-track-dwell-detaches-old-item",
+            title: "Track handoffs drop buffered tails",
+            detail: "Apple Original/Translation dwell handoffs now detach the muted outgoing AVPlayer item when the next playable segment switches tracks, cutting off buffered next-sentence tails before Translation starts without clearing reader playback intent."
+        ),
+        AppChangelogEntry(
             id: "reader-transport-shared-probe-timings",
             title: "TV pause probes stay aligned",
             detail: "Apple Job and Library Music-bed transport now share pause confirmation, playback recovery, and deferred Music resume probe timings through the reader transport resolver, reducing surface drift while tuning TV pause/resume behavior."

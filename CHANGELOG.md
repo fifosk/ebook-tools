@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple Original/Translation dwell handoffs now detach the outgoing AVPlayer item while muted when the next playable segment switches tracks, cutting off buffered next-sentence tails before Translation starts without clearing reader playback intent.
 - Apple Job and Library Music-bed transport now share the same pause confirmation, playback recovery, and deferred Music resume probe timings through the reader transport resolver, reducing surface drift while tuning TV pause/resume behavior.
 - Apple Original/Translation track switches now keep the outgoing segment's AVPlayer hard-stop guard latched until the old audio item is replaced, reducing next-sentence audio slivers before Translation starts without clipping same-track seeks.
 - Apple device playback-log pull-and-verify now has current-commit shortcuts for pause, pause/resume, resume-offset, and combined reader repro captures, so physical tests reject stale installs without manually passing a SHA.
