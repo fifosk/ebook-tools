@@ -147,6 +147,19 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "modules/webapi/routers/audio.py",
+            "modules/webapi/schemas/audio.py",
+            "modules/webapi/schemas/audio_synthesis.py",
+            "tests/modules/webapi/test_audio_routes.py",
+        ),
+        (
+            "test-backend-audio-routes",
+            "test-web-create-intake-focused",
+            "test-apple-create-readiness-contract",
+        ),
+    ),
+    (
+        (
             "modules/services/creation_template_service.py",
             "modules/webapi/routers/creation_templates.py",
             "modules/webapi/schemas/creation_templates.py",

@@ -692,6 +692,30 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
         "test-apple-create-readiness-contract",
         "test-webapi",
     ]
+    assert select_targets(["modules/webapi/routers/audio.py"]) == [
+        "test-backend-audio-routes",
+        "test-web-create-intake-focused",
+        "test-apple-create-readiness-contract",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/schemas/audio.py"]) == [
+        "test-backend-audio-routes",
+        "test-web-create-intake-focused",
+        "test-apple-create-readiness-contract",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/schemas/audio_synthesis.py"]) == [
+        "test-backend-audio-routes",
+        "test-web-create-intake-focused",
+        "test-apple-create-readiness-contract",
+        "test-webapi",
+    ]
+    assert select_targets(["tests/modules/webapi/test_audio_routes.py"]) == [
+        "test-backend-audio-routes",
+        "test-web-create-intake-focused",
+        "test-apple-create-readiness-contract",
+        "test-webapi",
+    ]
     assert select_targets(["modules/webapi/routers/reading_beds.py"]) == [
         "test-backend-reading-beds",
         "test-webapi",

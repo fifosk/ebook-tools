@@ -337,6 +337,11 @@ source, chapter, and language defaults, so changed-test routing now checks the
 consumers as well as the backend slice. Subtitle picker/router edits route to
 `test-backend-subtitle-router`, so the Apple Create source dialogs keep their
 focused backend contracts when shared Web/API files change.
+Audio synthesis and voice-inventory route/schema edits route to
+`test-backend-audio-routes`, `test-web-create-intake-focused`, and
+`test-apple-create-readiness-contract`, keeping Web Narrate Ebook voice pickers
+and Apple Create voice previews aligned with backend `/api/audio` and
+`/api/audio/voices` contracts.
 Native Apple Create SwiftUI and creation API-client changes route to the
 focused `test-apple-create-readiness-contract` plus iPhone/iPad and tvOS
 simulator builds, so Create parity edits compile across Apple surfaces before
