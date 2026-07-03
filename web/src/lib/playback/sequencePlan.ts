@@ -77,6 +77,17 @@ function readSentenceGate(
   return { start: safeStart, end: safeEnd };
 }
 
+function trimOverlappingSegments(segments: SequenceSegment[]): SequenceSegment[] {
+  return segments.flatMap((segment, index) => {
+    const nextSameTrack = segments.slice(index + 1).find((candidate) => candidate.track === segment.track);
+    if (!nextSameTrack) return [segment];
+    const trimmedEnd = Math.min(segment.end, nextSameTrack.start);
+    if (trimmedEnd <= segment.start) return [];
+    if (trimmedEnd >= segment.end) return [segment];
+    return [{ ...segment, end: trimmedEnd }];
+  });
+}
+
 // ─── Plan building ────────────────────────────────────────────────────
 
 /**
@@ -174,7 +185,7 @@ export function buildSequencePlan(
   });
 
   if (!isSingleSentence) {
-    return segments;
+    return trimOverlappingSegments(segments);
   }
 
   // Single-sentence fallback: fill missing track from audio durations
@@ -190,7 +201,7 @@ export function buildSequencePlan(
     }
   }
 
-  return segments;
+  return trimOverlappingSegments(segments);
 }
 
 // ─── Segment lookup ───────────────────────────────────────────────────

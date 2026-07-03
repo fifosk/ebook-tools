@@ -23,6 +23,17 @@ export type SequenceSegment = {
   sentenceIndex: number;
 };
 
+function trimOverlappingSequenceSegments(segments: SequenceSegment[]): SequenceSegment[] {
+  return segments.flatMap((segment, index) => {
+    const nextSameTrack = segments.slice(index + 1).find((candidate) => candidate.track === segment.track);
+    if (!nextSameTrack) return [segment];
+    const trimmedEnd = Math.min(segment.end, nextSameTrack.start);
+    if (trimmedEnd <= segment.start) return [];
+    if (trimmedEnd >= segment.end) return [segment];
+    return [{ ...segment, end: trimmedEnd }];
+  });
+}
+
 type SequenceState = {
   enabled: boolean;
   enabledRef: React.MutableRefObject<boolean>;
@@ -219,7 +230,7 @@ export function useInteractiveAudioSequence({
     }
 
     if (!isSingleSentence) {
-      return segments;
+      return trimOverlappingSequenceSegments(segments);
     }
 
     if (!hasOriginalGate || !hasTranslationGate) {
@@ -235,7 +246,7 @@ export function useInteractiveAudioSequence({
       }
     }
 
-    return segments;
+    return trimOverlappingSequenceSegments(segments);
   }, [audioTracks, chunk]);
 
   const hasOriginalSegments = useMemo(

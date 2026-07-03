@@ -190,6 +190,35 @@ private func runSingleTrackPlanInitialLaneCheck() {
     )
 }
 
+@MainActor
+private func runOverlappingGateTrimCheck() {
+    let controller = SequencePlaybackController()
+    controller.buildPlan(
+        from: [
+            sentence(originalStart: 0.0, originalEnd: 2.25, translationStart: 0.0, translationEnd: 1.35),
+            sentence(originalStart: 2.0, originalEnd: 3.0, translationStart: 1.2, translationEnd: 2.2)
+        ],
+        originalTrackURL: URL(fileURLWithPath: "/tmp/original.m4a"),
+        translationTrackURL: URL(fileURLWithPath: "/tmp/translation.m4a"),
+        originalDuration: nil,
+        translationDuration: nil,
+        mode: .sequence
+    )
+
+    let firstOriginal = controller.plan.first { $0.track == .original && $0.sentenceIndex == 0 }
+    let firstTranslation = controller.plan.first { $0.track == .translation && $0.sentenceIndex == 0 }
+    requireEqual(
+        firstOriginal?.end,
+        Optional(2.0),
+        "Original segment should end at the next original start when gates overlap"
+    )
+    requireEqual(
+        firstTranslation?.end,
+        Optional(1.2),
+        "Translation segment should end at the next translation start when gates overlap"
+    )
+}
+
 @main
 struct SequencePauseCancelCheck {
     @MainActor
@@ -198,5 +227,6 @@ struct SequencePauseCancelCheck {
         runTransitionCancellationCheck()
         runReaderTransportPauseCancellationCheck()
         runSingleTrackPlanInitialLaneCheck()
+        runOverlappingGateTrimCheck()
     }
 }

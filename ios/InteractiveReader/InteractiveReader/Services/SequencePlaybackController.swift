@@ -343,12 +343,12 @@ final class SequencePlaybackController: ObservableObject {
             }
         }
 
-        plan = segments
+        plan = trimOverlappingSegments(segments)
 
         // Sequence mode requires both tracks and segments for both
         // AND both audio toggles must be enabled (matching Web UI behavior)
-        let hasOriginalSegments = segments.contains { $0.track == .original }
-        let hasTranslationSegments = segments.contains { $0.track == .translation }
+        let hasOriginalSegments = plan.contains { $0.track == .original }
+        let hasTranslationSegments = plan.contains { $0.track == .translation }
         let bothTogglesEnabled = isOriginalAudioEnabled && isTranslationAudioEnabled
         isEnabled = originalTrackURL != nil
             && translationTrackURL != nil
@@ -372,7 +372,27 @@ final class SequencePlaybackController: ObservableObject {
             installBoundaryForCurrentSegment()
         }
 
-        debugLog("Plan: \(segments.count) segs, enabled=\(isEnabled), origToggle=\(isOriginalAudioEnabled), transToggle=\(isTranslationAudioEnabled)")
+        debugLog("Plan: \(plan.count) segs, enabled=\(isEnabled), origToggle=\(isOriginalAudioEnabled), transToggle=\(isTranslationAudioEnabled)")
+    }
+
+    private func trimOverlappingSegments(_ segments: [SequenceSegment]) -> [SequenceSegment] {
+        segments.enumerated().compactMap { index, segment in
+            guard let nextStart = segments.dropFirst(index + 1)
+                .first(where: { $0.track == segment.track })?
+                .start
+            else {
+                return segment
+            }
+            let trimmedEnd = min(segment.end, nextStart)
+            guard trimmedEnd > segment.start else { return nil }
+            guard trimmedEnd < segment.end else { return segment }
+            return SequenceSegment(
+                track: segment.track,
+                start: segment.start,
+                end: trimmedEnd,
+                sentenceIndex: segment.sentenceIndex
+            )
+        }
     }
 
     private func initialTrackForMode(

@@ -82,6 +82,28 @@ describe('buildSequencePlan', () => {
     expect(plan[3]).toEqual({ track: 'translation', start: 2.0, end: 4.0, sentenceIndex: 1 });
   });
 
+  it('trims overlapping gates to the next same-track sentence start', () => {
+    const sentences = [
+      makeSentence({
+        originalStartGate: 0.0,
+        originalEndGate: 2.25,
+        startGate: 0.0,
+        endGate: 1.35,
+      }),
+      makeSentence({
+        originalStartGate: 2.0,
+        originalEndGate: 3.0,
+        startGate: 1.2,
+        endGate: 2.2,
+      }),
+    ];
+    const plan = buildSequencePlan(sentences, null, { sentenceCount: 2 });
+    expect(plan[0]).toEqual({ track: 'original', start: 0.0, end: 2.0, sentenceIndex: 0 });
+    expect(plan[1]).toEqual({ track: 'translation', start: 0.0, end: 1.2, sentenceIndex: 0 });
+    expect(plan[2]).toEqual({ track: 'original', start: 2.0, end: 3.0, sentenceIndex: 1 });
+    expect(plan[3]).toEqual({ track: 'translation', start: 1.2, end: 2.2, sentenceIndex: 1 });
+  });
+
   it('derives gates from phaseDurations when gate data is absent', () => {
     const sentences = [
       makeSentence({

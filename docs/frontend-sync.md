@@ -492,7 +492,11 @@ Follow the suggested remediations to restore parity:
   intent alive for the bed, but on tvOS it mutes and fades about 300ms before
   the segment boundary, pauses, and pins the sentence player at the boundary
   before seeking to the next segment so output-buffer tail audio cannot leak the
-  next sentence before the handoff. Async fade installation must also verify the
+  next sentence before the handoff. Web and Apple sequence-plan builders must
+  also clamp overlapping same-track gates to the next same-track sentence start
+  before installing boundary observers or fade windows, so loose
+  `originalEndGate`/`endGate` values cannot include a sliver of the following
+  sentence. Async fade installation must also verify the
   AVPlayer item is still current before mutating `audioMix`, because remote URL
   track loading can complete after a same-sentence Original -> Translation item
   switch.

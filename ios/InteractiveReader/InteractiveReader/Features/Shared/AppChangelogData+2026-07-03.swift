@@ -41,6 +41,11 @@ extension AppChangelogData {
             detail: "Apple TV interactive reader sequence playback now mutes and fades sentence boundaries earlier and ignores stale fade work after an AVPlayer item changes, reducing cut-short next-sentence audio before the translation track starts."
         ),
         AppChangelogEntry(
+            id: "sequence-gates-trim-overlaps",
+            title: "Sequence gates avoid overlaps",
+            detail: "Web and Apple sequence playback now trim overlapping same-track sentence gates to the next sentence start, so a loose original or translation end gate cannot play a sliver of the following sentence before the handoff."
+        ),
+        AppChangelogEntry(
             id: "tvos-autoplay-audio-state-flood-guard",
             title: "TV playback stops retry floods",
             detail: "Apple TV Job and Library playback no longer let rapid audio-state pulses repeatedly restart pending interactive autoplay while the Apple Music bed is pausing, preventing Living Room sessions from looping on one sentence."
