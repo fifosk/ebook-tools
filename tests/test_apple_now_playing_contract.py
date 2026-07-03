@@ -1151,7 +1151,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "ownershipState == .appleMusicBed" in ignored_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
     assert "!isReaderNarrationActiveForMusicBed" not in ignored_observed_pause_body
-    assert "!isManuallyPaused" in ignored_observed_pause_body
+    assert "!isManuallyPaused" not in ignored_observed_pause_body
     assert "!isPausedByReaderTransport" in ignored_observed_pause_body
     assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in observed_non_playing_body
     assert 'adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")' in music
@@ -1283,6 +1283,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "var isFullscreenMusicArtworkSuppressed: Bool" in music
     assert "func isReaderTransportResumeBarrierCurrent(_ barrier: Int) -> Bool" in music
     assert "func refreshMusicPlaybackSurfaceSuppression(reason: String)" in music
+    pause_body = _function_body(music, "func pause(userInitiated: Bool = true)")
+    assert "if userInitiated, ownershipState == .appleMusicBed" in pause_body
+    assert 'adoptPauseAsReaderTransport(reason: "manualPause", source: "music surface")' in pause_body
+    assert pause_body.index("adoptPauseAsReaderTransport") < pause_body.index("cancelReaderTransportResumeTask")
     assert "private func cancelReaderTransportResumeTask(reason: String)" in music
     assert "private func isExpectedReaderTransportResumeCurrent(_ expectedBarrier: Int?) -> Bool" in music
     assert "private var shouldSuppressObservedPlayDuringReaderPause: Bool" in music
@@ -2110,11 +2114,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "static var readerTransportCommandCount = 0" in chrome
     assert "MusicBedSyncE2EState.readerTransportCommandCount = readerTransportCommandCount" in chrome
     assert "private func runAutoSequenceIfNeeded() async" in chrome
+    auto_sequence_body = _function_body(chrome, "private func runAutoSequenceIfNeeded() async")
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in _function_body(
         chrome,
         "private func scheduleTVOSSetupResumeIfNeeded(phase: String)",
     )
     setup_resume_body = _function_body(chrome, "private func scheduleTVOSSetupResumeIfNeeded(phase: String)")
+    assert 'if phase == "play"' in setup_resume_body
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 0.25)" in setup_resume_body
+    assert "attemptInteractiveStartForE2EIfReady()" in setup_resume_body
     assert "guard readerTransportCommandCount == 0 else { return }" in setup_resume_body
     assert "guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }" in setup_resume_body
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in setup_resume_body
@@ -2123,15 +2131,22 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "let initialPauseDelay: TimeInterval = 8.0" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 36.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 104.0)" in chrome
+    assert "guard musicOwnership.e2eObservedPauseProbeCount == 0 else { return }" in auto_sequence_body
     assert "for retryDelay in [62.0, 68.0, 72.0, 76.0, 88.0, 96.0, 100.0, 112.0, 132.0]" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in chrome
     assert "private func attemptInteractiveStartForE2EIfReady()" in chrome
-    auto_sequence_body = _function_body(chrome, "private func runAutoSequenceIfNeeded() async")
     assert auto_sequence_body.count("guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }") >= 4
     attempt_interactive_body = _function_body(chrome, "private func attemptInteractiveStartForE2EIfReady()")
     assert "guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }" in attempt_interactive_body
-    assert "guard MusicBedSyncE2EState.interactiveStartCommandCount == 0 else { return }" in attempt_interactive_body
+    assert "guard hasReaderContext else { return }" in attempt_interactive_body
     assert 'guard musicOwnership.e2eMusicBedSyncPhase == "play" else { return }' in attempt_interactive_body
+    assert "let isInitialInteractiveStart = MusicBedSyncE2EState.interactiveStartCommandCount == 0" in attempt_interactive_body
+    assert "let canRecoverObservedPause = MusicBedSyncE2EState.interactiveStartCommandCount > 0" in attempt_interactive_body
+    assert "musicOwnership.e2eObservedPauseProbeCount > 0" in attempt_interactive_body
+    assert "!audioCoordinator.isPlaybackRequested" in attempt_interactive_body
+    assert "!audioCoordinator.isPlaying" in attempt_interactive_body
+    assert "guard isInitialInteractiveStart || canRecoverObservedPause else { return }" in attempt_interactive_body
+    assert "if isInitialInteractiveStart" in attempt_interactive_body
     assert "MusicBedSyncE2EState.interactiveStartCommandCount += 1" in attempt_interactive_body
     assert "onInteractiveStartCommand()" in attempt_interactive_body
     assert "audioCoordinator.restoreVolume()" in attempt_interactive_body

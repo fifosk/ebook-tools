@@ -1619,6 +1619,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
 
     pause_body = _function_body(music, "func pause(userInitiated: Bool = true)")
     assert "cancelPlaybackSurfaceReassertions()" in pause_body
+    assert "if userInitiated, ownershipState == .appleMusicBed" in pause_body
+    assert 'adoptPauseAsReaderTransport(reason: "manualPause", source: "music surface")' in pause_body
+    assert pause_body.index("adoptPauseAsReaderTransport") < pause_body.index("cancelReaderTransportResumeTask")
     assert "if userInitiated" in pause_body
     assert "isManuallyPaused = true" in pause_body
     assert "isPausedByReaderTransport = false" in pause_body
@@ -1742,7 +1745,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "ownershipState == .appleMusicBed" in ignored_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
     assert "!isReaderNarrationActiveForMusicBed" not in ignored_observed_pause_body
-    assert "!isManuallyPaused" in ignored_observed_pause_body
+    assert "!isManuallyPaused" not in ignored_observed_pause_body
     assert "!isPausedByReaderTransport" in ignored_observed_pause_body
     immediate_observed_pause_body = _function_body(
         music,

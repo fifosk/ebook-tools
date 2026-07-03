@@ -6,6 +6,11 @@ extension AppChangelogData {
             detail: "Golden Apple pipeline verification now runs the serial iPad plus tvOS Music-bed candidate gate after the dogfood pipeline, keeping pause/resume and lookup regressions inside the no-physical-deploy readiness recipe."
         ),
         AppChangelogEntry(
+            id: "apple-music-bed-manual-pause-adopts-reader",
+            title: "Music-bed pause is unified",
+            detail: "When Apple Music is serving as the reading bed, manual or system Music-surface pauses now adopt the reader transport pause path even if Music was already marked manually paused, so one pause intent stops both the bed and sentence narration."
+        ),
+        AppChangelogEntry(
             id: "apple-music-bed-active-pause-after-echo",
             title: "TV pause keeps both layers together",
             detail: "Apple TV Music-bed pause now keeps the short post-resume echo guard, but after that window a MusicKit pause observed while narration is still requested or playing is mirrored into sentence transport immediately so one press can pause both layers."

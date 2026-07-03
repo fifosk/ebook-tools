@@ -545,6 +545,12 @@ struct MusicBedSyncE2EControls: View {
     #if os(tvOS)
     @MainActor
     private func scheduleTVOSSetupResumeIfNeeded(phase: String) {
+        if phase == "play" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                attemptInteractiveStartForE2EIfReady()
+            }
+            return
+        }
         guard phase == "observedPauseImmediate" else { return }
         guard readerTransportCommandCount == 0 else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 45.0) {
@@ -578,6 +584,7 @@ struct MusicBedSyncE2EControls: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 104.0) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
+            guard musicOwnership.e2eObservedPauseProbeCount == 0 else { return }
             musicOwnership.simulateObservedNonPlayingPauseForE2E()
         }
         for retryDelay in [62.0, 68.0, 72.0, 76.0, 88.0, 96.0, 100.0, 112.0, 132.0] {
@@ -597,17 +604,27 @@ struct MusicBedSyncE2EControls: View {
 
     private func attemptInteractiveStartForE2EIfReady() {
         guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
-        guard MusicBedSyncE2EState.interactiveStartCommandCount == 0 else { return }
+        guard hasReaderContext else { return }
         guard musicOwnership.e2eMusicBedSyncPhase == "play" else { return }
-        MusicBedSyncE2EState.interactiveStartCommandCount += 1
+        let isInitialInteractiveStart = MusicBedSyncE2EState.interactiveStartCommandCount == 0
+        let canRecoverObservedPause = MusicBedSyncE2EState.interactiveStartCommandCount > 0 &&
+            musicOwnership.e2eObservedPauseProbeCount > 0 &&
+            !audioCoordinator.isPlaybackRequested &&
+            !audioCoordinator.isPlaying
+        guard isInitialInteractiveStart || canRecoverObservedPause else { return }
+        if isInitialInteractiveStart {
+            MusicBedSyncE2EState.interactiveStartCommandCount += 1
+        }
         onInteractiveStartCommand()
         audioCoordinator.restoreVolume()
         if audioCoordinator.isPlaybackRequested {
             audioCoordinator.play()
         }
         #if os(tvOS)
-        for observedPauseDelay in [8_000_000_000, 20_000_000_000, 36_000_000_000, 52_000_000_000] as [UInt64] {
-            scheduleObservedPauseProbeForE2EIfNeeded(after: observedPauseDelay)
+        if isInitialInteractiveStart {
+            for observedPauseDelay in [8_000_000_000, 20_000_000_000, 36_000_000_000, 52_000_000_000] as [UInt64] {
+                scheduleObservedPauseProbeForE2EIfNeeded(after: observedPauseDelay)
+            }
         }
         #endif
         Task { @MainActor in

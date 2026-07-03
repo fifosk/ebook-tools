@@ -192,13 +192,18 @@ broker, Music-surface, and rejected-play pause acceptance; if narration still
 reports `requested` or `playing`, the reader issues another transport pause and
 republishes paused Now Playing metadata. That targets the physical split-pause
 case where the first remote press stopped the Apple Music bed while sentence
-audio continued until a second press. Healthy DEBUG playback logs should include
+audio continued until a second press. Manual or observed Music-surface pauses in
+reading-bed mode must adopt the same reader-transport pause path even when the
+Music coordinator has already marked the bed manually paused. Healthy DEBUG playback logs should include
 `confirmed reader pause source=... requested=false playing=false` before the
 next transport command, and the pulled-log verifier rejects a pause episode that
 never settles.
 The simulator journey also taps the debug reader `play` command while that
 pause guard is active and asserts the reader transport command count stays
 unchanged, proving stray Music-surface play callbacks do not resume narration.
+The DEBUG observed-pause retry is only a missed-probe fallback: once a probe has
+paused and recovered the bed, later timed retries must not fire again and
+re-pause the reader before the remote Play/Pause assertions begin.
 The tvOS Music surface guard also runs a live
 fullscreen-artwork watchdog while Apple Music is only the reading bed, so device
 logs may show `fullscreen artwork suppression watchdog started` and

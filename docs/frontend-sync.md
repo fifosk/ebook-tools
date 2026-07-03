@@ -442,7 +442,8 @@ Follow the suggested remediations to restore parity:
   observations during active narration as reader-pause adoption before bed
   recovery so the first remote pause cannot stop only Music, let the watchdog re-pause narration before returning for
   the Music pause guard, pause the tvOS Music player immediately on reader-owned
-  pauses, preserve fullscreen-artwork suppression while resuming Apple Music as
+  pauses, convert manual Music-surface pauses in `appleMusicBed` into the same
+  reader transport pause path, preserve fullscreen-artwork suppression while resuming Apple Music as
   a bed under narration, preserve the remembered Apple Music selection for the next reader resume, and clear
   stale pause-ignore state on reader resume so
   Apple Music cannot immediately resume narration or promote fullscreen artwork.
@@ -548,7 +549,9 @@ Follow the suggested remediations to restore parity:
   On tvOS, an Apple Music non-playing observation while Apple Music is the
   reader-owned bed adopts the reader-owned pause guard first, so a Siri Remote
   pause that reaches Music before the app still pauses both Apple Music and
-  sentence audio. That adoption publishes a dedicated pause pulse and calls the
+  sentence audio. The adoption gate must not reject the event merely because
+  Music was already marked manually paused; in reading-bed mode, that still
+  represents one combined reader pause intent. That adoption publishes a dedicated pause pulse and calls the
   active Job/Library playback view's owner-scoped handler before later SwiftUI
   publisher ordering can drift; those views should not re-enter the MusicKit
   reader-transport pause path when that guard is already active, but they should

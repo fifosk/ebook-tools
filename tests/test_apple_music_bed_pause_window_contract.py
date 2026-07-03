@@ -157,7 +157,7 @@ def test_tvos_active_music_pause_adopts_before_recovery() -> None:
     assert "#if os(tvOS)" in confirm_gate_body
     assert "ownershipState == .appleMusicBed" in confirm_gate_body
     assert "isReaderNarrationActiveForMusicBed" in confirm_gate_body
-    assert "!isManuallyPaused" in confirm_gate_body
+    assert "!isManuallyPaused" not in confirm_gate_body
     assert "!isPausedByReaderTransport" in confirm_gate_body
     assert "Task.sleep" not in confirm_body
     assert "adopting active tvOS reader pause immediately" in confirm_body
