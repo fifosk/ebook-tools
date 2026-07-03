@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-foreground-remote-pause-reader-first",
+            title: "TV remote pause reaches the reader",
+            detail: "Apple TV foreground Siri Remote Play/Pause presses now bypass the broker-echo rejection before force-pause resolution, so a real Living Room pause can stop sentence narration and the Apple Music bed on the first press."
+        ),
+        AppChangelogEntry(
             id: "direct-player-music-bed-pause-mirror",
             title: "Embedded readers pause together",
             detail: "Direct Apple interactive player embeds now mirror reader-owned Apple Music bed pauses into narration before reinforcing the Music pause, so reusable consumers without the Job/Library shell avoid split Music-only pauses."

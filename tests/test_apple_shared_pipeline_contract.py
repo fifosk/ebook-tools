@@ -733,9 +733,13 @@ def test_july3_music_bed_pause_sync_is_visible_in_changelogs() -> None:
     markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
 
     assert 'id: "2026-07-03"' in swift_changelog
+    assert 'id: "tvos-foreground-remote-pause-reader-first"' in swift_changelog
     assert 'id: "apple-music-bed-reader-active-bridge"' in swift_changelog
     assert 'id: "apple-music-bed-single-pause-sync"' in swift_changelog
     for source in (swift_changelog, markdown_changelog):
+        assert "Siri Remote Play/Pause presses" in source
+        assert "broker-echo rejection" in source
+        assert "Living Room pause" in source
         assert "requested-play state" in source
         assert "Music surface changes" in source
         assert "track handoff timing gaps" in source
