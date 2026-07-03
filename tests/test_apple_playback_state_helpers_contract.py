@@ -1155,9 +1155,10 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     assert "segment.end - dwellPinBackoff" in pin_time_body
     install_body = _function_body(controller, "private func installBoundaryForCurrentSegment()")
     assert "boundaryTriggerTime(for: segment)" in install_body
-    assert "segment.end - fadeOutDuration" in install_body
+    assert "let fadeEnd = boundaryTime" in install_body
+    assert "fadeEnd - fadeOutDuration" in install_body
     assert "onInstallBoundary?(boundaryTime)" in install_body
-    assert "onApplySegmentFade?(fadeStart, segment.end)" in install_body
+    assert "onApplySegmentFade?(fadeStart, fadeEnd)" in install_body
     boundary_body = _function_body(controller, "func boundaryReached()")
     assert "onPauseForDwell?(dwellPinTime(for: segment))" in boundary_body
     update_body = _function_body(controller, "func updateForTime(_ time: Double, isPlaying: Bool) -> Bool")

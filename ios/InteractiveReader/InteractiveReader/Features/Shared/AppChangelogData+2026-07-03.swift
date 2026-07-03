@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-sequence-fade-ends-at-handoff",
+            title: "TV handoff fades end earlier",
+            detail: "Interactive reader sequence playback now fades the active audio track to silence at the same early handoff boundary used by the TV boundary observer, preventing a short piece of the next sentence from leaking before the translation track starts."
+        ),
+        AppChangelogEntry(
             id: "tvos-sequence-dwell-pins-before-boundary",
             title: "TV handoffs avoid next-sentence slivers",
             detail: "Interactive reader sequence dwell now pins muted playback just before the sentence boundary and uses the same early boundary for fallback checks, reducing cases where Apple TV can leak a tiny piece of the next original sentence before switching to the translation track."

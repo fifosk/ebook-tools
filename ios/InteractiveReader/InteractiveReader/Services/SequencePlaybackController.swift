@@ -469,10 +469,12 @@ final class SequencePlaybackController: ObservableObject {
         logBoundary("Installing boundary at \(String(format: "%.3f", boundaryTime)) (end=\(String(format: "%.3f", segment.end))) for seg[\(currentSegmentIndex)] \(segment.track.rawValue)")
         onInstallBoundary?(boundaryTime)
 
-        // Apply decode-level fade-out to guarantee silence at segment boundary,
-        // regardless of HDMI/Core Audio output buffer depth.
-        let fadeStart = max(segment.start + 0.01, segment.end - fadeOutDuration)
-        onApplySegmentFade?(fadeStart, segment.end)
+        // Apply decode-level fade-out so the source is already silent at the
+        // same early handoff boundary used by the observer/fallback path. Using
+        // segment.end here leaves a non-zero tail during the tvOS buffer window.
+        let fadeEnd = boundaryTime
+        let fadeStart = max(segment.start + 0.01, fadeEnd - fadeOutDuration)
+        onApplySegmentFade?(fadeStart, fadeEnd)
     }
 
     /// Called by the view layer when the AVPlayer boundary time observer fires.
