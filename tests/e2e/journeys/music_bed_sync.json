@@ -233,6 +233,13 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
+      "text": "bothPlaying=true",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
       "text": "readerPause=false",
       "platforms": ["iPad"],
       "timeout": 10,
@@ -562,6 +569,13 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
+      "text": "bothPlaying=true",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
       "text": "surface=reader",
       "platforms": ["tvOS"],
       "timeout": 10
@@ -628,6 +642,13 @@
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "music=playing",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "bothPlaying=true",
       "platforms": ["tvOS"],
       "timeout": 10
     },
@@ -736,6 +757,13 @@
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "music=playing",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "bothPlaying=true",
       "platforms": ["tvOS"],
       "timeout": 10
     },
@@ -882,6 +910,13 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
+      "text": "bothPlaying=true",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
       "text": "surface=reader",
       "platforms": ["tvOS"],
       "timeout": 10
@@ -1021,6 +1056,13 @@
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "music=playing",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "bothPlaying=true",
       "platforms": ["tvOS"],
       "timeout": 10
     },

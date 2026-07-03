@@ -349,6 +349,15 @@ def test_music_bed_validator_requires_combined_pause_assertions(tmp_path: Path) 
     assert any("requires 'bothPaused=true' immediately after 'music_bed_remote_pause_observed'" in error for error in errors)
 
 
+def test_music_bed_validator_requires_combined_resume_assertions(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_text="bothPlaying=true")
+
+    errors = module.validate_journey(journey)
+
+    assert any("requires 'bothPlaying=true' immediately after 'music_bed_remote_play_pressed'" in error for error in errors)
+
+
 def test_music_bed_validator_requires_audible_resume_assertions(tmp_path: Path) -> None:
     journey = tmp_path / "music_bed_sync.json"
     _write_music_bed_journey(journey, remove_text="audible=true")
