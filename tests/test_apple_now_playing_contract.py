@@ -2218,12 +2218,20 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "isReaderPlaying &&" in status_body
     assert "isReaderVolumeOn &&" in status_body
     assert "!isReaderSequenceTransitioning" in status_body
+    assert "let isMusicPlaying = musicOwnership.isPlaying" in status_body
+    assert "let areBothPaused = !isReaderPlaybackRequested &&" in status_body
+    assert "!isReaderPlaying &&" in status_body
+    assert "!isMusicPlaying" in status_body
+    assert "let areBothPlaying = isReaderAudible && isMusicPlaying" in status_body
     assert '"guard=\\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")"' in chrome
     assert '"reader=\\(isReaderPlaying ? "playing" : "paused")"' in status_body
     assert '"requested=\\(isReaderPlaybackRequested ? "true" : "false")"' in status_body
     assert '"audible=\\(isReaderAudible ? "true" : "false")"' in status_body
+    assert '"bothPaused=\\(areBothPaused ? "true" : "false")"' in status_body
+    assert '"bothPlaying=\\(areBothPlaying ? "true" : "false")"' in status_body
     assert '"transitioning=\\(isReaderSequenceTransitioning ? "true" : "false")"' in chrome
     assert '"volume=\\(isReaderVolumeOn ? "on" : "muted")"' in status_body
+    assert '"music=\\(isMusicPlaying ? "playing" : "paused")"' in status_body
     assert '"owner=\\(musicOwnership.ownershipState)"' in chrome
     assert '"surface=\\(musicOwnership.isReaderPlaybackSurfaceActive ? "reader" : "music")"' in chrome
     assert '"fullscreen=\\(musicOwnership.isFullscreenMusicArtworkSuppressed ? "blocked" : "available")"' in chrome

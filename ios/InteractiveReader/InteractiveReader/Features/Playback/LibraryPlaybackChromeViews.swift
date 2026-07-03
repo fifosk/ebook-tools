@@ -661,13 +661,20 @@ struct MusicBedSyncE2EControls: View {
             isReaderPlaying &&
             isReaderVolumeOn &&
             !isReaderSequenceTransitioning
+        let isMusicPlaying = musicOwnership.isPlaying
+        let areBothPaused = !isReaderPlaybackRequested &&
+            !isReaderPlaying &&
+            !isMusicPlaying
+        let areBothPlaying = isReaderAudible && isMusicPlaying
         var fields = [
             "reader=\(isReaderPlaying ? "playing" : "paused")",
             "requested=\(isReaderPlaybackRequested ? "true" : "false")",
             "audible=\(isReaderAudible ? "true" : "false")",
+            "bothPaused=\(areBothPaused ? "true" : "false")",
+            "bothPlaying=\(areBothPlaying ? "true" : "false")",
             "transitioning=\(isReaderSequenceTransitioning ? "true" : "false")",
             "volume=\(isReaderVolumeOn ? "on" : "muted")",
-            "music=\(musicOwnership.isPlaying ? "playing" : "paused")",
+            "music=\(isMusicPlaying ? "playing" : "paused")",
             "player=\(audioCoordinator.nowPlayingPlayer == nil ? "missing" : "ready")",
             "context=\(hasReaderContext ? "ready" : "missing")",
             "video=\(isVideoPreferred ? "true" : "false")",

@@ -647,6 +647,13 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                     "platforms": ["tvOS"],
                     "timeout": 3,
                 },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "bothPaused=true",
+                    "platforms": ["tvOS"],
+                    "timeout": 3,
+                },
             ],
         )
     )
@@ -804,6 +811,13 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 {
                     "action": "assert_value_contains",
                     "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "bothPaused=true",
+                    "platforms": ["iPad"],
+                    "timeout": 3,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
                     "text": "readerPause=true",
                     "platforms": ["iPad"],
                     "timeout": 3,
@@ -899,6 +913,13 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                     "action": "assert_value_contains",
                     "selector": MUSIC_BED_STATUS_SELECTOR,
                     "text": "music=paused",
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "bothPaused=true",
                     "platforms": ["tvOS"],
                     "timeout": 10,
                 },
