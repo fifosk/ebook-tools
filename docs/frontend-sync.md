@@ -321,6 +321,11 @@ Follow the suggested remediations to restore parity:
   persistent stopped bed or an explicit reader transport pause should latch the
   reader into a paused state; otherwise normal playback can stop without a
   remote command and the next Siri Remote press is misread as resume.
+  Pending interactive autoplay recovery must also stop when that reader-owned
+  pause is active, when the pause guard is active, when the Music bed is
+  manually paused, or when the last reader action was pause. Recovery retries
+  are for real startup stalls, not for re-jumping the same sentence while the
+  user has intentionally paused playback.
   Slider/search/bookmark jumps in single-track mode set an explicit sentence
   anchor as soon as the jump is requested and keep that anchor alive through
   metadata/audio settling, so the first post-jump skip cannot use stale

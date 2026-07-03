@@ -1689,13 +1689,33 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     job_audio_state_body = _function_body(job, "private func handleAudioStateChange()")
     assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in job_audio_state_body
     assert 'refreshReaderNarrationActivityForMusicBed(reason: "jobAudioState")' in job_audio_state_body
+    assert 'clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "jobAudioState")' in job_audio_state_body
+    assert job_audio_state_body.index(
+        'clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "jobAudioState")'
+    ) < job_audio_state_body.index('recoverPendingInteractiveAutoplayIfNeeded(reason: "jobAudioState")')
     assert 'recoverPendingInteractiveAutoplayIfNeeded(reason: "jobAudioState")' in job_audio_state_body
     assert 'recoverMutedAppleMusicBedNarrationIfNeeded(reason: "jobAudioState")' in job_audio_state_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in job_audio_state_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_audio_state_body
     assert "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)" in job
+    job_pending_recovery_body = _function_body(job, "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)")
+    assert "clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason)" in job_pending_recovery_body
+    job_pending_clear_body = _function_body(job, "func clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: String)")
+    assert "musicOwnership.isPausedByReaderTransport" in job_pending_clear_body
+    assert "musicOwnership.isReaderTransportPauseGuardActive" in job_pending_clear_body
+    assert "musicOwnership.isManuallyPaused" in job_pending_clear_body
+    assert 'lastReaderTransportAction == "pause"' in job_pending_clear_body
+    assert "pendingInteractiveAutoplayID = nil" in job_pending_clear_body
+    assert "pendingInteractiveAutoplaySentence = nil" in job_pending_clear_body
+    assert "clearing pending interactive autoplay" in job_pending_clear_body
     assert "viewModel.jumpToSentence(pendingSentence, autoPlay: true)" in job
     assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in job
+    job_resume = _source(PLAYBACK / "JobPlaybackView+Resume.swift")
+    job_retry_body = _function_body(job_resume, "func scheduleInteractiveAutoplayRetry(")
+    assert 'clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "jobAutoplayRetry")' in job_retry_body
+    assert job_retry_body.index(
+        'clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "jobAutoplayRetry")'
+    ) < job_retry_body.index("if isInteractiveAutoplaySettled(for: sentence)")
     assert "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)" in job
     job_muted_recovery_body = _function_body(job, "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)")
     assert "!musicOwnership.isPausedByReaderTransport" in job_muted_recovery_body
@@ -1973,13 +1993,33 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     library_audio_state_body = _function_body(library, "private func handleAudioStateChange()")
     assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in library_audio_state_body
     assert 'refreshReaderNarrationActivityForMusicBed(reason: "libraryAudioState")' in library_audio_state_body
+    assert 'clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "libraryAudioState")' in library_audio_state_body
+    assert library_audio_state_body.index(
+        'clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "libraryAudioState")'
+    ) < library_audio_state_body.index('recoverPendingInteractiveAutoplayIfNeeded(reason: "libraryAudioState")')
     assert 'recoverPendingInteractiveAutoplayIfNeeded(reason: "libraryAudioState")' in library_audio_state_body
     assert 'recoverMutedAppleMusicBedNarrationIfNeeded(reason: "libraryAudioState")' in library_audio_state_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_audio_state_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_audio_state_body
     assert "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)" in library
+    library_pending_recovery_body = _function_body(library, "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)")
+    assert "clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason)" in library_pending_recovery_body
+    library_pending_clear_body = _function_body(library, "func clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: String)")
+    assert "musicOwnership.isPausedByReaderTransport" in library_pending_clear_body
+    assert "musicOwnership.isReaderTransportPauseGuardActive" in library_pending_clear_body
+    assert "musicOwnership.isManuallyPaused" in library_pending_clear_body
+    assert 'lastReaderTransportAction == "pause"' in library_pending_clear_body
+    assert "pendingInteractiveAutoplayID = nil" in library_pending_clear_body
+    assert "pendingInteractiveAutoplaySentence = nil" in library_pending_clear_body
+    assert "clearing pending interactive autoplay" in library_pending_clear_body
     assert "viewModel.jumpToSentence(pendingSentence, autoPlay: true)" in library
     assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in library
+    library_resume = _source(PLAYBACK / "LibraryPlaybackView+Resume.swift")
+    library_retry_body = _function_body(library_resume, "private func scheduleInteractiveAutoplayRetry(")
+    assert 'clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "libraryAutoplayRetry")' in library_retry_body
+    assert library_retry_body.index(
+        'clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "libraryAutoplayRetry")'
+    ) < library_retry_body.index("if isInteractiveAutoplaySettled(for: sentence)")
     assert "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)" in library
     library_muted_recovery_body = _function_body(library, "private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String)")
     assert "!musicOwnership.isPausedByReaderTransport" in library_muted_recovery_body

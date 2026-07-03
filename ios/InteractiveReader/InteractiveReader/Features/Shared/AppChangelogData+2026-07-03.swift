@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-paused-reader-cancels-autoplay-retry",
+            title: "TV paused readers stop retrying",
+            detail: "Apple TV Job and Library playback now cancels pending interactive autoplay retries whenever the reader-owned Apple Music bed is paused, preventing Living Room sessions from looping on the same sentence with no playback."
+        ),
+        AppChangelogEntry(
             id: "tvos-music-bed-autoplay-stale-pause-guard",
             title: "TV autoplay avoids Music-bed loops",
             detail: "Apple TV Job and Library playback now treat pending interactive autoplay as part of the deferred Music-bed resume window, so a stale non-playing Music callback no longer cancels narration into a retry loop."

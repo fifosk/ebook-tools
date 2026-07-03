@@ -91,6 +91,7 @@ extension LibraryPlaybackView {
                 try? await Task.sleep(nanoseconds: delay)
                 guard pendingInteractiveAutoplayID == requestID else { return }
                 guard viewModel.jobContext != nil else { continue }
+                guard !clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "libraryAutoplayRetry") else { return }
                 if isInteractiveAutoplaySettled(for: sentence) {
                     #if DEBUG
                     e2eInteractiveAutoplaySettledCount += 1

@@ -235,6 +235,7 @@ struct JobPlaybackView: View {
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         refreshReaderNarrationActivityForMusicBed(reason: "jobAudioState")
+        clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "jobAudioState")
         recoverPendingInteractiveAutoplayIfNeeded(reason: "jobAudioState")
         recoverMutedAppleMusicBedNarrationIfNeeded(reason: "jobAudioState")
         publishReaderNowPlayingSnapshot(force: true)
@@ -274,6 +275,7 @@ struct JobPlaybackView: View {
     private func recoverPendingInteractiveAutoplayIfNeeded(reason: String) {
         guard !isVideoPreferred else { return }
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        guard !clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason) else { return }
         guard let pendingSentence = pendingInteractiveAutoplaySentence else { return }
         guard viewModel.jobContext != nil else { return }
         guard !viewModel.audioCoordinator.isPlaying ||
@@ -287,6 +289,25 @@ struct JobPlaybackView: View {
         )
         viewModel.jumpToSentence(pendingSentence, autoPlay: true)
         resumeAppleMusicBedAfterInteractiveStartIfNeeded()
+    }
+
+    @discardableResult
+    func clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: String) -> Bool {
+        guard pendingInteractiveAutoplaySentence != nil else { return false }
+        guard musicOwnership.isPausedByReaderTransport ||
+            musicOwnership.isReaderTransportPauseGuardActive ||
+            musicOwnership.isManuallyPaused ||
+            lastReaderTransportAction == "pause"
+        else { return false }
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Job clearing pending interactive autoplay reason=\(reason) readerPaused=true"
+        )
+        playbackLogger.info(
+            "Job playback clearing pending interactive autoplay because reader is paused reason=\(reason, privacy: .public)"
+        )
+        pendingInteractiveAutoplayID = nil
+        pendingInteractiveAutoplaySentence = nil
+        return true
     }
 
     private func recoverMutedAppleMusicBedNarrationIfNeeded(reason: String) {

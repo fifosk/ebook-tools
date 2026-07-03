@@ -137,6 +137,7 @@ extension JobPlaybackView {
                 try? await Task.sleep(nanoseconds: delay)
                 guard pendingInteractiveAutoplayID == requestID else { return }
                 guard viewModel.jobContext != nil else { continue }
+                guard !clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "jobAutoplayRetry") else { return }
                 if isInteractiveAutoplaySettled(for: sentence) {
                     #if DEBUG
                     e2eInteractiveAutoplaySettledCount += 1
