@@ -1110,7 +1110,20 @@ def test_deployment_docs_record_latest_working_apple_device_recipe() -> None:
     assert "--profile iphone" in deployment_doc
     assert "--profile appletv" in deployment_doc
     assert "--skip-build" in deployment_doc
+    assert "scripts/check_apple_build_metadata.py" in deployment_doc
+    assert "branch.stamp" in deployment_doc
+    assert "commit.stamp" in deployment_doc
+    assert "stale DerivedData app fails\nbefore CoreDevice preflight" in deployment_doc
     assert "--allow-provisioning-updates" in deployment_doc
     assert "`2026.6.26` build\n`20260626174`" in deployment_doc
     assert "Keep `Cinema` Apple TV\nand `iPad Small` out of bulk runs" in deployment_doc
     assert "physical devices only after\nan explicit deploy request" in deployment_doc
+
+
+def test_testing_docs_record_physical_deploy_metadata_guard() -> None:
+    testing_doc = TESTING_DOC.read_text(encoding="utf-8")
+
+    assert "scripts/check_apple_build_metadata.py" in testing_doc
+    assert "branch.stamp" in testing_doc
+    assert "commit.stamp" in testing_doc
+    assert "before CoreDevice preflight or\ninstall" in testing_doc

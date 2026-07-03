@@ -1063,12 +1063,15 @@ device is awake and unlocked; locked devices can still install and verify
 metadata, but foreground launch may block until the user unlocks the device.
 When a signed app has already been produced by Xcode or a prior build, use
 `--skip-build --app-path /path/to/InteractiveReader.app` with the same
-confirmation guard to install that bundle without driving Xcode again. Add
-`--fallback-to-signed-artifact` on that direct skip-build path when the app is
-the current full-entitlement release artifact; the helper verifies the bundle
-signature plus current bundle id/version/build before running CoreDevice
-preflight or installing, so stale cached artifacts fail before touching the
-device.
+confirmation guard to install that bundle without driving Xcode again. Normal
+Xcode builds and non-signed skip-build installs now run
+`scripts/check_apple_build_metadata.py`, which verifies bundled `branch.stamp`
+and `commit.stamp` against the current checkout before CoreDevice preflight or
+install. Add `--fallback-to-signed-artifact` on that direct skip-build path when
+the app is the current full-entitlement release artifact; the helper verifies
+the bundle signature plus current bundle id/version/build before running
+CoreDevice preflight or installing, so stale cached artifacts fail before
+touching the device.
 If a confirmed install build fails because command-line Xcode cannot access the
 signed-in account or full-capability profile, keep the deploy unattended by
 adding `--fallback-to-signed-artifact --signed-artifact-path <app>`. The helper

@@ -112,11 +112,14 @@ APPLE_DEVICE_ID="<device-id-or-name>" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 ```
 
 When the user has explicitly requested a physical deploy, remove `--dry-run`.
-The golden install path is: CoreDevice preflight, build or `--skip-build`,
+The golden install path is: CoreDevice preflight, build or `--skip-build`, app
+bundle git metadata verification through `scripts/check_apple_build_metadata.py`,
 `devicectl device install app`, installed-bundle metadata verification, then an
-optional launch. Add `--launch-console-timeout 10` when validating that the app
-does not immediately crash after launch; a console timeout is treated as
-success after the app survives the launch window.
+optional launch. The build metadata check validates bundled `branch.stamp` and
+`commit.stamp` against the current checkout before a built or non-signed
+skip-build app can touch the device. Add `--launch-console-timeout 10` when
+validating that the app does not immediately crash after launch; a console
+timeout is treated as success after the app survives the launch window.
 For manual playback debugging after the app is already installed, prefer
 `--launch-only --launch-console-timeout <seconds>` so CoreDevice terminates and
 relaunches the app with console attached, without rebuilding or reinstalling.
@@ -245,8 +248,10 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 The shortcut delegates to the unattended helper with
 `--fallback-to-signed-artifact`; the helper verifies the fallback app's code
 signature plus current bundle id, marketing version, and build number before
-calling `devicectl install`. Override `APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT`
-when the post-launch crash-watch should run longer than the default 10 seconds.
+calling `devicectl install`. Direct non-signed `--skip-build --app-path`
+installs use the git metadata verifier instead, so a stale DerivedData app fails
+before CoreDevice preflight. Override `APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT` when
+the post-launch crash-watch should run longer than the default 10 seconds.
 
 #### Working Local Device Profiles
 
