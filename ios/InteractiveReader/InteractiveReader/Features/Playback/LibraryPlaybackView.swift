@@ -133,11 +133,6 @@ struct LibraryPlaybackView: View {
         #endif
         playbackTransportDebugLog("[PlaybackTransport] Library foreground tvOS Play/Pause command")
         playbackLogger.info("Library foreground tvOS Play/Pause command")
-        guard !shouldIgnoreTVReaderTransportBrokerEcho() else {
-            playbackTransportDebugLog("[PlaybackTransport] Library foreground tvOS Play/Pause ignored reader transport pause echo")
-            playbackLogger.info("Library foreground tvOS Play/Pause ignored reader transport pause echo")
-            return
-        }
         if shouldForceTVReaderNowPlayingPause() {
             forcePauseReaderNowPlayingTransport(source: "foregroundPause")
             return

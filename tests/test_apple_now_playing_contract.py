@@ -168,6 +168,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "Job broker tvOS Play/Pause ignored duplicate physical press" in job_playback
     assert "shouldIgnoreTVReaderTransportBrokerEcho()" in job_playback
     assert "Job broker tvOS Play/Pause ignored reader transport pause echo" in job_playback
+    assert "Job foreground tvOS Play/Pause ignored reader transport pause echo" not in job_playback
     assert "shouldForceTVReaderNowPlayingResume(ignorePauseHold: true)" in job_playback
     assert "if shouldForceTVReaderNowPlayingPause()" in job_playback
     assert "shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow()" not in job_playback
@@ -345,9 +346,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "isMusicPausedByReaderTransport: musicOwnership.isPausedByReaderTransport" in job_force_resume_body
     assert "isMusicPlaying: musicOwnership.isPlaying" in job_force_resume_body
     job_foreground_body = _function_body(job_playback, "private func handleTVPlayPauseCommand()")
-    assert "shouldIgnoreTVReaderTransportBrokerEcho()" in job_foreground_body
-    assert "Job foreground tvOS Play/Pause ignored reader transport pause echo" in job_foreground_body
-    assert job_foreground_body.index("shouldIgnoreTVReaderTransportBrokerEcho()") < job_foreground_body.index(
+    assert "shouldIgnoreTVReaderTransportBrokerEcho()" not in job_foreground_body
+    assert "Job foreground tvOS Play/Pause ignored reader transport pause echo" not in job_foreground_body
+    assert job_foreground_body.index("Job foreground tvOS Play/Pause command") < job_foreground_body.index(
         "shouldForceTVReaderNowPlayingPause()"
     )
     job_broker_body = _function_body(job_playback, "private func handleTVBrokerPlayPauseCommand()")
@@ -739,6 +740,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "Library broker tvOS Play/Pause ignored duplicate physical press" in library_playback
     assert "shouldIgnoreTVReaderTransportBrokerEcho()" in library_playback
     assert "Library broker tvOS Play/Pause ignored reader transport pause echo" in library_playback
+    assert "Library foreground tvOS Play/Pause ignored reader transport pause echo" not in library_playback
     assert "shouldForceTVReaderNowPlayingResume(ignorePauseHold: true)" in library_playback
     assert "if shouldForceTVReaderNowPlayingPause()" in library_playback
     assert "shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow()" not in library_playback
@@ -907,9 +909,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "isMusicPausedByReaderTransport: musicOwnership.isPausedByReaderTransport" in library_force_resume_body
     assert "isMusicPlaying: musicOwnership.isPlaying" in library_force_resume_body
     library_foreground_body = _function_body(library_playback, "private func handleTVPlayPauseCommand()")
-    assert "shouldIgnoreTVReaderTransportBrokerEcho()" in library_foreground_body
-    assert "Library foreground tvOS Play/Pause ignored reader transport pause echo" in library_foreground_body
-    assert library_foreground_body.index("shouldIgnoreTVReaderTransportBrokerEcho()") < library_foreground_body.index(
+    assert "shouldIgnoreTVReaderTransportBrokerEcho()" not in library_foreground_body
+    assert "Library foreground tvOS Play/Pause ignored reader transport pause echo" not in library_foreground_body
+    assert library_foreground_body.index("Library foreground tvOS Play/Pause command") < library_foreground_body.index(
         "shouldForceTVReaderNowPlayingPause()"
     )
     library_broker_body = _function_body(library_playback, "private func handleTVBrokerPlayPauseCommand()")
