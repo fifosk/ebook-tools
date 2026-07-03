@@ -6,7 +6,10 @@ import os
 import stat as stat_module
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Iterator, List, Optional
+from typing import Callable, Iterable, Iterator, List, Optional, TypeVar
+
+
+ItemT = TypeVar("ItemT")
 
 
 @dataclass(frozen=True)
@@ -61,26 +64,44 @@ def append_bounded_newest_source_file(
         entry,
         secondary_key=secondary_key,
     )
-    if len(matches) >= limit:
-        last_key = newest_source_file_sort_key(matches[-1], secondary_key=secondary_key)
-        if entry_key >= last_key:
-            return
-
-    insert_at = _bisect_right_source_files(
+    append_bounded_sorted(
         matches,
-        entry_key,
-        secondary_key=secondary_key,
+        entry,
+        limit,
+        entry_key=entry_key,
+        key=lambda item: newest_source_file_sort_key(
+            item,
+            secondary_key=secondary_key,
+        ),
     )
-    matches.insert(insert_at, entry)
+
+
+def append_bounded_sorted(
+    matches: list[ItemT],
+    item: ItemT,
+    limit: int,
+    *,
+    key: Callable[[ItemT], tuple[float, str]],
+    entry_key: tuple[float, str] | None = None,
+) -> None:
+    """Insert ``item`` into a sorted bounded list if it can beat the tail."""
+
+    if limit <= 0:
+        return
+    item_key = entry_key if entry_key is not None else key(item)
+    if len(matches) >= limit and item_key >= key(matches[-1]):
+        return
+    insert_at = _bisect_right_bounded(matches, item_key, key=key)
+    matches.insert(insert_at, item)
     if len(matches) > limit:
         del matches[limit:]
 
 
-def _bisect_right_source_files(
-    matches: List[DiscoveredSourceFile],
-    entry_key: tuple[float, str],
+def _bisect_right_bounded(
+    matches: list[ItemT],
+    item_key: tuple[float, str],
     *,
-    secondary_key: Callable[[DiscoveredSourceFile], str] | None = None,
+    key: Callable[[ItemT], tuple[float, str]],
 ) -> int:
     """Return the insertion index without materializing keys for every match."""
 
@@ -88,11 +109,7 @@ def _bisect_right_source_files(
     upper = len(matches)
     while lower < upper:
         middle = (lower + upper) // 2
-        middle_key = newest_source_file_sort_key(
-            matches[middle],
-            secondary_key=secondary_key,
-        )
-        if entry_key < middle_key:
+        if item_key < key(matches[middle]):
             upper = middle
         else:
             lower = middle + 1

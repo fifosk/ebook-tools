@@ -1378,7 +1378,10 @@ Optimization candidates:
   Bounded newest-source helpers now insert only candidates that can still beat
   the current tail instead of sorting the retained list after every match, so
   large NAS scans discard old EPUB/video/source candidates with less per-file
-  work while preserving the same cached-stat ordering contract.
+  work while preserving the same cached-stat ordering contract. EPUB source
+  rows, manual-download root matches, and acquisition candidates now share the
+  same bounded sorted insertion helper, keeping Web/Apple Create source ordering
+  and trimming behavior aligned as new source pickers are added.
   Output-root readiness and route-level source/output presence flags now use
   the same tolerant stat path instead of direct `Path.exists()` checks, so
   completed output folders stay visible during transient NAS existence races.

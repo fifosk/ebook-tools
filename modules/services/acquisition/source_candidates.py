@@ -5,17 +5,17 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Protocol, TypeVar
+from typing import Protocol, TypeVar
 
 from modules.services.source_discovery import (
     DiscoveredSourceFile,
+    append_bounded_sorted,
     newest_source_file_sort_key,
 )
 
 
 ManualSourceMatch = tuple[DiscoveredSourceFile, Path, str]
 CandidateT = TypeVar("CandidateT", bound="NewestCandidate")
-ItemT = TypeVar("ItemT")
 
 
 class NewestCandidate(Protocol):
@@ -51,17 +51,13 @@ def append_bounded_newest_manual_entry(
     if limit <= 0:
         return
     match = (entry, root, absolute_path)
-    match_key = _manual_source_match_sort_key(match)
-    if len(matches) >= limit and match_key >= _manual_source_match_sort_key(matches[-1]):
-        return
-    insert_at = _bisect_right(
+    append_bounded_sorted(
         matches,
-        match_key,
+        match,
+        limit,
+        entry_key=_manual_source_match_sort_key(match),
         key=_manual_source_match_sort_key,
     )
-    matches.insert(insert_at, match)
-    if len(matches) > limit:
-        del matches[limit:]
 
 
 def append_bounded_newest_candidate(
@@ -73,36 +69,13 @@ def append_bounded_newest_candidate(
 
     if limit <= 0:
         return
-    candidate_key = _newest_candidate_sort_key(candidate)
-    if len(matches) >= limit and candidate_key >= _newest_candidate_sort_key(matches[-1]):
-        return
-    insert_at = _bisect_right(
+    append_bounded_sorted(
         matches,
-        candidate_key,
+        candidate,
+        limit,
+        entry_key=_newest_candidate_sort_key(candidate),
         key=_newest_candidate_sort_key,
     )
-    matches.insert(insert_at, candidate)
-    if len(matches) > limit:
-        del matches[limit:]
-
-
-def _bisect_right(
-    matches: list[ItemT],
-    entry_key: tuple[float, str],
-    *,
-    key: Callable[[ItemT], tuple[float, str]],
-) -> int:
-    """Return the insertion index without materializing keys for every match."""
-
-    lower = 0
-    upper = len(matches)
-    while lower < upper:
-        middle = (lower + upper) // 2
-        if entry_key < key(matches[middle]):
-            upper = middle
-        else:
-            lower = middle + 1
-    return lower
 
 
 def _manual_source_match_sort_key(

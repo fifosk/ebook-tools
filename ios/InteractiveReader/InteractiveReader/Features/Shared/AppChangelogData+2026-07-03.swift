@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-bounded-source-picker-helper",
+            title: "Source pickers share ordering",
+            detail: "Backend EPUB, manual-download, and acquisition candidate pickers now share one bounded newest-first insertion helper, reducing ordering drift while keeping large NAS source scans lightweight."
+        ),
+        AppChangelogEntry(
             id: "tvos-startup-music-pause-active-guard",
             title: "TV startup keeps playback alive",
             detail: "Apple TV reader playback now ignores non-manual Apple Music pause observations whenever sentence audio is requested but the AVPlayer is not playing yet, preventing startup Music-bed state from stopping the first sentence."

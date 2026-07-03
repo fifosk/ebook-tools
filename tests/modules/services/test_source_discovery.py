@@ -7,6 +7,7 @@ import pytest
 
 from modules.services.source_discovery import (
     append_bounded_newest_source_file,
+    append_bounded_sorted,
     iter_visible_source_files,
     newest_source_file_sort_key,
     walk_visible_source_files,
@@ -235,6 +236,22 @@ def test_append_bounded_newest_source_file_binary_searches_existing_matches(
     assert len(matches) == 64
     assert "book-63.epub" not in {entry.path.name for entry in matches}
     assert secondary_calls < 16
+
+
+def test_append_bounded_sorted_keeps_shared_bounded_order() -> None:
+    matches = [("newest", 1), ("middle", 5), ("tail", 9)]
+    key_calls = 0
+
+    def sort_key(item: tuple[str, int]) -> tuple[float, str]:
+        nonlocal key_calls
+        key_calls += 1
+        return (item[1], item[0])
+
+    append_bounded_sorted(matches, ("inserted", 3), 3, key=sort_key)
+    append_bounded_sorted(matches, ("discarded", 99), 3, key=sort_key)
+
+    assert matches == [("newest", 1), ("inserted", 3), ("middle", 5)]
+    assert key_calls < 12
 
 
 def test_walk_visible_source_files_uses_safe_root_stat_instead_of_exists(
