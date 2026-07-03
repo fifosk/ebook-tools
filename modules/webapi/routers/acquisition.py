@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -29,6 +30,7 @@ from modules.services.acquisition.discovery_normalization import (
     normalize_provider as _normalize_optional_provider_id,
     normalize_source_id_filters as _normalize_source_id_filters,
 )
+from modules.services.acquisition.provider_roots import resolve_manual_download_roots
 from modules.services.acquisition.url_safety import (
     looks_sensitive_key,
     strip_sensitive_url_parts,
@@ -168,19 +170,27 @@ def _public_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:
     return sanitized if isinstance(sanitized, dict) else {}
 
 
-def _metadata_string_values(value: Any) -> list[str]:
+def _metadata_string_values(
+    value: Any,
+    *,
+    safe_roots: tuple[Path, ...] = (),
+) -> list[str]:
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         values: list[str] = []
         for item in value:
-            normalized = _normalize_completed_file_value(item)
+            normalized = _normalize_completed_file_value(item, safe_roots=safe_roots)
             if normalized:
                 values.append(normalized)
         return values
-    normalized = _normalize_completed_file_value(value)
+    normalized = _normalize_completed_file_value(value, safe_roots=safe_roots)
     return [normalized] if normalized else []
 
 
-def _normalize_completed_file_value(value: Any) -> str | None:
+def _normalize_completed_file_value(
+    value: Any,
+    *,
+    safe_roots: tuple[Path, ...] = (),
+) -> str | None:
     if not isinstance(value, str):
         return None
     normalized = _normalize_optional_text(strip_sensitive_url_parts(value))
@@ -189,25 +199,91 @@ def _normalize_completed_file_value(value: Any) -> str | None:
     try:
         parsed = urlsplit(normalized)
     except ValueError:
-        return normalized
+        return None
     if parsed.scheme in {"http", "https", "magnet"}:
+        return None
+    if parsed.scheme or parsed.netloc:
+        return None
+    path = Path(normalized).expanduser()
+    if path.is_absolute():
+        return _safe_absolute_completed_file_path(path, safe_roots)
+    if any(part == ".." for part in path.parts):
         return None
     return normalized
 
 
-def _job_completed_files(job: AcquisitionJobStatus, metadata: Mapping[str, Any]) -> list[str]:
-    completed_files = _metadata_string_values(list(job.completed_files))
-    if completed_files:
-        return completed_files
+def _safe_absolute_completed_file_path(
+    path: Path,
+    safe_roots: tuple[Path, ...],
+) -> str | None:
+    if not safe_roots:
+        return None
+    resolved_path = path.resolve()
+    for root in safe_roots:
+        resolved_root = root.expanduser().resolve()
+        try:
+            resolved_path.relative_to(resolved_root)
+        except ValueError:
+            continue
+        return resolved_path.as_posix()
+    return None
+
+
+def _job_metadata_completed_files(
+    metadata: Mapping[str, Any],
+    *,
+    safe_roots: tuple[Path, ...],
+) -> list[str]:
     for key in ("completed_files", "completed_paths", "files"):
-        values = _metadata_string_values(metadata.get(key))
+        values = _metadata_string_values(metadata.get(key), safe_roots=safe_roots)
         if values:
             return values
     return _metadata_string_values(
         metadata.get("completed_file")
         or metadata.get("completed_path")
-        or metadata.get("local_path")
+        or metadata.get("local_path"),
+        safe_roots=safe_roots,
     )
+
+
+def _sanitize_job_completed_file_metadata(
+    metadata: Mapping[str, Any],
+    *,
+    safe_roots: tuple[Path, ...],
+) -> dict[str, Any]:
+    sanitized = dict(metadata)
+    for key in ("completed_files", "completed_paths", "files"):
+        if key not in sanitized:
+            continue
+        values = _metadata_string_values(sanitized.get(key), safe_roots=safe_roots)
+        if values:
+            sanitized[key] = values
+        else:
+            sanitized.pop(key, None)
+    for key in ("completed_file", "completed_path", "local_path"):
+        if key not in sanitized:
+            continue
+        values = _metadata_string_values(sanitized.get(key), safe_roots=safe_roots)
+        if values:
+            sanitized[key] = values[0]
+        else:
+            sanitized.pop(key, None)
+    return sanitized
+
+
+def _job_completed_files(
+    job: AcquisitionJobStatus,
+    metadata: Mapping[str, Any],
+    *,
+    safe_roots: tuple[Path, ...],
+) -> list[str]:
+    completed_files = _metadata_string_values(
+        list(job.completed_files),
+        safe_roots=safe_roots,
+    )
+    if completed_files:
+        return completed_files
+    return _job_metadata_completed_files(metadata, safe_roots=safe_roots)
 
 
 def _raise_bad_acquisition_route_id(
@@ -308,8 +384,16 @@ def _prepared_artifact_payload(artifact) -> AcquisitionPreparedArtifactResponse:
     )
 
 
-def _job_payload(job: AcquisitionJobStatus) -> AcquisitionJobStatusResponse:
-    metadata = _public_metadata(job.metadata)
+def _job_payload(
+    job: AcquisitionJobStatus,
+    *,
+    config: Mapping[str, Any] | None = None,
+) -> AcquisitionJobStatusResponse:
+    safe_roots = resolve_manual_download_roots(config or {})
+    metadata = _sanitize_job_completed_file_metadata(
+        _public_metadata(job.metadata),
+        safe_roots=safe_roots,
+    )
     return AcquisitionJobStatusResponse(
         provider=job.provider,
         task_id=job.task_id,
@@ -320,7 +404,7 @@ def _job_payload(job: AcquisitionJobStatus) -> AcquisitionJobStatusResponse:
         raw_status=job.raw_status,
         started_at=job.started_at,
         updated_at=job.updated_at,
-        completed_files=_job_completed_files(job, metadata),
+        completed_files=_job_completed_files(job, metadata, safe_roots=safe_roots),
         next_actions=list(job.next_actions),
         metadata=metadata,
     )
@@ -609,7 +693,7 @@ def create_job(
         ) from exc
 
     try:
-        response_payload = _job_payload(job)
+        response_payload = _job_payload(job, config=config)
     except Exception as exc:
         _log_provider_route("error", started_at, operation="job_create")
         _log_unexpected_route_error("job_create")
@@ -650,9 +734,10 @@ def get_job(
         started_at=started_at,
     )
     try:
+        config = runtime_provider.resolve_config()
         job = poll_download_station_task(
             task_id=normalized_task_id,
-            config=runtime_provider.resolve_config(),
+            config=config,
         )
     except ValueError as exc:
         _log_provider_route("bad_request", started_at, operation="job_poll")
@@ -676,7 +761,7 @@ def get_job(
         ) from exc
 
     try:
-        response_payload = _job_payload(job)
+        response_payload = _job_payload(job, config=config)
     except Exception as exc:
         _log_provider_route("error", started_at, operation="job_poll")
         _log_unexpected_route_error("job_poll")

@@ -1755,6 +1755,11 @@ def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
     from modules.services.acquisition import AcquisitionJobStatus
     from modules.webapi.routers import acquisition as acquisition_router
 
+    manual_root = tmp_path / "manual-downloads"
+    manual_root.mkdir()
+    ready_file = manual_root / "Ready.mkv"
+    ready_file.write_text("video", encoding="utf-8")
+
     def _fake_poll_job(**kwargs):
         return AcquisitionJobStatus(
             provider="download_station",
@@ -1768,10 +1773,14 @@ def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
             metadata={
                 "source_kind": "download_station",
                 "files": [
-                    "  /Volumes/Data/Download/DStation/Demo.mkv  ",
+                    f"  {ready_file.as_posix()}  ",
+                    "Loose completed title.mkv",
+                    "/Volumes/Data/Download/DStation/Outside.mkv",
                     "https://indexer.example.invalid/download?id=7&apikey=secret-indexer-key",
+                    "../escape.mkv",
                     "",
                 ],
+                "completed_file": "/outside/private/Other.mkv",
                 "api_key": "secret-indexer-key",
             },
         )
@@ -1783,6 +1792,7 @@ def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
             "download_station_url": "https://nas.example.invalid",
             "download_station_username": "nas-user",
             "download_station_password": "nas-secret",
+            "manual_download_root": manual_root.as_posix(),
         }
     )
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
@@ -1799,14 +1809,17 @@ def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
     assert response.status_code == 200
     payload = response.json()
     assert payload["completed_files"] == [
-        "/Volumes/Data/Download/DStation/Demo.mkv",
+        ready_file.as_posix(),
+        "Loose completed title.mkv",
     ]
     assert payload["metadata"]["files"] == [
-        "  /Volumes/Data/Download/DStation/Demo.mkv  ",
-        "https://indexer.example.invalid/download?id=7",
-        "",
+        ready_file.as_posix(),
+        "Loose completed title.mkv",
     ]
     rendered = str(payload)
+    assert "/Volumes/Data/Download/DStation/Outside.mkv" not in rendered
+    assert "/outside/private/Other.mkv" not in rendered
+    assert "../escape.mkv" not in rendered
     assert "secret-indexer-key" not in rendered
     assert "api_key" not in rendered
 

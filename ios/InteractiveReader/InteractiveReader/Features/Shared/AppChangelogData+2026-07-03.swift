@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "acquisition-completed-files-safe-metadata",
+            title: "Downloader completions are bounded",
+            detail: "Download Station poll responses now apply safe manual-download root checks to legacy metadata completion hints too, so Web and Apple Create reconnect only to reviewed local filenames or configured inbox paths."
+        ),
+        AppChangelogEntry(
             id: "apple-music-bed-manual-pause-skips-stale-filter",
             title: "Music-bed pause stays single-press",
             detail: "Apple TV now treats a manual Apple Music bed pause as an explicit reader pause even during the post-resume stale-event window, keeping one Play/Pause press from stopping only the bed while sentence narration continues."

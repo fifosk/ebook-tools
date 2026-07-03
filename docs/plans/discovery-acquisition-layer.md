@@ -363,6 +363,12 @@ Acquisition task fields:
     falls back to the same acquisition job metadata hints when older task
     payloads omit `completed_files`, keeping its visible completion message and
     handoff panel aligned with Apple Create.
+  - Status: The acquisition job poll route now applies the same safe-root
+    boundary to compatibility metadata completed-file hints that the Download
+    Station adapter applies to provider file lists. Absolute hints must resolve
+    under configured manual/download roots, URL-like and path-traversal hints
+    are dropped, and safe relative filenames remain available for Web/Apple
+    Create matching against refreshed manual-download discovery.
   - Status: `manual_downloads` discovery is available for configured backend
      inbox roots (`manual_download_root`, `manual_download_roots`,
      `download_station_completed_root`, existing `youtube_video_root` /
