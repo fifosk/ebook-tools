@@ -1712,9 +1712,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_audio_state_body
     assert "@State var lastPendingInteractiveAutoplayRecoveryTime: TimeInterval = 0" in job
     assert "@State var pendingInteractiveAutoplayRecoveryAttempts = 0" in job
+    assert "@State var pendingInteractiveAutoplaySuppressedUntil: TimeInterval = 0" in job
     assert "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)" in job
     job_pending_recovery_body = _function_body(job, "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)")
     assert 'guard reason != "jobAudioState" else { return }' in job_pending_recovery_body
+    assert "ProcessInfo.processInfo.systemUptime < pendingInteractiveAutoplaySuppressedUntil" in job_pending_recovery_body
+    assert 'clearPendingInteractiveAutoplay(reason: "\\(reason)Suppressed")' in job_pending_recovery_body
+    assert job_pending_recovery_body.index(
+        "ProcessInfo.processInfo.systemUptime < pendingInteractiveAutoplaySuppressedUntil"
+    ) < job_pending_recovery_body.index("clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason)")
     assert "resetPendingInteractiveAutoplayRecovery()" in job_pending_recovery_body
     assert 'lastReaderTransportAction != "pause"' in job_pending_recovery_body
     assert "!musicOwnership.isPausedByReaderTransport" in job_pending_recovery_body
@@ -1747,6 +1753,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "pendingInteractiveAutoplaySentence = nil" in job_pending_clear_helper_body
     assert "lastPendingInteractiveAutoplayRecoveryTime = 0" in job_pending_clear_helper_body
     assert "resetPendingInteractiveAutoplayRecovery()" in job_pending_clear_helper_body
+    assert "pendingInteractiveAutoplaySuppressedUntil = max(" in job_pending_clear_helper_body
+    assert "ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in job_pending_clear_helper_body
+    assert 'reason.lowercased().contains("pause")' in job_pending_clear_helper_body
+    assert 'reason.lowercased().contains("readertransport")' in job_pending_clear_helper_body
+    assert 'reason.lowercased().contains("suppressed")' in job_pending_clear_helper_body
     assert "clearing pending interactive autoplay" in job_pending_clear_helper_body
     job_pause_body = _function_body(job_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert 'clearPendingInteractiveAutoplay(reason: "readerTransportPause")' in job_pause_body
@@ -1761,6 +1772,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.jumpToSentence(pendingSentence, autoPlay: true)" in job
     assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in job
     job_resume = _source(PLAYBACK / "JobPlaybackView+Resume.swift")
+    job_start_body = _function_body(job_resume, "func startInteractivePlayback(")
+    assert "pendingInteractiveAutoplaySuppressedUntil = 0" in job_start_body
+    assert job_start_body.count("pendingInteractiveAutoplaySuppressedUntil = 0") >= 2
     job_retry_body = _function_body(job_resume, "func scheduleInteractiveAutoplayRetry(")
     assert 'clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "jobAutoplayRetry")' in job_retry_body
     assert job_retry_body.index(
@@ -2055,9 +2069,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_audio_state_body
     assert "@State var lastPendingInteractiveAutoplayRecoveryTime: TimeInterval = 0" in library
     assert "@State var pendingInteractiveAutoplayRecoveryAttempts = 0" in library
+    assert "@State var pendingInteractiveAutoplaySuppressedUntil: TimeInterval = 0" in library
     assert "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)" in library
     library_pending_recovery_body = _function_body(library, "private func recoverPendingInteractiveAutoplayIfNeeded(reason: String)")
     assert 'guard reason != "libraryAudioState" else { return }' in library_pending_recovery_body
+    assert "ProcessInfo.processInfo.systemUptime < pendingInteractiveAutoplaySuppressedUntil" in library_pending_recovery_body
+    assert 'clearPendingInteractiveAutoplay(reason: "\\(reason)Suppressed")' in library_pending_recovery_body
+    assert library_pending_recovery_body.index(
+        "ProcessInfo.processInfo.systemUptime < pendingInteractiveAutoplaySuppressedUntil"
+    ) < library_pending_recovery_body.index("clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason)")
     assert "resetPendingInteractiveAutoplayRecovery()" in library_pending_recovery_body
     assert 'lastReaderTransportAction != "pause"' in library_pending_recovery_body
     assert "!musicOwnership.isPausedByReaderTransport" in library_pending_recovery_body
@@ -2091,6 +2111,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "pendingInteractiveAutoplaySentence = nil" in library_pending_clear_helper_body
     assert "lastPendingInteractiveAutoplayRecoveryTime = 0" in library_pending_clear_helper_body
     assert "resetPendingInteractiveAutoplayRecovery()" in library_pending_clear_helper_body
+    assert "pendingInteractiveAutoplaySuppressedUntil = max(" in library_pending_clear_helper_body
+    assert "ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in library_pending_clear_helper_body
+    assert 'reason.lowercased().contains("pause")' in library_pending_clear_helper_body
+    assert 'reason.lowercased().contains("readertransport")' in library_pending_clear_helper_body
+    assert 'reason.lowercased().contains("suppressed")' in library_pending_clear_helper_body
     assert "clearing pending interactive autoplay" in library_pending_clear_helper_body
     library_pause_body = _function_body(library_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert 'clearPendingInteractiveAutoplay(reason: "readerTransportPause")' in library_pause_body
@@ -2105,6 +2130,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.jumpToSentence(pendingSentence, autoPlay: true)" in library
     assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in library
     library_resume = _source(PLAYBACK / "LibraryPlaybackView+Resume.swift")
+    library_start_body = _function_body(library_resume, "func startInteractivePlayback(")
+    assert "pendingInteractiveAutoplaySuppressedUntil = 0" in library_start_body
+    assert library_start_body.count("pendingInteractiveAutoplaySuppressedUntil = 0") >= 2
     library_retry_body = _function_body(library_resume, "private func scheduleInteractiveAutoplayRetry(")
     assert 'clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "libraryAutoplayRetry")' in library_retry_body
     assert library_retry_body.index(
