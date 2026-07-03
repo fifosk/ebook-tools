@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-tv-music-bed-stopped-mirror-pause",
+            title: "TV pause mirrors stopped bed",
+            detail: "Apple TV Job and Library playback now treat an Apple Music bed stop while sentence narration is still requested as the same reader pause command, so the first Siri Remote Play/Pause press can stop both the bed and sentence track."
+        ),
+        AppChangelogEntry(
             id: "apple-youtube-template-sparse-provider-state",
             title: "YouTube templates keep source context",
             detail: "Apple YouTube Dub template saves now recover the discovery provider from source, acquisition, or source-kind provenance when older prepared video handoffs lack a top-level provider, preserving token-free source context for Web/Apple apply-save loops."

@@ -533,6 +533,11 @@ struct JobPlaybackView: View {
         if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay {
             return false
         }
+        if musicOwnership.ownershipState == .appleMusicBed &&
+            !musicOwnership.isPlaying &&
+            !musicOwnership.isSystemPlaybackPlaying {
+            return true
+        }
         #endif
         #if os(tvOS)
         return false
