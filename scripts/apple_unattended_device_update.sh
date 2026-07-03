@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 XCBUILD="${XCBUILD:-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild}"
+PYTHON_BIN="${PYTHON:-python3}"
 DEVICECTL="${DEVICECTL:-$(xcrun --find devicectl)}"
 CODESIGN="${CODESIGN:-/usr/bin/codesign}"
 XCPROJ="${XCPROJ:-${ROOT_DIR}/ios/InteractiveReader/InteractiveReader.xcodeproj}"
@@ -629,6 +630,11 @@ verify_signed_artifact_bundle() {
   fi
 }
 
+verify_built_app_metadata() {
+  local app_path="$1"
+  "${PYTHON_BIN}" "${ROOT_DIR}/scripts/check_apple_build_metadata.py" --app "${app_path}"
+}
+
 resolve_xcodebuild_destination_id() {
   local selector="$1"
   local json_path="$2"
@@ -1166,6 +1172,9 @@ BUILD_CMD=(
   -destination "id=${XCODEBUILD_DESTINATION_ID}"
   -derivedDataPath "${DERIVED_DATA}"
 )
+BUILD_METADATA_CMD=(
+  "${PYTHON_BIN}" "${ROOT_DIR}/scripts/check_apple_build_metadata.py" --app "${APP_PATH}"
+)
 if [[ "${ALLOW_PROVISIONING_UPDATES}" == "1" ]]; then
   BUILD_CMD+=(-allowProvisioningUpdates)
 fi
@@ -1257,6 +1266,7 @@ fi
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   print_command "Build command" "${BUILD_CMD[@]}"
+  print_command "Build metadata verification command" "${BUILD_METADATA_CMD[@]}"
   echo "Resolved app path: ${APP_PATH}"
   if [[ "${FALLBACK_TO_SIGNED_ARTIFACT}" == "1" ]]; then
     echo "Signed artifact fallback path: ${SIGNED_ARTIFACT_PATH}"
@@ -1419,6 +1429,8 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
     else
       exit "${build_status}"
     fi
+  else
+    verify_built_app_metadata "${APP_PATH}"
   fi
 fi
 

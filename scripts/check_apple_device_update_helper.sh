@@ -69,6 +69,8 @@ build_output="$(
     bash "${HELPER}" --device TEST-DEVICE --dry-run --build-only
 )"
 assert_contains "${build_output}" "Build command:" "build-only dry run should print the build command"
+assert_contains "${build_output}" "Build metadata verification command:" "build-only dry run should print the build metadata verifier"
+assert_contains "${build_output}" "scripts/check_apple_build_metadata.py" "build-only dry run should disclose bundled metadata verification"
 assert_contains "${build_output}" "-configuration  Debug" "build-only dry run should include the default configuration"
 assert_contains "${build_output}" "DerivedData-device-TEST-DEVICE" "build-only dry run should use a sanitized device-scoped derived data path"
 assert_not_contains "${build_output}" "Install command:" "build-only dry run should not print install command"
@@ -170,9 +172,44 @@ SH
 chmod +x "${fake_tools_dir}/devicectl"
 cat > "${fake_tools_dir}/xcodebuild" <<'SH'
 #!/usr/bin/env bash
+set -euo pipefail
+derived_data=""
+configuration="Debug"
+scheme="InteractiveReader"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -derivedDataPath)
+      derived_data="${2:-}"
+      shift 2
+      ;;
+    -configuration)
+      configuration="${2:-Debug}"
+      shift 2
+      ;;
+    -scheme)
+      scheme="${2:-InteractiveReader}"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
 printf 'fake xcodebuild'
-printf ' %q' "$@"
+printf ' scheme=%q configuration=%q derivedData=%q' "${scheme}" "${configuration}" "${derived_data}"
 printf '\n'
+if [[ -n "${derived_data}" ]]; then
+  product="InteractiveReader"
+  platform="iphoneos"
+  if [[ "${scheme}" == "InteractiveReaderTV" ]]; then
+    product="InteractiveReaderTV"
+    platform="appletvos"
+  fi
+  app="${derived_data}/Build/Products/${configuration}-${platform}/${product}.app"
+  mkdir -p "${app}"
+  printf 'main\n' > "${app}/branch.stamp"
+  printf 'aaaaaaaaaaaa\n' > "${app}/commit.stamp"
+fi
 SH
 chmod +x "${fake_tools_dir}/xcodebuild"
 cat > "${fake_tools_dir}/failing-xcodebuild" <<'SH'
@@ -198,6 +235,9 @@ case "${1:-} ${2:-} ${3:-}" in
     ;;
   "rev-parse --abbrev-ref HEAD")
     echo "main"
+    ;;
+  "rev-parse --short=12 HEAD")
+    echo "aaaaaaaaaaaa"
     ;;
   "rev-parse HEAD ")
     echo "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -340,8 +380,9 @@ resolved_destination_output="$(
     bash "${HELPER}" --device "Friendly iPad" --build-only
 )"
 assert_contains "${resolved_destination_output}" "Resolved xcodebuild destination id: FAKE-UDID-123" "real build path should resolve friendly device selectors to hardware UDIDs"
-assert_contains "${resolved_destination_output}" "-destination id=FAKE-UDID-123" "xcodebuild should receive the resolved hardware UDID"
-assert_not_contains "${resolved_destination_output}" "-destination id=Friendly\\ iPad" "xcodebuild should not receive the friendly device name as an id"
+assert_contains "${resolved_destination_output}" "id=FAKE-UDID-123" "xcodebuild should receive the resolved hardware UDID"
+assert_contains "${resolved_destination_output}" "Apple build metadata validated:" "real build path should verify bundled git metadata after Xcode build"
+assert_not_contains "${resolved_destination_output}" "id=Friendly\\ iPad" "xcodebuild should not receive the friendly device name as an id"
 
 resolved_destination_list_fallback_output="$(
   DEVICECTL="${fake_tools_dir}/devicectl" \
@@ -351,8 +392,9 @@ resolved_destination_list_fallback_output="$(
 )"
 assert_contains "${resolved_destination_list_fallback_output}" "Device detail lookup failed while resolving xcodebuild destination; trying devicectl list fallback." "CoreDevice detail failures should try the list-based friendly-name fallback"
 assert_contains "${resolved_destination_list_fallback_output}" "Resolved xcodebuild destination id: FAKE-LIST-HARDWARE-UDID-456" "list fallback should resolve friendly Apple TV names to a hardware UDID"
-assert_contains "${resolved_destination_list_fallback_output}" "-destination id=FAKE-LIST-HARDWARE-UDID-456" "xcodebuild should receive the list-resolved hardware UDID"
-assert_not_contains "${resolved_destination_list_fallback_output}" "-destination id=Cinema\\ TV" "xcodebuild should not receive the friendly Apple TV alias after list fallback resolution"
+assert_contains "${resolved_destination_list_fallback_output}" "id=FAKE-LIST-HARDWARE-UDID-456" "xcodebuild should receive the list-resolved hardware UDID"
+assert_contains "${resolved_destination_list_fallback_output}" "Apple build metadata validated:" "list fallback build should verify bundled git metadata after Xcode build"
+assert_not_contains "${resolved_destination_list_fallback_output}" "id=Cinema\\ TV" "xcodebuild should not receive the friendly Apple TV alias after list fallback resolution"
 
 resolved_destination_failed_list_output="$(
   DEVICECTL="${fake_tools_dir}/devicectl" \
@@ -363,7 +405,7 @@ resolved_destination_failed_list_output="$(
     bash "${HELPER}" --device "Cinema TV" --build-only 2>&1
 )"
 assert_contains "${resolved_destination_failed_list_output}" "Device detail lookup failed while resolving xcodebuild destination; trying devicectl list fallback." "failed detail lookups should still attempt the list fallback"
-assert_contains "${resolved_destination_failed_list_output}" "-destination id=Cinema\\ TV" "failed list fallback should fall back to the original selector instead of command metadata"
+assert_contains "${resolved_destination_failed_list_output}" "id=Cinema\\ TV" "failed list fallback should fall back to the original selector instead of command metadata"
 assert_not_contains "${resolved_destination_failed_list_output}" "command not found" "failed list fallback should not execute failed JSON metadata as shell text"
 
 preflight_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --device-preflight-only)"
@@ -656,7 +698,7 @@ cinema_output="$(
 )"
 assert_contains "${cinema_output}" "-scheme  InteractiveReaderTV" "Cinema profile should select the tvOS app scheme"
 assert_contains "${cinema_output}" "Debug-appletvos/InteractiveReaderTV.app" "Cinema profile should derive the tvOS app bundle path"
-assert_contains "${cinema_output}" "-destination id=FAKE-UDID-123" "Cinema profile should still resolve friendly device aliases before building"
+assert_contains "${cinema_output}" "id=FAKE-UDID-123" "Cinema profile should still resolve friendly device aliases before building"
 
 appletv_install_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \
