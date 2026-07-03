@@ -53,6 +53,10 @@ export function isYoutubeMetadataVideoDiscoveryProvider(providerId: string): boo
   return YOUTUBE_METADATA_VIDEO_DISCOVERY_PROVIDERS.has(providerId);
 }
 
+export function videoDiscoveryProviderLabelForId(providerId: string): string {
+  return VIDEO_DISCOVERY_PROVIDER_LABELS.get(providerId) ?? providerId.replace(/_/g, ' ');
+}
+
 export function findVideoAcquisitionProvider(
   providers: AcquisitionProvider[],
   providerId: string

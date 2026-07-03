@@ -3652,6 +3652,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "isDefaultBookDiscoveryProviderID(providerID)" in discovery_source
     assert "defaultableProviderIDs(\n                   for: \"book\"" in discovery_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidateDetail(candidate)" in controls_source
+    assert "var details = [bookDiscoveryProviderFallbackLabel(for: candidate.provider)]" in discovery_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidateAction(candidate)" in controls_source
     assert "AppleBookCreatePresentation.canSelectBookDiscoveryCandidate(candidate)" in controls_source
     assert '$0.capabilities.contains("acquire")' in discovery_source
@@ -3988,6 +3989,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "static func youtubeSubtitleLabel(" in video_discovery_source
     assert "static func filenameFromPath(" in video_discovery_source
     assert "static func videoDiscoveryCandidateDetail(" in video_discovery_source
+    assert "var details = [videoDiscoveryProviderFallbackLabel(for: candidate.provider)]" in video_discovery_source
     assert "static func isDownloadStationHandoffCandidate(_ candidate: AcquisitionCandidate) -> Bool" in download_station_source
     assert 'candidate.metadata["handoff_provider"]?.stringValue?' in download_station_source
     assert '.localizedCaseInsensitiveCompare("download_station") == .orderedSame' in download_station_source

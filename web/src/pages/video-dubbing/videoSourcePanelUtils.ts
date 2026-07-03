@@ -7,7 +7,9 @@ import { isDownloadStationHandoffCandidate } from './videoDubbingDownloadStation
 import {
   DEFAULT_VIDEO_DISCOVERY_PROVIDER,
   isYoutubeMetadataVideoDiscoveryProvider,
-  type VideoDiscoveryProvider
+  type VideoDiscoveryProvider,
+  type VideoDiscoveryProviderOption,
+  videoDiscoveryProviderLabelForId
 } from './videoDubbingDiscovery';
 
 export function resolveDiscoveryPlaceholder(provider: VideoDiscoveryProvider): string {
@@ -52,7 +54,18 @@ export function filenameFromPath(path: string): string {
   return parts[parts.length - 1] || normalized || trimmed;
 }
 
-export function formatDiscoveryCandidateMeta(candidate: AcquisitionCandidate): string {
+function providerLabel(
+  providerId: string,
+  providerOptions: VideoDiscoveryProviderOption[] = []
+): string {
+  return providerOptions.find((option) => option.id === providerId)?.label
+    ?? videoDiscoveryProviderLabelForId(providerId);
+}
+
+export function formatDiscoveryCandidateMeta(
+  candidate: AcquisitionCandidate,
+  providerOptions: VideoDiscoveryProviderOption[] = []
+): string {
   const parts: string[] = [];
   if (isYoutubeMetadataVideoDiscoveryProvider(candidate.provider)) {
     parts.push('YouTube metadata');
@@ -92,6 +105,7 @@ export function formatDiscoveryCandidateMeta(candidate: AcquisitionCandidate): s
       parts.push('Download Station handoff');
     }
   } else if (candidate.local_path) {
+    parts.push(providerLabel(candidate.provider, providerOptions));
     parts.push(candidate.local_path);
   }
 
@@ -101,5 +115,5 @@ export function formatDiscoveryCandidateMeta(candidate: AcquisitionCandidate): s
   if (candidate.requires_confirmation) {
     parts.push('review required');
   }
-  return parts.join(' · ') || candidate.provider;
+  return parts.join(' · ') || providerLabel(candidate.provider, providerOptions);
 }

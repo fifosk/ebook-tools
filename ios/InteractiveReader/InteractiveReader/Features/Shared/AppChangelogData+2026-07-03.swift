@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "create-discovery-friendly-candidate-labels",
+            title: "Discovery candidates read cleaner",
+            detail: "Web Video Dubbing and Apple Create video/book discovery candidate details now use friendly provider labels instead of raw provider ids, matching the source pickers while preserving token-safe provenance metadata."
+        ),
+        AppChangelogEntry(
             id: "web-narrate-discovery-friendly-provider-labels",
             title: "Discovery labels stay friendly",
             detail: "Web Narrate Ebook discovery now labels checked providers and candidate source metadata with the same friendly provider names as its source buttons, keeping backend-owned discovery labels consistent with Apple Create."

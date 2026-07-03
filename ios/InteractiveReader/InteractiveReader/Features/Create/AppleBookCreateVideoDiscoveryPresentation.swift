@@ -296,7 +296,7 @@ extension AppleBookCreatePresentation {
     }
 
     static func videoDiscoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
-        var details = [candidate.provider]
+        var details = [videoDiscoveryProviderFallbackLabel(for: candidate.provider)]
         if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
             details.append(localPath)
         }

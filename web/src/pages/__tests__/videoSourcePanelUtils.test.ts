@@ -85,7 +85,17 @@ describe('videoSourcePanelUtils', () => {
   });
 
   it('falls back to local path or provider id for non-remote candidates', () => {
-    expect(formatDiscoveryCandidateMeta(candidate({ local_path: '/manual/video.mkv' }))).toBe('/manual/video.mkv');
-    expect(formatDiscoveryCandidateMeta(candidate({ provider: 'manual_downloads' }))).toBe('manual_downloads');
+    expect(formatDiscoveryCandidateMeta(candidate({ local_path: '/manual/video.mkv' }))).toBe('NAS videos · /manual/video.mkv');
+    expect(formatDiscoveryCandidateMeta(candidate({ provider: 'manual_downloads' }))).toBe('Manual downloads');
+    expect(formatDiscoveryCandidateMeta(candidate({ provider: 'partner_video' }))).toBe('partner video');
+  });
+
+  it('formats local candidates with backend provider option labels when present', () => {
+    expect(
+      formatDiscoveryCandidateMeta(
+        candidate({ provider: 'partner_video', local_path: '/partner/video.mkv' }),
+        [{ id: 'partner_video', label: 'Partner Archive', available: true }]
+      )
+    ).toBe('Partner Archive · /partner/video.mkv');
   });
 });

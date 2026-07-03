@@ -159,7 +159,7 @@ extension AppleBookCreatePresentation {
     }
 
     static func bookDiscoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
-        var details = [candidate.provider]
+        var details = [bookDiscoveryProviderFallbackLabel(for: candidate.provider)]
         if let contributor = candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines),
            !contributor.isEmpty {
             details.append(contributor)

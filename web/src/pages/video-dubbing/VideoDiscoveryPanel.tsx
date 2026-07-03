@@ -156,7 +156,9 @@ export default function VideoDiscoveryPanel({
               onClick={() => onSelectDiscoveryCandidate(candidate)}
             >
               <span className={styles.discoveryTitle}>{candidate.title}</span>
-              <span className={styles.discoveryMeta}>{formatDiscoveryCandidateMeta(candidate)}</span>
+              <span className={styles.discoveryMeta}>
+                {formatDiscoveryCandidateMeta(candidate, discoveryProviderOptions)}
+              </span>
             </button>
           ))}
         </div>

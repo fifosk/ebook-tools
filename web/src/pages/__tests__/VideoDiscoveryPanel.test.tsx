@@ -115,6 +115,7 @@ describe('VideoDiscoveryPanel', () => {
     expect(within(panel).getByText('Manual downloads are not configured.')).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'YouTube' })).toHaveAttribute('aria-pressed', 'true');
     expect(within(panel).getByRole('button', { name: 'Manual downloads' })).toBeDisabled();
+    expect(panel).toHaveTextContent('YouTube metadata · Example Channel');
     expect(within(panel).getByLabelText('Video discovery search')).toHaveAttribute(
       'placeholder',
       'Search YouTube videos by title or channel'
