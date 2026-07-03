@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-observed-nonplaying-keeps-reader",
+            title: "TV bed dips keep narration",
+            detail: "Apple TV Job and Library playback now keep reader narration active when MusicKit reports an observed Apple Music bed non-playing dip, even if tvOS has stale pause bookkeeping from a prior reader action."
+        ),
+        AppChangelogEntry(
             id: "media-track-serialization-helper",
             title: "Playback tracks stay aligned",
             detail: "Pipeline media manifests and single-chunk lookups now share one audio and timing track serialization helper, keeping Web and Apple playback aligned when chunk sidecars and generated job payloads both describe tracks."

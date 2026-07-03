@@ -119,9 +119,16 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         assert "viewModel.audioCoordinator.isPlaybackRequested ||" in active_pause_guard_body, label
         assert "viewModel.audioCoordinator.isPlaying" in active_pause_guard_body, label
         assert 'reason == "readerTransportPause" || source == "reader transport"' in active_pause_guard_body, label
+        assert "isObservedAppleMusicNonPlayingPause(reason: reason, source: source)" in active_pause_guard_body, label
         assert 'reason == "manualPause", source == "musicSurface"' in active_pause_guard_body, label
+        assert active_pause_guard_body.index(
+            "isObservedAppleMusicNonPlayingPause(reason: reason, source: source)"
+        ) < active_pause_guard_body.index('reason == "manualPause", source == "musicSurface"'), label
         assert 'lastReaderTransportAction == "pause"' in active_pause_guard_body, label
         assert "return true" in active_pause_guard_body, label
+        observed_pause_body = _function_body(source, "private func isObservedAppleMusicNonPlayingPause(reason: String?, source: String?)")
+        assert 'reason == "observedNonPlaying"' in observed_pause_body, label
+        assert 'localizedCaseInsensitiveContains("observed non-playing")' in observed_pause_body, label
 
 
 def test_tvos_music_paused_resume_does_not_override_active_reader_pause() -> None:

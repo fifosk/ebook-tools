@@ -715,6 +715,9 @@ struct JobPlaybackView: View {
         if reason == "readerTransportPause" || source == "reader transport" {
             return false
         }
+        if isObservedAppleMusicNonPlayingPause(reason: reason, source: source) {
+            return true
+        }
         if reason == "manualPause", source == "musicSurface" {
             return false
         }
@@ -731,6 +734,11 @@ struct JobPlaybackView: View {
             !musicOwnership.isManuallyPaused &&
             viewModel.audioCoordinator.isPlaybackRequested &&
             !viewModel.audioCoordinator.isPlaying
+    }
+
+    private func isObservedAppleMusicNonPlayingPause(reason: String?, source: String?) -> Bool {
+        reason == "observedNonPlaying" ||
+            source?.localizedCaseInsensitiveContains("observed non-playing") == true
     }
     #endif
 

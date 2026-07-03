@@ -2683,7 +2683,13 @@ Every cross-surface change should pass the relevant subset:
   being adopted as reader pauses after resume; tvOS now defers ignored active-bed
   non-playing evidence into recovery while narration is active, and
   `make test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped
-  on July 3 without physical deployment.
+  on July 3 without physical deployment. A later Living Room transport log showed
+  `active observed non-playing` still being honored as a Music-surface pause
+  when stale pause bookkeeping survived a prior reader action; Job and Library
+  playback now classify observed non-playing adoption as a recoverable active-bed
+  dip before the manual-pause and previous-pause guards, and the tvOS
+  Music-bed journey again passed 1/1 with 0 failures and 0 skipped before any
+  physical redeploy.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.
