@@ -2132,7 +2132,11 @@ Suggested features to evaluate after parity scaffolding:
   without saving candidate tokens. Web Video Dubbing and Apple YouTube Dub also
   restore that token-free video discovery provenance when applying saved
   templates, so apply/save loops keep reviewed source context instead of
-  dropping it after the first save. Web and Apple Create now also merge prepared
+  dropping it after the first save. Apple YouTube Dub template saves also recover
+  the discovery provider from token-free `source_provider`,
+  `acquisition_provider`, or `source_kind` provenance when older prepared video
+  handoffs lack a top-level provider, keeping sparse handoff templates from
+  losing source context. Web and Apple Create now also merge prepared
   artifact metadata into book/video discovery state after local handoffs, so
   normalized source provider, acquisition provider, acquisition candidate id,
   and source kind survive template save/apply loops without storing acquisition

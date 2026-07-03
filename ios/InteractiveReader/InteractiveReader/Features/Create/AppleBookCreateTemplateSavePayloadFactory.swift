@@ -484,8 +484,15 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             }
             normalized[trimmedKey] = normalizedValue
         }
-        guard normalized["provider"] != nil else {
+        let provider = normalizedString(normalized["provider"])
+            ?? normalizedString(normalized["source_provider"])
+            ?? normalizedString(normalized["acquisition_provider"])
+            ?? normalizedString(normalized["source_kind"])
+        guard let provider else {
             return nil
+        }
+        if normalized["provider"] == nil {
+            normalized["provider"] = .string(provider)
         }
         if normalized["media_kind"] == nil {
             normalized["media_kind"] = .string("video")

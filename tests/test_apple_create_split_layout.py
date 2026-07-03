@@ -1653,6 +1653,15 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "payload[\"discovery_state\"] = .object(discoveryState)" in template_save_factory_source
     assert "private static func makeVideoDiscoveryState(" in template_save_factory_source
     assert 'trimmedKey.lowercased().contains("token")' in template_save_factory_source
+    video_template_state_body = template_save_factory_source.split(
+        "private static func makeVideoDiscoveryState(",
+        1,
+    )[1].split("\n    private static func normalizedString", 1)[0]
+    assert 'normalizedString(normalized["provider"])' in video_template_state_body
+    assert '?? normalizedString(normalized["source_provider"])' in video_template_state_body
+    assert '?? normalizedString(normalized["acquisition_provider"])' in video_template_state_body
+    assert '?? normalizedString(normalized["source_kind"])' in video_template_state_body
+    assert 'normalized["provider"] = .string(provider)' in video_template_state_body
     for web_template_key in [
         '"input_file"',
         '"base_output_file"',

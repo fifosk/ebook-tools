@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-youtube-template-sparse-provider-state",
+            title: "YouTube templates keep source context",
+            detail: "Apple YouTube Dub template saves now recover the discovery provider from source, acquisition, or source-kind provenance when older prepared video handoffs lack a top-level provider, preserving token-free source context for Web/Apple apply-save loops."
+        ),
+        AppChangelogEntry(
             id: "apple-tv-music-bed-stale-activity-pause",
             title: "TV pause catches stale reader activity",
             detail: "Apple TV now adopts an ignored Apple Music non-playing callback as a reader pause when the Music bed was already known to be active, so a stale reader-active flag cannot leave sentence narration running after the first pause press."
