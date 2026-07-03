@@ -26,10 +26,25 @@ type BookNarrationDiscoveryDialogProps = {
   onClose: () => void;
 };
 
-function formatCandidateMeta(candidate: AcquisitionCandidate): string {
+function fallbackProviderLabel(providerId: string): string {
+  return providerId.replace(/_/g, ' ');
+}
+
+function providerLabel(
+  providerId: string,
+  providerOptions: BookNarrationDiscoveryProviderOption[]
+): string {
+  return providerOptions.find((option) => option.id === providerId)?.label
+    ?? fallbackProviderLabel(providerId);
+}
+
+function formatCandidateMeta(
+  candidate: AcquisitionCandidate,
+  providerOptions: BookNarrationDiscoveryProviderOption[]
+): string {
   const sourceKind = candidate.provider === 'openlibrary' ? 'metadata catalog' : 'public catalog';
   const parts = [
-    candidate.provider,
+    providerLabel(candidate.provider, providerOptions),
     candidate.rights.replace(/_/g, ' '),
     candidate.contributors[0],
     candidate.language,
@@ -150,7 +165,7 @@ export function BookNarrationDiscoveryDialog({
           </form>
           {providersQueried.length > 0 ? (
             <p className="form-help-text">
-              Checked {providersQueried.map((provider) => provider.replace(/_/g, ' ')).join(', ')}.
+              Checked {providersQueried.map((queriedProvider) => providerLabel(queriedProvider, providerOptions)).join(', ')}.
             </p>
           ) : null}
           {selectedProviderUnavailableMessage ? (
@@ -192,7 +207,7 @@ export function BookNarrationDiscoveryDialog({
                       <span className="file-list__name">{candidate.title}</span>
                       <span className="file-list__action">{candidateActionLabel(candidate, acquiringCandidateId)}</span>
                     </span>
-                    <span className="file-list__meta">{formatCandidateMeta(candidate)}</span>
+                    <span className="file-list__meta">{formatCandidateMeta(candidate, providerOptions)}</span>
                   </button>
                 </li>
               ))}

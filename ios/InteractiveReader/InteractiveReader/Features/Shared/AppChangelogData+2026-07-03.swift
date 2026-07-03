@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "web-narrate-discovery-friendly-provider-labels",
+            title: "Discovery labels stay friendly",
+            detail: "Web Narrate Ebook discovery now labels checked providers and candidate source metadata with the same friendly provider names as its source buttons, keeping backend-owned discovery labels consistent with Apple Create."
+        ),
+        AppChangelogEntry(
             id: "apple-tv-music-bed-toggle-requires-idle-reader",
             title: "TV pause keeps narration first",
             detail: "Apple TV Play/Pause toggles no longer turn into a Music-bed resume while sentence narration is still requested or audible, tightening the single-press pause path across Job and Library playback."

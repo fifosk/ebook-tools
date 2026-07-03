@@ -104,7 +104,8 @@ describe('BookNarrationFormDialogs', () => {
     const props = renderDialogs({ activeDiscoveryDialog: true });
 
     expect(screen.getByText('Review source rights before narrating.')).toBeInTheDocument();
-    expect(screen.getByText('Checked local epub.')).toBeInTheDocument();
+    expect(screen.getByText('Checked Local EPUBs.')).toBeInTheDocument();
+    expect(screen.getByText(/Local EPUBs · user provided/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     expect(props.onDiscoverySearch).toHaveBeenCalledWith('demo');
