@@ -164,7 +164,7 @@ SEQUENCE_TIME_SEEK_ACCEPTED_LINE_PATTERN = re.compile(
 
 AUTOPLAY_RECOVERY_LINE_PATTERN = re.compile(
     r"^(?P<time>\d+(?:\.\d+)?) \[PlaybackTransport\] (?P<surface>Job|Library) "
-    r"recovering pending interactive autoplay .* sentence=(?P<sentence>\d+)"
+    r"recovering pending interactive autoplay reason=(?P<reason>\S+) sentence=(?P<sentence>\d+)"
 )
 
 PLAYBACK_BUILD_HEADER_PATTERN = re.compile(
@@ -406,6 +406,18 @@ def _autoplay_recovery_loop_violations(text: str) -> list[str]:
     return []
 
 
+def _audio_state_autoplay_recovery_violations(text: str) -> list[str]:
+    for line in text.splitlines():
+        match = AUTOPLAY_RECOVERY_LINE_PATTERN.match(line)
+        if not match:
+            continue
+        if match.group("reason") in {"jobAudioState", "libraryAudioState"}:
+            return [
+                "audio-state callback recovered pending interactive autoplay"
+            ]
+    return []
+
+
 def _build_commit_violations(text: str, required_commit: str | None) -> list[str]:
     required = (required_commit or "").strip()
     if not required:
@@ -511,6 +523,7 @@ def validate_log(
     if mode != "resume-offset":
         missing.extend(_pause_guard_violations(text))
         missing.extend(_pause_episode_violations(text))
+        missing.extend(_audio_state_autoplay_recovery_violations(text))
         missing.extend(_autoplay_recovery_loop_violations(text))
     if mode == "pause-resume":
         missing.extend(_dead_resume_violations(text))

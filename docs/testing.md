@@ -1338,6 +1338,12 @@ adoption and accidentally resume both the reader and bed. The ordinary
 `brokerResume` source is allowed as the accepted app-broker resume path, and the
 validator then expects the following reader play acceptance and Music-bed resume
 evidence.
+The same cached-log checker now rejects any
+`recovering pending interactive autoplay reason=jobAudioState` or
+`reason=libraryAudioState` breadcrumb immediately. Watchdog and reviewed retry
+paths may still recover a pending autoplay, but audio-state observers are
+expected only to clear paused reader state; seeing one recover autoplay is treated
+as stale-build or regression evidence before loop heuristics run.
 
 Latest Apple TV Music-bed validation deploy from June 30, 2026 installed commit
 `080bb4d4` on Living Room Apple TV with:

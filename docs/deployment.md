@@ -519,15 +519,14 @@ between two intentional pause episodes. If a stale Apple Music pause is ignored
 before that reader playback recovery evidence appears, validation fails with
 `stale Apple Music pause was ignored before reader playback recovered`, because
 that breadcrumb can otherwise hide the two-press pause/resume regression.
-The same check now rejects dense `recovering pending interactive autoplay`
-bursts for one sentence when a Music-surface pause lands in that short window,
-reporting `pending interactive autoplay looped while Music bed reported paused`
-for the Living Room failure mode where stale Music-bed state cancels narration
-into an autoplay retry loop. tvOS Job and Library readers should keep pending
-autoplay recovery out of `jobAudioState` / `libraryAudioState` bursts; scheduled
-retry and watchdog recovery can still help startup, but rapid audio-state pulses
-must not repeatedly enqueue sentence jumps while Music-bed pause adoption is
-settling.
+The same check now rejects any `recovering pending interactive autoplay` line
+whose reason is `jobAudioState` or `libraryAudioState`, and still rejects dense
+same-sentence recovery bursts when a Music-surface pause lands in that short
+window with `pending interactive autoplay looped while Music bed reported paused`.
+The immediate audio-state failure proves a stale build or reader
+regression before loop heuristics run; scheduled retry and watchdog recovery can
+still help startup, but audio-state pulses must not enqueue sentence jumps while
+Music-bed pause adoption is settling.
 
 ### Makefile Shortcuts
 

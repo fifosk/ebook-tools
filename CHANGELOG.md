@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple playback transport log verification now fails immediately if Job or Library audio-state callbacks recover pending interactive autoplay, so stale TV builds that loop a paused sentence are caught before broader retry-loop heuristics.
 - Apple interactive reader sequence playback now clamps AVPlayer to each segment's true end and uses smaller TV boundary/fade windows, reducing clipped sentence endings while blocking a next-sentence sliver before Original/Translation track switches.
 - Apple sequence handoffs now pause the muted previous AVPlayer item while preserving reader playback intent, reducing stale next-sentence tails before Original/Translation track switches without stopping the Apple Music bed.
 - Apple Job and Library playback now suppress pending interactive-autoplay recovery through the reader pause hold, single-track skip navigation drops stale slider/jump anchors after the live timeline settles, and tvOS same-track trimming is less aggressive so Translation handoffs keep sentence tails without reviving pause loops.

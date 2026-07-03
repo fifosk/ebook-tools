@@ -351,6 +351,7 @@ def test_pause_resume_rejects_pending_autoplay_music_pause_loop(tmp_path: Path) 
     missing = module.validate_log(log, mode="pause-resume")
 
     assert missing == [
+        "audio-state callback recovered pending interactive autoplay",
         "pending interactive autoplay looped while Music bed reported paused"
     ]
 
@@ -377,6 +378,7 @@ def test_fresh_only_ignores_stale_baseline_failures(tmp_path: Path) -> None:
     log.write_text(stale_failure + PAUSE_RESUME_LOG, encoding="utf-8")
 
     assert module.validate_log(log, mode="pause-resume") == [
+        "audio-state callback recovered pending interactive autoplay",
         "pending interactive autoplay looped while Music bed reported paused"
     ]
     assert module.validate_log(
@@ -407,7 +409,23 @@ def test_pause_resume_rejects_job_audio_state_autoplay_music_pause_loop(tmp_path
     )
 
     assert module.validate_log(log, mode="pause-resume") == [
+        "audio-state callback recovered pending interactive autoplay",
         "pending interactive autoplay looped while Music bed reported paused"
+    ]
+
+
+def test_pause_resume_rejects_single_audio_state_autoplay_recovery(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        PAUSE_RESUME_LOG
+        + """
+1782670002.000 [PlaybackTransport] Job recovering pending interactive autoplay reason=jobAudioState sentence=2657
+""",
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="pause-resume") == [
+        "audio-state callback recovered pending interactive autoplay"
     ]
 
 
@@ -416,10 +434,10 @@ def test_pause_resume_allows_single_pending_autoplay_recovery(tmp_path: Path) ->
     log.write_text(
         PAUSE_RESUME_LOG
         + """
-1782670002.000 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=42
+1782670002.000 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryWatchdog sentence=42
 1782670002.150 [PlaybackTransport] Library accepted Apple Music pause as reader transport source=musicSurface requested=true playing=true musicPlaying=false readerPause=false
 1782670002.160 [PlaybackTransport] Library confirmed reader pause source=musicSurface requested=false playing=false musicPlaying=false
-1782670004.200 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAudioState sentence=43
+1782670004.200 [PlaybackTransport] Library recovering pending interactive autoplay reason=libraryAutoplayRetry sentence=43
 """,
         encoding="utf-8",
     )
