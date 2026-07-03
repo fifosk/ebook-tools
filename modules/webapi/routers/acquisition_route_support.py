@@ -9,6 +9,12 @@ from modules.permissions import normalize_role
 
 from ..dependencies import RequestUserContext
 from ..route_telemetry import log_started_route_result
+from ..schemas.acquisition import (
+    AcquisitionDiscoveryResponse,
+    AcquisitionProviderListResponse,
+    AcquisitionProviderPayload,
+)
+from .acquisition_payloads import candidate_payload
 
 
 LOGGER = log_mgr.get_logger().getChild("webapi.acquisition")
@@ -77,6 +83,33 @@ def normalize_optional_text(value: str | None) -> str | None:
         return None
     normalized = str(value).strip()
     return normalized or None
+
+
+def provider_list_response(registry) -> AcquisitionProviderListResponse:
+    """Shape a token-safe provider registry response for Web and Apple Create."""
+
+    return AcquisitionProviderListResponse(
+        providers=[
+            AcquisitionProviderPayload(**provider.as_dict())
+            for provider in registry.providers
+        ],
+        policy_notes=list(registry.policy_notes),
+        paths=dict(registry.paths),
+        default_provider_ids={
+            media_kind: list(provider_ids)
+            for media_kind, provider_ids in registry.default_provider_ids.items()
+        },
+    )
+
+
+def discovery_response(result) -> AcquisitionDiscoveryResponse:
+    """Shape normalized discovery candidates into the public route schema."""
+
+    return AcquisitionDiscoveryResponse(
+        candidates=[candidate_payload(candidate) for candidate in result.candidates],
+        policy_notes=list(result.policy_notes),
+        providers_queried=list(result.providers_queried),
+    )
 
 
 def normalize_async_job_provider_id(

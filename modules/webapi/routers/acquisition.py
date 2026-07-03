@@ -31,17 +31,14 @@ from ..dependencies import (
 from ..schemas.acquisition import (
     AcquisitionAcquireRequest,
     AcquisitionArtifactResponse,
-    AcquisitionCandidatePayload,
     AcquisitionDiscoveryResponse,
     AcquisitionJobCreateRequest,
     AcquisitionJobStatusResponse,
     AcquisitionPreparedArtifactResponse,
     AcquisitionProviderListResponse,
-    AcquisitionProviderPayload,
 )
 from .acquisition_payloads import (
     artifact_payload as _artifact_payload,
-    candidate_payload as _candidate_payload,
     job_payload as _job_payload,
     prepared_artifact_payload as _prepared_artifact_payload,
     public_metadata as _public_metadata,
@@ -55,11 +52,13 @@ from .acquisition_route_support import (
     ACQUISITION_PROVIDERS_UNAVAILABLE_MESSAGE,
     LOGGER,
     ensure_discovery_user as _support_ensure_discovery_user,
+    discovery_response as _support_discovery_response,
     log_provider_route as _support_log_provider_route,
     log_unexpected_route_error as _support_log_unexpected_route_error,
     normalize_async_job_provider_id as _support_normalize_async_job_provider_id,
     normalize_optional_text as _normalize_optional_text,
     normalize_route_id as _normalize_route_id,
+    provider_list_response as _support_provider_list_response,
     raise_bad_acquisition_route_id as _support_raise_bad_acquisition_route_id,
 )
 
@@ -144,18 +143,7 @@ def list_providers(
     try:
         config = runtime_provider.resolve_config()
         registry = list_acquisition_providers(config=config)
-        response_payload = AcquisitionProviderListResponse(
-            providers=[
-                AcquisitionProviderPayload(**provider.as_dict())
-                for provider in registry.providers
-            ],
-            policy_notes=list(registry.policy_notes),
-            paths=dict(registry.paths),
-            default_provider_ids={
-                media_kind: list(provider_ids)
-                for media_kind, provider_ids in registry.default_provider_ids.items()
-            },
-        )
+        response_payload = _support_provider_list_response(registry)
     except Exception as exc:
         _log_provider_route("error", started_at)
         _log_unexpected_route_error("providers")
@@ -224,11 +212,7 @@ def discover(
         ) from exc
 
     try:
-        response_payload = AcquisitionDiscoveryResponse(
-            candidates=[_candidate_payload(candidate) for candidate in result.candidates],
-            policy_notes=list(result.policy_notes),
-            providers_queried=list(result.providers_queried),
-        )
+        response_payload = _support_discovery_response(result)
     except Exception as exc:
         _log_provider_route("error", started_at, operation="discover")
         _log_unexpected_route_error("discover")

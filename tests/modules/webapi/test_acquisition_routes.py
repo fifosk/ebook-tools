@@ -25,6 +25,10 @@ from modules.webapi.routers.acquisition import (
     _normalize_source_id_filters,
     _public_metadata,
 )
+from modules.webapi.routers.acquisition_route_support import (
+    discovery_response,
+    provider_list_response,
+)
 from modules.webapi.schemas.acquisition import AcquisitionProviderListResponse
 
 
@@ -366,6 +370,91 @@ def test_acquisition_provider_schema_rejects_unknown_default_provider_media_kind
     rendered = str(exc_info.value)
     assert "Input should be 'book' or 'video'" in rendered
     assert "secret-provider-id" not in rendered
+
+
+def test_acquisition_route_support_shapes_provider_registry_response() -> None:
+    from modules.services.acquisition.provider_registry import (
+        AcquisitionProvider,
+        AcquisitionProviderRegistry,
+    )
+
+    response = provider_list_response(
+        AcquisitionProviderRegistry(
+            providers=(
+                AcquisitionProvider(
+                    id="local_epub",
+                    label="Local EPUB library",
+                    media_kinds=("book",),
+                    capabilities=("import_local", "metadata"),
+                    status="available",
+                    configured=True,
+                    available=True,
+                    rights=("user_provided",),
+                    discovery_media_kinds=("book",),
+                    default_eligible_media_kinds=("book",),
+                    source_path="/Volumes/Data/Books",
+                    source_label="Books root",
+                    policy_notes=("Use owned books.",),
+                    next_actions=("prepare_epub_source",),
+                ),
+            ),
+            policy_notes=("Discovery requires user review.",),
+            paths={"books_root": "/Volumes/Data/Books"},
+            default_provider_ids={"book": ("local_epub",)},
+        )
+    )
+
+    assert response.providers[0].id == "local_epub"
+    assert response.providers[0].discovery_media_kinds == ["book"]
+    assert response.providers[0].default_eligible_media_kinds == ["book"]
+    assert response.policy_notes == ["Discovery requires user review."]
+    assert response.paths == {"books_root": "/Volumes/Data/Books"}
+    assert response.default_provider_ids == {"book": ["local_epub"]}
+
+
+def test_acquisition_route_support_shapes_discovery_response_token_safely() -> None:
+    from modules.services.acquisition import (
+        AcquisitionCandidate,
+        AcquisitionDiscoveryResult,
+    )
+
+    response = discovery_response(
+        AcquisitionDiscoveryResult(
+            providers_queried=("newznab_torznab",),
+            candidates=(
+                AcquisitionCandidate(
+                    candidate_id="candidate-1",
+                    provider="newznab_torznab",
+                    media_kind="video",
+                    title="Reviewed Video",
+                    rights="unknown",
+                    capabilities=("metadata",),
+                    candidate_token="reviewed-candidate-token",
+                    source_url=(
+                        "https://secret-user:secret-pass@indexer.example.invalid/get?"
+                        "id=7&apikey=secret-key"
+                    ),
+                    metadata={
+                        "title": "Reviewed Video",
+                        "api_key": "secret-key",
+                        "download_url": (
+                            "https://indexer.example.invalid/get?id=7&apikey=secret-key"
+                        ),
+                    },
+                ),
+            ),
+            policy_notes=("Review rights before download.",),
+        )
+    )
+
+    assert response.providers_queried == ["newznab_torznab"]
+    assert response.policy_notes == ["Review rights before download."]
+    assert response.candidates[0].source_url == "https://indexer.example.invalid/get?id=7"
+    assert response.candidates[0].metadata == {
+        "title": "Reviewed Video",
+        "download_url": "https://indexer.example.invalid/get?id=7",
+    }
+    assert "secret-key" not in response.model_dump_json()
 
 
 def test_acquisition_provider_route_failure_uses_generic_detail_and_token_safe_telemetry(
