@@ -479,9 +479,7 @@ struct LibraryPlaybackView: View {
         if reason == "manualPause", source == "musicSurface" {
             return true
         }
-        guard reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying" else { return false }
-        return source == "active observed non-playing" ||
-            source == "persistent observed non-playing"
+        return false
         #else
         return false
         #endif

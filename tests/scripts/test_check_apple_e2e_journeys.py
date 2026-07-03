@@ -171,7 +171,7 @@ def _write_music_bed_journey(
                 "music_bed_observed_music_pause_observed",
                 "music_bed_observed_music_pause_recovered",
             }
-            and step.get("text") not in {"phase=observedPauseImmediate", "phase=play"}
+            and step.get("text") not in {"phase=observedPause", "phase=play"}
         ]
     path.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -492,7 +492,7 @@ def test_music_bed_validator_requires_tvos_observed_pause_probe(tmp_path: Path) 
 
     errors = module.validate_journey(journey)
 
-    assert any("phase=observedPauseImmediate" in error for error in errors)
+    assert any("phase=observedPause" in error for error in errors)
     assert any("phase=play" in error for error in errors)
     assert any("music_bed_observed_music_pause_probe_observed" in error for error in errors)
 

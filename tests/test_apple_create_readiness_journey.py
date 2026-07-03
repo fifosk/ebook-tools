@@ -389,7 +389,7 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert steps[observed_pause_index + 1] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
-        "text": "phase=observedPauseImmediate",
+        "text": "phase=observedPause",
         "platforms": ["tvOS"],
         "timeout": 10,
     }
@@ -418,7 +418,7 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert steps[observed_pause_index + 5] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
-        "text": "readerPause=true",
+        "text": "readerPause=false",
         "platforms": ["tvOS"],
         "timeout": 10,
     }

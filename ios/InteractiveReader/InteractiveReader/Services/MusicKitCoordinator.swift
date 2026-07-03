@@ -992,12 +992,6 @@ final class MusicKitCoordinator: ObservableObject {
         logger.info(
             "Apple Music observed non-playing candidate observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public) readerActive=\(self.isReaderNarrationActiveForMusicBed, privacy: .public) guard=\(self.isReaderTransportPauseGuardActive, privacy: .public)"
         )
-        #if os(tvOS)
-        if shouldConfirmActiveNarrationNonPlayingAsReaderPause {
-            confirmActiveNarrationNonPlayingAsReaderPause(reason: "observedNonPlaying")
-            return
-        }
-        #endif
         if shouldDeferObservedNonPlayingDuringActiveReadingBed {
             deferObservedNonPlayingDuringActiveReadingBed(reason: "observedNonPlaying")
             return
@@ -1052,44 +1046,6 @@ final class MusicKitCoordinator: ObservableObject {
         #endif
     }
 
-    private var shouldConfirmActiveNarrationNonPlayingAsReaderPause: Bool {
-        #if os(tvOS)
-        return ownershipState == .appleMusicBed &&
-            isReaderNarrationActiveForMusicBed &&
-            !isPausedByReaderTransport
-        #else
-        return false
-        #endif
-    }
-
-    private func confirmActiveNarrationNonPlayingAsReaderPause(reason: String) {
-        #if os(tvOS)
-        observedNonPlayingTask?.cancel()
-        logger.info("Apple Music observed non-playing adopting active tvOS reader pause immediately")
-        guard shouldConfirmActiveNarrationNonPlayingAsReaderPause else {
-            logger.info("Apple Music active reader pause adoption ignored after state changed")
-            return
-        }
-        guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else {
-            isPlaying = true
-            observedPlayingAsReadingBed = true
-            return
-        }
-        observedNonPlayingTask = nil
-        isPlaying = false
-        observedPlayingAsReadingBed = false
-        adoptPauseAsReaderTransport(
-            reason: reason,
-            source: "active observed non-playing"
-        )
-        #if DEBUG
-        if isE2EMusicBedSyncTest {
-            e2eMusicBedSyncPhase = "observedPauseImmediate"
-        }
-        #endif
-        #endif
-    }
-
     private func deferObservedNonPlayingDuringActiveReadingBed(reason: String) {
         observedNonPlayingTask?.cancel()
         hasAutoResumeIntent = true
@@ -1119,11 +1075,11 @@ final class MusicKitCoordinator: ObservableObject {
             guard self.isBackgroundMode else { return }
             guard self.shouldDeferObservedNonPlayingDuringActiveReadingBed else { return }
             guard !self.isSystemPlaybackPlaying, !self.isPlaying else { return }
-            self.logger.info("Apple Music deferred non-playing persisted; adopting reader transport pause")
-            self.adoptPauseAsReaderTransport(
-                reason: "deferredObservedNonPlaying",
-                source: "persistent observed non-playing"
+            self.logger.info("Apple Music deferred non-playing persisted while reader stayed active; keeping narration transport")
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Apple Music active observed non-playing kept reader active reason=deferredObservedNonPlaying"
             )
+            self.hasAutoResumeIntent = true
         }
     }
 
@@ -1499,7 +1455,9 @@ final class MusicKitCoordinator: ObservableObject {
         #if os(tvOS)
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 36_000_000_000)
-            guard self.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
+            guard self.e2eMusicBedSyncPhase == "observedPause" ||
+                self.e2eMusicBedSyncPhase == "observedPauseImmediate"
+            else { return }
             self.simulateReadingBedPlayForE2E()
         }
         #endif

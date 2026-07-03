@@ -87,8 +87,8 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         ), label
         honor_adoption_body = _function_body(source, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
         assert 'reason == "manualPause", source == "musicSurface"' in honor_adoption_body, label
-        assert 'source == "active observed non-playing"' in honor_adoption_body, label
-        assert 'source == "persistent observed non-playing"' in honor_adoption_body, label
+        assert 'source == "active observed non-playing"' not in honor_adoption_body, label
+        assert 'source == "persistent observed non-playing"' not in honor_adoption_body, label
         assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in stale_gate_body, label
         assert "previousAction: lastReaderTransportAction" in stale_gate_body, label
         assert "lastCommandTime: lastReaderTransportCommandTime" in stale_gate_body, label
@@ -144,27 +144,22 @@ def test_tvos_reader_pause_reasserts_against_stray_music_play() -> None:
         assert "e2eReaderTransportCommandCount == 0" not in reassert_body, label
 
 
-def test_tvos_active_music_pause_adopts_before_recovery() -> None:
+def test_tvos_active_music_pause_keeps_reader_transport() -> None:
     music = _source(SERVICES / "MusicKitCoordinator.swift")
     observed_body = _function_body(music, "private func handleObservedNonPlayingStatus")
-    confirm_gate_body = _function_body(
-        music,
-        "private var shouldConfirmActiveNarrationNonPlayingAsReaderPause",
-    )
-    confirm_body = _function_body(
-        music,
-        "private func confirmActiveNarrationNonPlayingAsReaderPause",
-    )
     defer_body = _function_body(
         music,
         "private var shouldDeferObservedNonPlayingDuringActiveReadingBed",
     )
-
-    assert "if shouldConfirmActiveNarrationNonPlayingAsReaderPause" in observed_body
-    assert "confirmActiveNarrationNonPlayingAsReaderPause(reason: \"observedNonPlaying\")" in observed_body
-    assert observed_body.index("if shouldConfirmActiveNarrationNonPlayingAsReaderPause") < observed_body.index(
-        "if shouldDeferObservedNonPlayingDuringActiveReadingBed"
+    deferred_non_playing_body = _function_body(
+        music,
+        "private func deferObservedNonPlayingDuringActiveReadingBed(reason: String)",
     )
+
+    assert "if shouldConfirmActiveNarrationNonPlayingAsReaderPause" not in observed_body
+    assert "confirmActiveNarrationNonPlayingAsReaderPause(reason: \"observedNonPlaying\")" not in observed_body
+    assert "private var shouldConfirmActiveNarrationNonPlayingAsReaderPause" not in music
+    assert "private func confirmActiveNarrationNonPlayingAsReaderPause" not in music
     assert observed_body.index("if shouldDeferObservedNonPlayingDuringActiveReadingBed") < observed_body.index(
         "guard shouldTreatObservedNonPlayingAsReaderPause else"
     )
@@ -175,11 +170,6 @@ def test_tvos_active_music_pause_adopts_before_recovery() -> None:
         "observedNonPlayingTask = Task"
     )
     assert "if shouldDeferObservedNonPlayingDuringActiveReadingBed" in observed_body
-    assert "#if os(tvOS)" in confirm_gate_body
-    assert "ownershipState == .appleMusicBed" in confirm_gate_body
-    assert "isReaderNarrationActiveForMusicBed" in confirm_gate_body
-    assert "!isManuallyPaused" not in confirm_gate_body
-    assert "!isPausedByReaderTransport" in confirm_gate_body
     ignored_gate_body = _function_body(
         music,
         "private var shouldAdoptIgnoredObservedNonPlayingAsReaderPause",
@@ -189,10 +179,7 @@ def test_tvos_active_music_pause_adopts_before_recovery() -> None:
     assert "isReaderNarrationActiveForMusicBed" in ignored_gate_body
     assert "observedPlayingAsReadingBed" in ignored_gate_body
     assert "hasAutoResumeIntent" in ignored_gate_body
-    assert "Task.sleep" not in confirm_body
-    assert "adopting active tvOS reader pause immediately" in confirm_body
-    assert "ApplicationMusicPlayer.shared.state.playbackStatus != .playing" in confirm_body
-    assert "adoptPauseAsReaderTransport(" in confirm_body
-    assert 'source: "active observed non-playing"' in confirm_body
-    assert 'e2eMusicBedSyncPhase = "observedPauseImmediate"' in confirm_body
     assert "shouldAdoptObservedNonPlayingImmediately" in defer_body
+    assert "Apple Music deferred non-playing persisted while reader stayed active; keeping narration transport" in deferred_non_playing_body
+    assert 'source: "persistent observed non-playing"' not in deferred_non_playing_body
+    assert 'adoptPauseAsReaderTransport(\n                reason: "deferredObservedNonPlaying",' not in deferred_non_playing_body

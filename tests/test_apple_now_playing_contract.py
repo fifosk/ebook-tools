@@ -238,9 +238,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "return hasPendingReaderMusicResume" not in job_stale_pause_body
     job_honor_adoption_body = _function_body(job_playback, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
     assert 'reason == "manualPause", source == "musicSurface"' in job_honor_adoption_body
-    assert 'reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying"' in job_honor_adoption_body
-    assert 'source == "active observed non-playing"' in job_honor_adoption_body
-    assert 'source == "persistent observed non-playing"' in job_honor_adoption_body
+    assert 'reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying"' not in job_honor_adoption_body
+    assert 'source == "active observed non-playing"' not in job_honor_adoption_body
+    assert 'source == "persistent observed non-playing"' not in job_honor_adoption_body
     job_mirror_pause_body = _function_body(job_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in job_mirror_pause_body
     assert "clearPendingInteractiveAutoplay(reason: source)" in job_mirror_pause_body
@@ -818,9 +818,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "guard !viewModel.isNarrationAudibleForReaderTransport else { return false }" in library_stale_pause_body
     library_honor_adoption_body = _function_body(library_playback, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
     assert 'reason == "manualPause", source == "musicSurface"' in library_honor_adoption_body
-    assert 'reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying"' in library_honor_adoption_body
-    assert 'source == "active observed non-playing"' in library_honor_adoption_body
-    assert 'source == "persistent observed non-playing"' in library_honor_adoption_body
+    assert 'reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying"' not in library_honor_adoption_body
+    assert 'source == "active observed non-playing"' not in library_honor_adoption_body
+    assert 'source == "persistent observed non-playing"' not in library_honor_adoption_body
     assert "return !(viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)" in library_stale_pause_body
     assert "return hasPendingReaderMusicResume" not in library_stale_pause_body
     library_mirror_pause_body = _function_body(library_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
@@ -1389,12 +1389,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "readerActive=" in non_playing_body
     assert "guard=\\(" in non_playing_body
     assert "deferObservedNonPlayingDuringActiveReadingBed(reason: \"observedNonPlaying\")" in non_playing_body
-    assert "shouldConfirmActiveNarrationNonPlayingAsReaderPause" in non_playing_body
-    assert 'confirmActiveNarrationNonPlayingAsReaderPause(reason: "observedNonPlaying")' in non_playing_body
+    assert "shouldConfirmActiveNarrationNonPlayingAsReaderPause" not in non_playing_body
+    assert 'confirmActiveNarrationNonPlayingAsReaderPause(reason: "observedNonPlaying")' not in non_playing_body
     assert "shouldAdoptObservedNonPlayingImmediately" in non_playing_body
-    assert non_playing_body.index("shouldConfirmActiveNarrationNonPlayingAsReaderPause") < non_playing_body.index(
-        "deferObservedNonPlayingDuringActiveReadingBed"
-    )
     assert non_playing_body.index("deferObservedNonPlayingDuringActiveReadingBed") < non_playing_body.index(
         "guard shouldTreatObservedNonPlayingAsReaderPause else"
     )
@@ -1430,11 +1427,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "Apple Music observed non-playing deferred for active reading bed" in deferred_non_playing_body
     assert "Apple Music deferred non-playing recovering active reading bed" in deferred_non_playing_body
     assert 'recoverReadingBedForActiveNarration(reason: "deferredObservedNonPlaying")' in deferred_non_playing_body
-    assert "Apple Music deferred non-playing persisted; adopting reader transport pause" in deferred_non_playing_body
-    assert 'adoptPauseAsReaderTransport(\n                reason: "deferredObservedNonPlaying",' in deferred_non_playing_body
-    assert 'source: "persistent observed non-playing"' in deferred_non_playing_body
+    assert "Apple Music deferred non-playing persisted while reader stayed active; keeping narration transport" in deferred_non_playing_body
+    assert "[PlaybackTransport] Apple Music active observed non-playing kept reader active reason=deferredObservedNonPlaying" in deferred_non_playing_body
+    assert 'adoptPauseAsReaderTransport(\n                reason: "deferredObservedNonPlaying",' not in deferred_non_playing_body
+    assert 'source: "persistent observed non-playing"' not in deferred_non_playing_body
     assert deferred_non_playing_body.index('recoverReadingBedForActiveNarration(reason: "deferredObservedNonPlaying")') < deferred_non_playing_body.index(
-        "Apple Music deferred non-playing persisted; adopting reader transport pause"
+        "Apple Music deferred non-playing persisted while reader stayed active; keeping narration transport"
     )
     adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
     assert "isManuallyPaused = true" in adopt_pause_body
@@ -2387,6 +2385,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     )
     setup_resume_body = _function_body(chrome, "private func scheduleTVOSSetupResumeIfNeeded(phase: String)")
     assert 'if phase == "play"' in setup_resume_body
+    assert 'phase == "observedPause"' in setup_resume_body
+    assert 'phase == "observedPauseImmediate"' in setup_resume_body
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 0.25)" in setup_resume_body
     assert "attemptInteractiveStartForE2EIfReady()" in setup_resume_body
     assert "guard readerTransportCommandCount == 0 else { return }" in setup_resume_body
@@ -2580,10 +2580,7 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "isReaderTransportPauseGuardActive" in observed_play_body
     observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "shouldAdoptObservedNonPlayingImmediately" in observed_non_playing_body
-    assert "shouldConfirmActiveNarrationNonPlayingAsReaderPause" in observed_non_playing_body
-    assert observed_non_playing_body.index("shouldConfirmActiveNarrationNonPlayingAsReaderPause") < observed_non_playing_body.index(
-        "deferObservedNonPlayingDuringActiveReadingBed"
-    )
+    assert "shouldConfirmActiveNarrationNonPlayingAsReaderPause" not in observed_non_playing_body
     assert observed_non_playing_body.index("deferObservedNonPlayingDuringActiveReadingBed") < observed_non_playing_body.index(
         "guard shouldTreatObservedNonPlayingAsReaderPause else"
     )

@@ -678,7 +678,7 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
-      "text": "phase=observedPauseImmediate",
+      "text": "phase=observedPause",
       "platforms": ["tvOS"],
       "timeout": 10
     },
@@ -707,7 +707,7 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
-      "text": "readerPause=true",
+      "text": "readerPause=false",
       "platforms": ["tvOS"],
       "timeout": 10
     },

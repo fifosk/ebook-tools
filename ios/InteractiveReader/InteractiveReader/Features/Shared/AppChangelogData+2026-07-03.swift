@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "music-bed-nonplaying-keeps-reader",
+            title: "Music bed no longer cuts narration",
+            detail: "Apple TV and iPad playback now treat active Apple Music bed non-playing observations as a bed recovery problem instead of a reader pause, preventing spontaneous MusicKit state changes from cutting off sentence audio."
+        ),
+        AppChangelogEntry(
             id: "music-bed-ignores-sequence-dwell",
             title: "Music bed respects handoffs",
             detail: "Apple Job and Library playback now ignore Apple Music bed play observations while the reader is intentionally dwelling or switching Original/Translation tracks, preventing Music from restarting the outgoing sentence before Translation begins."
