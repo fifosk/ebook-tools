@@ -18,6 +18,7 @@ extension JobPlaybackView {
         videoAutoPlay = false
         resumeDecisionPending = true
         pendingInteractiveAutoplaySentence = nil
+        lastPendingInteractiveAutoplayRecoveryTime = 0
         lastRecordedSentence = nil
         lastRecordedSentenceTimeBucket = nil
         lastRecordedTimeBucket = nil
@@ -71,6 +72,7 @@ extension JobPlaybackView {
         if let sentence = resolvedSentence, sentence > 0 {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
+            lastPendingInteractiveAutoplayRecoveryTime = 0
             if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
                 playbackTransportDebugLog(
                     "[PlaybackTransport] Job resume offset requested sentence=\(sentence) time=\(String(format: "%.3f", resumeTime.time)) sequence=\(viewModel.isSequenceModeActive)"
@@ -104,6 +106,7 @@ extension JobPlaybackView {
         } else {
             // No sentence target - start playback from current position
             pendingInteractiveAutoplaySentence = nil
+            lastPendingInteractiveAutoplayRecoveryTime = 0
             if !viewModel.audioCoordinator.isPlaying {
                 viewModel.audioCoordinator.play()
             }

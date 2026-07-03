@@ -42,6 +42,7 @@ struct JobPlaybackView: View {
     @State var resumeDecisionPending = false
     @State var pendingInteractiveAutoplayID: UUID?
     @State var pendingInteractiveAutoplaySentence: Int?
+    @State var lastPendingInteractiveAutoplayRecoveryTime: TimeInterval = 0
     @State var nowPlayingReassertionTask: Task<Void, Never>?
     @State var lastReaderTransportCommandTime: TimeInterval = 0
     @State var lastReaderTransportAction = "none"
@@ -236,7 +237,9 @@ struct JobPlaybackView: View {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         refreshReaderNarrationActivityForMusicBed(reason: "jobAudioState")
         clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "jobAudioState")
+        #if !os(tvOS)
         recoverPendingInteractiveAutoplayIfNeeded(reason: "jobAudioState")
+        #endif
         recoverMutedAppleMusicBedNarrationIfNeeded(reason: "jobAudioState")
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()
@@ -274,6 +277,9 @@ struct JobPlaybackView: View {
 
     private func recoverPendingInteractiveAutoplayIfNeeded(reason: String) {
         guard !isVideoPreferred else { return }
+        #if os(tvOS)
+        guard reason != "jobAudioState" else { return }
+        #endif
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard !clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason) else { return }
         guard let pendingSentence = pendingInteractiveAutoplaySentence else { return }
@@ -281,6 +287,11 @@ struct JobPlaybackView: View {
         guard !viewModel.audioCoordinator.isPlaying ||
             viewModel.audioCoordinator.nowPlayingPlayer == nil
         else { return }
+        #if os(tvOS)
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastPendingInteractiveAutoplayRecoveryTime >= 1.0 else { return }
+        lastPendingInteractiveAutoplayRecoveryTime = now
+        #endif
         playbackTransportDebugLog(
             "[PlaybackTransport] Job recovering pending interactive autoplay reason=\(reason) sentence=\(pendingSentence)"
         )
@@ -307,6 +318,7 @@ struct JobPlaybackView: View {
         )
         pendingInteractiveAutoplayID = nil
         pendingInteractiveAutoplaySentence = nil
+        lastPendingInteractiveAutoplayRecoveryTime = 0
         return true
     }
 
@@ -475,6 +487,7 @@ struct JobPlaybackView: View {
         )
         pendingInteractiveAutoplayID = nil
         pendingInteractiveAutoplaySentence = nil
+        lastPendingInteractiveAutoplayRecoveryTime = 0
         viewModel.pauseForReaderTransport()
         confirmReaderTransportPauseAfterCommand(source: source)
         musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)

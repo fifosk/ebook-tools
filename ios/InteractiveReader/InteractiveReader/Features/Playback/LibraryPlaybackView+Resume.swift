@@ -32,6 +32,7 @@ extension LibraryPlaybackView {
         if let sentence = resolvedSentence, sentence > 0 {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
+            lastPendingInteractiveAutoplayRecoveryTime = 0
             if let resumeTime = validatedInteractiveResumePlaybackTime(playbackTime, sentenceNumber: sentence) {
                 playbackTransportDebugLog(
                     "[PlaybackTransport] Library resume offset requested sentence=\(sentence) time=\(String(format: "%.3f", resumeTime.time)) sequence=\(viewModel.isSequenceModeActive)"
@@ -60,6 +61,7 @@ extension LibraryPlaybackView {
             )
         } else if !viewModel.audioCoordinator.isPlaying {
             pendingInteractiveAutoplaySentence = nil
+            lastPendingInteractiveAutoplayRecoveryTime = 0
             viewModel.audioCoordinator.play()
             resumeAppleMusicBedAfterInteractiveStartIfNeeded()
         }

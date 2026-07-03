@@ -28,6 +28,7 @@ struct LibraryPlaybackView: View {
     @State var sentenceIndexTracker = SentenceIndexTracker()
     @State var pendingInteractiveAutoplayID: UUID?
     @State var pendingInteractiveAutoplaySentence: Int?
+    @State var lastPendingInteractiveAutoplayRecoveryTime: TimeInterval = 0
     @State var nowPlayingReassertionTask: Task<Void, Never>?
     @State var lastReaderTransportCommandTime: TimeInterval = 0
     @State var lastReaderTransportAction = "none"
@@ -226,7 +227,9 @@ struct LibraryPlaybackView: View {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         refreshReaderNarrationActivityForMusicBed(reason: "libraryAudioState")
         clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "libraryAudioState")
+        #if !os(tvOS)
         recoverPendingInteractiveAutoplayIfNeeded(reason: "libraryAudioState")
+        #endif
         recoverMutedAppleMusicBedNarrationIfNeeded(reason: "libraryAudioState")
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()
@@ -264,6 +267,9 @@ struct LibraryPlaybackView: View {
 
     private func recoverPendingInteractiveAutoplayIfNeeded(reason: String) {
         guard !isVideoPreferred else { return }
+        #if os(tvOS)
+        guard reason != "libraryAudioState" else { return }
+        #endif
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard !clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason) else { return }
         guard let pendingSentence = pendingInteractiveAutoplaySentence else { return }
@@ -271,6 +277,11 @@ struct LibraryPlaybackView: View {
         guard !viewModel.audioCoordinator.isPlaying ||
             viewModel.audioCoordinator.nowPlayingPlayer == nil
         else { return }
+        #if os(tvOS)
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastPendingInteractiveAutoplayRecoveryTime >= 1.0 else { return }
+        lastPendingInteractiveAutoplayRecoveryTime = now
+        #endif
         playbackTransportDebugLog(
             "[PlaybackTransport] Library recovering pending interactive autoplay reason=\(reason) sentence=\(pendingSentence)"
         )
@@ -297,6 +308,7 @@ struct LibraryPlaybackView: View {
         )
         pendingInteractiveAutoplayID = nil
         pendingInteractiveAutoplaySentence = nil
+        lastPendingInteractiveAutoplayRecoveryTime = 0
         return true
     }
 
@@ -465,6 +477,7 @@ struct LibraryPlaybackView: View {
         )
         pendingInteractiveAutoplayID = nil
         pendingInteractiveAutoplaySentence = nil
+        lastPendingInteractiveAutoplayRecoveryTime = 0
         viewModel.pauseForReaderTransport()
         confirmReaderTransportPauseAfterCommand(source: source)
         musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)
