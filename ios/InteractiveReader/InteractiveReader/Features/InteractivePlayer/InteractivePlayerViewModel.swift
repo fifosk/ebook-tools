@@ -279,6 +279,8 @@ final class InteractivePlayerViewModel: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 let shouldResume = self.audioCoordinator.isPlaybackRequested
+                self.cancelPendingAudioReadySubscription()
+                let transitionToken = self.currentTransitionToken
                 interactivePlayerViewModelLogger.debug("Resuming after dwell, seeking time=\(time, privacy: .public)")
                 // Keep the old item muted while clearing stale boundary/fade state
                 // and seeking to the next same-track segment. This prevents a tiny
@@ -287,6 +289,7 @@ final class InteractivePlayerViewModel: ObservableObject {
                 // Seek to the new segment's start position, then resume playback
                 self.audioCoordinator.seek(to: time) { [weak self] _ in
                     guard let self else { return }
+                    guard transitionToken == self.currentTransitionToken else { return }
                     // End transition and resume playback after seek completes
                     self.audioCoordinator.clearSequenceAudioGuards()
                     self.sequenceController.endTransition(expectedTime: time)
@@ -298,6 +301,22 @@ final class InteractivePlayerViewModel: ObservableObject {
                             self.audioCoordinator.recordStickySequenceResumeForE2E()
                         }
                         #endif
+                        self.audioCoordinator.play()
+                    }
+                }
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(nanoseconds: 650_000_000)
+                    guard let self else { return }
+                    guard transitionToken == self.currentTransitionToken else { return }
+                    guard self.sequenceController.isTransitioning else { return }
+                    guard self.audioCoordinator.isPlaybackRequested else { return }
+                    interactivePlayerViewModelLogger.info(
+                        "Same-track dwell seek recovery firing time=\(time, privacy: .public), ready=\(self.audioCoordinator.isReady, privacy: .public), playing=\(self.audioCoordinator.isPlaying, privacy: .public)"
+                    )
+                    self.audioCoordinator.clearSequenceAudioGuards()
+                    self.sequenceController.endTransition(expectedTime: time)
+                    self.audioCoordinator.restoreVolume()
+                    if shouldResume {
                         self.audioCoordinator.play()
                     }
                 }

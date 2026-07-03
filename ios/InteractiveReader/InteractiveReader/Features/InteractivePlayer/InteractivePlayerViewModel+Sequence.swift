@@ -99,11 +99,22 @@ extension InteractivePlayerViewModel {
             "Recovering stale sequence transition reason=\(reason, privacy: .public), playing=\(self.audioCoordinator.isPlaying, privacy: .public), ready=\(self.audioCoordinator.isReady, privacy: .public)"
         )
         cancelPendingAudioReadySubscription()
-        audioCoordinator.clearSequenceAudioGuards()
-        sequenceController.endTransition(expectedTime: nil)
-        audioCoordinator.restoreVolume()
-        if !audioCoordinator.isPlaying {
-            audioCoordinator.play()
+        let token = currentTransitionToken
+        if let segment = sequenceController.currentSegment,
+           audioCoordinator.isReady {
+            completeSequenceTransition(
+                seekTime: segment.start,
+                shouldPlay: true,
+                transitionToken: token,
+                requiresPlaybackRequest: true
+            )
+        } else {
+            audioCoordinator.clearSequenceAudioGuards()
+            sequenceController.endTransition(expectedTime: nil)
+            audioCoordinator.restoreVolume()
+            if !audioCoordinator.isPlaying {
+                audioCoordinator.play()
+            }
         }
         return true
     }
@@ -267,6 +278,12 @@ extension InteractivePlayerViewModel {
                             self.completeSequenceTransition(seekTime: target.time, shouldPlay: autoPlay, transitionToken: token)
                         }
                     }
+                scheduleSequenceTransitionRecoveryProbe(
+                    seekTime: target.time,
+                    shouldPlay: autoPlay,
+                    transitionToken: token,
+                    reason: "configureTarget"
+                )
             } else {
                 // No target sentence OR seekToSentence failed, start from the beginning
                 if Self.sequenceDebug {
@@ -328,6 +345,12 @@ extension InteractivePlayerViewModel {
                             self.completeSequenceTransition(seekTime: targetSeekTime, shouldPlay: autoPlay, transitionToken: token)
                         }
                     }
+                scheduleSequenceTransitionRecoveryProbe(
+                    seekTime: targetSeekTime,
+                    shouldPlay: autoPlay,
+                    transitionToken: token,
+                    reason: "configureInitial"
+                )
             }
         } else {
             if Self.sequenceDebug { interactiveSequenceLogger.debug("Configure sequence: sequence mode unavailable, falling back to combined URLs") }
@@ -571,6 +594,44 @@ extension InteractivePlayerViewModel {
                     )
                 }
             }
+        scheduleSequenceTransitionRecoveryProbe(
+            seekTime: seekTime,
+            shouldPlay: shouldPlay,
+            transitionToken: token,
+            reason: "trackSwitch"
+        )
+    }
+
+    private func scheduleSequenceTransitionRecoveryProbe(
+        seekTime: Double?,
+        shouldPlay: Bool,
+        transitionToken: Int,
+        reason: String
+    ) {
+        guard shouldPlay else { return }
+        Task { @MainActor [weak self] in
+            let delays: [UInt64] = [700_000_000, 1_500_000_000, 2_500_000_000]
+            for delay in delays {
+                try? await Task.sleep(nanoseconds: delay)
+                guard let self else { return }
+                guard !Task.isCancelled else { return }
+                guard transitionToken == self.currentTransitionToken else { return }
+                guard self.sequenceController.isTransitioning else { return }
+                guard self.audioCoordinator.isPlaybackRequested else { return }
+                guard self.audioCoordinator.nowPlayingPlayer != nil else { continue }
+                guard self.audioCoordinator.isReady || self.audioCoordinator.isPlaying else { continue }
+                interactiveSequenceLogger.info(
+                    "Sequence transition recovery probe firing reason=\(reason, privacy: .public), ready=\(self.audioCoordinator.isReady, privacy: .public), playing=\(self.audioCoordinator.isPlaying, privacy: .public)"
+                )
+                self.completeSequenceTransition(
+                    seekTime: seekTime ?? self.sequenceController.currentSegment?.start,
+                    shouldPlay: true,
+                    transitionToken: transitionToken,
+                    requiresPlaybackRequest: true
+                )
+                return
+            }
+        }
     }
 
     /// Update sequence playback based on current time
