@@ -2007,7 +2007,10 @@ After Narrate Ebook:
   and Apple job submissions stay aligned; generated-book source-context and
   summary shaping now live in `modules/webapi/routers/create_book_context.py`
   with focused coverage, keeping prepare and enqueue metadata behavior reusable
-  outside the large Create router. Narrate EPUB can delete selected
+  outside the large Create router. Generated-book cover generation now lives in
+  `modules/webapi/routers/create_book_cover.py` with focused coverage for
+  DrawThings prompt shaping, image-node selection, generated-file writes, and
+  skip reasons, further slimming the Create router. Narrate EPUB can delete selected
   backend EPUB sources through the same `/api/pipelines/files` cleanup endpoint
   Web uses; `/api/books/jobs` enqueue tests now pin the trimmed source-context
   snapshot before the background worker starts. Apple Create readiness preflight

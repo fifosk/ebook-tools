@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Backend generated-book cover generation now lives in a focused helper with direct coverage, keeping DrawThings prompt shaping, image-node selection, and skip reasons reusable outside the large Create router.
 - Backend generated-book source-context and summary helpers now live outside the large Create router with direct coverage, keeping Web and Apple continuation-job metadata shaping reusable across prepare and enqueue paths.
 - Backend acquisition provider registry contract validation now lives in a focused helper with direct coverage, keeping Web/Apple Create provider enums and default-source eligibility checks reusable outside the provider-list assembly path.
 - Apple TV sequence handoffs now use an extra-conservative same-track trim, earlier boundary, and longer decode fade only on tvOS, reducing the audible next-original-sentence sliver before Translation starts.

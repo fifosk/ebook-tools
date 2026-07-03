@@ -30,6 +30,7 @@ from modules.webapi.dependencies import (
 from modules.webapi.routes.books_routes import _list_ebook_files, _list_output_entries
 import modules.webapi.routers.create_book as create_book_router
 import modules.webapi.routers.create_book_context as create_book_context
+import modules.webapi.routers.create_book_cover as create_book_cover
 from modules.webapi.routers.create_book import _parse_sentences, _source_book_context
 from modules.webapi.schemas.create_book import BookGenerationJobSubmission
 
@@ -1095,6 +1096,70 @@ def test_create_book_context_limits_llm_summary_length() -> None:
 
     assert len(limited) <= create_book_context.SUMMARY_MAX_CHARACTERS
     assert limited.endswith("\u2026")
+
+
+def test_create_book_cover_skips_unconfigured_or_blank_prompt(tmp_path: Path) -> None:
+    assert create_book_cover.generate_cover_image(
+        prompt="A bright cover",
+        negative_prompt=None,
+        output_dir=tmp_path,
+        config={},
+    ) == (None, None, None, "unconfigured")
+
+    assert create_book_cover.generate_cover_image(
+        prompt="   ",
+        negative_prompt=None,
+        output_dir=tmp_path,
+        config={"image_api_base_url": "http://drawthings.test"},
+    ) == (None, None, None, None)
+
+
+def test_create_book_cover_writes_generated_image(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeClient:
+        def txt2img(self, request):
+            captured["request"] = request
+            return b"png-bytes", {"ignored": True}
+
+    def fake_resolve_drawthings_client(*, base_urls, timeout_seconds):
+        captured["base_urls"] = tuple(base_urls)
+        captured["timeout_seconds"] = timeout_seconds
+        return FakeClient(), tuple(base_urls), ()
+
+    monkeypatch.setattr(
+        create_book_cover,
+        "resolve_drawthings_client",
+        fake_resolve_drawthings_client,
+    )
+
+    cover_path, prompt, negative_prompt, reason = create_book_cover.generate_cover_image(
+        prompt=" A rainy   library ",
+        negative_prompt=" text ",
+        output_dir=tmp_path,
+        config={
+            "image_api_base_url": "http://drawthings.test",
+            "image_width": 32,
+            "image_height": 80,
+            "image_steps": 0,
+            "image_cfg_scale": 7.5,
+            "image_sampler_name": " DemoSampler ",
+            "image_api_timeout_seconds": 2,
+        },
+    )
+
+    assert reason is None
+    assert cover_path == str(tmp_path / "cover.png")
+    assert (tmp_path / "cover.png").read_bytes() == b"png-bytes"
+    assert "rainy library" in (prompt or "")
+    assert "text" in (negative_prompt or "")
+    request = captured["request"]
+    assert request.width == 64
+    assert request.height == 80
+    assert request.steps == 1
+    assert request.cfg_scale == 7.5
+    assert request.sampler_name == "DemoSampler"
+    assert captured["timeout_seconds"] == 2
 
 
 def test_parse_sentences_rejects_json_string_payload() -> None:
