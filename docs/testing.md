@@ -341,6 +341,10 @@ across Apple surfaces.
 Native Apple service-layer changes route to the same iPhone/iPad and tvOS
 simulator builds because coordinators, stores, route helpers, and API clients
 are shared by Create, Library, Jobs, playback, notifications, and offline sync.
+Music-bed-sensitive reader transport files in the reusable interactive player,
+Job/Library shells, MusicKit coordinator, and Music-bed journey runner also route
+to the iPad and tvOS Music-bed journey dry-runs, so `test-changed` catches stale
+journey wiring before a live simulator or Living Room candidate run.
 Native Apple app shell, DTO model, utility, and shared UI helper changes also
 route to those simulator builds, because they are imported across the iOS,
 iPadOS, tvOS, and local Mac-style surfaces.

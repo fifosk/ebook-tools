@@ -241,6 +241,12 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
             "tests/e2e/journeys/music_bed_sync.json",
+            "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView.swift",
+            "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+E2E.swift",
+            "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+InputHandlers.swift",
+            "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+LifecycleObservers.swift",
+            "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift",
+            "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+ReadingBed.swift",
             "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView.swift",
             "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+NowPlaying.swift",
             "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+Resume.swift",

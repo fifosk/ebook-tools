@@ -140,6 +140,12 @@ def test_select_targets_for_apple_surface_changes() -> None:
 
 def test_select_targets_runs_music_bed_dry_runs_for_reader_transport_paths() -> None:
     music_bed_paths = [
+        "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+E2E.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+InputHandlers.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+LifecycleObservers.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+ReadingBed.swift",
         "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView.swift",
         "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+NowPlaying.swift",
         "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+Resume.swift",
@@ -159,6 +165,16 @@ def test_select_targets_runs_music_bed_dry_runs_for_reader_transport_paths() -> 
 
 
 def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> None:
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+LifecycleObservers.swift"]
+    ) == [
+        "test-apple-playback-state-swift",
+        "test-apple-contracts",
+        "test-e2e-ipad-music-bed-sync-dry-run",
+        "test-e2e-tvos-music-bed-sync-dry-run",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+    ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"]
     ) == [
