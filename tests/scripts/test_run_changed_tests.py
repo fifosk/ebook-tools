@@ -94,7 +94,13 @@ def test_select_targets_for_apple_surface_changes() -> None:
     assert select_targets(["scripts/apple_unattended_device_update.sh"]) == [
         "test-apple-contracts"
     ]
+    assert select_targets(["scripts/check_apple_build_metadata.py"]) == [
+        "test-apple-contracts"
+    ]
     assert select_targets(["scripts/check_apple_device_update_helper.sh"]) == [
+        "test-apple-contracts"
+    ]
+    assert select_targets(["tests/scripts/test_check_apple_build_metadata.py"]) == [
         "test-apple-contracts"
     ]
     assert select_targets(["scripts/check_apple_music_bed_launch_log.py"]) == [
