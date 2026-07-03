@@ -280,6 +280,7 @@ extension LibraryPlaybackView {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
         #endif
+        refreshReaderNarrationActivityForMusicBed(reason: "libraryReaderTransportPlay")
         readerTransportResumeGeneration &+= 1
         cancelReaderTransportPlaybackRecovery()
         localReaderTransportPauseHoldUntil = 0
@@ -427,6 +428,7 @@ extension LibraryPlaybackView {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
         #endif
+        refreshReaderNarrationActivityForMusicBed(reason: "libraryReaderTransportPause")
         playbackTransportDebugLog(
             "[PlaybackTransport] Library pause command accepted requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
         )

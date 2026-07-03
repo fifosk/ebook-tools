@@ -54,9 +54,17 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
     ):
         source = _source(PLAYBACK / filename)
         adoption_body = _function_body(source, "private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil)")
+        music_surface_body = _function_body(source, "private func handleMusicKitPlaybackSurfaceChange()")
         mirror_decision_body = _function_body(source, "private var shouldMirrorAppleMusicPauseToNarration")
         stale_gate_body = _function_body(source, "private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
+        expected_prefix = "job" if label == "Job" else "library"
 
+        assert ".onReceive(viewModel.audioCoordinator.$isPlaybackRequested) { _ in handleAudioStateChange() }" in source, label
+        assert f'func refreshReaderNarrationActivityForMusicBed(reason: String)' in source, label
+        assert f'refreshReaderNarrationActivityForMusicBed(reason: "{expected_prefix}MusicSurface")' in music_surface_body, label
+        assert music_surface_body.index(
+            f'refreshReaderNarrationActivityForMusicBed(reason: "{expected_prefix}MusicSurface")'
+        ) < music_surface_body.index("if shouldMirrorAppleMusicPlayToNarration"), label
         assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in adoption_body, label
         assert "!shouldHonorAppleMusicPauseAdoptionImmediately(reason: reason, source: source)" in adoption_body, label
         assert 'if lastReaderTransportAction == "play"' not in adoption_body, label

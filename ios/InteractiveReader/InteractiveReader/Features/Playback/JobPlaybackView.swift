@@ -98,6 +98,7 @@ struct JobPlaybackView: View {
             .onChange(of: autoPlayOnLoad) { _, newValue in handleAutoPlayIntentChange(newValue) }
             .onChange(of: playbackMode) { _, newMode in handlePlaybackModeChange(newMode) }
             .onReceive(viewModel.audioCoordinator.$currentTime) { newValue in handleAudioTimeChange(newValue) }
+            .onReceive(viewModel.audioCoordinator.$isPlaybackRequested) { _ in handleAudioStateChange() }
             .onReceive(viewModel.audioCoordinator.$isPlaying) { _ in handleAudioStateChange() }
             .onReceive(viewModel.audioCoordinator.$duration) { _ in handleAudioStateChange() }
             .onReceive(viewModel.audioCoordinator.$isReady) { _ in handleAudioStateChange() }
@@ -238,10 +239,7 @@ struct JobPlaybackView: View {
         }
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
-        musicOwnership.updateReaderNarrationActivityForMusicBed(
-            isActive: viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying,
-            reason: "jobAudioState"
-        )
+        refreshReaderNarrationActivityForMusicBed(reason: "jobAudioState")
         recoverPendingInteractiveAutoplayIfNeeded(reason: "jobAudioState")
         recoverMutedAppleMusicBedNarrationIfNeeded(reason: "jobAudioState")
         publishReaderNowPlayingSnapshot(force: true)
@@ -332,6 +330,7 @@ struct JobPlaybackView: View {
 
     private func handleMusicKitPlaybackSurfaceChange() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        refreshReaderNarrationActivityForMusicBed(reason: "jobMusicSurface")
         #if os(tvOS)
         if shouldReassertReaderTransportPauseAfterMusicPlay {
             playbackTransportDebugLog(
@@ -407,10 +406,7 @@ struct JobPlaybackView: View {
     private func handleMusicKitReadingBedWatchdogTick() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         musicOwnership.refreshMusicPlaybackSurfaceSuppression(reason: "jobWatchdog")
-        musicOwnership.updateReaderNarrationActivityForMusicBed(
-            isActive: viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying,
-            reason: "jobWatchdog"
-        )
+        refreshReaderNarrationActivityForMusicBed(reason: "jobWatchdog")
         recoverPendingInteractiveAutoplayIfNeeded(reason: "jobWatchdog")
         recoverMutedAppleMusicBedNarrationIfNeeded(reason: "jobWatchdog")
         #if os(tvOS)
@@ -436,6 +432,14 @@ struct JobPlaybackView: View {
         guard !musicOwnership.isReaderTransportPauseGuardActive else { return }
         musicOwnership.reconcileReadingBedSystemPlayback()
         musicOwnership.recoverReadingBedForActiveNarration(reason: "jobWatchdog")
+    }
+
+    func refreshReaderNarrationActivityForMusicBed(reason: String) {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        musicOwnership.updateReaderNarrationActivityForMusicBed(
+            isActive: viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying,
+            reason: reason
+        )
     }
 
     private func mirrorAppleMusicPauseToReaderTransport(source: String) {

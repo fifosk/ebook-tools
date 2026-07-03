@@ -280,6 +280,7 @@ extension JobPlaybackView {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
         #endif
+        refreshReaderNarrationActivityForMusicBed(reason: "jobReaderTransportPlay")
         readerTransportResumeGeneration &+= 1
         cancelReaderTransportPlaybackRecovery()
         localReaderTransportPauseHoldUntil = 0
@@ -420,6 +421,7 @@ extension JobPlaybackView {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
         #endif
+        refreshReaderNarrationActivityForMusicBed(reason: "jobReaderTransportPause")
         playbackTransportDebugLog(
             "[PlaybackTransport] Job pause command accepted requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
         )
