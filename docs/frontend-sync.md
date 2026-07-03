@@ -489,7 +489,7 @@ Follow the suggested remediations to restore parity:
   reader-owned pause semantics. On tvOS, active-reader Music non-playing
   observations adopt immediately because a physical Siri Remote pause can reach
   Apple Music before the app-level reader callback. Sequence dwell should keep reader playback
-  intent alive for the bed, but on tvOS it mutes and fades about 300ms before
+  intent alive for the bed, but on tvOS it mutes and fades about 420ms before
   the segment boundary, pauses, and pins the sentence player at the boundary
   before seeking to the next segment so output-buffer tail audio cannot leak the
   next sentence before the handoff. Web and Apple sequence-plan builders must

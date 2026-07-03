@@ -254,6 +254,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert job_mirror_pause_body.index("viewModel.pauseForReaderTransport()") < job_mirror_pause_body.index(
         "musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)"
     )
+    job_clear_pending_body = _function_body(job_playback, "func clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: String) -> Bool")
+    assert "let readerStoppedDuringPauseHold = !viewModel.audioCoordinator.isPlaybackRequested" in job_clear_pending_body
+    assert "!viewModel.audioCoordinator.isPlaying" in job_clear_pending_body
+    assert "ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil" in job_clear_pending_body
+    assert "readerStoppedDuringPauseHold ||" in job_clear_pending_body
     job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
     job_accept_body = _function_body(job_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in job_accept_body
@@ -2105,6 +2110,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert library_mirror_pause_body.index("viewModel.pauseForReaderTransport()") < library_mirror_pause_body.index(
         "musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)"
     )
+    library_clear_pending_body = _function_body(library, "func clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: String) -> Bool")
+    assert "let readerStoppedDuringPauseHold = !viewModel.audioCoordinator.isPlaybackRequested" in library_clear_pending_body
+    assert "!viewModel.audioCoordinator.isPlaying" in library_clear_pending_body
+    assert "ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil" in library_clear_pending_body
+    assert "readerStoppedDuringPauseHold ||" in library_clear_pending_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_mirror_pause_body
     assert "return" in library_music_surface_body
     library_mirror_play_body = _function_body(library, "private var shouldMirrorAppleMusicPlayToNarration: Bool")

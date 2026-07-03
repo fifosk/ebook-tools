@@ -305,7 +305,11 @@ struct LibraryPlaybackView: View {
     @discardableResult
     func clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: String) -> Bool {
         guard pendingInteractiveAutoplaySentence != nil else { return false }
-        guard musicOwnership.isPausedByReaderTransport ||
+        let readerStoppedDuringPauseHold = !viewModel.audioCoordinator.isPlaybackRequested &&
+            !viewModel.audioCoordinator.isPlaying &&
+            ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil
+        guard readerStoppedDuringPauseHold ||
+            musicOwnership.isPausedByReaderTransport ||
             musicOwnership.isReaderTransportPauseGuardActive ||
             musicOwnership.isManuallyPaused ||
             lastReaderTransportAction == "pause"

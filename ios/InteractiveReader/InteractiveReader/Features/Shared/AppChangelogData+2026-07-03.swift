@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-pause-hold-clears-autoplay",
+            title: "TV pause holds stop retries",
+            detail: "Apple TV Job and Library playback now clear pending interactive autoplay when the reader is stopped inside the pause-hold window, preventing late MusicKit state from restarting the same sentence after a pause."
+        ),
+        AppChangelogEntry(
+            id: "tvos-sequence-earlier-boundary",
+            title: "TV handoffs switch cleaner",
+            detail: "Apple TV sequence handoffs now trigger earlier while keeping the fade ramp start stable, reducing the short next-sentence leak before the Translation track switch without widening the audible fade tail."
+        ),
+        AppChangelogEntry(
             id: "tvos-paused-autoplay-recovery-hard-stop",
             title: "TV pause blocks stale retries",
             detail: "Apple TV Job and Library playback now refuse pending interactive autoplay recovery while reader transport is in any paused Music-bed state, preventing stale retry loops after a pause command."

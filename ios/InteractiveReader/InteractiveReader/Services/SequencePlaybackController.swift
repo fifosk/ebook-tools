@@ -415,7 +415,7 @@ final class SequencePlaybackController: ObservableObject {
 
     private var sameTrackHandoffGuard: Double {
         #if os(tvOS)
-        return 0.08
+        return 0.12
         #else
         return 0.05
         #endif
@@ -481,7 +481,7 @@ final class SequencePlaybackController: ObservableObject {
     /// How far before segment.end to place the boundary observer (seconds).
     private var boundaryHeadroom: Double {
         #if os(tvOS)
-        return 0.30
+        return 0.42
         #else
         return 0.05
         #endif
@@ -491,7 +491,7 @@ final class SequencePlaybackController: ObservableObject {
     /// This must be long enough to cover HDMI output buffer depth (~100-300ms).
     private var fadeOutDuration: Double {
         #if os(tvOS)
-        return 0.30
+        return 0.18
         #else
         return 0.20
         #endif

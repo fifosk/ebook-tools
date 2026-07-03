@@ -381,7 +381,7 @@ def test_sequence_overlap_trimming_leaves_a_handoff_guard() -> None:
     assert trim_body.index("segment.end > nextStart") < trim_body.index("nextStart - sameTrackHandoffGuard")
     guard_body = _function_body(controller, "private var sameTrackHandoffGuard: Double")
     assert "#if os(tvOS)" in guard_body
-    assert "return 0.08" in guard_body
+    assert "return 0.12" in guard_body
     assert "return 0.05" in guard_body
     preroll_body = _function_body(controller, "private var sameTrackPrerollSlop: Double")
     assert "#if os(tvOS)" in preroll_body
@@ -1172,11 +1172,11 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
 
     headroom_body = _function_body(controller, "private var boundaryHeadroom: Double")
     assert "#if os(tvOS)" in headroom_body
-    assert "return 0.30" in headroom_body
+    assert "return 0.42" in headroom_body
     assert "return 0.05" in headroom_body
     fade_body = _function_body(controller, "private var fadeOutDuration: Double")
     assert "#if os(tvOS)" in fade_body
-    assert "return 0.30" in fade_body
+    assert "return 0.18" in fade_body
     assert "return 0.20" in fade_body
     pin_body = _function_body(controller, "private var dwellPinBackoff: Double")
     assert "#if os(tvOS)" in pin_body

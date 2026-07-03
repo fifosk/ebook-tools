@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple TV Job and Library playback now clear pending interactive autoplay when the reader is stopped inside the pause-hold window, preventing late MusicKit state from restarting the same sentence after a pause.
+- Apple TV sequence handoffs now trigger earlier while keeping the fade ramp start stable, reducing the short next-sentence leak before the Translation track switch without widening the audible fade tail.
 - Apple TV Job and Library playback now refuse pending interactive autoplay recovery while reader transport is in any paused Music-bed state, preventing stale retry loops after a pause command.
 - Apple interactive reader sequence playback now trims very tight same-track sentence gates before handoff, so a tiny preroll from the next sentence is not heard before the Translation track starts.
 - Backend acquisition route telemetry, editor/admin checks, id normalization, async-provider validation, and generic public error constants now live in a focused support helper while preserving existing route test hooks.
