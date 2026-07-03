@@ -145,6 +145,8 @@ def test_select_targets_runs_music_bed_dry_runs_for_reader_transport_paths() -> 
         "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+LifecycleObservers.swift",
         "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift",
         "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+ReadingBed.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/Music/AppleMusicPickerView.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/Music/MusicControlOverlayView.swift",
         "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView.swift",
         "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+NowPlaying.swift",
         "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+Resume.swift",
@@ -155,6 +157,7 @@ def test_select_targets_runs_music_bed_dry_runs_for_reader_transport_paths() -> 
         "ios/InteractiveReader/InteractiveReader/Features/Playback/ReaderTransportCommandResolver.swift",
         "ios/InteractiveReader/InteractiveReaderUITests/JourneyRunner.swift",
         "ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift",
+        "ios/InteractiveReader/InteractiveReader/Services/MusicSearchService.swift",
         "ios/InteractiveReader/InteractiveReader/Services/NowPlayingCoordinator.swift",
     ]
 
@@ -252,6 +255,22 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift"]
+    ) == [
+        "test-apple-contracts",
+        "verify-apple-music-bed-candidate-dry-run",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Services/MusicSearchService.swift"]
+    ) == [
+        "test-apple-contracts",
+        "verify-apple-music-bed-candidate-dry-run",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Features/Music/AppleMusicPickerView.swift"]
     ) == [
         "test-apple-contracts",
         "verify-apple-music-bed-candidate-dry-run",
