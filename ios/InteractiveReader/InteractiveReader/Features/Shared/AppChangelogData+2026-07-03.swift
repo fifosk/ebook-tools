@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-tv-music-bed-toggle-requires-idle-reader",
+            title: "TV pause keeps narration first",
+            detail: "Apple TV Play/Pause toggles no longer turn into a Music-bed resume while sentence narration is still requested or audible, tightening the single-press pause path across Job and Library playback."
+        ),
+        AppChangelogEntry(
             id: "download-station-client-hint-dedupe",
             title: "Create handoff hints stay singular",
             detail: "Web Video Dubbing and Apple YouTube Dub now de-duplicate safe Download Station completed-file hints while preserving first-seen order, matching the backend completion metadata contract."

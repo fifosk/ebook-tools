@@ -75,6 +75,9 @@ enum ReaderTransportCommandResolver {
            isMusicPausedByReaderTransport {
             #if os(tvOS)
             if command == "toggle" {
+                if isReaderPlaybackRequested || isReaderPlaying {
+                    return "pause"
+                }
                 return "play"
             }
             #else

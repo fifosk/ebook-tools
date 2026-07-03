@@ -427,6 +427,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'if command == "play" {\n                return "play"' in resolved_action_body
     assert 'if command == "pause" {\n                return "pause"' in resolved_action_body
     assert 'if command == "toggle" {\n                return shouldPause ? "pause" : "play"' in resolved_action_body
+    assert 'if isReaderPlaybackRequested || isReaderPlaying {\n                    return "pause"' in resolved_action_body
+    assert resolved_action_body.index(
+        'if isReaderPlaybackRequested || isReaderPlaying {\n                    return "pause"'
+    ) < resolved_action_body.index('return "play"', resolved_action_body.index("isMusicPausedByReaderTransport"))
     assert resolved_action_body.index('if command == "play"') < resolved_action_body.index(
         "isMusicPausedByReaderTransport"
     )
