@@ -1252,7 +1252,12 @@ Optimization candidates:
   Acquisition provider/discovery/acquire routes are now also pinned in the
   global observability contract, so the shared Web/Apple Create discovery layer
   cannot lose its route-duration histogram while still keeping provider tokens,
-  source paths, raw queries, and artifact ids out of metric labels.
+  source paths, raw queries, and artifact ids out of metric labels. Acquisition
+  route response shaping now lives in
+  `modules/webapi/routers/acquisition_payloads.py`, keeping token-safe metadata
+  scrubbing, completed-file normalization, candidate payloads, prepared
+  artifacts, and Download Station job status payloads outside the route module
+  while preserving the Web/Apple Create response contract.
 - Prefer precomputed or cached job summary fields for list rows while keeping
   full metadata available on detail/media routes. Status:
   `/api/pipelines/jobs` now uses compact row result summaries so list rendering
