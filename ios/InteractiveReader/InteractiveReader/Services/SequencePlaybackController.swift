@@ -179,8 +179,8 @@ final class SequencePlaybackController: ObservableObject {
     /// Called BEFORE a transition begins, allowing the view layer to freeze state synchronously
     var onWillBeginTransition: (() -> Void)?
     /// Called when segment end is reached to pause audio during dwell period.
-    /// Carries the active segment end so the audio player can pin the muted
-    /// playhead at the intended boundary on output-buffer-heavy devices.
+    /// Carries a safe in-segment pin time so the audio player can pin the muted
+    /// playhead before the intended boundary on output-buffer-heavy devices.
     /// This prevents audio bleed from the next sentence
     var onPauseForDwell: ((Double?) -> Void)?
     /// Called after dwell completes to resume playback for same-track advances
@@ -443,10 +443,29 @@ final class SequencePlaybackController: ObservableObject {
         #endif
     }
 
+    /// How far before segment.end a muted dwell seek should land.
+    /// Seeking to the exact end can briefly expose the next sentence on real
+    /// device output when the source file contains continuous sentence audio.
+    private var dwellPinBackoff: Double {
+        #if os(tvOS)
+        return 0.08
+        #else
+        return 0.03
+        #endif
+    }
+
+    private func boundaryTriggerTime(for segment: SequenceSegment) -> Double {
+        max(segment.start + 0.01, segment.end - boundaryHeadroom)
+    }
+
+    private func dwellPinTime(for segment: SequenceSegment) -> Double {
+        max(segment.start, segment.end - dwellPinBackoff)
+    }
+
     private func installBoundaryForCurrentSegment() {
         guard let segment = currentSegment else { return }
         // Install boundary slightly before segment end to beat HDMI buffer latency.
-        let boundaryTime = max(segment.start + 0.01, segment.end - boundaryHeadroom)
+        let boundaryTime = boundaryTriggerTime(for: segment)
         logBoundary("Installing boundary at \(String(format: "%.3f", boundaryTime)) (end=\(String(format: "%.3f", segment.end))) for seg[\(currentSegmentIndex)] \(segment.track.rawValue)")
         onInstallBoundary?(boundaryTime)
 
@@ -470,8 +489,9 @@ final class SequencePlaybackController: ObservableObject {
         logBoundary("Boundary triggered seg[\(currentSegmentIndex)] end=\(String(format: "%.3f", segment.end)) \(segment.track.rawValue)")
         phase = .dwelling(startedAt: Date())
 
-        // Pause during dwell to prevent audio bleed
-        onPauseForDwell?(segment.end)
+        // Pause during dwell and pin inside the current segment, never exactly
+        // at the next sentence boundary.
+        onPauseForDwell?(dwellPinTime(for: segment))
 
         // Schedule dwell completion
         dwellWorkItem?.cancel()
@@ -614,7 +634,8 @@ final class SequencePlaybackController: ObservableObject {
         // Fallback segment-end check: catches cases where the boundary observer missed
         // (e.g., time jumped past the boundary due to seeking or buffering).
         // Primary segment-end detection is handled by boundaryReached() via AVPlayer boundary observer.
-        if time >= segment.end - tolerance {
+        let fallbackBoundaryTime = boundaryTriggerTime(for: segment)
+        if time >= fallbackBoundaryTime {
             if case .playing = phase {
                 logBoundary("Fallback triggered t=\(String(format: "%.3f", time)) seg[\(currentSegmentIndex)] end=\(String(format: "%.3f", segment.end)) \(segment.track.rawValue)")
                 boundaryReached()

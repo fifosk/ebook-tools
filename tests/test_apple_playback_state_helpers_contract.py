@@ -1145,11 +1145,24 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     assert "#if os(tvOS)" in fade_body
     assert "return 0.30" in fade_body
     assert "return 0.20" in fade_body
+    pin_body = _function_body(controller, "private var dwellPinBackoff: Double")
+    assert "#if os(tvOS)" in pin_body
+    assert "return 0.08" in pin_body
+    assert "return 0.03" in pin_body
+    trigger_body = _function_body(controller, "private func boundaryTriggerTime(for segment: SequenceSegment) -> Double")
+    assert "segment.end - boundaryHeadroom" in trigger_body
+    pin_time_body = _function_body(controller, "private func dwellPinTime(for segment: SequenceSegment) -> Double")
+    assert "segment.end - dwellPinBackoff" in pin_time_body
     install_body = _function_body(controller, "private func installBoundaryForCurrentSegment()")
-    assert "segment.end - boundaryHeadroom" in install_body
+    assert "boundaryTriggerTime(for: segment)" in install_body
     assert "segment.end - fadeOutDuration" in install_body
     assert "onInstallBoundary?(boundaryTime)" in install_body
     assert "onApplySegmentFade?(fadeStart, segment.end)" in install_body
+    boundary_body = _function_body(controller, "func boundaryReached()")
+    assert "onPauseForDwell?(dwellPinTime(for: segment))" in boundary_body
+    update_body = _function_body(controller, "func updateForTime(_ time: Double, isPlaying: Bool) -> Bool")
+    assert "let fallbackBoundaryTime = boundaryTriggerTime(for: segment)" in update_body
+    assert "if time >= fallbackBoundaryTime" in update_body
 
 
 def test_segment_fade_is_bound_to_current_player_item() -> None:
@@ -1170,6 +1183,23 @@ def test_segment_fade_is_bound_to_current_player_item() -> None:
     assert "guard self.player?.currentItem === item else" in fade_body
     assert "current item changed" in fade_body
     assert fade_body.index("guard self.player?.currentItem === item else") < fade_body.index("item.audioMix = mix")
+
+
+def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
+    coordinator = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "AudioPlayerCoordinator.swift"
+    ).read_text(encoding="utf-8")
+
+    dwell_body = _function_body(coordinator, "func pauseForDwell(atBoundary pinTime: Double?)")
+    assert "guard let pinTime" in dwell_body
+    assert "CMTime(seconds: pinTime" in dwell_body
+    assert "currentTime = pinTime" in dwell_body
+    assert "boundaryTime" not in dwell_body
 
 
 def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:

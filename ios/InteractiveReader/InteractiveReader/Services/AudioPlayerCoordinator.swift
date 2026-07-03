@@ -265,15 +265,15 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         // This keeps reading bed playing during the brief dwell period
     }
 
-    /// Pause for a sequence dwell and pin the playhead at the segment boundary while muted.
-    /// tvOS can otherwise drain a few buffered frames after the boundary callback, which
-    /// sounds like a tiny piece of the next sentence before the handoff completes.
-    func pauseForDwell(atBoundary boundaryTime: Double?) {
+    /// Pause for a sequence dwell and pin the playhead inside the current segment while muted.
+    /// tvOS can otherwise drain or seek onto a few buffered frames after the boundary callback,
+    /// which sounds like a tiny piece of the next sentence before the handoff completes.
+    func pauseForDwell(atBoundary pinTime: Double?) {
         pauseForDwell()
-        guard let boundaryTime, boundaryTime.isFinite, boundaryTime >= 0 else { return }
-        let cmTime = CMTime(seconds: boundaryTime, preferredTimescale: 600)
+        guard let pinTime, pinTime.isFinite, pinTime >= 0 else { return }
+        let cmTime = CMTime(seconds: pinTime, preferredTimescale: 600)
         player?.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
-        currentTime = boundaryTime
+        currentTime = pinTime
     }
 
     func togglePlayback() {

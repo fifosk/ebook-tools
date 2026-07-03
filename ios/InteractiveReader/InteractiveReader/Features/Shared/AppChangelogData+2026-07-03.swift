@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-sequence-dwell-pins-before-boundary",
+            title: "TV handoffs avoid next-sentence slivers",
+            detail: "Interactive reader sequence dwell now pins muted playback just before the sentence boundary and uses the same early boundary for fallback checks, reducing cases where Apple TV can leak a tiny piece of the next original sentence before switching to the translation track."
+        ),
+        AppChangelogEntry(
             id: "acquisition-defaults-overfill-policy",
             title: "Discovery overfill rules are explicit",
             detail: "Backend acquisition planning now names the Default sources rule that only local NAS/manual providers may overfill visible result slots, keeping optional remote searches slot-bound for Web and Apple Create."
