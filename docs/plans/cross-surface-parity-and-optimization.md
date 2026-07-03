@@ -1762,7 +1762,10 @@ Refactor before restyling:
   `JobStatusBadge` presentational component across the job list, job detail
   header, subtitle jobs, sidebar job rows, and sidebar player entry while
   preserving existing `job-status` CSS/data-state semantics and sidebar
-  image-wait labels. Job Progress overview and metadata sections now also reuse
+  image-wait labels. Job Progress job-kind and action gating decisions now live
+  in `web/src/components/job-progress/jobProgressActions.ts` with focused
+  coverage, keeping pause/resume/restart/delete and Library move rules easier
+  to compare with Apple Jobs/Library action surfaces. Job Progress overview and metadata sections now also reuse
   the shared `MetadataGrid` definition-list renderer instead of hand-building
   repeated metadata rows, and the live media diagnostics strip now renders
   through the same helper while preserving its compact warning/ready styling.

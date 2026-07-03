@@ -24,6 +24,10 @@ import { JobProgressStageSection } from './job-progress/JobProgressStageSection'
 import { JobProgressTabs, type JobProgressTab } from './job-progress/JobProgressTabs';
 import { JobProgressTimingSummary } from './job-progress/JobProgressTimingSummary';
 import { resolveProgressStage } from '../utils/progressEvents';
+import {
+  resolveJobProgressActionState,
+  resolveJobProgressKindFlags
+} from './job-progress/jobProgressActions';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
 import {
   TERMINAL_STATES,
@@ -96,14 +100,19 @@ export function JobProgress({
 }: Props) {
   const statusValue = status?.status ?? 'pending';
   const jobType = status?.job_type ?? 'pipeline';
-  const isBookJob = jobType === 'pipeline' || jobType === 'book';
-  const isPipelineLikeJob = isBookJob;
-  const isSubtitleJob = jobType === 'subtitle';
-  const isVideoDubJob = jobType === 'youtube_dub';
-  const supportsTvMetadata = isSubtitleJob || isVideoDubJob;
-  const supportsYoutubeMetadata = isVideoDubJob;
   const isNarratedSubtitleJob = useMemo(() => isNarratedSubtitleJobStatus(status), [status]);
-  const isLibraryMovableJob = isPipelineLikeJob || isVideoDubJob || isNarratedSubtitleJob;
+  const {
+    isBookJob,
+    isPipelineLikeJob,
+    isSubtitleJob,
+    isVideoDubJob,
+    supportsTvMetadata,
+    supportsYoutubeMetadata,
+    isLibraryMovableJob
+  } = useMemo(
+    () => resolveJobProgressKindFlags(jobType, isNarratedSubtitleJob),
+    [isNarratedSubtitleJob, jobType]
+  );
   const isTerminal = useMemo(() => {
     if (!status) {
       return false;
@@ -289,28 +298,41 @@ export function JobProgress({
   const playableProgress = useMemo(() => {
     return resolvePlayableStageProgress({ latestPlayableEvent, mediaBatchStats });
   }, [latestPlayableEvent, mediaBatchStats]);
-  const canPause =
-    isBookJob && canManage && !isTerminal && statusValue !== 'paused' && statusValue !== 'pausing';
-  const canResume = isBookJob && canManage && statusValue === 'paused';
-  const canCancel = canManage && !isTerminal;
-  const canDelete = canManage && isTerminal;
-  const canRestart =
-    isBookJob &&
-    canManage &&
-    statusValue !== 'running' &&
-    statusValue !== 'pending' &&
-    statusValue !== 'pausing';
-  const canCopy = Boolean(onCopy);
   const mediaCompleted = useMemo(() => resolveMediaCompletion(status), [status]);
-  const isLibraryCandidate =
-    isLibraryMovableJob && (statusValue === 'completed' || (statusValue === 'paused' && mediaCompleted === true));
-  const shouldRenderLibraryButton = Boolean(onMoveToLibrary) && canManage && isLibraryMovableJob;
-  const canMoveToLibrary = shouldRenderLibraryButton && isLibraryCandidate;
-  const libraryButtonTitle =
-    shouldRenderLibraryButton && !isLibraryCandidate
-      ? 'Media generation is still finalizing.'
-      : undefined;
-  const showLibraryReadyNotice = canManage && isLibraryCandidate;
+  const {
+    canPause,
+    canResume,
+    canCancel,
+    canDelete,
+    canRestart,
+    canCopy,
+    shouldRenderLibraryButton,
+    canMoveToLibrary,
+    libraryButtonTitle,
+    showLibraryReadyNotice
+  } = useMemo(
+    () =>
+      resolveJobProgressActionState({
+        statusValue,
+        canManage,
+        isTerminal,
+        isBookJob,
+        isLibraryMovableJob,
+        mediaCompleted,
+        hasCopyAction: Boolean(onCopy),
+        hasMoveToLibraryAction: Boolean(onMoveToLibrary)
+      }),
+    [
+      canManage,
+      isBookJob,
+      isLibraryMovableJob,
+      isTerminal,
+      mediaCompleted,
+      onCopy,
+      onMoveToLibrary,
+      statusValue
+    ]
+  );
   const jobParameterEntries = useMemo(() => buildJobParameterEntries(status), [status]);
   const batchStatEntries = useMemo(() => {
     return buildBatchStatEntries(translationBatchSize, translationBatchStats);
