@@ -328,10 +328,15 @@ Discovery/acquisition plan, provider, schema, and route changes route to
 discovery, prepared-artifact handoff, and token-safe provider serialization
 covered before simulator journeys consume those contracts.
 Generated-book backend route/schema/support edits route to `test-backend-create-book`,
-EPUB picker route/schema edits route to `test-backend-pipeline-sources`, and
-subtitle picker/router edits route to `test-backend-subtitle-router`, so the
-Apple Create source dialogs keep their focused backend contracts when shared
-Web/API files change.
+`test-web-create-book-focused`, `test-web-create-intake-focused`, and
+`test-apple-create-readiness-contract`; EPUB picker route/schema edits route to
+`test-backend-pipeline-sources`, `test-web-create-intake-focused`, and
+`test-apple-create-readiness-contract`. Those shared `/api/books/options` and
+`/api/pipelines/files` contracts feed Web Narrate Ebook plus native Apple Create
+source, chapter, and language defaults, so changed-test routing now checks the
+consumers as well as the backend slice. Subtitle picker/router edits route to
+`test-backend-subtitle-router`, so the Apple Create source dialogs keep their
+focused backend contracts when shared Web/API files change.
 Native Apple Create SwiftUI and creation API-client changes route to the
 focused `test-apple-create-readiness-contract` plus iPhone/iPad and tvOS
 simulator builds, so Create parity edits compile across Apple surfaces before

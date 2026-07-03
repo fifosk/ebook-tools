@@ -654,26 +654,42 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
     ]
     assert select_targets(["modules/webapi/routers/create_book.py"]) == [
         "test-backend-create-book",
+        "test-web-create-book-focused",
+        "test-web-create-intake-focused",
+        "test-apple-create-readiness-contract",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/routers/create_book_options.py"]) == [
         "test-backend-create-book",
+        "test-web-create-book-focused",
+        "test-web-create-intake-focused",
+        "test-apple-create-readiness-contract",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/schemas/create_book.py"]) == [
         "test-backend-create-book",
+        "test-web-create-book-focused",
+        "test-web-create-intake-focused",
+        "test-apple-create-readiness-contract",
         "test-webapi",
     ]
     assert select_targets(["tests/test_create_book.py"]) == [
         "test-backend-create-book",
+        "test-web-create-book-focused",
+        "test-web-create-intake-focused",
+        "test-apple-create-readiness-contract",
         "test-backend-pipeline-sources",
     ]
     assert select_targets(["modules/webapi/routes/books_routes.py"]) == [
         "test-backend-pipeline-sources",
+        "test-web-create-intake-focused",
+        "test-apple-create-readiness-contract",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/schemas/pipeline_files.py"]) == [
         "test-backend-pipeline-sources",
+        "test-web-create-intake-focused",
+        "test-apple-create-readiness-contract",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/routers/reading_beds.py"]) == [

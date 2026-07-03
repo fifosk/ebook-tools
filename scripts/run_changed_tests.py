@@ -126,7 +126,12 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "modules/webapi/schemas/create_book.py",
             "tests/test_create_book.py",
         ),
-        ("test-backend-create-book",),
+        (
+            "test-backend-create-book",
+            "test-web-create-book-focused",
+            "test-web-create-intake-focused",
+            "test-apple-create-readiness-contract",
+        ),
     ),
     (
         (
@@ -134,7 +139,11 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "modules/webapi/schemas/pipeline_files.py",
             "tests/test_create_book.py",
         ),
-        ("test-backend-pipeline-sources",),
+        (
+            "test-backend-pipeline-sources",
+            "test-web-create-intake-focused",
+            "test-apple-create-readiness-contract",
+        ),
     ),
     (
         (
