@@ -1254,7 +1254,11 @@ breadcrumbs for the same sentence when a Music-surface pause appears in the
 same short window, reporting
 `pending interactive autoplay looped while Music bed reported paused`; that is
 the Living Room signature where stale Music-bed state cancels narration into an
-autoplay retry loop.
+autoplay retry loop. On tvOS, Job and Library readers must not use the hot
+audio-state observer as a pending-autoplay recovery source; scheduled autoplay
+retry and watchdog recovery remain available, but `jobAudioState` /
+`libraryAudioState` bursts should not be able to enqueue repeated sentence
+jumps while Music-bed pause adoption is settling.
 For pause-only captures, the pulled playback-log checker evaluates every
 Music/app pause handoff as a numbered pause episode. If any episode does not
 contain active narration-pause evidence and settled

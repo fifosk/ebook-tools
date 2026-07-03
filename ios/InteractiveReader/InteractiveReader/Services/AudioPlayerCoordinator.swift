@@ -795,6 +795,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             logger.debug("Fade not applied; no current item")
             return
         }
+        guard fadeEndTime > fadeStartTime else {
+            logger.debug("Fade not applied; invalid range")
+            return
+        }
 
         // Load audio tracks asynchronously (required for remote URLs)
         Task { @MainActor [weak self] in
@@ -811,6 +815,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             }
             guard let audioTrack = tracks.first else {
                 self.logger.debug("Fade not applied; no audio track")
+                return
+            }
+            guard self.player?.currentItem === item else {
+                self.logger.debug("Fade not applied; current item changed")
                 return
             }
 

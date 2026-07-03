@@ -1139,14 +1139,37 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
 
     headroom_body = _function_body(controller, "private var boundaryHeadroom: Double")
     assert "#if os(tvOS)" in headroom_body
-    assert "return 0.18" in headroom_body
+    assert "return 0.30" in headroom_body
     assert "return 0.05" in headroom_body
-    assert "private let fadeOutDuration: Double = 0.20" in controller
+    fade_body = _function_body(controller, "private var fadeOutDuration: Double")
+    assert "#if os(tvOS)" in fade_body
+    assert "return 0.30" in fade_body
+    assert "return 0.20" in fade_body
     install_body = _function_body(controller, "private func installBoundaryForCurrentSegment()")
     assert "segment.end - boundaryHeadroom" in install_body
     assert "segment.end - fadeOutDuration" in install_body
     assert "onInstallBoundary?(boundaryTime)" in install_body
     assert "onApplySegmentFade?(fadeStart, segment.end)" in install_body
+
+
+def test_segment_fade_is_bound_to_current_player_item() -> None:
+    coordinator = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "AudioPlayerCoordinator.swift"
+    ).read_text(encoding="utf-8")
+
+    fade_body = _function_body(
+        coordinator,
+        "func applySegmentFadeOut(fadeStartTime: Double, fadeEndTime: Double)",
+    )
+    assert "guard fadeEndTime > fadeStartTime else" in fade_body
+    assert "guard self.player?.currentItem === item else" in fade_body
+    assert "current item changed" in fade_body
+    assert fade_body.index("guard self.player?.currentItem === item else") < fade_body.index("item.audioMix = mix")
 
 
 def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:

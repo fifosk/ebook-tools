@@ -489,9 +489,13 @@ Follow the suggested remediations to restore parity:
   reader-owned pause semantics. On tvOS, active-reader Music non-playing
   observations adopt immediately because a physical Siri Remote pause can reach
   Apple Music before the app-level reader callback. Sequence dwell should keep reader playback
-  intent alive for the bed, but on tvOS it may mute, pause, and pin the
-  sentence player at the segment boundary before seeking to the next segment so
-  output-buffer tail audio cannot leak the next sentence before the handoff.
+  intent alive for the bed, but on tvOS it mutes and fades about 300ms before
+  the segment boundary, pauses, and pins the sentence player at the boundary
+  before seeking to the next segment so output-buffer tail audio cannot leak the
+  next sentence before the handoff. Async fade installation must also verify the
+  AVPlayer item is still current before mutating `audioMix`, because remote URL
+  track loading can complete after a same-sentence Original -> Translation item
+  switch.
   Apple Music reading-bed mode must publish reader-owned Now Playing metadata
   and remote commands (`.appleMusicBed`) instead of yielding Control Center to
   the Music track. Job and Library playback attach the active sentence

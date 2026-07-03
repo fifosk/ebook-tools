@@ -355,6 +355,30 @@ def test_pause_resume_rejects_pending_autoplay_music_pause_loop(tmp_path: Path) 
     ]
 
 
+def test_pause_resume_rejects_job_audio_state_autoplay_music_pause_loop(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        PAUSE_RESUME_LOG
+        + """
+1782670002.000 [PlaybackTransport] Job recovering pending interactive autoplay reason=jobAudioState sentence=2657
+1782670002.050 [PlaybackTransport] Job recovering pending interactive autoplay reason=jobAudioState sentence=2657
+1782670002.100 [PlaybackTransport] Job recovering pending interactive autoplay reason=jobAudioState sentence=2657
+1782670002.150 [PlaybackTransport] Job recovering pending interactive autoplay reason=jobAudioState sentence=2657
+1782670002.200 [PlaybackTransport] Job accepted Apple Music pause as reader transport source=musicSurface requested=true playing=true musicPlaying=false readerPause=false
+1782670002.210 [PlaybackTransport] Job confirmed reader pause source=musicSurface requested=false playing=false musicPlaying=false
+1782670002.250 [PlaybackTransport] Job recovering pending interactive autoplay reason=jobAudioState sentence=2657
+1782670002.300 [PlaybackTransport] Job recovering pending interactive autoplay reason=jobAudioState sentence=2657
+1782670002.350 [PlaybackTransport] Job recovering pending interactive autoplay reason=jobAudioState sentence=2657
+1782670002.400 [PlaybackTransport] Job recovering pending interactive autoplay reason=jobAudioState sentence=2657
+""",
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="pause-resume") == [
+        "pending interactive autoplay looped while Music bed reported paused"
+    ]
+
+
 def test_pause_resume_allows_single_pending_autoplay_recovery(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(

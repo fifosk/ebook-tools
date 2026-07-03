@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-sequence-handoff-tail-trim",
+            title: "TV track switches trim audio bleed",
+            detail: "Apple TV interactive reader sequence playback now mutes and fades sentence boundaries earlier and ignores stale fade work after an AVPlayer item changes, reducing cut-short next-sentence audio before the translation track starts."
+        ),
+        AppChangelogEntry(
+            id: "tvos-autoplay-audio-state-flood-guard",
+            title: "TV playback stops retry floods",
+            detail: "Apple TV Job and Library playback no longer let rapid audio-state pulses repeatedly restart pending interactive autoplay while the Apple Music bed is pausing, preventing Living Room sessions from looping on one sentence."
+        ),
+        AppChangelogEntry(
             id: "tvos-paused-reader-cancels-autoplay-retry",
             title: "TV paused readers stop retrying",
             detail: "Apple TV Job and Library playback now cancels pending interactive autoplay retries whenever the reader-owned Apple Music bed is paused, preventing Living Room sessions from looping on the same sentence with no playback."
