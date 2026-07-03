@@ -64,6 +64,11 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     assert "apple-device-pull-and-verify-current-playback-transport-log" in makefile
     assert 'APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"' in makefile
     assert "apple-device-pull-and-verify-current-reader-repro-log" in makefile
+    phony = makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
+    assert "apple-device-pull-and-verify-current-playback-transport-log" in phony
+    assert "apple-device-pull-and-verify-current-playback-transport-pause-resume-log" in phony
+    assert "apple-device-pull-and-verify-current-playback-resume-offset-log" in phony
+    assert "apple-device-pull-and-verify-current-reader-repro-log" in phony
     assert "$(MAKE) apple-device-verify-playback-transport-pause-resume-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1" in makefile
     assert "$(MAKE) apple-device-verify-playback-resume-offset-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1" in makefile
     assert (
