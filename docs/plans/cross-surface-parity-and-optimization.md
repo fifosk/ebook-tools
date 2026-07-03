@@ -1255,7 +1255,10 @@ Optimization candidates:
   The Library router's telemetry wrappers now live in
   `modules/webapi/routers/library_telemetry.py`, trimming the route module while
   keeping the same token-safe Library metrics covered by the Library route
-  tests.
+  tests. Library access-policy owner fallback, default visibility resolution,
+  and denial-message helpers now live in
+  `modules/webapi/routers/library_access.py` with direct coverage, keeping the
+  shared Web/Apple Library authorization contract outside the broad route file.
   Acquisition provider/discovery/acquire routes are now also pinned in the
   global observability contract, so the shared Web/Apple Create discovery layer
   cannot lose its route-duration histogram while still keeping provider tokens,

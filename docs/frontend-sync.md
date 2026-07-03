@@ -497,7 +497,9 @@ Follow the suggested remediations to restore parity:
   Apple Music before the app-level reader callback. Sequence dwell should keep
   reader playback intent alive for the bed, but on tvOS it mutes and applies
   segment-proportional boundary headroom, fade, and pin-backoff windows before
-  seeking to the next segment. The tvOS guard must stay wider than iOS/iPadOS
+  seeking to the next segment; the current tvOS windows cap at 0.66s headroom,
+  0.38s fade, and 0.16s dwell pin-backoff so the handoff is earlier than the
+  iPad path without returning to the old tail-clipping trims. The tvOS guard must stay wider than iOS/iPadOS
   because physical HDMI output can still drain buffered next-sentence audio
   after AVPlayer pauses; single-track iPad/iPhone behavior should not inherit
   that extra trim.

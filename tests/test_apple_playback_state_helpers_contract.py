@@ -1177,15 +1177,15 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
 
     headroom_body = _function_body(controller, "private func boundaryHeadroom(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in headroom_body
-    assert "min(0.85, max(0.22, segment.duration * 0.28))" in headroom_body
+    assert "min(0.66, max(0.14, segment.duration * 0.21))" in headroom_body
     assert "min(0.08, max(0.03, segment.duration * 0.08))" in headroom_body
     fade_body = _function_body(controller, "private func fadeOutDuration(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in fade_body
-    assert "min(0.55, max(0.16, segment.duration * 0.22))" in fade_body
+    assert "min(0.38, max(0.11, segment.duration * 0.16))" in fade_body
     assert "min(0.16, max(0.05, segment.duration * 0.10))" in fade_body
     pin_body = _function_body(controller, "private func dwellPinBackoff(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in pin_body
-    assert "min(0.24, max(0.08, segment.duration * 0.08))" in pin_body
+    assert "min(0.16, max(0.045, segment.duration * 0.055))" in pin_body
     assert "min(0.04, max(0.02, segment.duration * 0.04))" in pin_body
     trigger_body = _function_body(controller, "private func boundaryTriggerTime(for segment: SequenceSegment) -> Double")
     assert "segment.end - boundaryHeadroom(for: segment)" in trigger_body

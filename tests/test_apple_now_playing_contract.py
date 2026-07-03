@@ -2321,6 +2321,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'musicOwnership.simulateSentenceTransitionForE2E(phase: "sentenceTransitionResume")' in chrome
     assert 'accessibilityIdentifier("e2eReaderTransitionResumeButton")' in chrome
     assert 'accessibilityLabel("e2eReaderTransitionResumeButton")' in chrome
+    assert "PlayerKeyboardShortcutBroker.shared.handleCommandIfActive(.keyboardShortcutPlayPause)" in chrome
+    assert "NotificationCenter.default.post(name: .keyboardShortcutPlayPause, object: nil)" in chrome
     assert "NotificationCenter.default.post(name: .e2eBubblePronunciationResume, object: nil)" in chrome
     assert 'accessibilityIdentifier("e2eBubblePronunciationResumeButton")' in chrome
     assert 'accessibilityLabel("e2eBubblePronunciationResumeButton")' in chrome

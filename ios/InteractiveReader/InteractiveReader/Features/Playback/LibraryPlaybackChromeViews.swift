@@ -436,7 +436,9 @@ struct MusicBedSyncE2EControls: View {
                     .accessibilityLabel("e2eReaderToggleCommandButton")
 
                     Button("E2E Keyboard Space") {
-                        NotificationCenter.default.post(name: .keyboardShortcutPlayPause, object: nil)
+                        if !PlayerKeyboardShortcutBroker.shared.handleCommandIfActive(.keyboardShortcutPlayPause) {
+                            NotificationCenter.default.post(name: .keyboardShortcutPlayPause, object: nil)
+                        }
                     }
                     .accessibilityIdentifier("e2eKeyboardSpaceCommandButton")
                     .accessibilityLabel("e2eKeyboardSpaceCommandButton")

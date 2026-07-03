@@ -422,6 +422,18 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "modules/webapi/routers/library.py",
+            "modules/webapi/routers/library_access.py",
+            "tests/modules/webapi/test_library_access.py",
+            "tests/modules/webapi/test_library_items_route.py",
+        ),
+        (
+            "test-backend-library-search-source-isbn",
+            "test-webapi",
+        ),
+    ),
+    (
+        (
             "modules/services/export_service.py",
             "modules/webapi/routers/exports.py",
             "modules/webapi/schemas/exports.py",

@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "ipad-e2e-space-resume-uses-broker",
+            title: "iPad bubble resume test matches keys",
+            detail: "The iPad Music-bed debug chrome now routes its E2E Space command through the shared keyboard broker before falling back to a notification, matching the real hardware-key path after lookup-bubble pronunciation pauses."
+        ),
+        AppChangelogEntry(
+            id: "tvos-sequence-balanced-handoff-boundary",
+            title: "TV handoffs balance tails",
+            detail: "Apple TV sequence handoffs now move the boundary, fade, and muted dwell pin slightly earlier than the previous release without restoring the old extra-wide trim, reducing short next-sentence bleed before Translation starts while preserving sentence tails."
+        ),
+        AppChangelogEntry(
             id: "tvos-sequence-handoff-preserves-tail",
             title: "TV handoffs keep sentence tails",
             detail: "Apple TV sequence handoffs now back off the extra-wide trim that could clip sentence endings, while stale pending autoplay recovery is cleared when the reader is already paused instead of restarting a loop."

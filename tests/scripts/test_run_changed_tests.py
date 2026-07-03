@@ -627,6 +627,7 @@ def test_select_targets_deduplicates_multiple_backend_domains() -> None:
         "test-web-playback-focused",
         "test-web-library-focused",
         "test-apple-contracts",
+        "test-backend-library-search-source-isbn",
         "test-webapi",
         "test-services",
     ]

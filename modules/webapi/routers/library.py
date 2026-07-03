@@ -12,6 +12,10 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Response, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 
+from .library_access import (
+    ensure_library_access as _ensure_library_access,
+    resolve_library_access as _resolve_library_access,
+)
 from .library_telemetry import (
     _log_library_access_policy,
     _log_library_isbn_apply,
@@ -58,13 +62,11 @@ from ..schemas import (
 from ...library import (
     LibraryConflictError,
     LibraryError,
-    LibraryEntry,
     LibraryNotFoundError,
     LibraryService,
     LibrarySync,
 )
 from ...services.pipeline_service import PipelineService
-from modules.permissions import can_access, resolve_access_policy
 
 
 router = APIRouter(prefix="/api/library", tags=["library"])
@@ -133,44 +135,6 @@ def _library_media_file_url(job_id: str, relative_path: str) -> str:
         f"/api/library/media/{quote(str(job_id), safe='')}/file/"
         f"{quote(normalized, safe='/')}"
     )
-
-
-def _library_owner_id(item: LibraryEntry) -> str | None:
-    if item.owner_id:
-        return item.owner_id
-    metadata = item.metadata.data if hasattr(item.metadata, "data") else {}
-    owner = metadata.get("user_id") or metadata.get("owner_id")
-    if isinstance(owner, str):
-        trimmed = owner.strip()
-        return trimmed or None
-    return None
-
-
-def _resolve_library_access(item: LibraryEntry):
-    metadata = item.metadata.data if hasattr(item.metadata, "data") else {}
-    return resolve_access_policy(metadata.get("access"), default_visibility="public")
-
-
-def _ensure_library_access(
-    item: LibraryEntry,
-    request_user: RequestUserContext,
-    *,
-    permission: str,
-) -> None:
-    policy = _resolve_library_access(item)
-    owner_id = _library_owner_id(item)
-    if can_access(
-        policy,
-        owner_id=owner_id,
-        user_id=request_user.user_id,
-        user_role=request_user.user_role,
-        permission=permission,
-    ):
-        return
-    detail = "Not authorized to access library item"
-    if permission == "edit":
-        detail = "Not authorized to modify library item"
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
 
 @router.post("/move/{job_id}", response_model=LibraryMoveResponse)
