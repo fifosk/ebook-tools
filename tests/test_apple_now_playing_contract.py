@@ -230,6 +230,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "musicOwnership.isPausedByReaderTransport" not in job_stale_pause_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" in job_stale_pause_body
     assert "readerTransportMusicResumeTask != nil" in job_stale_pause_body
+    assert "pendingInteractiveAutoplaySentence != nil" in job_stale_pause_body
     assert "let isWithinPostPlayEchoWindow = ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in job_stale_pause_body
     assert "if isWithinPostPlayEchoWindow" in job_stale_pause_body
     assert "guard !viewModel.isNarrationAudibleForReaderTransport else { return false }" in job_stale_pause_body
@@ -242,9 +243,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'source == "persistent observed non-playing"' in job_honor_adoption_body
     job_mirror_pause_body = _function_body(job_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in job_mirror_pause_body
+    assert "pendingInteractiveAutoplayID = nil" in job_mirror_pause_body
+    assert "pendingInteractiveAutoplaySentence = nil" in job_mirror_pause_body
     assert "confirmReaderTransportPauseAfterCommand(source: source)" in job_mirror_pause_body
     assert "musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)" in job_mirror_pause_body
     assert "musicOwnership.pauseReadingBedForReaderTransport()" not in job_mirror_pause_body
+    assert job_mirror_pause_body.index("pendingInteractiveAutoplaySentence = nil") < job_mirror_pause_body.index(
+        "viewModel.pauseForReaderTransport()"
+    )
     assert job_mirror_pause_body.index("viewModel.pauseForReaderTransport()") < job_mirror_pause_body.index(
         "musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)"
     )
@@ -802,6 +808,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "musicOwnership.isPausedByReaderTransport" not in library_stale_pause_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" in library_stale_pause_body
     assert "readerTransportMusicResumeTask != nil" in library_stale_pause_body
+    assert "pendingInteractiveAutoplaySentence != nil" in library_stale_pause_body
     assert "let isWithinPostPlayEchoWindow = ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in library_stale_pause_body
     assert "if isWithinPostPlayEchoWindow" in library_stale_pause_body
     assert "guard !viewModel.isNarrationAudibleForReaderTransport else { return false }" in library_stale_pause_body
@@ -814,9 +821,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "return hasPendingReaderMusicResume" not in library_stale_pause_body
     library_mirror_pause_body = _function_body(library_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in library_mirror_pause_body
+    assert "pendingInteractiveAutoplayID = nil" in library_mirror_pause_body
+    assert "pendingInteractiveAutoplaySentence = nil" in library_mirror_pause_body
     assert "confirmReaderTransportPauseAfterCommand(source: source)" in library_mirror_pause_body
     assert "musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)" in library_mirror_pause_body
     assert "musicOwnership.pauseReadingBedForReaderTransport()" not in library_mirror_pause_body
+    assert library_mirror_pause_body.index("pendingInteractiveAutoplaySentence = nil") < library_mirror_pause_body.index(
+        "viewModel.pauseForReaderTransport()"
+    )
     assert library_mirror_pause_body.index("viewModel.pauseForReaderTransport()") < library_mirror_pause_body.index(
         "musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)"
     )
@@ -1729,6 +1741,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "readerTransportMusicResumeTask?.cancel()" in job_mirror_pause_body
     assert "readerTransportMusicResumeTask = nil" in job_mirror_pause_body
     assert 'lastReaderTransportAction = "pause"' in job_mirror_pause_body
+    assert "pendingInteractiveAutoplayID = nil" in job_mirror_pause_body
+    assert "pendingInteractiveAutoplaySentence = nil" in job_mirror_pause_body
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in job_mirror_pause_body
     assert "musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)" in job_mirror_pause_body
     assert "viewModel.pauseForReaderTransport()" in job_mirror_pause_body
@@ -2011,6 +2025,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "readerTransportMusicResumeTask?.cancel()" in library_mirror_pause_body
     assert "readerTransportMusicResumeTask = nil" in library_mirror_pause_body
     assert 'lastReaderTransportAction = "pause"' in library_mirror_pause_body
+    assert "pendingInteractiveAutoplayID = nil" in library_mirror_pause_body
+    assert "pendingInteractiveAutoplaySentence = nil" in library_mirror_pause_body
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in library_mirror_pause_body
     assert "musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)" in library_mirror_pause_body
     assert "viewModel.pauseForReaderTransport()" in library_mirror_pause_body

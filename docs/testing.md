@@ -351,6 +351,16 @@ Offline export service, route, and schema edits route to
 `test-web-library-focused`, and `test-apple-contracts`, keeping Web player
 exports, Library export actions, and Apple offline export contracts on the same
 backend payload and download path.
+Playback-state route/schema/service edits route to
+`test-backend-playback-state`, `test-web-playback-focused`,
+`test-web-library-focused`, and `test-apple-contracts`, keeping resume,
+bookmark, assistant lookup, and lookup-cache payloads aligned across Web
+playback, Web Library, and Apple playback state.
+Playback media and timing route/schema edits route to
+`test-backend-playback-media`, `test-web-playback-focused`,
+`test-web-library-focused`, and `test-apple-contracts`, keeping job media,
+Library media, file streaming, and timing payloads aligned with Web and Apple
+rendering/offline playback.
 Native Apple Create SwiftUI and creation API-client changes route to the
 focused `test-apple-create-readiness-contract` plus iPhone/iPad and tvOS
 simulator builds, so Create parity edits compile across Apple surfaces before

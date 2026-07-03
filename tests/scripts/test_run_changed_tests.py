@@ -585,7 +585,14 @@ def test_select_targets_deduplicates_multiple_backend_domains() -> None:
             "tests/modules/webapi/test_library_items_route.py",
             "modules/services/resume_service.py",
         ]
-    ) == ["test-backend-playback-state", "test-webapi", "test-services"]
+    ) == [
+        "test-backend-playback-state",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
+        "test-webapi",
+        "test-services",
+    ]
 
 
 def test_select_targets_covers_apple_runtime_backend_slices() -> None:
@@ -760,14 +767,51 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
     ]
     assert select_targets(["modules/webapi/routers/bookmarks.py"]) == [
         "test-backend-playback-state",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
         "test-webapi",
     ]
     assert select_targets(["modules/services/bookmark_service.py"]) == [
         "test-backend-playback-state",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
         "test-services",
     ]
     assert select_targets(["modules/webapi/routes/media/lookup_cache.py"]) == [
         "test-backend-playback-state",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/routes/media/media_list.py"]) == [
+        "test-backend-playback-media",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/routes/media/timing.py"]) == [
+        "test-backend-playback-media",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/schemas/pipeline_media.py"]) == [
+        "test-backend-playback-media",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
+        "test-webapi",
+    ]
+    assert select_targets(["tests/modules/webapi/test_library_media_route.py"]) == [
+        "test-backend-playback-media",
+        "test-web-playback-focused",
+        "test-web-library-focused",
+        "test-apple-contracts",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/routers/exports.py"]) == [

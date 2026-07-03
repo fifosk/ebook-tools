@@ -370,7 +370,36 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/webapi/test_lookup_cache_routes.py",
             "tests/modules/webapi/test_resume_routes.py",
         ),
-        ("test-backend-playback-state",),
+        (
+            "test-backend-playback-state",
+            "test-web-playback-focused",
+            "test-web-library-focused",
+            "test-apple-contracts",
+        ),
+    ),
+    (
+        (
+            "modules/webapi/routes/media/audio_roles.py",
+            "modules/webapi/routes/media/common.py",
+            "modules/webapi/routes/media/media_list.py",
+            "modules/webapi/routes/media/timing.py",
+            "modules/webapi/routes/media_routes.py",
+            "modules/webapi/schemas/media.py",
+            "modules/webapi/schemas/pipeline_media.py",
+            "modules/webapi/schemas/pipeline_timing.py",
+            "tests/modules/library/test_library_service.py",
+            "tests/modules/webapi/test_job_media_routes.py",
+            "tests/modules/webapi/test_job_timing_route.py",
+            "tests/modules/webapi/test_library_media_file_download.py",
+            "tests/modules/webapi/test_library_media_route.py",
+            "tests/modules/webapi/test_media_common.py",
+        ),
+        (
+            "test-backend-playback-media",
+            "test-web-playback-focused",
+            "test-web-library-focused",
+            "test-apple-contracts",
+        ),
     ),
     (
         (

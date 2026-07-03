@@ -442,6 +442,8 @@ struct LibraryPlaybackView: View {
         playbackLogger.info(
             "Library playback accepted Apple Music pause as reader transport source=\(source, privacy: .public)"
         )
+        pendingInteractiveAutoplayID = nil
+        pendingInteractiveAutoplaySentence = nil
         viewModel.pauseForReaderTransport()
         confirmReaderTransportPauseAfterCommand(source: source)
         musicOwnership.reinforceReadingBedPauseForReaderTransport(reason: source)
@@ -535,7 +537,8 @@ struct LibraryPlaybackView: View {
         guard lastReaderTransportAction == "play" else { return false }
         let hasPendingReaderMusicResume =
             musicOwnership.isReaderTransportPauseGuardActive ||
-            readerTransportMusicResumeTask != nil
+            readerTransportMusicResumeTask != nil ||
+            pendingInteractiveAutoplaySentence != nil
         guard hasPendingReaderMusicResume else { return false }
         let isWithinPostPlayEchoWindow = ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(
             previousAction: lastReaderTransportAction,

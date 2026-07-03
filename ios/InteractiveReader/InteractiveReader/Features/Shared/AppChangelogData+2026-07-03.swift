@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-music-bed-autoplay-stale-pause-guard",
+            title: "TV autoplay avoids Music-bed loops",
+            detail: "Apple TV Job and Library playback now treat pending interactive autoplay as part of the deferred Music-bed resume window, so a stale non-playing Music callback no longer cancels narration into a retry loop."
+        ),
+        AppChangelogEntry(
             id: "tvos-foreground-remote-pause-reader-first",
             title: "TV remote pause reaches the reader",
             detail: "Apple TV foreground Siri Remote Play/Pause presses now bypass the broker-echo rejection before force-pause resolution, so a real Living Room pause can stop sentence narration and the Apple Music bed on the first press."
