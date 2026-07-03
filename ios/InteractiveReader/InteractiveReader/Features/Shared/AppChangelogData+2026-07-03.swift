@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "sequence-eof-owned-by-controller",
+            title: "Sequence EOF avoids chunk jumps",
+            detail: "Interactive reader sequence playback now treats AVPlayer item-end notifications as segment fallbacks only while the sequence controller is active, ignoring late EOF during dwell or track transitions so playback does not jump chunks, loop, or leak a next-sentence sliver before Translation starts."
+        ),
+        AppChangelogEntry(
             id: "tvos-sequence-extra-safe-handoff-boundary",
             title: "TV handoffs trim earlier",
             detail: "Apple TV sequence handoffs now use an extra-conservative same-track trim, earlier boundary, and longer decode fade only on tvOS, reducing the audible next-original-sentence sliver before Translation starts."

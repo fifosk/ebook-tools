@@ -125,7 +125,29 @@ final class InteractivePlayerViewModel: ObservableObject {
             }
 
         audioCoordinator.onPlaybackEndedWithURL = { [weak self] endedURL in
-            self?.handlePlaybackEnded(endedURL: endedURL)
+            guard let self else { return }
+            if let endedURL,
+               self.sequenceController.isEnabled {
+                guard !self.sequenceController.isDwelling,
+                      !self.sequenceController.isTransitioning else {
+                    interactivePlayerViewModelLogger.debug(
+                        "Ignoring AVPlayer EOF during sequence dwell/transition url=\(endedURL.lastPathComponent, privacy: .private)"
+                    )
+                    return
+                }
+                guard self.audioCoordinator.isPlaybackRequested else {
+                    interactivePlayerViewModelLogger.debug(
+                        "Ignoring AVPlayer EOF while sequence playback is not requested url=\(endedURL.lastPathComponent, privacy: .private)"
+                    )
+                    return
+                }
+                interactivePlayerViewModelLogger.debug(
+                    "Using AVPlayer EOF as sequence segment fallback url=\(endedURL.lastPathComponent, privacy: .private)"
+                )
+                _ = self.sequenceController.advanceToNextSegment()
+                return
+            }
+            self.handlePlaybackEnded(endedURL: endedURL)
         }
 
         // Persistent-stall recovery: AVPlayer streams that exhaust their buffer

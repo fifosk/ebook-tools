@@ -295,7 +295,12 @@ def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
     assert "self.onPlaybackEnded?()" in end_observer_body
 
     assert "audioCoordinator.onPlaybackEndedWithURL = { [weak self] endedURL in" in view_model
-    assert "self?.handlePlaybackEnded(endedURL: endedURL)" in view_model
+    assert "if let endedURL," in view_model
+    assert "self.sequenceController.isEnabled" in view_model
+    assert "self.sequenceController.isDwelling" in view_model
+    assert "self.sequenceController.isTransitioning" in view_model
+    assert "_ = self.sequenceController.advanceToNextSegment()" in view_model
+    assert "self.handlePlaybackEnded(endedURL: endedURL)" in view_model
 
     ended_body = _function_body(selection, "func handlePlaybackEnded(endedURL: URL? = nil)")
     assert "playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk)" in ended_body
