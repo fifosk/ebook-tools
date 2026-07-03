@@ -1988,6 +1988,69 @@ def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
     assert "api_key" not in rendered
 
 
+def test_acquisition_job_poll_route_trusts_download_station_completed_root(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from modules.services.acquisition import AcquisitionJobStatus
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    completed_root = tmp_path / "download-station-completed"
+    completed_root.mkdir()
+    ready_file = completed_root / "Ready From NAS.mkv"
+    ready_file.write_text("video", encoding="utf-8")
+
+    def _fake_poll_job(**kwargs):
+        return AcquisitionJobStatus(
+            provider="download_station",
+            task_id="dbid_003",
+            status="completed",
+            progress=1.0,
+            external_task_id="dbid_003",
+            raw_status="finished",
+            completed_files=(ready_file.as_posix(),),
+            next_actions=("discover_manual_downloads", "import_local"),
+            metadata={
+                "source_kind": "download_station",
+                "completed_files": [ready_file.as_posix()],
+                "completed_file": ready_file.as_posix(),
+                "completed_path": "/outside/private/Other.mkv",
+                "api_key": "secret-indexer-key",
+            },
+        )
+
+    monkeypatch.setattr(acquisition_router, "poll_download_station_task", _fake_poll_job)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+            "download_station_completed_root": completed_root.as_posix(),
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/jobs/dbid_003")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["completed_files"] == [ready_file.as_posix()]
+    assert payload["metadata"]["completed_files"] == [ready_file.as_posix()]
+    assert payload["metadata"]["completed_file"] == ready_file.as_posix()
+    rendered = str(payload)
+    assert "/outside/private/Other.mkv" not in rendered
+    assert "secret-indexer-key" not in rendered
+    assert "api_key" not in rendered
+
+
 def test_acquisition_job_poll_route_accepts_non_mutating_download_station_sentinel_without_credentials(
     tmp_path: Path,
 ) -> None:
