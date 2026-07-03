@@ -614,7 +614,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "let scheduledGeneration = readerTransportResumeGeneration" in job_recovery_schedule_body
     assert "readerTransportPlaybackRecoveryTask = Task" in job_recovery_schedule_body
     assert "defer { readerTransportPlaybackRecoveryTask = nil }" in job_recovery_schedule_body
-    assert "for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64]" in job_recovery_schedule_body
+    assert "for delay in ReaderTransportCommandResolver.playbackRecoveryProbeDelaysNanoseconds" in job_recovery_schedule_body
     assert "guard !Task.isCancelled else { return }" in job_recovery_schedule_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in job_recovery_schedule_body
     assert 'guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }' in job_recovery_schedule_body
@@ -642,7 +642,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "publishReaderNowPlayingSnapshot(force: true)"
     )
     job_confirm_pause_body = _function_body(job_now_playing, "func confirmReaderTransportPauseAfterCommand(source: String)")
-    assert "[60_000_000, 180_000_000, 420_000_000, 900_000_000, 1_500_000_000]" in job_confirm_pause_body
+    assert "for delay in ReaderTransportCommandResolver.pauseConfirmationProbeDelaysNanoseconds" in job_confirm_pause_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in job_confirm_pause_body
     assert 'guard lastReaderTransportAction == "pause" else { return }' in job_confirm_pause_body
     assert "let readerStillActive = viewModel.audioCoordinator.isPlaybackRequested ||" in job_confirm_pause_body
@@ -1018,7 +1018,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "let scheduledGeneration = readerTransportResumeGeneration" in library_recovery_schedule_body
     assert "readerTransportPlaybackRecoveryTask = Task" in library_recovery_schedule_body
     assert "defer { readerTransportPlaybackRecoveryTask = nil }" in library_recovery_schedule_body
-    assert "for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64]" in library_recovery_schedule_body
+    assert "for delay in ReaderTransportCommandResolver.playbackRecoveryProbeDelaysNanoseconds" in library_recovery_schedule_body
     assert "guard !Task.isCancelled else { return }" in library_recovery_schedule_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in library_recovery_schedule_body
     assert 'guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }' in library_recovery_schedule_body
@@ -1046,7 +1046,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "publishReaderNowPlayingSnapshot(force: true)"
     )
     library_confirm_pause_body = _function_body(library_now_playing, "func confirmReaderTransportPauseAfterCommand(source: String)")
-    assert "[60_000_000, 180_000_000, 420_000_000, 900_000_000, 1_500_000_000]" in library_confirm_pause_body
+    assert "for delay in ReaderTransportCommandResolver.pauseConfirmationProbeDelaysNanoseconds" in library_confirm_pause_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in library_confirm_pause_body
     assert 'guard lastReaderTransportAction == "pause" else { return }' in library_confirm_pause_body
     assert "let readerStillActive = viewModel.audioCoordinator.isPlaybackRequested ||" in library_confirm_pause_body
@@ -1972,8 +1972,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "let scheduledGeneration = readerTransportResumeGeneration" in job_deferred_music_body
     assert "let scheduledBarrier = musicOwnership.readerTransportResumeBarrierValue" in job_deferred_music_body
     assert "readerTransportMusicResumeTask = Task { @MainActor" in job_deferred_music_body
-    assert "900_000_000" in job_deferred_music_body
-    assert "1_500_000_000" in job_deferred_music_body
+    assert "for delay in ReaderTransportCommandResolver.deferredMusicResumeProbeDelaysNanoseconds" in job_deferred_music_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in job_deferred_music_body
     assert "lastReaderTransportAction == scheduledAction, scheduledAction == \"play\"" in job_deferred_music_body
     assert "musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier)" in job_deferred_music_body
@@ -2313,8 +2312,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "let scheduledGeneration = readerTransportResumeGeneration" in library_deferred_music_body
     assert "let scheduledBarrier = musicOwnership.readerTransportResumeBarrierValue" in library_deferred_music_body
     assert "readerTransportMusicResumeTask = Task { @MainActor" in library_deferred_music_body
-    assert "900_000_000" in library_deferred_music_body
-    assert "1_500_000_000" in library_deferred_music_body
+    assert "for delay in ReaderTransportCommandResolver.deferredMusicResumeProbeDelaysNanoseconds" in library_deferred_music_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in library_deferred_music_body
     assert "lastReaderTransportAction == scheduledAction, scheduledAction == \"play\"" in library_deferred_music_body
     assert "musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier)" in library_deferred_music_body
@@ -2462,6 +2460,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "#if os(tvOS)\n        return 1.5" in resolver
     assert "static var brokerEchoWindow: TimeInterval" in resolver
     assert "#if os(tvOS)\n        return 1.5\n        #else\n        return 1.25" in resolver
+    assert "static var playbackRecoveryProbeDelaysNanoseconds: [UInt64]" in resolver
+    assert "[180_000_000, 600_000_000, 1_200_000_000]" in resolver
+    assert "static var pauseConfirmationProbeDelaysNanoseconds: [UInt64]" in resolver
+    assert "[60_000_000, 180_000_000, 420_000_000, 900_000_000, 1_500_000_000]" in resolver
+    assert "static var deferredMusicResumeProbeDelaysNanoseconds: [UInt64]" in resolver
+    assert "[120_000_000, 260_000_000, 520_000_000, 900_000_000, 1_500_000_000]" in resolver
     assert "reassertReaderTransportAudioSessionForPlay()" in job_now_playing
     assert "reassertReaderTransportAudioSessionForPlay()" in library_now_playing
     assert "guard musicOwnership.ownershipState == .appleMusicBed else" in job_now_playing

@@ -619,6 +619,10 @@ Follow the suggested remediations to restore parity:
   AVPlayer `playing` callbacks while playback is no longer requested. Mirrored
   Music play should resume narration through the reader transport helper rather
   than the raw audio coordinator so the narration/bed mix volume is restored.
+  Job and Library playback must use the shared
+  `ReaderTransportCommandResolver` probe delays for pause confirmation,
+  narration recovery, and deferred Music-bed resume so physical-device tuning
+  stays identical across both surfaces.
   Direct interactive reader tvOS pauses should reinforce the Apple Music bed's
   reader-owned pause immediately after stopping narration; debug simulator
   journeys keep the synthetic `pauseReadingBedForReaderTransport` hook so the

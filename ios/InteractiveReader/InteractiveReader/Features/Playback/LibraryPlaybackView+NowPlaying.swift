@@ -390,7 +390,7 @@ extension LibraryPlaybackView {
         let scheduledGeneration = readerTransportResumeGeneration
         readerTransportPlaybackRecoveryTask = Task { @MainActor in
             defer { readerTransportPlaybackRecoveryTask = nil }
-            for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64] {
+            for delay in ReaderTransportCommandResolver.playbackRecoveryProbeDelaysNanoseconds {
                 try? await Task.sleep(nanoseconds: delay)
                 guard !Task.isCancelled else { return }
                 guard !isVideoPreferred else { return }
@@ -447,7 +447,7 @@ extension LibraryPlaybackView {
     func confirmReaderTransportPauseAfterCommand(source: String) {
         let scheduledGeneration = readerTransportResumeGeneration
         Task { @MainActor in
-            for delay in [60_000_000, 180_000_000, 420_000_000, 900_000_000, 1_500_000_000] as [UInt64] {
+            for delay in ReaderTransportCommandResolver.pauseConfirmationProbeDelaysNanoseconds {
                 try? await Task.sleep(nanoseconds: delay)
                 guard readerTransportResumeGeneration == scheduledGeneration else { return }
                 guard lastReaderTransportAction == "pause" else { return }
@@ -508,7 +508,7 @@ extension LibraryPlaybackView {
         let scheduledBarrier = musicOwnership.readerTransportResumeBarrierValue
         readerTransportMusicResumeTask = Task { @MainActor in
             defer { readerTransportMusicResumeTask = nil }
-            for delay in [120_000_000, 260_000_000, 520_000_000, 900_000_000, 1_500_000_000] as [UInt64] {
+            for delay in ReaderTransportCommandResolver.deferredMusicResumeProbeDelaysNanoseconds {
                 try? await Task.sleep(nanoseconds: delay)
                 guard !Task.isCancelled else { return }
                 guard readerTransportResumeGeneration == scheduledGeneration else { return }

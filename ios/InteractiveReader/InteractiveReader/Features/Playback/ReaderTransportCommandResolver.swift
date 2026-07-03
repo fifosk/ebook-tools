@@ -45,6 +45,18 @@ enum ReaderTransportCommandResolver {
         #endif
     }
 
+    static var playbackRecoveryProbeDelaysNanoseconds: [UInt64] {
+        [180_000_000, 600_000_000, 1_200_000_000]
+    }
+
+    static var pauseConfirmationProbeDelaysNanoseconds: [UInt64] {
+        [60_000_000, 180_000_000, 420_000_000, 900_000_000, 1_500_000_000]
+    }
+
+    static var deferredMusicResumeProbeDelaysNanoseconds: [UInt64] {
+        [120_000_000, 260_000_000, 520_000_000, 900_000_000, 1_500_000_000]
+    }
+
     static var shouldHoldReaderResumeAfterPause: Bool {
         #if os(tvOS)
         return true

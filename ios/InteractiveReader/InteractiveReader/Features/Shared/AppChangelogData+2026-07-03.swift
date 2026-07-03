@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "reader-transport-shared-probe-timings",
+            title: "TV pause probes stay aligned",
+            detail: "Apple Job and Library Music-bed transport now share pause confirmation, playback recovery, and deferred Music resume probe timings through the reader transport resolver, reducing surface drift while tuning TV pause/resume behavior."
+        ),
+        AppChangelogEntry(
             id: "sequence-track-switch-keeps-hard-stop",
             title: "Track switches hold the stop",
             detail: "Apple Original/Translation track switches now keep the outgoing segment's AVPlayer hard-stop guard latched until the old audio item is replaced, reducing next-sentence audio slivers before Translation starts without clipping same-track seeks."
