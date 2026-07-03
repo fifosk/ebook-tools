@@ -7,6 +7,7 @@ from typing import Protocol, Sequence, TypeVar
 
 
 LOCAL_FILE_DISCOVERY_PROVIDERS = frozenset({"local_epub", "manual_downloads", "nas_video"})
+DEFAULT_DISCOVERY_OVERFILL_PROVIDERS = LOCAL_FILE_DISCOVERY_PROVIDERS
 
 
 class DiscoveryCandidateForPlanning(Protocol):
@@ -43,6 +44,12 @@ def order_default_discovery_candidates(
     return sorted(candidates, key=sort_key)
 
 
+def can_overfill_default_limit(provider_id: str) -> bool:
+    """Return whether a default provider may fetch beyond visible result slots."""
+
+    return provider_id in DEFAULT_DISCOVERY_OVERFILL_PROVIDERS
+
+
 def provider_query_limit(
     provider_id: str,
     *,
@@ -54,7 +61,7 @@ def provider_query_limit(
 
     if not is_default_provider_fanout:
         return max(0, effective_limit - len(candidates))
-    if provider_id in LOCAL_FILE_DISCOVERY_PROVIDERS:
+    if can_overfill_default_limit(provider_id):
         return effective_limit
     remaining_visible_slots = effective_limit - len(candidates)
     return max(0, remaining_visible_slots)

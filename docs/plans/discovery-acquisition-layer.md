@@ -183,7 +183,10 @@ Initial routes:
     surfacing the provider error. Default-source fan-out also skips optional
     remote providers once local/NAS/manual candidates already fill the visible
     result limit, avoiding hidden quota/network work that cannot affect the
-    returned Web/Apple Create candidate list.
+    returned Web/Apple Create candidate list. The backend planning helper names
+    that rule explicitly: only local file-backed providers may overfill the
+    default-source limit, while remote default providers run only when visible
+    result slots remain.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.

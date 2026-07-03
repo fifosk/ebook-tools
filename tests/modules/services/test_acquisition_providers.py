@@ -31,6 +31,7 @@ import modules.services.acquisition.youtube_discovery as youtube_discovery
 import modules.webapi.schemas.acquisition as acquisition_schemas
 from modules.services.source_discovery import DiscoveredSourceFile
 from modules.services.acquisition.discovery_planning import (
+    can_overfill_default_limit,
     order_default_discovery_candidates,
     provider_query_limit,
 )
@@ -160,6 +161,11 @@ def test_acquisition_discovery_planning_orders_default_sources_and_limits() -> N
         "Fresh Manual",
         "Alpha Local",
     ]
+    assert can_overfill_default_limit("local_epub") is True
+    assert can_overfill_default_limit("manual_downloads") is True
+    assert can_overfill_default_limit("nas_video") is True
+    assert can_overfill_default_limit("youtube_search") is False
+    assert can_overfill_default_limit("newznab_torznab") is False
     assert provider_query_limit(
         "local_epub",
         candidates=ordered[:2],
