@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Direct Apple interactive player embeds now mirror reader-owned Apple Music bed pauses into narration before reinforcing the Music pause, so reusable consumers without the Job/Library shell avoid split Music-only pauses.
 - Apple Create discovery detail rows now prefer the backend-advertised provider option label before falling back to built-in labels, matching Web for custom book/video source providers.
 - Web Video Dubbing and Apple Create video/book discovery candidate details now use friendly provider labels instead of raw provider ids, matching the source pickers while preserving token-safe provenance metadata.
 - Web Narrate Ebook discovery now labels checked providers and candidate source metadata with the same friendly provider names as its source buttons, keeping backend-owned discovery labels consistent with Apple Create.

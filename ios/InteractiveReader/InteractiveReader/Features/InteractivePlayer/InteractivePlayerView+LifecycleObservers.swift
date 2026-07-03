@@ -332,7 +332,19 @@ extension InteractivePlayerView {
     private func handleAppleMusicPlaybackChange(_ isPlaying: Bool) {
         if isPlaying && useAppleMusicForBed {
             readingBedCoordinator.pause()
+            return
         }
+        guard shouldMirrorDirectAppleMusicPauseToReaderTransport else { return }
+        viewModel.pauseForReaderTransport()
+        musicCoordinator.reinforceReadingBedPauseForReaderTransport(reason: "interactiveMusicSurface")
+    }
+
+    private var shouldMirrorDirectAppleMusicPauseToReaderTransport: Bool {
+        guard playbackToggleOverride == nil else { return false }
+        guard useAppleMusicForBed, readingBedEnabled else { return false }
+        guard musicCoordinator.ownershipState == .appleMusicBed else { return false }
+        guard musicCoordinator.isPausedByReaderTransport || musicCoordinator.isManuallyPaused else { return false }
+        return audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying
     }
 
     private var shouldKeepBubbleVisibleForPinnedState: Bool {

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "direct-player-music-bed-pause-mirror",
+            title: "Embedded readers pause together",
+            detail: "Direct Apple interactive player embeds now mirror reader-owned Apple Music bed pauses into narration before reinforcing the Music pause, so reusable consumers without the Job/Library shell avoid split Music-only pauses."
+        ),
+        AppChangelogEntry(
             id: "apple-create-custom-provider-detail-labels",
             title: "Create provider labels stay custom",
             detail: "Apple Create discovery detail rows now prefer the backend-advertised provider option label before falling back to built-in labels, matching Web for custom book/video source providers."

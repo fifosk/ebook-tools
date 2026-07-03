@@ -44,6 +44,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     transport_resolver = _source(PLAYBACK / "ReaderTransportCommandResolver.swift")
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     interactive_input = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
+    interactive_lifecycle = _source(INTERACTIVE / "InteractivePlayerView+LifecycleObservers.swift")
     interactive_layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
     interactive_e2e = _source(INTERACTIVE / "InteractivePlayerView+E2E.swift")
     interactive_transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
@@ -100,6 +101,22 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "                guard playbackToggleOverride == nil else { return }\n"
         "                handlePlaybackToggleCommand()"
     ) in interactive_view
+    direct_music_pause_body = _function_body(
+        interactive_lifecycle,
+        "private var shouldMirrorDirectAppleMusicPauseToReaderTransport",
+    )
+    direct_music_change_body = _function_body(
+        interactive_lifecycle,
+        "private func handleAppleMusicPlaybackChange(_ isPlaying: Bool)",
+    )
+    assert "guard playbackToggleOverride == nil else { return false }" in direct_music_pause_body
+    assert "musicCoordinator.ownershipState == .appleMusicBed" in direct_music_pause_body
+    assert "musicCoordinator.isPausedByReaderTransport || musicCoordinator.isManuallyPaused" in direct_music_pause_body
+    assert "audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying" in direct_music_pause_body
+    assert "guard shouldMirrorDirectAppleMusicPauseToReaderTransport else { return }" in direct_music_change_body
+    assert direct_music_change_body.index("viewModel.pauseForReaderTransport()") < direct_music_change_body.index(
+        'musicCoordinator.reinforceReadingBedPauseForReaderTransport(reason: "interactiveMusicSurface")'
+    )
 
     assert "nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)" in job_now_playing
     assert job_now_playing.count("nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)") >= 3
