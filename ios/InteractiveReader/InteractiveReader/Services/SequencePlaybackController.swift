@@ -415,7 +415,7 @@ final class SequencePlaybackController: ObservableObject {
 
     private var sameTrackHandoffGuard: Double {
         #if os(tvOS)
-        return 0.32
+        return 0.60
         #else
         return 0.08
         #endif
@@ -423,7 +423,7 @@ final class SequencePlaybackController: ObservableObject {
 
     private var sameTrackPrerollSlop: Double {
         #if os(tvOS)
-        return 0.55
+        return 1.10
         #else
         return 0.14
         #endif
@@ -481,7 +481,7 @@ final class SequencePlaybackController: ObservableObject {
     /// How far before segment.end to place the boundary observer (seconds).
     private var boundaryHeadroom: Double {
         #if os(tvOS)
-        return 0.42
+        return 0.55
         #else
         return 0.05
         #endif
@@ -491,7 +491,7 @@ final class SequencePlaybackController: ObservableObject {
     /// This must be long enough to cover HDMI output buffer depth (~100-300ms).
     private var fadeOutDuration: Double {
         #if os(tvOS)
-        return 0.30
+        return 0.42
         #else
         return 0.20
         #endif
@@ -502,7 +502,7 @@ final class SequencePlaybackController: ObservableObject {
     /// device output when the source file contains continuous sentence audio.
     private var dwellPinBackoff: Double {
         #if os(tvOS)
-        return 0.08
+        return 0.14
         #else
         return 0.03
         #endif

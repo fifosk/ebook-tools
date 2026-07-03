@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-sequence-extra-safe-handoff-boundary",
+            title: "TV handoffs trim earlier",
+            detail: "Apple TV sequence handoffs now use an extra-conservative same-track trim, earlier boundary, and longer decode fade only on tvOS, reducing the audible next-original-sentence sliver before Translation starts."
+        ),
+        AppChangelogEntry(
             id: "reader-pause-clears-autoplay-token",
             title: "Reader pauses stop stale retries",
             detail: "Apple Job and Library reader-owned pauses now hard-cancel pending interactive autoplay before stopping narration, so stale retry tokens cannot restart or loop playback while the Apple Music bed pause is settling."
