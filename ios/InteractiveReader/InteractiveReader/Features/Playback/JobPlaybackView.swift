@@ -537,14 +537,16 @@ struct JobPlaybackView: View {
             musicOwnership.isReaderTransportPauseGuardActive ||
             readerTransportMusicResumeTask != nil
         guard hasPendingReaderMusicResume else { return false }
-        if ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(
+        let isWithinPostPlayEchoWindow = ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(
             previousAction: lastReaderTransportAction,
             now: ProcessInfo.processInfo.systemUptime,
             lastCommandTime: lastReaderTransportCommandTime
-        ) {
+        )
+        if isWithinPostPlayEchoWindow {
             return true
         }
-        return !viewModel.isNarrationAudibleForReaderTransport
+        guard !viewModel.isNarrationAudibleForReaderTransport else { return false }
+        return !(viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)
     }
 
     private var shouldMirrorAppleMusicPlayToNarration: Bool {

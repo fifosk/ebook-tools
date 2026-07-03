@@ -43,6 +43,7 @@ NUMERIC_KEYS = {
     "min_width",
 }
 MUSIC_BED_STATUS_SELECTOR = "e2eMusicBedSyncStatus"
+BUBBLE_STATUS_SELECTOR = "e2eBubbleStatus"
 E2E_PROFILE_JOURNEY_VARIABLES: tuple[tuple[str, str], ...] = (
     ("iphone", "JOURNEY_SRC"),
     ("ipados", "JOURNEY_SRC"),
@@ -198,11 +199,15 @@ def _has_step(steps: list[Any], **expected: object) -> bool:
     return any(_step_matches(step, **expected) for step in steps)
 
 
-def _has_status_text(steps: list[Any], text: str) -> bool:
+def _has_status_text(
+    steps: list[Any],
+    text: str,
+    selector: str = MUSIC_BED_STATUS_SELECTOR,
+) -> bool:
     return _has_step(
         steps,
         action="assert_value_contains",
-        selector=MUSIC_BED_STATUS_SELECTOR,
+        selector=selector,
         text=text,
     )
 
@@ -444,13 +449,20 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         "phase=play",
         "phase=sentenceTransition",
         "phase=sentenceTransitionResume",
-        "bubbleWordNavDirection=1",
-        "bubbleWordNavDirection=-1",
-        "bubbleLookupHadBubble=true",
     ]:
         if not _has_status_text(steps, text):
             errors.append(
                 f"{path} music_bed_sync requires {MUSIC_BED_STATUS_SELECTOR} assertion {text!r}"
+            )
+
+    for text in [
+        "bubbleWordNavDirection=1",
+        "bubbleWordNavDirection=-1",
+        "bubbleLookupHadBubble=true",
+    ]:
+        if not _has_status_text(steps, text, selector=BUBBLE_STATUS_SELECTOR):
+            errors.append(
+                f"{path} music_bed_sync requires {BUBBLE_STATUS_SELECTOR} assertion {text!r}"
             )
 
     for command_count in range(0, 4):
@@ -682,13 +694,13 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             expected_steps=[
                 {
                     "action": "assert_value_key_at_least",
-                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "selector": BUBBLE_STATUS_SELECTOR,
                     "key": "bubbleWordNav",
                     "min_value": 1,
                 },
                 {
                     "action": "assert_value_contains",
-                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "selector": BUBBLE_STATUS_SELECTOR,
                     "text": "bubbleWordNavDirection=1",
                 },
             ],
@@ -707,13 +719,13 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             expected_steps=[
                 {
                     "action": "assert_value_key_at_least",
-                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "selector": BUBBLE_STATUS_SELECTOR,
                     "key": "bubbleWordNav",
                     "min_value": 2,
                 },
                 {
                     "action": "assert_value_contains",
-                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "selector": BUBBLE_STATUS_SELECTOR,
                     "text": "bubbleWordNavDirection=-1",
                 },
             ],
@@ -732,13 +744,13 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             expected_steps=[
                 {
                     "action": "assert_value_key_at_least",
-                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "selector": BUBBLE_STATUS_SELECTOR,
                     "key": "bubbleLookup",
                     "min_value": 1,
                 },
                 {
                     "action": "assert_value_contains",
-                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "selector": BUBBLE_STATUS_SELECTOR,
                     "text": "bubbleLookupHadBubble=true",
                 },
             ],

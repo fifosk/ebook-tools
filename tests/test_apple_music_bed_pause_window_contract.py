@@ -76,7 +76,10 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         assert "musicOwnership.isPausedByReaderTransport" not in stale_gate_body, label
         assert "musicOwnership.isReaderTransportPauseGuardActive" in stale_gate_body, label
         assert "readerTransportMusicResumeTask != nil" in stale_gate_body, label
-        assert "return !viewModel.isNarrationAudibleForReaderTransport" in stale_gate_body, label
+        assert "let isWithinPostPlayEchoWindow = ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in stale_gate_body, label
+        assert "if isWithinPostPlayEchoWindow" in stale_gate_body, label
+        assert "guard !viewModel.isNarrationAudibleForReaderTransport else { return false }" in stale_gate_body, label
+        assert "return !(viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)" in stale_gate_body, label
         assert "return hasPendingReaderMusicResume" not in stale_gate_body, label
 
 

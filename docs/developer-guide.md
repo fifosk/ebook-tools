@@ -161,9 +161,10 @@ builds; keep the Mac Studio checkout for backend/container runtime. The
 repo-owned `make verify-apple-shared-pipeline` wrapper runs the shared
 contract, backend health/runtime, backend pytest, Web checks, and Apple
 simulator/journey orchestration dry-runs without source-sync or physical-device
-deployment. `make verify-apple-living-room-candidate` adds the real tvOS
-Music-bed XCUITest journey on top of that shared gate, giving a repeatable
-non-physical candidate check before a Living Room Apple TV install request.
+deployment. `make verify-apple-music-bed-candidate` runs the real iPad and tvOS
+Music-bed XCUITest journeys serially, and `make verify-apple-living-room-candidate`
+adds that cross-surface Music-bed gate on top of the shared pipeline gate before
+a Living Room Apple TV install request.
 `make verify-apple-dogfood-pipeline` runs the local Web/Apple cross-surface
 checkpoint before the shared gate. After the Mac Studio/runtime checkout has
 been fast-forwarded and source-sync is expected to pass,
@@ -245,6 +246,7 @@ make apple-runtime-fast-forward
 make apple-runtime-ssh-check
 make apple-runtime-xcode-readiness
 make verify-apple-shared-pipeline
+make verify-apple-music-bed-candidate
 make verify-apple-living-room-candidate
 make verify-apple-dogfood-pipeline
 make verify-apple-golden-pipeline

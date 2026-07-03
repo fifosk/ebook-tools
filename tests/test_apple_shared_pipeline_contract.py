@@ -624,12 +624,34 @@ def test_shared_pipeline_verification_stays_non_physical() -> None:
     assert "devicectl" not in target
 
 
-def test_living_room_candidate_gate_runs_shared_pipeline_and_tvos_music_bed_without_deploy() -> None:
+def test_music_bed_candidate_gate_runs_ipad_then_tvos_without_deploy() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = (
+        "verify-apple-music-bed-candidate: test-e2e-ipad-music-bed-sync "
+        "test-e2e-tvos-music-bed-sync"
+    )
+    assert target_line in makefile
+
+    phony = makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
+    assert "verify-apple-music-bed-candidate" in phony
+
+    target = makefile.split("verify-apple-music-bed-candidate:", 1)[1].split("\n\n", 1)[0]
+    assert target.index("test-e2e-ipad-music-bed-sync") < target.index("test-e2e-tvos-music-bed-sync")
+    assert "verify-apple-shared-pipeline" not in target
+    assert "apple-device-update" not in target
+    assert "run_app_device_deploy.py" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "apple-device-full-entitlement-stable-install" not in target
+    assert "devicectl" not in target
+
+
+def test_living_room_candidate_gate_runs_shared_pipeline_and_music_bed_without_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
     target_line = (
         "verify-apple-living-room-candidate: verify-apple-shared-pipeline "
-        "test-e2e-tvos-music-bed-sync"
+        "verify-apple-music-bed-candidate"
     )
     assert target_line in makefile
 
@@ -638,7 +660,9 @@ def test_living_room_candidate_gate_runs_shared_pipeline_and_tvos_music_bed_with
 
     target = makefile.split("verify-apple-living-room-candidate:", 1)[1].split("\n\n", 1)[0]
     assert "verify-apple-shared-pipeline" in target
-    assert "test-e2e-tvos-music-bed-sync" in target
+    assert "verify-apple-music-bed-candidate" in target
+    assert "test-e2e-ipad-music-bed-sync" not in target
+    assert "test-e2e-tvos-music-bed-sync" not in target
     assert "apple-device-update" not in target
     assert "run_app_device_deploy.py" not in target
     assert "apple_unattended_device_update.sh" not in target
@@ -842,7 +866,9 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "run_app_owned_journey.py" in contract_check
     assert "check_apple_shared_pipeline_manifest.py" in contract_check
     assert "verify-apple-shared-pipeline" in contract_check
+    assert "verify-apple-music-bed-candidate" in contract_check
     assert "verify-apple-living-room-candidate" in contract_check
+    assert "test-e2e-ipad-music-bed-sync" in contract_check
     assert "test-e2e-tvos-music-bed-sync" in contract_check
     assert "verify-apple-dogfood-pipeline" in contract_check
     assert "verify-apple-golden-pipeline" in contract_check

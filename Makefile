@@ -39,7 +39,7 @@
        build-apple-tvos-simulator build-apple-tvos-uitests \
        build-apple-office-ipad-surfaces verify-apple-office-ipad-surfaces \
        build-apple-local-surfaces verify-apple-local-surfaces \
-       verify-apple-cross-surface-checkpoint \
+       verify-apple-cross-surface-checkpoint verify-apple-music-bed-candidate \
        apple-local-checkpoint-bundle \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
        apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync apple-pipeline-web-checks \
@@ -623,7 +623,9 @@ apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run a
 
 verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs
 
-verify-apple-living-room-candidate: verify-apple-shared-pipeline test-e2e-tvos-music-bed-sync
+verify-apple-music-bed-candidate: test-e2e-ipad-music-bed-sync test-e2e-tvos-music-bed-sync
+
+verify-apple-living-room-candidate: verify-apple-shared-pipeline verify-apple-music-bed-candidate
 
 verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline
 

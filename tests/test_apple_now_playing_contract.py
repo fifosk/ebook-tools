@@ -202,7 +202,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "musicOwnership.isPausedByReaderTransport" not in job_stale_pause_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" in job_stale_pause_body
     assert "readerTransportMusicResumeTask != nil" in job_stale_pause_body
-    assert "return !viewModel.isNarrationAudibleForReaderTransport" in job_stale_pause_body
+    assert "let isWithinPostPlayEchoWindow = ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in job_stale_pause_body
+    assert "if isWithinPostPlayEchoWindow" in job_stale_pause_body
+    assert "guard !viewModel.isNarrationAudibleForReaderTransport else { return false }" in job_stale_pause_body
+    assert "return !(viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)" in job_stale_pause_body
     assert "return hasPendingReaderMusicResume" not in job_stale_pause_body
     job_honor_adoption_body = _function_body(job_playback, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
     assert 'reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying"' in job_honor_adoption_body
@@ -749,11 +752,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "musicOwnership.isPausedByReaderTransport" not in library_stale_pause_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" in library_stale_pause_body
     assert "readerTransportMusicResumeTask != nil" in library_stale_pause_body
+    assert "let isWithinPostPlayEchoWindow = ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in library_stale_pause_body
+    assert "if isWithinPostPlayEchoWindow" in library_stale_pause_body
+    assert "guard !viewModel.isNarrationAudibleForReaderTransport else { return false }" in library_stale_pause_body
     library_honor_adoption_body = _function_body(library_playback, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
     assert 'reason == "observedNonPlaying" || reason == "deferredObservedNonPlaying"' in library_honor_adoption_body
     assert 'source == "active observed non-playing"' in library_honor_adoption_body
     assert 'source == "persistent observed non-playing"' in library_honor_adoption_body
-    assert "return !viewModel.isNarrationAudibleForReaderTransport" in library_stale_pause_body
+    assert "return !(viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)" in library_stale_pause_body
     assert "return hasPendingReaderMusicResume" not in library_stale_pause_body
     library_mirror_pause_body = _function_body(library_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in library_mirror_pause_body
@@ -1071,6 +1077,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "static func resetBubbleWordNavigation()" in interactive_e2e
     assert "static func recordBubbleWordNavigation(" in interactive_e2e
     assert "static func recordBubbleLookupCommand(" in interactive_e2e
+    assert "static let e2eBubbleStatusChanged" in interactive_e2e
+    assert "static func notifyStatusChanged()" in interactive_e2e
+    assert 'NotificationCenter.default.post(name: .e2eBubbleStatusChanged, object: nil)' in interactive_e2e
+    assert interactive_e2e.count("notifyStatusChanged()") >= 4
     assert '"bubbleWordNav=\\(bubbleWordNavigationCount)"' in interactive_e2e
     assert '"bubbleLookup=\\(bubbleLookupCommandCount)"' in interactive_e2e
     assert '"bubbleLookupHadBubble=\\(bubbleLookupHadBubble ? "true" : "false")"' in interactive_e2e
@@ -2085,6 +2095,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityIdentifier("e2eMusicBedSyncStatus")' in chrome
     assert "accessibilityLabel(statusText)" in chrome
     assert "accessibilityValue(statusText)" in chrome
+    assert 'accessibilityIdentifier("e2eBubbleStatus")' in chrome
+    assert "@State private var bubbleStatusRevision = 0" in chrome
+    assert ".onReceive(NotificationCenter.default.publisher(for: .e2eBubbleStatusChanged))" in chrome
+    assert "bubbleStatusRevision &+= 1" in chrome
+    assert "private var bubbleStatusText: String" in chrome
+    assert "accessibilityLabel(bubbleStatusText)" in chrome
+    assert "accessibilityValue(bubbleStatusText)" in chrome
     assert "let isNarrationAudibleForReaderTransport: Bool" not in chrome
     assert "let isReaderSequenceTransitioning: Bool" in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' not in chrome
@@ -2216,6 +2233,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"selector": "e2eKeyboardLookupCommandButton"' in journey
     assert '"key": "bubbleWordNav"' in journey
     assert '"key": "bubbleLookup"' in journey
+    assert '"selector": "e2eBubbleStatus"' in journey
     assert '"text": "bubbleWordNavDirection=1"' in journey
     assert '"text": "bubbleWordNavDirection=-1"' in journey
     assert '"text": "bubbleLookupHadBubble=true"' in journey

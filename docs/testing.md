@@ -600,9 +600,12 @@ fast-forwarded, because that check compares the local and remote Git state.
 `verify-apple-dogfood-pipeline` layers the local Web/Apple cross-surface
 checkpoint before `verify-apple-shared-pipeline`, keeping the reusable pipeline
 and repo-owned surface gates together without touching physical devices.
-`verify-apple-living-room-candidate` runs the shared non-physical gate plus the
-real tvOS Music-bed simulator journey, giving Living Room Apple TV changes a
-single candidate check before an explicit hardware deploy request. When
+`verify-apple-music-bed-candidate` runs the real iPad Music-bed journey followed
+by the real tvOS Music-bed journey serially, so keyboard/lookup and remote
+transport checks do not compete for simulator timing. `verify-apple-living-room-candidate`
+composes the shared non-physical gate with that serial Music-bed candidate check,
+giving Living Room Apple TV changes a single cross-surface check before an
+explicit hardware deploy request. When
 that runtime SSH check and source-sync check are expected to pass,
 `verify-apple-golden-pipeline` runs the fast-forward, SSH check, and source-sync
 steps, plus the remote Xcode readiness preflight, in front of
@@ -730,14 +733,15 @@ batch boundary. The run did not boot
 simulators, load remote secrets for credential-free validation, or touch
 physical devices.
 
-Living Room Apple TV candidate gate:
-`make verify-apple-living-room-candidate` runs the full non-physical shared
-pipeline gate and then the real tvOS Music-bed XCUITest journey
-(`make test-e2e-tvos-music-bed-sync`) against the Apple TV simulator. Use it
-before asking for a Living Room physical deploy when the change might affect
-reader transport, Apple Music bed ownership, Now Playing state, or TV playback
-chrome. The target intentionally does not call device install, `devicectl`, or
-the unattended physical update helpers.
+Music-bed and Living Room Apple TV candidate gates:
+`make verify-apple-music-bed-candidate` runs the real iPad Music-bed XCUITest
+journey and then the real tvOS Music-bed XCUITest journey
+(`make test-e2e-ipad-music-bed-sync` then `make test-e2e-tvos-music-bed-sync`).
+Use it when a change affects reader transport, Apple Music bed ownership, Now
+Playing state, keyboard lookup, or TV playback chrome. `make verify-apple-living-room-candidate`
+adds the full non-physical shared pipeline gate before that serial Music-bed
+candidate check. These targets intentionally do not call device install,
+`devicectl`, or the unattended physical update helpers.
 
 Latest Living Room candidate evidence from June 30, 2026:
 `make verify-apple-living-room-candidate` passed at commit `1010eb5fe`,

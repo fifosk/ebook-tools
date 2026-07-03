@@ -1,6 +1,21 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-music-bed-active-pause-after-echo",
+            title: "TV pause keeps both layers together",
+            detail: "Apple TV Music-bed pause now keeps the short post-resume echo guard, but after that window a MusicKit pause observed while narration is still requested or playing is mirrored into sentence transport immediately so one press can pause both layers."
+        ),
+        AppChangelogEntry(
+            id: "ipad-music-bed-e2e-bubble-status-split",
+            title: "iPad lookup status is separate",
+            detail: "The iPad music-bed simulator journey now publishes lookup-bubble counters through a dedicated DEBUG status element, keeping keyboard lookup validation independent from the longer music-bed transport label."
+        ),
+        AppChangelogEntry(
+            id: "apple-music-bed-serial-candidate-gate",
+            title: "Music-bed gate checks iPad then TV",
+            detail: "The Apple pipeline now exposes a serial Music-bed candidate gate that runs the real iPad keyboard/lookup journey before the real Apple TV remote journey, and the Living Room candidate gate composes it after the shared non-physical pipeline checks."
+        ),
+        AppChangelogEntry(
             id: "ipad-music-bed-e2e-bubble-status-front",
             title: "iPad lookup test status is steadier",
             detail: "The iPad music-bed simulator journey now publishes lookup-bubble counters at the front of its DEBUG status label, preventing accessibility truncation from hiding bubbleLookup evidence during unattended keyboard validation."

@@ -371,6 +371,7 @@ private struct LibraryImageReel: View {
 struct MusicBedSyncE2EControls: View {
     @ObservedObject var musicOwnership: MusicKitCoordinator
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
+    @State private var bubbleStatusRevision = 0
     let readerTransportCommandCount: Int
     let readerPauseConfirmationCount: Int
     let foregroundPlayPauseCount: Int
@@ -498,6 +499,20 @@ struct MusicBedSyncE2EControls: View {
                     .accessibilityIdentifier("e2eMusicBedSyncStatus")
                     .accessibilityLabel(statusText)
                     .accessibilityValue(statusText)
+
+                #if os(iOS)
+                Text(bubbleStatusText)
+                    .font(.caption2.monospaced())
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 6))
+                    .accessibilityIdentifier("e2eBubbleStatus")
+                    .accessibilityLabel(bubbleStatusText)
+                    .accessibilityValue(bubbleStatusText)
+                #endif
             }
             .font(.caption)
             .buttonStyle(.borderedProminent)
@@ -512,8 +527,20 @@ struct MusicBedSyncE2EControls: View {
                 scheduleTVOSSetupResumeIfNeeded(phase: phase)
             }
             #endif
+            #if os(iOS)
+            .onReceive(NotificationCenter.default.publisher(for: .e2eBubbleStatusChanged)) { _ in
+                bubbleStatusRevision &+= 1
+            }
+            #endif
         }
     }
+
+    #if os(iOS)
+    private var bubbleStatusText: String {
+        _ = bubbleStatusRevision
+        return InteractivePlayerE2EState.statusText
+    }
+    #endif
 
     #if os(tvOS)
     @MainActor

@@ -5,6 +5,9 @@ extension Notification.Name {
     static let e2eBubblePronunciationResume = Notification.Name(
         "com.interactivereader.e2e.bubblePronunciationResume"
     )
+    static let e2eBubbleStatusChanged = Notification.Name(
+        "com.interactivereader.e2e.bubbleStatusChanged"
+    )
 }
 
 @MainActor
@@ -45,6 +48,7 @@ enum InteractivePlayerE2EState {
         playPauseMusicPlaying = false
         playPauseReaderPause = false
         playPauseReaderGuard = false
+        notifyStatusChanged()
     }
 
     static func recordBubbleWordNavigation(
@@ -58,6 +62,7 @@ enum InteractivePlayerE2EState {
         bubbleWordNavigationSentenceIndex = sentenceIndex
         bubbleWordNavigationTokenIndex = tokenIndex
         bubbleWordNavigationVariant = String(describing: variant)
+        notifyStatusChanged()
     }
 
     static func recordBubbleLookupCommand(
@@ -71,6 +76,7 @@ enum InteractivePlayerE2EState {
             bubbleLookupTokenIndex = selection.tokenIndex
             bubbleLookupVariant = String(describing: selection.variantKind)
         }
+        notifyStatusChanged()
     }
 
     static func recordPlayPauseCommand(
@@ -88,6 +94,11 @@ enum InteractivePlayerE2EState {
         playPauseMusicPlaying = musicPlaying
         playPauseReaderPause = readerPause
         playPauseReaderGuard = readerGuard
+        notifyStatusChanged()
+    }
+
+    static func notifyStatusChanged() {
+        NotificationCenter.default.post(name: .e2eBubbleStatusChanged, object: nil)
     }
 
     static var statusText: String {
