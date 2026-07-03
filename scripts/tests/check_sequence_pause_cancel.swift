@@ -117,7 +117,7 @@ private func runDwellCancellationCheck() async {
     requireEqual(dwellPauseCount, 1, "Boundary should enter dwell and pause audio")
     requireClose(
         dwellPinTime,
-        0.87,
+        0.8464,
         "Boundary pause should never pin after the early boundary handoff point"
     )
     requireTrue(controller.isDwelling, "Boundary should put the controller into dwell state")

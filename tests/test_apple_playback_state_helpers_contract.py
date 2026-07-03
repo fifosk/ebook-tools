@@ -1175,28 +1175,28 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
         / "SequencePlaybackController.swift"
     ).read_text(encoding="utf-8")
 
-    headroom_body = _function_body(controller, "private var boundaryHeadroom: Double")
+    headroom_body = _function_body(controller, "private func boundaryHeadroom(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in headroom_body
-    assert "return 0.55" in headroom_body
-    assert "return 0.05" in headroom_body
-    fade_body = _function_body(controller, "private var fadeOutDuration: Double")
+    assert "min(0.55, max(0.12, segment.duration * 0.18))" in headroom_body
+    assert "min(0.08, max(0.03, segment.duration * 0.08))" in headroom_body
+    fade_body = _function_body(controller, "private func fadeOutDuration(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in fade_body
-    assert "return 0.42" in fade_body
-    assert "return 0.20" in fade_body
-    pin_body = _function_body(controller, "private var dwellPinBackoff: Double")
+    assert "min(0.32, max(0.10, segment.duration * 0.14))" in fade_body
+    assert "min(0.16, max(0.05, segment.duration * 0.10))" in fade_body
+    pin_body = _function_body(controller, "private func dwellPinBackoff(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in pin_body
-    assert "return 0.14" in pin_body
-    assert "return 0.03" in pin_body
+    assert "min(0.14, max(0.04, segment.duration * 0.05))" in pin_body
+    assert "min(0.04, max(0.02, segment.duration * 0.04))" in pin_body
     trigger_body = _function_body(controller, "private func boundaryTriggerTime(for segment: SequenceSegment) -> Double")
-    assert "segment.end - boundaryHeadroom" in trigger_body
+    assert "segment.end - boundaryHeadroom(for: segment)" in trigger_body
     pin_time_body = _function_body(controller, "private func dwellPinTime(for segment: SequenceSegment) -> Double")
-    assert "segment.end - dwellPinBackoff" in pin_time_body
+    assert "segment.end - dwellPinBackoff(for: segment)" in pin_time_body
     assert "boundaryTriggerTime(for: segment)" in pin_time_body
-    assert "min(segment.end - dwellPinBackoff, boundaryTriggerTime(for: segment))" in pin_time_body
+    assert "min(segment.end - dwellPinBackoff(for: segment), boundaryTriggerTime(for: segment))" in pin_time_body
     install_body = _function_body(controller, "private func installBoundaryForCurrentSegment()")
     assert "boundaryTriggerTime(for: segment)" in install_body
     assert "let fadeEnd = boundaryTime" in install_body
-    assert "fadeEnd - fadeOutDuration" in install_body
+    assert "fadeEnd - fadeOutDuration(for: segment)" in install_body
     assert "onInstallBoundary?(boundaryTime)" in install_body
     assert "onApplySegmentFade?(fadeStart, fadeEnd)" in install_body
     boundary_body = _function_body(controller, "func boundaryReached()")
@@ -1262,6 +1262,13 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
     load_track_body = _function_body(sequence_body, "func loadSequenceTrack(_ track: SequenceTrack, autoPlay: Bool, seekTime: Double? = nil) -> Double?")
     assert "audioCoordinator.prepareForSequenceHandoff()" in load_track_body
     assert "audioCoordinator.setVolume(0)" not in load_track_body
+    view_model = _source("InteractivePlayerViewModel.swift")
+    resume_dwell_body = view_model.split("sequenceController.onResumeAfterDwell = {", 1)[1].split(
+        "        // Clear preTransitionSentenceIndex",
+        1,
+    )[0]
+    assert "self.audioCoordinator.prepareForSequenceHandoff()" in resume_dwell_body
+    assert "self.audioCoordinator.clearAudioMix()" not in resume_dwell_body
 
 
 def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:

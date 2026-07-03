@@ -479,41 +479,44 @@ final class SequencePlaybackController: ObservableObject {
     /// Install a boundary observer for the current segment's end time.
     /// Called whenever a new segment becomes the active playback segment.
     /// How far before segment.end to place the boundary observer (seconds).
-    private var boundaryHeadroom: Double {
+    /// tvOS still needs extra output-buffer headroom, but a fixed 550ms window
+    /// can over-trim short sentences and make transitions sound clipped. Scale
+    /// the headroom to the active segment and cap it at the old worst case.
+    private func boundaryHeadroom(for segment: SequenceSegment) -> Double {
         #if os(tvOS)
-        return 0.55
+        return min(0.55, max(0.12, segment.duration * 0.18))
         #else
-        return 0.05
+        return min(0.08, max(0.03, segment.duration * 0.08))
         #endif
     }
 
     /// Duration of the fade-out ramp applied at the decode level (seconds).
     /// This must be long enough to cover HDMI output buffer depth (~100-300ms).
-    private var fadeOutDuration: Double {
+    private func fadeOutDuration(for segment: SequenceSegment) -> Double {
         #if os(tvOS)
-        return 0.42
+        return min(0.32, max(0.10, segment.duration * 0.14))
         #else
-        return 0.20
+        return min(0.16, max(0.05, segment.duration * 0.10))
         #endif
     }
 
     /// How far before segment.end a muted dwell seek should land.
     /// Seeking to the exact end can briefly expose the next sentence on real
     /// device output when the source file contains continuous sentence audio.
-    private var dwellPinBackoff: Double {
+    private func dwellPinBackoff(for segment: SequenceSegment) -> Double {
         #if os(tvOS)
-        return 0.14
+        return min(0.14, max(0.04, segment.duration * 0.05))
         #else
-        return 0.03
+        return min(0.04, max(0.02, segment.duration * 0.04))
         #endif
     }
 
     private func boundaryTriggerTime(for segment: SequenceSegment) -> Double {
-        max(segment.start + 0.01, segment.end - boundaryHeadroom)
+        max(segment.start + 0.01, segment.end - boundaryHeadroom(for: segment))
     }
 
     private func dwellPinTime(for segment: SequenceSegment) -> Double {
-        max(segment.start, min(segment.end - dwellPinBackoff, boundaryTriggerTime(for: segment)))
+        max(segment.start, min(segment.end - dwellPinBackoff(for: segment), boundaryTriggerTime(for: segment)))
     }
 
     private func installBoundaryForCurrentSegment() {
@@ -527,7 +530,7 @@ final class SequencePlaybackController: ObservableObject {
         // same early handoff boundary used by the observer/fallback path. Using
         // segment.end here leaves a non-zero tail during the tvOS buffer window.
         let fadeEnd = boundaryTime
-        let fadeStart = max(segment.start + 0.01, fadeEnd - fadeOutDuration)
+        let fadeStart = max(segment.start + 0.01, fadeEnd - fadeOutDuration(for: segment))
         onApplySegmentFade?(fadeStart, fadeEnd)
     }
 

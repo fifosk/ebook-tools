@@ -274,6 +274,10 @@ struct LibraryPlaybackView: View {
         guard let pendingSentence = pendingInteractiveAutoplaySentence else { return }
         guard viewModel.jobContext != nil else { return }
         #if os(tvOS)
+        if ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil {
+            clearPendingInteractiveAutoplay(reason: "\(reason)LocalPauseHold")
+            return
+        }
         guard lastReaderTransportAction != "pause",
               !musicOwnership.isPausedByReaderTransport,
               !musicOwnership.isReaderTransportPauseGuardActive,

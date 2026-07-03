@@ -271,8 +271,10 @@ final class InteractivePlayerViewModel: ObservableObject {
                 guard let self else { return }
                 let shouldResume = self.audioCoordinator.isPlaybackRequested
                 interactivePlayerViewModelLogger.debug("Resuming after dwell, seeking time=\(time, privacy: .public)")
-                // Clear the fade-out mix from the previous segment before seeking
-                self.audioCoordinator.clearAudioMix()
+                // Keep the old item muted while clearing stale boundary/fade state
+                // and seeking to the next same-track segment. This prevents a tiny
+                // buffered tail from becoming audible before the seek lands.
+                self.audioCoordinator.prepareForSequenceHandoff()
                 // Seek to the new segment's start position, then resume playback
                 self.audioCoordinator.seek(to: time) { [weak self] _ in
                     guard let self else { return }

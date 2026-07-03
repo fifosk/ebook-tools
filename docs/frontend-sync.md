@@ -491,10 +491,11 @@ Follow the suggested remediations to restore parity:
   reader-owned pause semantics. On tvOS, active-reader Music non-playing
   observations adopt immediately because a physical Siri Remote pause can reach
   Apple Music before the app-level reader callback. Sequence dwell should keep
-  reader playback intent alive for the bed, but on tvOS it mutes and fades about
-  420ms before the segment boundary with a 300ms fade ramp, pauses, and pins the
-  sentence player at the boundary before seeking to the next segment so
-  output-buffer tail audio cannot leak the next sentence before the handoff.
+  reader playback intent alive for the bed, but on tvOS it mutes and applies
+  segment-proportional boundary headroom, fade, and pin-backoff windows before
+  seeking to the next segment so short sentences are not over-trimmed while
+  output-buffer tail audio still cannot leak the next sentence before the
+  handoff.
   Web and Apple sequence-plan builders must also clamp overlapping or tightly
   adjacent same-track gates with the tvOS guard margin before installing
   boundary observers or fade windows, while leaving wider non-overlapping gaps
@@ -511,7 +512,9 @@ Follow the suggested remediations to restore parity:
   Library audio-state callbacks may clear pending interactive autoplay when
   the reader is paused, but must not initiate pending-autoplay recovery; only
   explicit retry/watchdog paths should reissue a jump so Music-bed pause
-  settling cannot loop on one sentence.
+  settling cannot loop on one sentence. If a local reader pause-hold is active,
+  pending-autoplay recovery must clear instead of jumping, because MusicKit may
+  not have published `isPausedByReaderTransport` yet.
   Apple Music reading-bed mode must publish reader-owned Now Playing metadata
   and remote commands (`.appleMusicBed`) instead of yielding Control Center to
   the Music track. Job and Library playback attach the active sentence
