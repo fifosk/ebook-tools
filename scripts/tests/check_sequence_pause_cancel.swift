@@ -143,6 +143,76 @@ private func runDwellCancellationCheck() async {
 }
 
 @MainActor
+private func runCrossTrackEndGuardUsesEarlyBoundaryCheck() {
+    let controller = SequencePlaybackController()
+    var boundaryTime: Double?
+    var guardTime: Double?
+    var fadeEndTime: Double?
+
+    controller.onInstallBoundary = { boundaryTime = $0 }
+    controller.onApplySegmentEndGuard = { guardTime = $0 }
+    controller.onApplySegmentFade = { _, fadeEnd in fadeEndTime = fadeEnd }
+
+    controller.buildPlan(
+        from: [
+            sentence(originalStart: 0.0, originalEnd: 1.0, translationStart: 0.0, translationEnd: 1.0),
+            sentence(originalStart: 1.0, originalEnd: 2.0, translationStart: 1.0, translationEnd: 2.0)
+        ],
+        originalTrackURL: URL(fileURLWithPath: "/tmp/original.m4a"),
+        translationTrackURL: URL(fileURLWithPath: "/tmp/translation.m4a"),
+        originalDuration: nil,
+        translationDuration: nil,
+        mode: .sequence
+    )
+
+    requireClose(boundaryTime, 0.828, "Cross-track first segment should install the early handoff boundary")
+    requireClose(
+        guardTime,
+        0.828,
+        "Cross-track first segment should hard-stop AVPlayer at the early handoff boundary"
+    )
+    requireClose(
+        fadeEndTime,
+        0.828,
+        "Cross-track first segment fade should end at the same early handoff boundary"
+    )
+}
+
+@MainActor
+private func runSameTrackEndGuardKeepsSegmentEndCheck() {
+    let controller = SequencePlaybackController()
+    var boundaryTime: Double?
+    var guardTime: Double?
+
+    controller.shouldSkipTrack = { $0 == .translation }
+    controller.onInstallBoundary = { boundaryTime = $0 }
+    controller.onApplySegmentEndGuard = { guardTime = $0 }
+
+    controller.buildPlan(
+        from: [
+            sentence(originalStart: 0.0, originalEnd: 1.0, translationStart: 0.0, translationEnd: 1.0),
+            sentence(originalStart: 1.0, originalEnd: 2.0, translationStart: 1.0, translationEnd: 2.0)
+        ],
+        originalTrackURL: URL(fileURLWithPath: "/tmp/original.m4a"),
+        translationTrackURL: URL(fileURLWithPath: "/tmp/translation.m4a"),
+        originalDuration: nil,
+        translationDuration: nil,
+        mode: .sequence
+    )
+
+    requireClose(
+        boundaryTime,
+        0.846_4,
+        "Same-track first segment should still install an early observer boundary"
+    )
+    requireClose(
+        guardTime,
+        0.92,
+        "Same-track first segment should keep AVPlayer hard-stop at the segment end"
+    )
+}
+
+@MainActor
 private func runTransitionCancellationCheck() {
     let controller = configuredController()
     var cleanupCount = 0
@@ -300,6 +370,8 @@ struct SequencePauseCancelCheck {
     @MainActor
     static func main() async {
         await runDwellCancellationCheck()
+        runCrossTrackEndGuardUsesEarlyBoundaryCheck()
+        runSameTrackEndGuardKeepsSegmentEndCheck()
         runTransitionCancellationCheck()
         runReaderTransportPauseCancellationCheck()
         runSingleTrackPlanInitialLaneCheck()

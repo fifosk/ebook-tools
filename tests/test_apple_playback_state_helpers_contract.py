@@ -360,6 +360,10 @@ def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> No
     assert "controller.cancelPendingAutomaticAdvanceForPause()" in swift_check
     assert "controller.cancelPendingAutomaticAdvanceForReaderTransportPause()" in swift_check
     assert "Boundary pause should never pin after the early boundary handoff point" in swift_check
+    assert "runCrossTrackEndGuardUsesEarlyBoundaryCheck()" in swift_check
+    assert "Cross-track first segment should hard-stop AVPlayer at the early handoff boundary" in swift_check
+    assert "runSameTrackEndGuardKeepsSegmentEndCheck()" in swift_check
+    assert "Same-track first segment should keep AVPlayer hard-stop at the segment end" in swift_check
     assert "Cancelled dwell should not advance after its timer fires" in swift_check
     assert "Pause cancellation should clear an in-flight transition" in swift_check
     assert "Reader transport pause should clear an in-flight transition" in swift_check
