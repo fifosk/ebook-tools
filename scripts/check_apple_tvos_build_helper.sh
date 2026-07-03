@@ -38,6 +38,7 @@ assert_contains "${makefile}" "build-for-testing" "tvOS UITest build should comp
 assert_contains "${makefile}" "-destination \$(TVOS_DESTINATION)" "tvOS build should reuse the shared tvOS destination"
 assert_contains "${makefile}" "-derivedDataPath \$(TVOS_BUILD_DERIVED_DATA)" "tvOS build should write to a scoped DerivedData path"
 assert_contains "${makefile}" "-derivedDataPath \$(TVOS_UITEST_BUILD_DERIVED_DATA)" "tvOS UITest build should write to a scoped DerivedData path"
+assert_contains "${makefile}" "scripts/check_apple_build_metadata.py --app \"\$(TVOS_BUILD_APP)\"" "tvOS build should verify bundled git metadata"
 assert_not_contains "${makefile}" "build-apple-tvos-simulator:"$'\n'$'\t'"bash scripts/apple_unattended_device_update.sh" "tvOS simulator build must not route through physical-device deployment"
 assert_not_contains "${makefile}" "build-apple-tvos-uitests:"$'\n'$'\t'"bash scripts/apple_unattended_device_update.sh" "tvOS UITest build must not route through physical-device deployment"
 

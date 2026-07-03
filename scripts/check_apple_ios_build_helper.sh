@@ -43,6 +43,8 @@ assert_contains "${makefile}" "-destination \$(IPAD_DESTINATION)" "iPad build sh
 assert_contains "${makefile}" "-derivedDataPath \$(IPHONE_BUILD_DERIVED_DATA)" "iPhone build should write to a scoped DerivedData path"
 assert_contains "${makefile}" "-derivedDataPath \$(IPAD_BUILD_DERIVED_DATA)" "iPad build should write to a scoped DerivedData path"
 assert_contains "${makefile}" "-derivedDataPath \$(IOS_UITEST_BUILD_DERIVED_DATA)" "iOS UITest build should write to a scoped DerivedData path"
+assert_contains "${makefile}" "scripts/check_apple_build_metadata.py --app \"\$(IPHONE_BUILD_APP)\"" "iPhone build should verify bundled git metadata"
+assert_contains "${makefile}" "scripts/check_apple_build_metadata.py --app \"\$(IPAD_BUILD_APP)\"" "iPad build should verify bundled git metadata"
 assert_not_contains "${makefile}" "build-apple-iphone-simulator:"$'\n'$'\t'"bash scripts/apple_unattended_device_update.sh" "iPhone simulator build must not route through physical-device deployment"
 assert_not_contains "${makefile}" "build-apple-ipad-simulator:"$'\n'$'\t'"bash scripts/apple_unattended_device_update.sh" "iPad simulator build must not route through physical-device deployment"
 assert_not_contains "${makefile}" "build-apple-ios-uitests:"$'\n'$'\t'"bash scripts/apple_unattended_device_update.sh" "iOS UITest build must not route through physical-device deployment"

@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "apple_pull_device_playback_log.sh"
 MAKEFILE = ROOT / "Makefile"
 APP = ROOT / "ios" / "InteractiveReader" / "InteractiveReader"
+XCODE_PROJECT = ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj"
 
 
 def _source(path: Path) -> str:
@@ -136,3 +137,18 @@ def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_player
     assert "resume offset requested sentence=" in library_resume
     assert "Interactive sequence time seek accepted sentence=" in selection
     assert "Interactive time seek accepted sequence=false sentence=" in selection
+
+
+def test_git_build_metadata_phase_refreshes_stamp_files_every_build() -> None:
+    project = _source(XCODE_PROJECT)
+
+    for phase_name in ("Set Git Build Metadata", "Set Git Build Metadata (tvOS)"):
+        phase_start = project.index(f"/* {phase_name} */")
+        phase_body = project[phase_start : project.index("};", phase_start)]
+        output_paths = phase_body.split("outputPaths = (", 1)[1].split(");", 1)[0]
+
+        assert "alwaysOutOfDate = 1;" in phase_body
+        assert "branch.stamp" in output_paths
+        assert "commit.stamp" in output_paths
+        assert 'echo \\"${BRANCH}\\" > \\"${STAMP_DIR}/branch.stamp\\"' in phase_body
+        assert 'echo \\"${COMMIT}\\" > \\"${STAMP_DIR}/commit.stamp\\"' in phase_body

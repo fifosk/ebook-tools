@@ -1717,6 +1717,7 @@
 			inputPaths = (
 			);
 			name = "Set Git Build Metadata";
+			alwaysOutOfDate = 1;
 			outputPaths = (
 				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/branch.stamp",
 				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/commit.stamp",
@@ -1733,6 +1734,7 @@
 			inputPaths = (
 			);
 			name = "Set Git Build Metadata (tvOS)";
+			alwaysOutOfDate = 1;
 			outputPaths = (
 				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/branch.stamp",
 				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/commit.stamp",

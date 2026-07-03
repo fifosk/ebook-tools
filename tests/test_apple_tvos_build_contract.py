@@ -240,6 +240,7 @@ def test_tvos_simulator_build_lane_is_repo_owned_and_non_deploying() -> None:
 
     target = makefile.split("build-apple-tvos-simulator:", 1)[1].split("\n\n", 1)[0]
     assert "@$(CHECK_XCODE_READINESS)" in target
+    assert "scripts/check_apple_build_metadata.py --app" in target
     assert "apple_unattended_device_update.sh" not in target
     assert "devicectl" not in target
     assert "--install" not in target
@@ -260,6 +261,7 @@ def test_tvos_contract_check_covers_compile_lane() -> None:
 
     assert "build-apple-tvos-simulator:" in contract_check
     assert "build-apple-tvos-uitests:" in contract_check
+    assert "check_apple_build_metadata.py" in contract_check
     assert "CHECK_XCODE_READINESS" in contract_check
     assert "InteractiveReaderTV" in contract_check
     assert "InteractiveReaderTVUITests" in contract_check

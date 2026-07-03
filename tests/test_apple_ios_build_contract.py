@@ -31,6 +31,7 @@ def test_ios_simulator_build_lanes_are_repo_owned_and_non_deploying() -> None:
         assert "-scheme InteractiveReader" in block
         assert f"-destination $({destination})" in block
         assert f"-derivedDataPath $({derived_data})" in block
+        assert "scripts/check_apple_build_metadata.py --app" in block
         assert "apple_unattended_device_update.sh" not in block
         assert "devicectl" not in block
         assert "--install" not in block
@@ -53,6 +54,7 @@ def test_ios_contract_check_covers_compile_lanes() -> None:
     assert "build-apple-ipad-simulator:" in contract_check
     assert "build-apple-ios-simulators" in contract_check
     assert "build-apple-ios-uitests" in contract_check
+    assert "check_apple_build_metadata.py" in contract_check
     assert "CHECK_XCODE_READINESS" in contract_check
     assert "build-for-testing" in contract_check
     assert "physical-device deployment" in contract_check

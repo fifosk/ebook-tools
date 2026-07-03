@@ -870,6 +870,7 @@ IPHONE_DESTINATION ?= 'platform=iOS Simulator,name=iPhone 17 Pro'
 IPHONE_E2E_RESULT = $(CURDIR)/test-results/iphone-e2e.xcresult
 IPHONE_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-iphone
 IPHONE_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-iphone-build
+IPHONE_BUILD_APP = $(IPHONE_BUILD_DERIVED_DATA)/Build/Products/Debug-iphonesimulator/InteractiveReader.app
 
 build-apple-iphone-simulator:
 	@mkdir -p test-results
@@ -880,6 +881,7 @@ build-apple-iphone-simulator:
 		-configuration Debug \
 		-destination $(IPHONE_DESTINATION) \
 		-derivedDataPath $(IPHONE_BUILD_DERIVED_DATA)
+	$(PYTHON) scripts/check_apple_build_metadata.py --app "$(IPHONE_BUILD_APP)"
 
 test-e2e-iphone: E2E_PROFILE = iphone
 test-e2e-iphone: E2E_PLATFORM_PROFILE = iphone
@@ -929,6 +931,7 @@ IPAD_E2E_RESULT = $(CURDIR)/test-results/ipad-e2e.xcresult
 IPAD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-ipad
 IPAD_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-ipad-build
 IOS_UITEST_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-ios-uitests-build
+IPAD_BUILD_APP = $(IPAD_BUILD_DERIVED_DATA)/Build/Products/Debug-iphonesimulator/InteractiveReader.app
 
 build-apple-ios-simulators: build-apple-iphone-simulator build-apple-ipad-simulator
 
@@ -951,6 +954,7 @@ build-apple-ipad-simulator:
 		-configuration Debug \
 		-destination $(IPAD_DESTINATION) \
 		-derivedDataPath $(IPAD_BUILD_DERIVED_DATA)
+	$(PYTHON) scripts/check_apple_build_metadata.py --app "$(IPAD_BUILD_APP)"
 
 test-e2e-ipad: E2E_PROFILE = ipados
 test-e2e-ipad: E2E_PLATFORM_PROFILE = ipados
@@ -1009,6 +1013,7 @@ TVOS_E2E_RESULT = $(CURDIR)/test-results/tvos-e2e.xcresult
 TVOS_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-tvos
 TVOS_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-tvos-build
 TVOS_UITEST_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-tvos-uitests-build
+TVOS_BUILD_APP = $(TVOS_BUILD_DERIVED_DATA)/Build/Products/Debug-appletvsimulator/InteractiveReaderTV.app
 
 build-apple-tvos-simulator:
 	@mkdir -p test-results
@@ -1019,6 +1024,7 @@ build-apple-tvos-simulator:
 		-configuration Debug \
 		-destination $(TVOS_DESTINATION) \
 		-derivedDataPath $(TVOS_BUILD_DERIVED_DATA)
+	$(PYTHON) scripts/check_apple_build_metadata.py --app "$(TVOS_BUILD_APP)"
 
 build-apple-tvos-uitests:
 	@mkdir -p test-results
