@@ -247,11 +247,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert job_mirror_pause_decision_body.index(
         "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed"
     ) < job_mirror_pause_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
-    assert "musicOwnership.ownershipState == .appleMusicBed &&" in job_mirror_pause_decision_body
-    assert "!musicOwnership.isPlaying &&" in job_mirror_pause_decision_body
-    assert "!musicOwnership.isSystemPlaybackPlaying" in job_mirror_pause_decision_body
+    assert "if musicOwnership.ownershipState == .appleMusicBed" in job_mirror_pause_decision_body
+    assert "!musicOwnership.isPlaying &&" not in job_mirror_pause_decision_body
+    assert "!musicOwnership.isSystemPlaybackPlaying" not in job_mirror_pause_decision_body
     assert job_mirror_pause_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < job_mirror_pause_decision_body.index(
-        "!musicOwnership.isSystemPlaybackPlaying"
+        "if musicOwnership.ownershipState == .appleMusicBed"
     )
     job_stale_pause_body = _function_body(job_playback, "private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
     assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in job_stale_pause_body
@@ -870,11 +870,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert library_mirror_pause_decision_body.index(
         "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed"
     ) < library_mirror_pause_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
-    assert "musicOwnership.ownershipState == .appleMusicBed &&" in library_mirror_pause_decision_body
-    assert "!musicOwnership.isPlaying &&" in library_mirror_pause_decision_body
-    assert "!musicOwnership.isSystemPlaybackPlaying" in library_mirror_pause_decision_body
+    assert "if musicOwnership.ownershipState == .appleMusicBed" in library_mirror_pause_decision_body
+    assert "!musicOwnership.isPlaying &&" not in library_mirror_pause_decision_body
+    assert "!musicOwnership.isSystemPlaybackPlaying" not in library_mirror_pause_decision_body
     assert library_mirror_pause_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < library_mirror_pause_decision_body.index(
-        "!musicOwnership.isSystemPlaybackPlaying"
+        "if musicOwnership.ownershipState == .appleMusicBed"
     )
     library_stale_pause_body = _function_body(library_playback, "private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
     assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in library_stale_pause_body
@@ -1772,9 +1772,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.audioCoordinator.isPlaying" in job_reader_paused_branch
     assert "#if os(tvOS)" in job_mirror_body
     assert "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed" in job_mirror_body
-    assert "!musicOwnership.isSystemPlaybackPlaying" in job_mirror_body
+    assert "!musicOwnership.isSystemPlaybackPlaying" not in job_mirror_body
     assert "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else" in job_mirror_body
-    assert "musicOwnership.ownershipState == .appleMusicBed &&" in job
+    assert "if musicOwnership.ownershipState == .appleMusicBed" in job
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job
     assert "musicOwnership.isPlaying" in job
     assert "private var shouldClearNowPlayingOnDisappear: Bool" in job
@@ -2131,7 +2131,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.audioCoordinator.isPlaying" in library_reader_paused_branch
     assert "#if os(tvOS)" in library_mirror_body
     assert "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed" in library_mirror_body
-    assert "!musicOwnership.isSystemPlaybackPlaying" in library_mirror_body
+    assert "!musicOwnership.isSystemPlaybackPlaying" not in library_mirror_body
     assert "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else" in library_mirror_body
     assert "private var shouldClearNowPlayingOnDisappear: Bool" in library
     assert "musicOwnership.ownershipState != .appleMusicBed" in library
@@ -2620,7 +2620,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"text": "fullscreen=blocked"' in journey
     assert '"key": "observedPauseProbes"' in journey
     assert "music_bed_observed_music_pause_probe_observed" in journey
-    assert "music_bed_observed_music_pause_observed" in journey
+    assert "music_bed_observed_music_pause_kept_reader" in journey
     assert "music_bed_observed_music_pause_recovered" in journey
     assert '"text": "phase=play"' in journey
     assert '"timeout": 60' in journey

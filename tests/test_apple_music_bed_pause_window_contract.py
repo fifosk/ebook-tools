@@ -79,11 +79,11 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         assert mirror_decision_body.index(
             "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed"
         ) < mirror_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay"), label
-        assert "musicOwnership.ownershipState == .appleMusicBed &&" in mirror_decision_body, label
-        assert "!musicOwnership.isPlaying &&" in mirror_decision_body, label
-        assert "!musicOwnership.isSystemPlaybackPlaying" in mirror_decision_body, label
+        assert "if musicOwnership.ownershipState == .appleMusicBed" in mirror_decision_body, label
+        assert "!musicOwnership.isPlaying &&" not in mirror_decision_body, label
+        assert "!musicOwnership.isSystemPlaybackPlaying" not in mirror_decision_body, label
         assert mirror_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < mirror_decision_body.index(
-            "!musicOwnership.isSystemPlaybackPlaying"
+            "if musicOwnership.ownershipState == .appleMusicBed"
         ), label
         honor_adoption_body = _function_body(source, "private func shouldHonorAppleMusicPauseAdoptionImmediately(reason: String?, source: String?)")
         assert 'reason == "manualPause", source == "musicSurface"' in honor_adoption_body, label

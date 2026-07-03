@@ -2721,6 +2721,30 @@ def test_artifact_epubs_derives_download_filenames(
     )
 
 
+def test_artifact_epubs_reserves_destination_with_tolerant_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    existing = tmp_path / "Frankenstein.epub"
+    existing.write_bytes(b"existing")
+    original_safe_stat = artifact_epubs.safe_stat
+    probed: list[Path] = []
+
+    def counted_safe_stat(path: Path):
+        probed.append(path)
+        return original_safe_stat(path)
+
+    monkeypatch.setattr(artifact_epubs, "safe_stat", counted_safe_stat)
+
+    destination = artifact_epubs.reserve_epub_destination_path(
+        tmp_path,
+        "Frankenstein.epub",
+    )
+
+    assert destination == tmp_path / "Frankenstein-1.epub"
+    assert probed == [existing, tmp_path / "Frankenstein-1.epub"]
+
+
 def test_artifact_epubs_validates_provider_urls_and_limits() -> None:
     artifact_epubs.validate_epub_url_for_provider(
         provider="gutenberg",

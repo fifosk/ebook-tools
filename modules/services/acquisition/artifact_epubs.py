@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
+from modules.services.source_discovery import safe_stat
+
 
 ALLOWED_GUTENBERG_HOSTS = {
     "gutenberg.org",
@@ -97,3 +99,16 @@ def filename_from_epub_url(
     if provider == "internet_archive" and archive_identifier:
         return f"{archive_identifier}.epub"
     return "acquired.epub"
+
+
+def reserve_epub_destination_path(directory: Path, filename: str) -> Path:
+    """Return a collision-safe EPUB destination using tolerant stat checks."""
+
+    stem = Path(filename).stem
+    suffix = Path(filename).suffix or ".epub"
+    candidate = directory / f"{stem}{suffix}"
+    counter = 1
+    while safe_stat(candidate) is not None:
+        candidate = directory / f"{stem}-{counter}{suffix}"
+        counter += 1
+    return candidate

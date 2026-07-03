@@ -957,10 +957,11 @@ Current Apple UI partially exposes:
   booleans arrive in an unlucky order; the active playback view also registers
   an owner-scoped direct adoption handler so state-preserving Living Room
   captures must show the Job/Library narration-side acceptance breadcrumb, not
-  only the MusicKit pause adoption. Active tvOS narration now adopts an
-  observed Apple Music non-playing signal before the transient bed-recovery
-  path, so a first Siri Remote pause cannot be treated as a recoverable Music
-  wobble while sentence audio keeps playing. Reader pauses now pause Music immediately, then release the tvOS
+  only the MusicKit pause adoption. Manual tvOS Music-surface pauses still
+  adopt the reader-owned pause path, but active Job and Library narration no
+  longer turns every non-manual Apple Music bed `not playing` state into a
+  sentence pause; transient MusicKit bed interruptions stay on the recovery path
+  so book playback does not stop while the bed is being restored. Reader pauses now pause Music immediately, then release the tvOS
   Music surface after a short held pause; reader resumes cancel that delayed
   release and clear stale MusicKit pause-ignore state so the next external pause
   cannot be discarded as if it were still app-owned. The tvOS duplicate command
@@ -1521,8 +1522,9 @@ Optimization candidates:
   orchestration and destination verification. Public-catalog EPUB URL
   validation, default filename derivation, and download-size limits now live in
   `modules/services/acquisition/artifact_epubs.py` with direct helper coverage,
-  leaving `acquire.py` focused on orchestration, the actual streamed write, and
-  backend-visible destination verification.
+  alongside collision-safe destination reservation, leaving `acquire.py` focused
+  on orchestration, the actual streamed write, and backend-visible destination
+  verification.
   Newest-first EPUB defaults are preserved, and EPUB matching is
   case-insensitive so NAS files ending in `.EPUB` are eligible for the same
   default-source flow. `/api/pipelines/files` deletion now treats

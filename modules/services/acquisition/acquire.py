@@ -19,6 +19,7 @@ from .artifact_epubs import (
     download_limit as _download_limit,
     filename_from_epub_url as _filename_from_epub_url,
     normalise_epub_name as _normalise_epub_name,
+    reserve_epub_destination_path as _reserve_epub_destination_path,
     validate_epub_url_for_provider as _validate_epub_url_for_provider,
 )
 from .artifact_metadata import (
@@ -108,7 +109,7 @@ def acquire_acquisition_candidate(
     target_name = _normalise_epub_name(
         filename or _filename_from_epub_url(epub_url, provider, gutenberg_id, archive_identifier)
     )
-    destination = _reserve_destination_path(books_root, target_name)
+    destination = _reserve_epub_destination_path(books_root, target_name)
     _download_to_path(
         epub_url,
         destination,
@@ -291,14 +292,3 @@ def _download_to_path(
     finally:
         if response is not None:
             response.close()
-
-
-def _reserve_destination_path(directory: Path, filename: str) -> Path:
-    stem = Path(filename).stem
-    suffix = Path(filename).suffix or ".epub"
-    candidate = directory / f"{stem}{suffix}"
-    counter = 1
-    while safe_stat(candidate) is not None:
-        candidate = directory / f"{stem}-{counter}{suffix}"
-        counter += 1
-    return candidate

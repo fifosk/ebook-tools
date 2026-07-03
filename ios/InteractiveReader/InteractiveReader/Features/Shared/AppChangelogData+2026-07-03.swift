@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-nonmanual-music-bed-stop-keeps-reader",
+            title: "TV bed hiccups keep reading",
+            detail: "Apple TV Job and Library playback no longer treat non-manual Apple Music bed non-playing state as a sentence pause while narration is active, so transient MusicKit bed interruptions recover the bed instead of stopping book playback."
+        ),
+        AppChangelogEntry(
+            id: "public-epub-destination-helper",
+            title: "Catalog EPUB handoff is tidier",
+            detail: "Public-catalog EPUB acquisition now keeps collision-safe destination reservation with the shared EPUB artifact helpers, so Gutenberg and Internet Archive handoffs use the same tested filename/path rules before Create loads them."
+        ),
+        AppChangelogEntry(
             id: "backend-bounded-source-picker-helper",
             title: "Source pickers share ordering",
             detail: "Backend EPUB, manual-download, and acquisition candidate pickers now share one bounded newest-first insertion helper, reducing ordering drift while keeping large NAS source scans lightweight."
