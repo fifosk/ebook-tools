@@ -852,6 +852,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-web-create-intake-focused",
         "test-web-video-dubbing-focused",
         "test-apple-create-readiness-contract",
+        "test-backend-subtitle-router",
+        "test-backend-youtube-dubbing-service",
         "test-services",
     ]
     assert select_targets(["tests/modules/services/test_source_discovery.py"]) == [
@@ -860,6 +862,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-web-create-intake-focused",
         "test-web-video-dubbing-focused",
         "test-apple-create-readiness-contract",
+        "test-backend-subtitle-router",
+        "test-backend-youtube-dubbing-service",
         "test-services",
     ]
     assert select_targets(["modules/services/acquisition/discovery.py"]) == [

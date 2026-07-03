@@ -327,6 +327,10 @@ Discovery/acquisition plan, provider, schema, and route changes route to
 `test-apple-create-readiness-contract`, keeping Web and Apple Create source
 discovery, prepared-artifact handoff, and token-safe provider serialization
 covered before simulator journeys consume those contracts.
+Shared source-discovery helper edits also route through
+`test-backend-subtitle-router` and `test-backend-youtube-dubbing-service`
+because EPUB, subtitle, manual-download, and NAS video pickers all depend on the
+same NAS-safe hidden-file pruning and stale-stat behavior.
 Generated-book backend route/schema/support edits route to `test-backend-create-book`,
 `test-web-create-book-focused`, `test-web-create-intake-focused`, and
 `test-apple-create-readiness-contract`; EPUB picker route/schema edits route to

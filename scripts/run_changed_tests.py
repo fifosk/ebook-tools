@@ -303,6 +303,16 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "modules/services/source_discovery.py",
+            "tests/modules/services/test_source_discovery.py",
+        ),
+        (
+            "test-backend-subtitle-router",
+            "test-backend-youtube-dubbing-service",
+        ),
+    ),
+    (
+        (
             "docs/plans/discovery-acquisition-layer.md",
             "modules/epub_parser.py",
             "modules/core/ingestion.py",
