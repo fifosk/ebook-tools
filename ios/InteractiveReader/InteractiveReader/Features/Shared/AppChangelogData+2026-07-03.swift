@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "ipad-music-bed-e2e-bubble-status-front",
+            title: "iPad lookup test status is steadier",
+            detail: "The iPad music-bed simulator journey now publishes lookup-bubble counters at the front of its DEBUG status label, preventing accessibility truncation from hiding bubbleLookup evidence during unattended keyboard validation."
+        ),
+        AppChangelogEntry(
             id: "apple-tv-music-bed-e2e-observed-pause-retry",
             title: "TV music-bed tests recover probes",
             detail: "The Apple TV music-bed simulator journey now retries its DEBUG observed-pause probe after interactive playback starts, keeping unattended validation from timing out when one delayed simulator callback is missed."

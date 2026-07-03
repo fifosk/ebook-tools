@@ -653,7 +653,10 @@ struct MusicBedSyncE2EControls: View {
             "phase=\(musicOwnership.e2eMusicBedSyncPhase)"
         ]
         #if os(iOS)
-        fields.append(InteractivePlayerE2EState.statusText)
+        fields.insert(
+            contentsOf: InteractivePlayerE2EState.statusText.split(separator: " ").map(String.init),
+            at: 0
+        )
         #endif
         return fields.joined(separator: " ")
     }

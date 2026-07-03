@@ -2195,7 +2195,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"observedPauseProbes=\\(musicOwnership.e2eObservedPauseProbeCount)"' in chrome
     assert '"transitionPauses=\\(audioCoordinator.e2eRequestedTransitionPauseCount)"' in chrome
     assert '"stickySequenceResumes=\\(audioCoordinator.e2eStickySequenceResumeCount)"' in chrome
-    assert "fields.append(InteractivePlayerE2EState.statusText)" in chrome
+    assert "contentsOf: InteractivePlayerE2EState.statusText.split(separator: \" \").map(String.init)" in chrome
+    assert "at: 0" in chrome
 
     interactive_linguist = _source(INTERACTIVE / "InteractivePlayerView+Linguist.swift")
     lookup_pause_body = _function_body(interactive_linguist, "func pausePlaybackForLinguistLookupIfNeeded()")
