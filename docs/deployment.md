@@ -466,6 +466,18 @@ or the reverse. That distinguishes a true last-word resume from the Cinema
 symptom where playback restarted at the beginning of the saved sentence and the
 Living Room symptom where opening a job accepted Translation first, then retried
 the same resume point on Original before the next Translation played.
+When the same physical session intentionally covers both Play/Pause transport
+and last-word resume, use the comprehensive reader-repro target so the cached
+app log is pulled once and checked in both modes:
+
+```bash
+make apple-device-pull-and-verify-reader-repro-log \
+  APPLE_DEVICE_PROFILE=appletv \
+  APPLE_DEVICE_ID="Living Room"
+```
+
+That target is expected to fail if either the Music-bed pause/resume path or
+the exact resume-offset path lacks token-safe evidence in the captured session.
 Each pull writes the familiar latest
 `test-results/apple-device-playback-transport-<device>.log` and preserves a
 timestamped sibling archive, with the raw CoreDevice copy log archived beside it,

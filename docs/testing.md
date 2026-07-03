@@ -1194,6 +1194,18 @@ Job/Library shell and an Interactive exact `time seek accepted` breadcrumb. It
 rejects `fallback=sentenceStart` and sequence time-seek failures, so a pulled
 Cinema/iPad log can prove whether resume kept the last spoken position inside
 the sentence or merely returned to the saved sentence number.
+When one physical session covers both transport and resume-position behavior,
+pull once and run both validators with:
+
+```bash
+make apple-device-pull-and-verify-reader-repro-log \
+  APPLE_DEVICE_PROFILE=appletv \
+  APPLE_DEVICE_ID="Living Room"
+```
+
+That comprehensive reader-repro target is stricter than the single-purpose
+shortcuts: it expects the same cached app log to prove pause/resume transport
+and exact resume-offset application.
 Validate the pulled fallback evidence with:
 
 ```bash

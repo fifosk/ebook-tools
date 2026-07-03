@@ -431,6 +431,13 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
         "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
         "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=resume-offset"
     ) in pull_verify_resume_offset_target
+    assert "apple-device-pull-and-verify-reader-repro-log:" in makefile
+    pull_verify_reader_repro_target = makefile.split(
+        "apple-device-pull-and-verify-reader-repro-log:", 1
+    )[1].split("\n\n", 1)[0]
+    assert "$(MAKE) apple-device-pull-playback-log" in pull_verify_reader_repro_target
+    assert "$(MAKE) apple-device-verify-playback-transport-pause-resume-log" in pull_verify_reader_repro_target
+    assert "$(MAKE) apple-device-verify-playback-resume-offset-log" in pull_verify_reader_repro_target
     assert "apple-device-verify-playback-transport-log:" in makefile
     playback_transport_log_target = makefile.split(
         "apple-device-verify-playback-transport-log:", 1
@@ -455,6 +462,8 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "lone `readerPause=true` flag is not enough" in deployment_doc
     assert "stale Apple Music pause was ignored before reader playback recovered" in deployment_doc
     assert "pending interactive autoplay looped while Music bed reported paused" in deployment_doc
+    assert "apple-device-pull-and-verify-reader-repro-log" in testing_doc
+    assert "apple-device-pull-and-verify-reader-repro-log" in deployment_doc
     assert "apple-device-pull-and-verify-playback-resume-offset-log" in testing_doc
     assert "apple-device-verify-music-bed-reader-progress-log" in testing_doc
     assert "fallback=sentenceStart" in testing_doc
