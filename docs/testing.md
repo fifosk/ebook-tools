@@ -1111,7 +1111,11 @@ pause-release evidence plus an accepted reader transport play/forced-play
 breadcrumb and token-safe evidence that the Apple Music bed resumed under reader
 ownership. The shortcut
 `make apple-device-verify-music-bed-pause-resume-log APPLE_DEVICE_ID=<device>`
-runs the same pause-resume validation.
+runs the same pause-resume validation. It also rejects consecutive
+`brokerPause` decisions from the same Job/Library surface when no accepted
+reader play, forced `brokerResume`, or narration-restore breadcrumb appears
+between them, so the launch-console path now catches the same two-click TV
+pause/resume signature as the cached playback transport verifier.
 If a pause/repro-mode validation log contains no reader or Music playback
 breadcrumbs, the verifier prints a token-safe hint to recapture with
 `APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING=1 make apple-device-launch-console` before

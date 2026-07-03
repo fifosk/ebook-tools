@@ -458,6 +458,9 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "fallback=sentenceStart" in testing_doc
     assert "last spoken position inside\nthe sentence" in testing_doc
     assert "apple-device-pull-and-verify-playback-resume-offset-log" in deployment_doc
+    assert "launch-console pause-resume verifier also rejects" in deployment_doc
+    assert "two-click TV regression signature" in deployment_doc
+    assert "launch-console path now catches the same two-click TV\npause/resume signature" in testing_doc
     assert "apple-device-verify-music-bed-reader-progress-log" in deployment_doc
     assert 'APPLE_DEVICE_ID="Cinema"' in deployment_doc
     assert "true last-word resume" in deployment_doc

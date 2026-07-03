@@ -433,7 +433,10 @@ that includes the delayed resume press; it requires pause-release evidence plus
 an accepted reader transport play/forced-play breadcrumb and token-safe Apple
 Music bed resume evidence, or run
 `make apple-device-verify-music-bed-pause-resume-log APPLE_DEVICE_ID=<device>`
-for the named shortcut.
+for the named shortcut. That launch-console pause-resume verifier also rejects
+consecutive `brokerPause` decisions from the same Job/Library surface when no
+accepted reader play, forced `brokerResume`, or narration-restore breadcrumb
+appears between them, matching the two-click TV regression signature.
 If CoreDevice only captures launch-wrapper output during a stateful repro, pull
 the DEBUG app-cache fallback without relaunching the device app:
 
