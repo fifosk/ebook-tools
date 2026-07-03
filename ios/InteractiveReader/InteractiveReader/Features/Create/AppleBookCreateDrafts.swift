@@ -260,6 +260,7 @@ extension AppleBookCreatePresentation {
             .replacingOccurrences(of: "_", with: "")
             .lowercased()
         return [
+            "accesskey",
             "apikey",
             "authkey",
             "authheader",
@@ -274,6 +275,7 @@ extension AppleBookCreatePresentation {
             "privatekey",
             "rsskey",
             "secret",
+            "signature",
             "sessioncookie",
             "sid",
             "token",

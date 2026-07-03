@@ -1,4 +1,6 @@
 const SENSITIVE_KEY_MARKERS = [
+  'accesskey',
+  'access_key',
   'apikey',
   'api_key',
   'authkey',
@@ -18,6 +20,7 @@ const SENSITIVE_KEY_MARKERS = [
   'rsskey',
   'rss_key',
   'secret',
+  'signature',
   'sessioncookie',
   'sid',
   'token'

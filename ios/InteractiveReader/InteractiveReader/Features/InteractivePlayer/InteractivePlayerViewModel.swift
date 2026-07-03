@@ -280,6 +280,7 @@ final class InteractivePlayerViewModel: ObservableObject {
                 self.audioCoordinator.seek(to: time) { [weak self] _ in
                     guard let self else { return }
                     // End transition and resume playback after seek completes
+                    self.audioCoordinator.clearAudioMix()
                     self.sequenceController.endTransition(expectedTime: time)
                     // Restore volume before playing — pauseForDwell mutes to prevent bleed
                     self.audioCoordinator.restoreVolume()

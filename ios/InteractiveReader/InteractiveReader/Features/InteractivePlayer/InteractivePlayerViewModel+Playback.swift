@@ -769,15 +769,17 @@ extension InteractivePlayerViewModel {
                 shouldPlay: audioCoordinator.isPlaybackRequested
             )
         } else {
-            // Same track, just seek - mute during seek to prevent audio bleed
+            // Same track, just seek - keep the old fade attached until the seek
+            // lands so buffered tail audio cannot become audible during handoff.
             // NOTE: We don't pause here to avoid triggering reading bed pause
             let wasPlaying = audioCoordinator.isPlaying
-            audioCoordinator.setVolume(0)
+            audioCoordinator.prepareForSequenceHandoff()
             audioCoordinator.seek(to: target.time) { [weak self] _ in
                 guard let self else { return }
                 // Small delay after seek completes to ensure proper rendering
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
                     guard let self else { return }
+                    self.audioCoordinator.clearAudioMix()
                     self.sequenceController.endTransition(expectedTime: target.time)
                     // Restore volume to target level (respects music mix setting)
                     self.audioCoordinator.restoreVolume()
@@ -845,6 +847,7 @@ extension InteractivePlayerViewModel {
             return
         }
 
+        audioCoordinator.prepareForSequenceHandoff()
         audioCoordinator.seek(to: time) { [weak self] _ in
             guard let self else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
@@ -864,10 +867,12 @@ extension InteractivePlayerViewModel {
                     self.audioCoordinator.seek(to: time) { [weak self] _ in
                         guard let self else { return }
                         guard token == self.currentTransitionToken else { return }
+                        self.audioCoordinator.clearAudioMix()
                         self.finalizeSameTrackTokenSeek(at: time, autoPlay: autoPlay)
                     }
                     return
                 }
+                self.audioCoordinator.clearAudioMix()
                 self.finalizeSameTrackTokenSeek(at: time, autoPlay: autoPlay)
             }
         }

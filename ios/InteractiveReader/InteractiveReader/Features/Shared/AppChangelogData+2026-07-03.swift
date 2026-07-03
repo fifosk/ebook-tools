@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "sequence-fade-survives-handoff-seek",
+            title: "Track handoffs keep fades latched",
+            detail: "Interactive reader sequence handoffs now keep the old segment fade attached while the muted AVPlayer seeks or loads, then rebuild the fade only after the new Original or Translation segment lands, reducing stale next-sentence slivers before track switches."
+        ),
+        AppChangelogEntry(
             id: "sequence-handoff-pauses-old-item",
             title: "Track handoffs stay quiet",
             detail: "Sequence handoffs now pause the muted previous AVPlayer item while preserving reader playback intent, reducing stale next-sentence tails before Original/Translation switches without stopping the Apple Music bed."

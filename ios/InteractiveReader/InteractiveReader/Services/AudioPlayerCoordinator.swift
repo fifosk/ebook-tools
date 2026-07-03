@@ -318,7 +318,9 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         setVolume(0)
         player?.pause()
         isPlaying = false
-        clearAudioMix()
+        // Leave the current item's fade mix attached until the seek/load has
+        // landed. Clearing it here can briefly unmute buffered tail audio from
+        // the old segment on real tvOS output.
         removeBoundaryObserver()
     }
 

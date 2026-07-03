@@ -1251,7 +1251,7 @@ def test_segment_fade_is_bound_to_current_player_item() -> None:
     assert "setVolume(0)" in handoff_body
     assert "player?.pause()" in handoff_body
     assert "isPlaying = false" in handoff_body
-    assert "clearAudioMix()" in handoff_body
+    assert "clearAudioMix()" not in handoff_body
     assert "removeBoundaryObserver()" in handoff_body
     assert "isPlaybackRequested = false" not in handoff_body
     assert "AudioPlaybackRegistry.shared.endPlayback" not in handoff_body
@@ -1274,7 +1274,7 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
     assert "boundaryTime" not in dwell_body
     handoff_body = _function_body(coordinator, "func prepareForSequenceHandoff()")
     assert "setVolume(0)" in handoff_body
-    assert "clearAudioMix()" in handoff_body
+    assert "clearAudioMix()" not in handoff_body
     assert "removeBoundaryObserver()" in handoff_body
     sequence_body = _source("InteractivePlayerViewModel+Sequence.swift")
     load_track_body = _function_body(sequence_body, "func loadSequenceTrack(_ track: SequenceTrack, autoPlay: Bool, seekTime: Double? = nil) -> Double?")
@@ -1286,7 +1286,36 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
         1,
     )[0]
     assert "self.audioCoordinator.prepareForSequenceHandoff()" in resume_dwell_body
-    assert "self.audioCoordinator.clearAudioMix()" not in resume_dwell_body
+    assert "self.audioCoordinator.clearAudioMix()" in resume_dwell_body
+    assert resume_dwell_body.index("self.audioCoordinator.seek(to: time)") < resume_dwell_body.index(
+        "self.audioCoordinator.clearAudioMix()"
+    )
+    assert resume_dwell_body.index("self.audioCoordinator.clearAudioMix()") < resume_dwell_body.index(
+        "self.sequenceController.endTransition(expectedTime: time)"
+    )
+
+    finish_body = _function_body(
+        sequence_body,
+        "private func finishSequenceTransition",
+    )
+    assert "audioCoordinator.clearAudioMix()" in finish_body
+    assert finish_body.index("audioCoordinator.clearAudioMix()") < finish_body.index(
+        "sequenceController.endTransition(expectedTime: stableExpectedTime)"
+    )
+
+    playback_body = _source("InteractivePlayerViewModel+Playback.swift")
+    same_track_skip = playback_body.split("// Same track, just seek - keep the old fade attached", 1)[1].split(
+        "                    // Resume playback if it was playing",
+        1,
+    )[0]
+    assert "audioCoordinator.prepareForSequenceHandoff()" in same_track_skip
+    assert "self.audioCoordinator.clearAudioMix()" in same_track_skip
+    assert same_track_skip.index("audioCoordinator.prepareForSequenceHandoff()") < same_track_skip.index(
+        "audioCoordinator.seek(to: target.time)"
+    )
+    assert same_track_skip.index("self.audioCoordinator.clearAudioMix()") < same_track_skip.index(
+        "self.sequenceController.endTransition(expectedTime: target.time)"
+    )
 
 
 def test_single_track_combined_option_loads_only_requested_stream_url() -> None:
