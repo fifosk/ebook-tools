@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "playback-log-current-commit-shortcuts",
+            title: "Device log checks pin the build",
+            detail: "Apple device playback-log pull-and-verify now has current-commit shortcuts for pause, pause/resume, resume-offset, and combined reader repro captures, so physical tests reject stale installs without manually passing a SHA."
+        ),
+        AppChangelogEntry(
             id: "playback-log-audio-state-autoplay-reject",
             title: "TV retry loops fail fast",
             detail: "Apple playback transport log verification now fails immediately if Job or Library audio-state callbacks recover pending interactive autoplay, catching stale TV builds that loop a paused sentence before broader retry-loop heuristics."

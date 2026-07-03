@@ -411,6 +411,12 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     )[1].split("\n\n", 1)[0]
     assert "$(MAKE) apple-device-pull-playback-log" in pull_verify_playback_target
     assert "$(MAKE) apple-device-verify-playback-transport-log" in pull_verify_playback_target
+    assert "apple-device-pull-and-verify-current-playback-transport-log:" in makefile
+    pull_verify_current_playback_target = makefile.split(
+        "apple-device-pull-and-verify-current-playback-transport-log:", 1
+    )[1].split("\n\n", 1)[0]
+    assert "$(MAKE) apple-device-pull-and-verify-playback-transport-log" in pull_verify_current_playback_target
+    assert 'APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"' in pull_verify_current_playback_target
     pull_playback_script = (ROOT / "scripts" / "apple_pull_device_playback_log.sh").read_text(encoding="utf-8")
     assert "Playback transport log archive:" in pull_playback_script
     assert "Playback transport CoreDevice archive:" in pull_playback_script
@@ -444,6 +450,12 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
         "$(MAKE) apple-device-verify-playback-resume-offset-log "
         "APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1"
     ) in pull_verify_reader_repro_target
+    assert "apple-device-pull-and-verify-current-reader-repro-log:" in makefile
+    pull_verify_current_reader_repro_target = makefile.split(
+        "apple-device-pull-and-verify-current-reader-repro-log:", 1
+    )[1].split("\n\n", 1)[0]
+    assert "$(MAKE) apple-device-pull-playback-log" in pull_verify_current_reader_repro_target
+    assert 'APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"' in pull_verify_current_reader_repro_target
     assert "apple-device-verify-playback-transport-log:" in makefile
     playback_transport_log_target = makefile.split(
         "apple-device-verify-playback-transport-log:", 1
@@ -471,7 +483,10 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "pending interactive autoplay looped while Music bed reported paused" in deployment_doc
     assert "apple-device-pull-and-verify-reader-repro-log" in testing_doc
     assert "apple-device-pull-and-verify-reader-repro-log" in deployment_doc
+    assert "apple-device-pull-and-verify-current-reader-repro-log" in testing_doc
+    assert "apple-device-pull-and-verify-current-reader-repro-log" in deployment_doc
     assert "apple-device-pull-and-verify-playback-resume-offset-log" in testing_doc
+    assert "apple-device-pull-and-verify-current-playback-resume-offset-log" in testing_doc
     assert "apple-device-verify-music-bed-reader-progress-log" in testing_doc
     assert "fallback=sentenceStart" in testing_doc
     assert "last spoken position inside\nthe sentence" in testing_doc

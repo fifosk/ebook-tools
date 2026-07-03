@@ -1322,7 +1322,12 @@ verifier still requires later `[PlaybackTransport]` event breadcrumbs before
 accepting a pause, resume, or resume-offset repro. When validating a known
 candidate, set `APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT=<sha>` so
 `apple-device-pull-and-verify-playback-transport-log` fails immediately if the
-device log came from an older install.
+device log came from an older install. For ordinary current-checkpoint hardware
+tests, use `apple-device-pull-and-verify-current-playback-transport-log`,
+`apple-device-pull-and-verify-current-playback-transport-pause-resume-log`,
+`apple-device-pull-and-verify-current-playback-resume-offset-log`, or the
+combined `apple-device-pull-and-verify-current-reader-repro-log`; these targets
+resolve the current git commit and pass it to the verifier automatically.
 For pause-only captures, the pulled playback-log checker evaluates every
 Music/app pause handoff as a numbered pause episode. If any episode does not
 contain active narration-pause evidence and settled

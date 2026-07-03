@@ -494,7 +494,10 @@ DEBUG app-cache playback logs start with a token-safe
 commit. For a specific test candidate, pass
 `APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT=<sha>` to the pull-and-verify or
 standalone verify target so a stale physical install is rejected before transport
-breadcrumbs are interpreted.
+breadcrumbs are interpreted. The `apple-device-pull-and-verify-current-*`
+playback targets, including `apple-device-pull-and-verify-current-reader-repro-log`,
+resolve the current git commit and pass it to the same verifier automatically for
+normal latest-candidate hardware tests.
 The cached transport verifier is intentionally narrower than the launch-console
 checker: it proves reader transport accepted pause/resume and rejects the legacy
 hardware echo resume sources before explicit reader play, without requiring

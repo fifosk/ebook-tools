@@ -89,6 +89,7 @@ APPLE_DEVICE_PLAYBACK_BASELINE_LOG ?=
 APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY ?= 0
 APPLE_PLAYBACK_TRANSPORT_LOG_MODE ?= pause-release
 APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT ?=
+APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
 APPLE_MUSIC_BED_LAUNCH_LOG_MODE ?= startup
 CHECKPOINT_BASE ?= origin/$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
 CHECKPOINT_OUTPUT_DIR ?= test-results/git-checkpoints
@@ -660,16 +661,30 @@ apple-device-pull-and-verify-playback-transport-log:
 	$(MAKE) apple-device-pull-playback-log
 	$(MAKE) apple-device-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1
 
+apple-device-pull-and-verify-current-playback-transport-log:
+	$(MAKE) apple-device-pull-and-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"
+
 apple-device-pull-and-verify-playback-transport-pause-resume-log:
 	$(MAKE) apple-device-pull-and-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_LOG_MODE=pause-resume
 
+apple-device-pull-and-verify-current-playback-transport-pause-resume-log:
+	$(MAKE) apple-device-pull-and-verify-current-playback-transport-log APPLE_PLAYBACK_TRANSPORT_LOG_MODE=pause-resume
+
 apple-device-pull-and-verify-playback-resume-offset-log:
 	$(MAKE) apple-device-pull-and-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_LOG_MODE=resume-offset
+
+apple-device-pull-and-verify-current-playback-resume-offset-log:
+	$(MAKE) apple-device-pull-and-verify-current-playback-transport-log APPLE_PLAYBACK_TRANSPORT_LOG_MODE=resume-offset
 
 apple-device-pull-and-verify-reader-repro-log:
 	$(MAKE) apple-device-pull-playback-log
 	$(MAKE) apple-device-verify-playback-transport-pause-resume-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1
 	$(MAKE) apple-device-verify-playback-resume-offset-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1
+
+apple-device-pull-and-verify-current-reader-repro-log:
+	$(MAKE) apple-device-pull-playback-log
+	$(MAKE) apple-device-verify-playback-transport-pause-resume-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1 APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"
+	$(MAKE) apple-device-verify-playback-resume-offset-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1 APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"
 
 apple-device-verify-playback-transport-log:
 	$(PYTHON) scripts/check_apple_playback_transport_log.py \

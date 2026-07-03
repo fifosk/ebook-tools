@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple device playback-log pull-and-verify now has current-commit shortcuts for pause, pause/resume, resume-offset, and combined reader repro captures, so physical tests reject stale installs without manually passing a SHA.
 - Apple playback transport log verification now fails immediately if Job or Library audio-state callbacks recover pending interactive autoplay, so stale TV builds that loop a paused sentence are caught before broader retry-loop heuristics.
 - Apple interactive reader sequence playback now clamps AVPlayer to each segment's true end and uses smaller TV boundary/fade windows, reducing clipped sentence endings while blocking a next-sentence sliver before Original/Translation track switches.
 - Apple sequence handoffs now pause the muted previous AVPlayer item while preserving reader playback intent, reducing stale next-sentence tails before Original/Translation track switches without stopping the Apple Music bed.
