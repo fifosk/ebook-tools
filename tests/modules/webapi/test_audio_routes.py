@@ -252,6 +252,18 @@ def audio_client(monkeypatch) -> Iterable[TestClient]:
         "modules.webapi.routers.audio.macos_voice_inventory",
         lambda: list(_MACOS_INVENTORY),
     )
+    monkeypatch.setattr(
+        "modules.webapi.routers.audio.get_say_voices",
+        lambda: [
+            {
+                "name": name,
+                "lang": locale,
+                "quality": quality or None,
+                "gender": gender.capitalize() if gender else None,
+            }
+            for name, locale, quality, gender in _MACOS_INVENTORY
+        ],
+    )
     monkeypatch.setattr("modules.webapi.routers.audio.log_mgr.console_info", lambda *_, **__: None)
 
     app = create_app()
@@ -617,6 +629,47 @@ def test_match_returns_macos_voice(audio_client: TestClient) -> None:
     }
 
 
+def test_match_macos_voice_uses_cached_route_inventory(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    inventory_calls = 0
+
+    def fake_macos_voice_inventory():
+        nonlocal inventory_calls
+        inventory_calls += 1
+        raise AssertionError("match metadata should use get_say_voices")
+
+    monkeypatch.setattr(audio_router, "macos_voice_inventory", fake_macos_voice_inventory)
+    monkeypatch.setattr(
+        audio_router,
+        "get_say_voices",
+        lambda: [
+            {"name": "Alex", "lang": "en_US", "quality": "Enhanced", "gender": "Male"},
+        ],
+    )
+
+    first = audio_client.get(
+        "/api/audio/match",
+        params={"language": "en", "preference": "male"},
+    )
+    second = audio_client.get(
+        "/api/audio/match",
+        params={"language": "en", "preference": "male"},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["macos_voice"] == {
+        "name": "Alex",
+        "lang": "en_US",
+        "quality": "Enhanced",
+        "gender": "Male",
+    }
+    assert second.json()["macos_voice"] == first.json()["macos_voice"]
+    assert inventory_calls == 0
+
+
 def test_match_returns_gtts_voice(audio_client: TestClient) -> None:
     response = audio_client.get(
         "/api/audio/match",
@@ -695,7 +748,7 @@ def test_match_failure_uses_generic_detail_and_token_safe_telemetry(
     )
 
 
-def test_match_response_validation_failure_uses_generic_detail_and_token_safe_telemetry(
+def test_match_ignores_malformed_cached_macos_metadata_without_leaking(
     audio_client: TestClient,
     monkeypatch,
 ) -> None:
@@ -708,8 +761,15 @@ def test_match_response_validation_failure_uses_generic_detail_and_token_safe_te
     )
     monkeypatch.setattr(
         audio_router,
-        "macos_voice_inventory",
-        lambda: [("SecretVoice", {"secret": "private-locale"}, "Premium", "female")],
+        "get_say_voices",
+        lambda: [
+            {
+                "name": "SecretVoice",
+                "lang": {"secret": "private-locale"},
+                "quality": "Premium",
+                "gender": "Female",
+            }
+        ],
     )
 
     response = audio_client.get(
@@ -718,20 +778,23 @@ def test_match_response_validation_failure_uses_generic_detail_and_token_safe_te
     )
     metrics_response = audio_client.get("/metrics")
 
-    assert response.status_code == 503
-    assert response.json() == {"detail": audio_router.AUDIO_VOICE_MATCH_UNAVAILABLE_MESSAGE}
+    assert response.status_code == 200
+    assert response.json() == {
+        "engine": "macos",
+        "voice": "SecretVoice",
+        "macos_voice": None,
+        "piper_voice": None,
+    }
     rendered = response.text
-    assert "SecretVoice" not in rendered
     assert "private-locale" not in rendered
     assert "de/female" not in rendered
     rendered_logs = "\n".join(logger.messages)
-    assert "Audio route operation=match result=error" in rendered_logs
-    assert "Audio route operation=match result=success" not in rendered_logs
-    assert "SecretVoice" not in rendered_logs
+    assert "Audio route operation=match result=success" in rendered_logs
+    assert "Audio route operation=match result=error" not in rendered_logs
     assert "private-locale" not in rendered_logs
     assert "language=" not in rendered_logs
     assert "preference=" not in rendered_logs
     assert (
-        'ebook_tools_audio_route_duration_seconds_count{operation="match",result="error"}'
+        'ebook_tools_audio_route_duration_seconds_count{operation="match",result="success"}'
         in metrics_response.text
     )

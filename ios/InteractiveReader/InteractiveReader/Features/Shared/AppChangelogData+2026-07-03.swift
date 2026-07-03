@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july3Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-active-adopted-music-pause-guard",
+            title: "TV reading survives bed dips",
+            detail: "Apple TV Job and Library playback now ignore active adopted Apple Music bed pauses while narration is still requested, preventing transient MusicKit non-playing callbacks from stopping the reader after startup or resume."
+        ),
+        AppChangelogEntry(
+            id: "audio-macos-voice-match-cache",
+            title: "Voice previews reuse cache",
+            detail: "Audio match and synthesis metadata now reuse the cached macOS voice inventory behind the shared voice list, keeping Web and Apple Create voice previews lighter and skipping malformed cached rows without leaking voice metadata."
+        ),
+        AppChangelogEntry(
             id: "audio-voices-piper-cache",
             title: "Voice pickers refresh lighter",
             detail: "The shared audio voice inventory now caches Piper voice discovery briefly, keeping Web and Apple Create voice pickers lighter during repeated settings refreshes while preserving token-safe route telemetry."

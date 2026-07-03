@@ -149,19 +149,24 @@ def _lookup_macos_voice_details(identifier: str) -> Optional[Dict[str, Optional[
     if not name:
         return None
 
-    voices = macos_voice_inventory()
     target_locale = _normalize_locale_for_compare(locale) if locale else None
 
-    for voice_name, voice_locale, quality, gender in voices:
+    for voice in get_say_voices():
+        voice_name = voice.get("name")
+        voice_locale = voice.get("lang")
+        if not isinstance(voice_name, str) or not isinstance(voice_locale, str):
+            continue
         if voice_name.lower() != name.lower():
             continue
         if target_locale and _normalize_locale_for_compare(voice_locale) != target_locale:
             continue
+        quality = voice.get("quality")
+        gender = voice.get("gender")
         return {
             "name": voice_name,
             "lang": voice_locale,
-            "quality": quality or None,
-            "gender": gender.capitalize() if gender else None,
+            "quality": quality if isinstance(quality, str) and quality else None,
+            "gender": gender if isinstance(gender, str) and gender else None,
         }
     return None
 

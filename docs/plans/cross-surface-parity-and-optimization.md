@@ -958,10 +958,10 @@ Current Apple UI partially exposes:
   an owner-scoped direct adoption handler so state-preserving Living Room
   captures must show the Job/Library narration-side acceptance breadcrumb, not
   only the MusicKit pause adoption. Manual tvOS Music-surface pauses still
-  adopt the reader-owned pause path, but active Job and Library narration no
-  longer turns every non-manual Apple Music bed `not playing` state into a
-  sentence pause; transient MusicKit bed interruptions stay on the recovery path
-  so book playback does not stop while the bed is being restored. Reader pauses now pause Music immediately, then release the tvOS
+  adopt the reader-owned pause path, but active Job and Library narration now
+  reject non-manual adopted Music pauses while playback is still requested or
+  audible; transient MusicKit bed interruptions stay on the recovery path so
+  book playback does not stop while the bed is being restored. Reader pauses now pause Music immediately, then release the tvOS
   Music surface after a short held pause; reader resumes cancel that delayed
   release and clear stale MusicKit pause-ignore state so the next external pause
   cannot be discarded as if it were still app-owned. The tvOS duplicate command
@@ -1296,7 +1296,10 @@ Optimization candidates:
   (`EBOOK_AUDIO_PIPER_VOICE_CACHE_TTL_SECONDS`, default 60s), so repeated Web
   and Apple Create voice-picker refreshes avoid reinstantiating the Piper
   backend while preserving per-request response validation and token-safe route
-  telemetry.
+  telemetry. Audio match and synthesis metadata also reuse the cached macOS
+  `get_say_voices()` inventory that powers `/api/audio/voices`, skipping
+  malformed cached rows instead of surfacing validation errors so Web and Apple
+  voice previews avoid repeated macOS inventory scans.
 - Prefer precomputed or cached job summary fields for list rows while keeping
   full metadata available on detail/media routes. Status:
   `/api/pipelines/jobs` now uses compact row result summaries so list rendering
@@ -1922,7 +1925,8 @@ Refactor before restyling:
   outcomes, without logging voice names, language parameters, or caller
   identifiers; inventory and match failures return generic unavailable
   responses so local voice paths, language parameters, and model names do not
-  leak into Apple/Web Create errors. The shared `/api/audio` preview synthesis
+  leak into Apple/Web Create errors; malformed cached macOS voice metadata is
+  ignored without leaking the malformed fields. The shared `/api/audio` preview synthesis
   route now records the same token-safe telemetry for preview success/error
   outcomes and converts setup failures into a generic unavailable response, so
   local config paths, sample text, language parameters, and selected voice

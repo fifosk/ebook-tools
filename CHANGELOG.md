@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.03.001
 
+- Apple TV Job and Library playback now ignore active adopted Apple Music bed pauses while narration is still requested, preventing transient MusicKit non-playing callbacks from stopping the reader after startup or resume.
+- Audio match and synthesis metadata now reuse the cached macOS voice inventory behind `/api/audio/voices`, keeping Web and Apple Create voice previews lighter and skipping malformed cached rows without leaking voice metadata.
 - The shared `/api/audio/voices` inventory now caches Piper voice discovery briefly, keeping Web and Apple Create voice pickers lighter during repeated settings refreshes while preserving token-safe route telemetry.
 - Apple TV Music-bed handling now defers ignored non-playing callbacks while narration is active, recovering the bed instead of adopting those MusicKit interruptions as reader pauses that stop book playback.
 - Apple TV Job and Library playback no longer treat non-manual Apple Music bed non-playing state as a sentence pause while narration is active, so transient MusicKit bed interruptions recover the bed instead of stopping book playback.

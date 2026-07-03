@@ -56,6 +56,7 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         adoption_body = _function_body(source, "private func handleMusicKitReaderTransportPauseAdoption(reason: String? = nil, source: String? = nil)")
         music_surface_body = _function_body(source, "private func handleMusicKitPlaybackSurfaceChange()")
         mirror_decision_body = _function_body(source, "private var shouldMirrorAppleMusicPauseToNarration")
+        active_pause_guard_body = _function_body(source, "private func shouldKeepReaderActiveDuringAppleMusicPause(reason: String?, source: String?)")
         stale_gate_body = _function_body(source, "private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
         expected_prefix = "job" if label == "Job" else "library"
 
@@ -66,11 +67,23 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
             f'refreshReaderNarrationActivityForMusicBed(reason: "{expected_prefix}MusicSurface")'
         ) < music_surface_body.index("if shouldMirrorAppleMusicPlayToNarration"), label
         assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in adoption_body, label
+        assert "if shouldKeepReaderActiveDuringAppleMusicPause(reason: reason, source: source)" in adoption_body, label
         assert "!shouldHonorAppleMusicPauseAdoptionImmediately(reason: reason, source: source)" in adoption_body, label
         assert 'if lastReaderTransportAction == "play"' not in adoption_body, label
+        assert adoption_body.index("if shouldKeepReaderActiveDuringAppleMusicPause(reason: reason, source: source)") < adoption_body.index(
+            "if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible"
+        )
         assert adoption_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < adoption_body.index(
             'mirrorAppleMusicPauseToReaderTransport(source: "musicAdoption")'
         )
+        assert "if shouldKeepReaderActiveDuringAppleMusicPause(" in music_surface_body, label
+        assert music_surface_body.index("if shouldKeepReaderActiveDuringAppleMusicPause(") < music_surface_body.index(
+            "if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible"
+        ), label
+        assert "if shouldKeepReaderActiveDuringAppleMusicPause(" in mirror_decision_body, label
+        assert mirror_decision_body.index("if shouldKeepReaderActiveDuringAppleMusicPause(") < mirror_decision_body.index(
+            "if musicOwnership.isPausedByReaderTransport"
+        ), label
         assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in mirror_decision_body, label
         assert 'if lastReaderTransportAction == "play"' not in mirror_decision_body, label
         assert mirror_decision_body.index("if musicOwnership.isPausedByReaderTransport") < mirror_decision_body.index(
@@ -102,6 +115,13 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         assert "guard !viewModel.isNarrationAudibleForReaderTransport else { return false }" in stale_gate_body, label
         assert "return !(viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)" in stale_gate_body, label
         assert "return hasPendingReaderMusicResume" not in stale_gate_body, label
+        assert "musicOwnership.ownershipState == .appleMusicBed" in active_pause_guard_body, label
+        assert "viewModel.audioCoordinator.isPlaybackRequested ||" in active_pause_guard_body, label
+        assert "viewModel.audioCoordinator.isPlaying" in active_pause_guard_body, label
+        assert 'reason == "readerTransportPause" || source == "reader transport"' in active_pause_guard_body, label
+        assert 'reason == "manualPause", source == "musicSurface"' in active_pause_guard_body, label
+        assert 'lastReaderTransportAction == "pause"' in active_pause_guard_body, label
+        assert "return true" in active_pause_guard_body, label
 
 
 def test_tvos_music_paused_resume_does_not_override_active_reader_pause() -> None:

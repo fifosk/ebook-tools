@@ -459,6 +459,21 @@ struct JobPlaybackView: View {
             return
         }
         #if os(tvOS)
+        if shouldKeepReaderActiveDuringAppleMusicPause(
+            reason: musicOwnership.readerTransportPauseAdoptionReason,
+            source: musicOwnership.readerTransportPauseAdoptionSource
+        ) {
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Job ignored active Apple Music pause while narration requested reason=\(musicOwnership.readerTransportPauseAdoptionReason ?? "unknown") source=\(musicOwnership.readerTransportPauseAdoptionSource ?? "unknown") requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+            )
+            playbackLogger.info(
+                "Job playback ignored active Apple Music pause while narration requested reason=\(musicOwnership.readerTransportPauseAdoptionReason ?? "unknown", privacy: .public) source=\(musicOwnership.readerTransportPauseAdoptionSource ?? "unknown", privacy: .public) requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+            )
+            resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+            return
+        }
         if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible {
             playbackTransportDebugLog(
                 "[PlaybackTransport] Job ignored Apple Music pause before narration active requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) audible=\(viewModel.isNarrationAudibleForReaderTransport) musicPlaying=\(musicOwnership.isPlaying)"
@@ -489,6 +504,16 @@ struct JobPlaybackView: View {
         else { return }
         guard musicOwnership.isPausedByReaderTransport else { return }
         #if os(tvOS)
+        if shouldKeepReaderActiveDuringAppleMusicPause(reason: reason, source: source) {
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Job ignored active adopted Apple Music pause while narration requested source=\(source ?? "unknown") reason=\(reason ?? "unknown") requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+            )
+            playbackLogger.info(
+                "Job playback ignored active adopted Apple Music pause while narration requested source=\(source ?? "unknown", privacy: .public) reason=\(reason ?? "unknown", privacy: .public) requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+            )
+            resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)
+            return
+        }
         if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible {
             playbackTransportDebugLog(
                 "[PlaybackTransport] Job ignored adopted Apple Music pause before narration active source=\(source ?? "unknown") requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) audible=\(viewModel.isNarrationAudibleForReaderTransport) musicPlaying=\(musicOwnership.isPlaying)"
@@ -648,6 +673,14 @@ struct JobPlaybackView: View {
     }
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
+        #if os(tvOS)
+        if shouldKeepReaderActiveDuringAppleMusicPause(
+            reason: musicOwnership.readerTransportPauseAdoptionReason,
+            source: musicOwnership.readerTransportPauseAdoptionSource
+        ) {
+            return false
+        }
+        #endif
         if musicOwnership.isPausedByReaderTransport {
             return viewModel.audioCoordinator.isPlaybackRequested ||
                 viewModel.audioCoordinator.isPlaying
@@ -674,6 +707,25 @@ struct JobPlaybackView: View {
     }
 
     #if os(tvOS)
+    private func shouldKeepReaderActiveDuringAppleMusicPause(reason: String?, source: String?) -> Bool {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return false }
+        guard viewModel.audioCoordinator.isPlaybackRequested ||
+                viewModel.audioCoordinator.isPlaying
+        else { return false }
+        if reason == "readerTransportPause" || source == "reader transport" {
+            return false
+        }
+        if reason == "manualPause", source == "musicSurface" {
+            return false
+        }
+        if lastReaderTransportAction == "pause",
+           musicOwnership.isReaderTransportPauseGuardActive ||
+            musicOwnership.isPausedByReaderTransport {
+            return false
+        }
+        return true
+    }
+
     private var shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible: Bool {
         musicOwnership.ownershipState == .appleMusicBed &&
             !musicOwnership.isManuallyPaused &&
