@@ -718,10 +718,14 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
     ]
     assert select_targets(["modules/webapi/routers/reading_beds.py"]) == [
         "test-backend-reading-beds",
+        "test-web-playback-focused",
+        "test-apple-contracts",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/schemas/reading_beds.py"]) == [
         "test-backend-reading-beds",
+        "test-web-playback-focused",
+        "test-apple-contracts",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/routers/subtitles.py"]) == [

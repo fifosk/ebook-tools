@@ -342,6 +342,10 @@ Audio synthesis and voice-inventory route/schema edits route to
 `test-apple-create-readiness-contract`, keeping Web Narrate Ebook voice pickers
 and Apple Create voice previews aligned with backend `/api/audio` and
 `/api/audio/voices` contracts.
+Reading-bed route/schema edits route to `test-backend-reading-beds`,
+`test-web-playback-focused`, and `test-apple-contracts`, keeping the shared
+bed catalog, default selection, uploaded-file URLs, Web player controls, and
+Apple playback/offline contracts aligned before device deployment is considered.
 Native Apple Create SwiftUI and creation API-client changes route to the
 focused `test-apple-create-readiness-contract` plus iPhone/iPad and tvOS
 simulator builds, so Create parity edits compile across Apple surfaces before

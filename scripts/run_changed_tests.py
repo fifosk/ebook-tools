@@ -319,7 +319,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "modules/webapi/schemas/reading_beds.py",
             "tests/modules/webapi/test_reading_bed_routes.py",
         ),
-        ("test-backend-reading-beds",),
+        ("test-backend-reading-beds", "test-web-playback-focused", "test-apple-contracts"),
     ),
     (
         (
