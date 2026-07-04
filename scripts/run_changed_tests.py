@@ -52,6 +52,14 @@ AGGREGATE_TARGET_COVERAGE = {
         "build-apple-macos-ipad-style",
         "build-apple-tvos-simulator",
     },
+    "verify-apple-playback-no-regression-candidate": {
+        "verify-apple-reader-playback-candidate",
+        "verify-apple-music-bed-candidate-dry-run",
+        "test-apple-playback-state-swift",
+        "build-apple-ios-simulators",
+        "build-apple-macos-ipad-style",
+        "build-apple-tvos-simulator",
+    },
 }
 
 PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
@@ -346,7 +354,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift",
             "ios/InteractiveReader/InteractiveReader/Services/VideoPlayerCoordinator.swift",
         ),
-        ("verify-apple-reader-playback-candidate",),
+        ("verify-apple-playback-no-regression-candidate",),
     ),
     (
         (

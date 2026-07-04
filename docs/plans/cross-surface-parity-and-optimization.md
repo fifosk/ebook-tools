@@ -2697,9 +2697,10 @@ Every cross-surface change should pass the relevant subset:
   cross-surface checkpoint gate, iOS/tvOS simulator builds, the
   iPhone/iPad simulator compile lanes, the iOS UITest build-for-testing lane,
   the tvOS simulator compile lane, the tvOS UITest build-for-testing lane, the
-  `make verify-apple-reader-playback-candidate` local gate for playback Swift
-  contracts plus iPhone/iPad/tvOS simulator builds before physical reader
-  playback retests,
+  `make verify-apple-playback-no-regression-candidate` local gate for playback
+  Swift contracts, iPhone/iPad/tvOS simulator builds, local Mac iPad-style
+  builds, and credential-free Music-bed dry-runs before physical reader playback
+  retests,
   office-iPad local build/verification gates, the local Apple surface build gate,
   the local Apple verification gate,
   `make apple-device-preflight`,

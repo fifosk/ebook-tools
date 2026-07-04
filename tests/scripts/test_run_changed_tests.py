@@ -50,7 +50,7 @@ def test_select_targets_for_apple_surface_changes() -> None:
         ]
     ) == [
         "test-apple-contracts",
-        "verify-apple-reader-playback-candidate",
+        "verify-apple-playback-no-regression-candidate",
     ]
     assert select_targets(["scripts/check_apple_reader_navigation_contract.sh"]) == [
         "test-apple-playback-state-swift",
@@ -197,7 +197,10 @@ def test_select_targets_runs_music_bed_dry_runs_for_reader_transport_paths() -> 
 
     for path in music_bed_paths:
         targets = select_targets([path])
-        assert "verify-apple-music-bed-candidate-dry-run" in targets, path
+        assert (
+            "verify-apple-playback-no-regression-candidate" in targets
+            or "verify-apple-music-bed-candidate-dry-run" in targets
+        ), path
         assert "test-e2e-ipad-music-bed-sync-dry-run" not in targets, path
         assert "test-e2e-tvos-music-bed-sync-dry-run" not in targets, path
 
@@ -207,14 +210,13 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         ["ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+LifecycleObservers.swift"]
     ) == [
         "test-apple-contracts",
-        "verify-apple-music-bed-candidate-dry-run",
-        "verify-apple-reader-playback-candidate",
+        "verify-apple-playback-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"]
     ) == [
         "test-apple-contracts",
-        "verify-apple-reader-playback-candidate",
+        "verify-apple-playback-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateView.swift"]
@@ -238,21 +240,19 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/VideoPlayerView+Layout.swift"]
     ) == [
         "test-apple-contracts",
-        "verify-apple-reader-playback-candidate",
+        "verify-apple-playback-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+NowPlaying.swift"]
     ) == [
         "test-apple-contracts",
-        "verify-apple-music-bed-candidate-dry-run",
-        "verify-apple-reader-playback-candidate",
+        "verify-apple-playback-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackChromeViews.swift"]
     ) == [
         "test-apple-contracts",
-        "verify-apple-music-bed-candidate-dry-run",
-        "verify-apple-reader-playback-candidate",
+        "verify-apple-playback-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Jobs/JobsView.swift"]
@@ -317,8 +317,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         ["ios/InteractiveReader/InteractiveReader/Services/NowPlayingCoordinator.swift"]
     ) == [
         "test-apple-contracts",
-        "verify-apple-music-bed-candidate-dry-run",
-        "verify-apple-reader-playback-candidate",
+        "verify-apple-playback-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/APIClient+Notifications.swift"]
@@ -332,7 +331,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         ["ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift"]
     ) == [
         "test-apple-contracts",
-        "verify-apple-reader-playback-candidate",
+        "verify-apple-playback-no-regression-candidate",
     ]
     assert select_targets(["ios/InteractiveReader/InteractiveReader/Models/AuthApiModels.swift"]) == [
         "test-apple-contracts",

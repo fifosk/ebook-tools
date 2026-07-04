@@ -785,6 +785,34 @@ def test_reader_playback_candidate_gate_runs_local_simulator_checks_without_depl
     assert "devicectl" not in target
 
 
+def test_playback_no_regression_candidate_chains_reader_and_music_dry_run_without_deploy() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = (
+        "verify-apple-playback-no-regression-candidate: "
+        "verify-apple-reader-playback-candidate verify-apple-music-bed-candidate-dry-run"
+    )
+    assert target_line in makefile
+
+    phony = makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
+    assert "verify-apple-playback-no-regression-candidate" in phony
+
+    target = makefile.split("verify-apple-playback-no-regression-candidate:", 1)[1].split("\n\n", 1)[0]
+    assert "verify-apple-reader-playback-candidate" in target
+    assert "verify-apple-music-bed-candidate-dry-run" in target
+    assert target.index("verify-apple-reader-playback-candidate") < target.index(
+        "verify-apple-music-bed-candidate-dry-run"
+    )
+    assert "verify-apple-music-bed-candidate " not in target
+    assert "test-e2e-ipad-music-bed-sync " not in target
+    assert "test-e2e-tvos-music-bed-sync " not in target
+    assert "apple-device-update" not in target
+    assert "run_app_device_deploy.py" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "apple-device-full-entitlement-stable-install" not in target
+    assert "devicectl" not in target
+
+
 def test_living_room_candidate_gate_runs_dogfood_pipeline_and_music_bed_without_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -1042,6 +1070,7 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "check_apple_shared_pipeline_manifest.py" in contract_check
     assert "verify-apple-shared-pipeline" in contract_check
     assert "verify-apple-music-bed-candidate" in contract_check
+    assert "verify-apple-playback-no-regression-candidate" in contract_check
     assert "verify-apple-living-room-candidate" in contract_check
     assert "test-e2e-ipad-music-bed-sync" in contract_check
     assert "test-e2e-tvos-music-bed-sync" in contract_check
