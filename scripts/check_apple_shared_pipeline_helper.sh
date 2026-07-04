@@ -58,6 +58,9 @@ dogfood_verify_line="verify-apple-dogfood-pipeline: verify-apple-cross-surface-c
 golden_verify_line="verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync verify-apple-dogfood-pipeline verify-apple-music-bed-candidate"
 local_checkpoint_bundle_line='$(PYTHON) scripts/write_git_checkpoint_bundle.py --base "$(CHECKPOINT_BASE)" --output-dir "$(CHECKPOINT_OUTPUT_DIR)"'
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
+deploy_dry_run_matrix_ipad_line='APPLE_DEVICE_ID="$(APPLE_DEVICE_IPAD_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile ipad --install --launch --dry-run'
+deploy_dry_run_matrix_iphone_line='APPLE_DEVICE_ID="$(APPLE_DEVICE_IPHONE_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile iphone --install --launch --dry-run'
+deploy_dry_run_matrix_tv_line='APPLE_DEVICE_ID="$(APPLE_DEVICE_TV_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile appletv --install --launch --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
 host_readiness_line='bash scripts/apple_unattended_device_update.sh --host-readiness-only'
 preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only'
@@ -156,6 +159,13 @@ assert_contains "${makefile}" "apple-device-signed-build-only:" "Makefile should
 assert_contains "${makefile}" "${signed_build_line}" "signed build helper should call the shared deploy pipeline without installing"
 assert_contains "${makefile}" "apple-device-deploy-dry-run:" "Makefile should expose shared physical deploy dry-runs"
 assert_contains "${makefile}" "${deploy_dry_run_line}" "deploy dry-run helper should call the shared deploy pipeline with --dry-run"
+assert_contains "${makefile}" 'APPLE_DEVICE_IPAD_ID ?= Fifo Ipad Pro' "Makefile should remember the default iPad Pro dry-run target"
+assert_contains "${makefile}" 'APPLE_DEVICE_IPHONE_ID ?= Fifo iPhone' "Makefile should remember the default iPhone dry-run target"
+assert_contains "${makefile}" 'APPLE_DEVICE_TV_ID ?= Living Room' "Makefile should remember the default Apple TV dry-run target"
+assert_contains "${makefile}" "apple-device-deploy-dry-run-matrix:" "Makefile should expose a no-install device deploy dry-run matrix"
+assert_contains "${makefile}" "${deploy_dry_run_matrix_ipad_line}" "dry-run matrix should preview the iPad Pro install and launch route"
+assert_contains "${makefile}" "${deploy_dry_run_matrix_iphone_line}" "dry-run matrix should preview the iPhone install and launch route"
+assert_contains "${makefile}" "${deploy_dry_run_matrix_tv_line}" "dry-run matrix should preview the Living Room Apple TV install and launch route"
 assert_contains "${makefile}" "apple-device-full-entitlement-plan:" "Makefile should expose the full-entitlement signing planner"
 assert_contains "${makefile}" "${full_entitlement_plan_line}" "full-entitlement planner should route through the repo-owned planner script"
 assert_contains "${makefile}" "${conditional_app_profile_line}" "full-entitlement planner should pass the app provisioning profile only when overridden"

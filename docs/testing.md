@@ -1046,6 +1046,7 @@ Use dry-runs to inspect the exact unattended command sequence before a physical
 update:
 
 ```bash
+make apple-device-deploy-dry-run-matrix
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --install --dry-run
 APPLE_DEVICE_ID="Fifo Ipad Pro" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   bash scripts/apple_unattended_device_update.sh --install --launch --dry-run

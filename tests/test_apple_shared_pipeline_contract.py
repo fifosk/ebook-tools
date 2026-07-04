@@ -300,6 +300,19 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     host_readiness_target = makefile.split("apple-device-host-readiness:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/apple_unattended_device_update.sh --host-readiness-only" in host_readiness_target
     assert "--device" not in host_readiness_target
+    assert 'APPLE_DEVICE_IPAD_ID ?= Fifo Ipad Pro' in makefile
+    assert 'APPLE_DEVICE_IPHONE_ID ?= Fifo iPhone' in makefile
+    assert 'APPLE_DEVICE_TV_ID ?= Living Room' in makefile
+    assert "apple-device-deploy-dry-run-matrix:" in makefile
+    matrix_target = makefile.split("apple-device-deploy-dry-run-matrix:", 1)[1].split("\n\n", 1)[0]
+    assert 'APPLE_DEVICE_ID="$(APPLE_DEVICE_IPAD_ID)"' in matrix_target
+    assert 'APPLE_DEVICE_ID="$(APPLE_DEVICE_IPHONE_ID)"' in matrix_target
+    assert 'APPLE_DEVICE_ID="$(APPLE_DEVICE_TV_ID)"' in matrix_target
+    assert "--profile ipad --install --launch --dry-run" in matrix_target
+    assert "--profile iphone --install --launch --dry-run" in matrix_target
+    assert "--profile appletv --install --launch --dry-run" in matrix_target
+    assert matrix_target.count("CONFIRM_PHYSICAL_DEVICE_UPDATE=YES") == 3
+    assert "devicectl" not in matrix_target
     assert "apple-pipeline-contracts:" in makefile
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "test-release-version:" in makefile
