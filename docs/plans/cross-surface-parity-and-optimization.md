@@ -2148,7 +2148,9 @@ After Narrate Ebook:
   plus key title/channel/series/episode/TMDB/IMDb edits that are sent with the
   job. Backend TV/YouTube metadata preview and cache-clear failure paths now
   return/log generic errors without source filenames, NAS paths, video ids, or
-  raw exception strings, while successful responses keep the reviewed metadata
+  raw exception strings, while TV/YouTube job metadata fetch and lookup routes
+  now trim padded job identifiers through the shared Web API route-id helper
+  before service lookup, and successful responses keep the reviewed metadata
   fields Apple and Web need for draft editing. Apple YouTube dubbing now
   resolves target languages through the shared Apple catalog code map before
   submission, matching Web's `target_language` code payloads, and keeps video
@@ -2607,7 +2609,8 @@ Suggested features to evaluate after parity scaffolding:
   assistant lookup, and audio synthesis paths now use route helpers. The public
   runtime descriptor advertises the playback media and linguist endpoints, and
   Apple Settings/readiness checks compare them before simulator or device
-  deployment.
+  deployment. Backend subtitle TV/YouTube metadata job routes now also share the
+  route-id cleanup helper before metadata service lookup.
 - Status: Apple auth/playback-state preflight contract now advertises OAuth,
   session, bookmarks, reading-bed, and resume paths in the public runtime
   descriptor, routes Apple auth/playback-state calls through shared helpers,

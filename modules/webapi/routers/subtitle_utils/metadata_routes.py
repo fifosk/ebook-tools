@@ -16,6 +16,7 @@ from ...dependencies import (
     get_subtitle_metadata_service,
     get_youtube_video_metadata_service,
 )
+from ...route_ids import normalize_route_id
 from ...schemas import (
     SubtitleTvMetadataLookupRequest,
     SubtitleTvMetadataPreviewLookupRequest,
@@ -36,6 +37,7 @@ from ...schemas.metadata_lookup import (
 router = APIRouter()
 logger = log_mgr.get_logger().getChild("webapi.subtitles.metadata")
 _ALLOWED_ROLES = {"editor", "admin"}
+METADATA_JOB_NOT_FOUND_MESSAGE = "Job not found"
 
 
 def _ensure_editor(request_user: RequestUserContext) -> None:
@@ -52,9 +54,13 @@ def get_subtitle_tv_metadata(
 ) -> SubtitleTvMetadataResponse:
     """Return stored (or inferred) TV metadata for a subtitle job without triggering a lookup."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=METADATA_JOB_NOT_FOUND_MESSAGE)
+
     try:
         payload = metadata_service.get_tv_metadata(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
@@ -77,9 +83,13 @@ def lookup_subtitle_tv_metadata(
 ) -> SubtitleTvMetadataResponse:
     """Trigger TVMaze metadata enrichment for the subtitle job and persist the result."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=METADATA_JOB_NOT_FOUND_MESSAGE)
+
     try:
         payload = metadata_service.lookup_tv_metadata(
-            job_id,
+            normalized_job_id,
             force=bool(lookup.force),
             user_id=request_user.user_id,
             user_role=request_user.user_role,
@@ -152,9 +162,13 @@ def get_youtube_video_metadata(
 ) -> YoutubeVideoMetadataResponse:
     """Return stored YouTube metadata for a youtube_dub job without triggering a lookup."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=METADATA_JOB_NOT_FOUND_MESSAGE)
+
     try:
         payload = metadata_service.get_youtube_metadata(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
@@ -177,9 +191,13 @@ def lookup_youtube_video_metadata(
 ) -> YoutubeVideoMetadataResponse:
     """Trigger yt-dlp metadata enrichment for the YouTube dubbing job and persist the result."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=METADATA_JOB_NOT_FOUND_MESSAGE)
+
     try:
         payload = metadata_service.lookup_youtube_metadata(
-            job_id,
+            normalized_job_id,
             force=bool(lookup.force),
             user_id=request_user.user_id,
             user_role=request_user.user_role,
