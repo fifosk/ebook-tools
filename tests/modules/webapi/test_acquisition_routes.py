@@ -20,6 +20,7 @@ from modules.webapi.dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
+from modules.webapi.route_ids import normalize_route_id as shared_normalize_route_id
 from modules.webapi.routers.acquisition import (
     _normalize_optional_provider_id,
     _normalize_route_id,
@@ -79,6 +80,13 @@ def test_acquisition_source_id_filters_trim_blanks_and_duplicates() -> None:
 
 
 def test_acquisition_route_ids_trim_whitespace() -> None:
+    support_source = Path("modules/webapi/routers/acquisition_route_support.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert _normalize_route_id is shared_normalize_route_id
+    assert "from ..route_ids import normalize_route_id" in support_source
+    assert "def normalize_route_id(" not in support_source
     assert _normalize_route_id("  artifact-token  ") == "artifact-token"
 
 

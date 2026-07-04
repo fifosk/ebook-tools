@@ -8,6 +8,7 @@ from modules import logging_manager as log_mgr
 from modules.permissions import normalize_role
 
 from ..dependencies import RequestUserContext
+from ..route_ids import normalize_route_id
 from ..route_telemetry import log_started_route_result
 from ..schemas.acquisition import (
     AcquisitionDiscoveryResponse,
@@ -72,10 +73,6 @@ def ensure_discovery_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
         )
-
-
-def normalize_route_id(value: str) -> str:
-    return str(value).strip()
 
 
 def normalize_optional_text(value: str | None) -> str | None:

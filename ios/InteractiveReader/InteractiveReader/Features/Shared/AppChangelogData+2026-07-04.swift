@@ -26,6 +26,11 @@ extension AppChangelogData {
             detail: "Backend reading-bed fetch, update, and delete routes now trim route identifiers through the shared helper, keeping Web and Apple background-music controls aligned with playback-state boundaries."
         ),
         AppChangelogEntry(
+            id: "backend-acquisition-route-id-helper",
+            title: "Acquisition IDs share cleanup",
+            detail: "Backend acquisition candidate, artifact, and downloader task identifiers now trim through the shared route helper, keeping Web and Apple Create discovery handoffs aligned with playback and Jobs boundaries."
+        ),
+        AppChangelogEntry(
             id: "backend-playback-search-route-id-helper",
             title: "Playback search IDs share cleanup",
             detail: "Backend media search now trims its job identifier through the shared route helper before pipeline or Library lookup, keeping Apple and Web playback search boundary behavior aligned."

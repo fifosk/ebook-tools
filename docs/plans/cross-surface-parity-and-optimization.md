@@ -869,7 +869,10 @@ Current Apple UI partially exposes:
   directly for provider/discovery response shaping, permission checks, telemetry,
   route-id validation, and Download Station provider validation, while focused
   route coverage preserves token-safe error logging and the monkeypatchable
-  router logger used by the backend tests.
+  router logger used by the backend tests. Acquisition candidate, artifact, and
+  downloader task route IDs now reuse the same Web API route-id cleanup helper
+  as Jobs and playback routes, keeping Web and Apple Create handoffs on one
+  boundary rule.
   Backend acquisition value coercion and
   identifier sanitization now live in
   `modules/services/acquisition/discovery_values.py` with focused coverage,
