@@ -817,6 +817,22 @@ def test_single_track_rendering_ignores_stale_sequence_state() -> None:
     assert "let isDwelling = sequenceRenderGuardsActive && viewModel.sequenceController.isDwelling" in content
     assert "let currentSentenceIdx = sequenceRenderGuardsActive ? viewModel.sequenceController.currentSentenceIndex : nil" in content
     assert "let expectedPosition = sequenceRenderGuardsActive ? viewModel.sequenceController.expectedPosition : nil" in content
+    assert "target sentence immediately" in content
+    assert "Holding the previous sentence" in content
+    assert "showing previous=" not in content
+    assert "In sequence mode, the sequence controller is the authoritative" in content
+    assert "audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying" in content
+    assert "TextPlayerTimeline.buildSettlingDisplay(" in content
+    assert content.index("In sequence mode, the sequence controller is the authoritative") < content.index(
+        "// Normal case: build transcript based on current time"
+    )
+
+    active_sentence_body = _function_body(playback, "func activeSentence(at time: Double) -> InteractiveChunk.Sentence?")
+    assert "let sequenceIndex = sequenceController.currentSentenceIndex" in active_sentence_body
+    assert "return chunk.sentences[sequenceIndex]" in active_sentence_body
+    assert active_sentence_body.index("let sequenceIndex = sequenceController.currentSentenceIndex") < active_sentence_body.index(
+        "TextPlayerTimeline.resolveActiveIndex("
+    )
 
 
 def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
@@ -990,10 +1006,14 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     assert "audioCoordinator.nowPlayingPlayer == nil" in play_body
     assert "let chunk = selectedChunk" in play_body
     assert "prepareAudio(for: chunk, autoPlay: true)" in play_body
+    assert "realignSequencePlaybackForReaderTransportResume()" in play_body
     assert "isSequenceModeActive &&" in play_body
     assert "sequenceController.isDwelling || sequenceController.isTransitioning" in play_body
     assert "cancelPendingAudioReadySubscription()" in play_body
     assert "sequenceController.cancelPendingAutomaticAdvanceForPause()" in play_body
+    assert play_body.index("realignSequencePlaybackForReaderTransportResume()") < play_body.index(
+        "sequenceController.resumeAfterReaderTransportPause()"
+    )
     assert play_body.index("sequenceController.cancelPendingAutomaticAdvanceForPause()") < play_body.index(
         "audioCoordinator.clearAudioMix()"
     )
@@ -1001,6 +1021,13 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     assert play_body.index("audioCoordinator.restoreVolume()") < play_body.index("audioCoordinator.play()")
     assert "audioCoordinator.play()" in play_body
     assert "!audioCoordinator.isPlaybackRequested" in play_body
+    realign_body = _function_body(sequence, "func realignSequencePlaybackForReaderTransportResume() -> Bool")
+    assert "activeSequenceTrackForReaderTransportResume()" in realign_body
+    assert "sequenceController.findTimeTarget(" in realign_body
+    assert "sequenceController.commitSentenceTarget(target)" in realign_body
+    assert realign_body.index("sequenceController.findTimeTarget(") < realign_body.index(
+        "sequenceController.commitSentenceTarget(target)"
+    )
     stuck_recovery_body = _function_body(sequence, "func recoverStuckReaderTransportPlayback()")
     assert "audioCoordinator.isPlaybackRequested" in stuck_recovery_body
     assert "audioCoordinator.nowPlayingPlayer != nil" in stuck_recovery_body

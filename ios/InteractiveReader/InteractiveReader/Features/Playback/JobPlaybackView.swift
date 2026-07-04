@@ -46,6 +46,9 @@ struct JobPlaybackView: View {
     @State var pendingInteractiveAutoplayRecoverySentence: Int?
     @State var pendingInteractiveAutoplayRecoveryAttempts = 0
     @State var pendingInteractiveAutoplaySuppressedUntil: TimeInterval = 0
+    @State var interactivePlayerReadyForAutoplay = false
+    @State var pendingInteractivePlaybackStart = false
+    @State var pendingInteractivePlaybackAllowsStartWithoutResume = false
     @State var nowPlayingReassertionTask: Task<Void, Never>?
     @State var lastReaderTransportCommandTime: TimeInterval = 0
     @State var lastReaderTransportAction = "none"
@@ -1010,6 +1013,9 @@ struct JobPlaybackView: View {
                         bookmarkItemType: resumeItemType,
                         playbackToggleOverride: {
                             toggleInteractiveReaderPlaybackTransport()
+                        },
+                        onReadyForPlayback: {
+                            handleInteractivePlayerReadyForPlayback()
                         }
                     )
                 } else {

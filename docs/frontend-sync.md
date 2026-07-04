@@ -257,6 +257,23 @@ Follow the suggested remediations to restore parity:
   batch-end metadata refresh can briefly clear the preferred lane while the
   user-selected Original-only or Translation-only playback lane is still the
   correct rendering authority.
+  Job and Library startup autoplay must wait until the SwiftUI player has a
+  renderable transcript or a bounded parent-side readiness retry confirms
+  hydrated chunk metadata; the first playback drain should then reassert the
+  selected audio option and sequence identity before applying resume/start-over.
+  That keeps initial tvOS/iPadOS audio from starting ahead of the interactive
+  transcript. During sequence sentence changes, the renderer should trust the
+  sequence controller's target sentence immediately. Holding the previously
+  spoken sentence fully revealed is only appropriate for same-sentence
+  Original/Translation track-switch protection; for actual sentence changes it
+  creates a visible wrong-sentence flash on physical devices.
+  Reader transport resume from a lookup bubble, keyboard shortcut, or remote
+  command must also re-anchor active sequence playback before calling `play()`.
+  Resolve the active lane from the loaded audio URL, find the segment containing
+  the current track-local time, and commit that segment into
+  `SequencePlaybackController` before re-arming reader transport playback; this
+  prevents the transcript from temporarily showing an old sentence until the
+  next slider/skip command forces a resync.
   Natural end-of-batch single-track advances should
   establish a fresh next-batch anchor from the target index or chunk range
   before autoplay starts, so placeholder metadata can still render the selected lane

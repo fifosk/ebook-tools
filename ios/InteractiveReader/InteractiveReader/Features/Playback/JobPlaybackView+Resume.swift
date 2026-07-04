@@ -19,6 +19,9 @@ extension JobPlaybackView {
         resumeDecisionPending = true
         pendingInteractiveAutoplaySentence = nil
         lastPendingInteractiveAutoplayRecoveryTime = 0
+        interactivePlayerReadyForAutoplay = false
+        pendingInteractivePlaybackStart = false
+        pendingInteractivePlaybackAllowsStartWithoutResume = false
         lastRecordedSentence = nil
         lastRecordedSentenceTimeBucket = nil
         lastRecordedTimeBucket = nil

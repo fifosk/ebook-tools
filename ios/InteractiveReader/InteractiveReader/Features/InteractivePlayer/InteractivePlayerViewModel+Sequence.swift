@@ -83,6 +83,7 @@ extension InteractivePlayerViewModel {
             return
         }
         if isSequenceModeActive {
+            realignSequencePlaybackForReaderTransportResume()
             if sequenceController.isPausedForReaderTransportResume {
                 sequenceController.resumeAfterReaderTransportPause()
             }
@@ -108,6 +109,48 @@ extension InteractivePlayerViewModel {
         if !wasPlaybackRequested, !audioCoordinator.isPlaybackRequested, let chunk = selectedChunk {
             prepareAudio(for: chunk, autoPlay: true)
         }
+    }
+
+    @discardableResult
+    func realignSequencePlaybackForReaderTransportResume() -> Bool {
+        guard isSequenceModeActive,
+              !sequenceController.plan.isEmpty,
+              let chunk = selectedChunk else {
+            return false
+        }
+        let localTime = audioCoordinator.currentTime
+        guard localTime.isFinite, localTime >= 0 else { return false }
+        let preferredTrack = activeSequenceTrackForReaderTransportResume()
+            ?? sequenceController.currentTrack
+        guard let target = sequenceController.findTimeTarget(
+            localTime,
+            preferredTrack: preferredTrack
+        ) else {
+            return false
+        }
+        guard chunk.sentences.indices.contains(sequenceController.plan[target.segmentIndex].sentenceIndex) else {
+            return false
+        }
+        let previousSegmentIndex = sequenceController.currentSegmentIndex
+        let previousTrack = sequenceController.currentTrack
+        sequenceController.commitSentenceTarget(target)
+        if previousSegmentIndex != target.segmentIndex || previousTrack != target.track {
+            interactiveSequenceLogger.debug(
+                "Reader transport resume realigned sequence segment \(previousSegmentIndex, privacy: .public)->\(target.segmentIndex, privacy: .public) track=\(target.track.rawValue, privacy: .public) time=\(String(format: "%.3f", target.time), privacy: .public)"
+            )
+        }
+        return true
+    }
+
+    private func activeSequenceTrackForReaderTransportResume() -> SequenceTrack? {
+        guard let activeURL = audioCoordinator.activeURL else { return nil }
+        if activeURL == sequenceController.originalTrackURL {
+            return .original
+        }
+        if activeURL == sequenceController.translationTrackURL {
+            return .translation
+        }
+        return nil
     }
 
     @discardableResult

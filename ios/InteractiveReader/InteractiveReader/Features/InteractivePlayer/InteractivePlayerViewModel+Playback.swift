@@ -453,6 +453,12 @@ extension InteractivePlayerViewModel {
     func activeSentence(at time: Double) -> InteractiveChunk.Sentence? {
         guard time.isFinite else { return nil }
         guard let chunk = selectedChunk else { return nil }
+        if isSequenceModeActive,
+           let sequenceIndex = sequenceController.currentSentenceIndex,
+           chunk.sentences.indices.contains(sequenceIndex),
+           audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying {
+            return chunk.sentences[sequenceIndex]
+        }
         let playbackDuration = playbackDuration(for: chunk)
         if let activeIndex = TextPlayerTimeline.resolveActiveIndex(
             sentences: chunk.sentences,

@@ -104,7 +104,8 @@ struct JobLoaderView: View {
                 InteractivePlayerView(
                     viewModel: viewModel,
                     audioCoordinator: viewModel.audioCoordinator,
-                    showsScrubber: false
+                    showsScrubber: false,
+                    onReadyForPlayback: nil
                 )
                     .frame(maxWidth: CGFloat.infinity)
             } else {

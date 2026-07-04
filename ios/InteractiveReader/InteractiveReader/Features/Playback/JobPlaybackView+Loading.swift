@@ -92,45 +92,8 @@ extension JobPlaybackView {
         }
         resumeDecisionPending = false
 
-        // Handle playback based on mode from context menu selection
-        switch playbackMode {
-        case .resume:
-            // Auto-resume from last position if available
-            if let resumeEntry = resolveResumeEntry() {
-                applyResume(resumeEntry)
-                // Skip network status polling for offline playback
-                if !isOfflinePlayback {
-                    await refreshJobStatus()
-                    startJobRefresh()
-                    if currentJob.status.isActive {
-                        viewModel.startLiveUpdates()
-                    }
-                }
-                return
-            }
-            // No resume position, start from beginning
-            if shouldAutoPlay {
-                startPlaybackFromBeginning()
-            }
-        case .resumeExisting:
-            if let resumeEntry = resolveResumeEntry() {
-                applyResume(resumeEntry)
-                // Skip network status polling for offline playback
-                if !isOfflinePlayback {
-                    await refreshJobStatus()
-                    startJobRefresh()
-                    if currentJob.status.isActive {
-                        viewModel.startLiveUpdates()
-                    }
-                }
-                return
-            }
-        case .startOver:
-            // Clear resume position and start from beginning
-            clearResumeEntry()
-            if shouldAutoPlay {
-                startPlaybackFromBeginning()
-            }
+        if !deferInteractivePlaybackStartIfNeeded(allowStartWithoutResume: shouldAutoPlay) {
+            drainInteractivePlaybackStart(allowStartWithoutResume: shouldAutoPlay)
         }
         // Skip network status polling for offline playback
         if !isOfflinePlayback {
@@ -138,6 +101,105 @@ extension JobPlaybackView {
             startJobRefresh()
             if currentJob.status.isActive {
                 viewModel.startLiveUpdates()
+            }
+        }
+    }
+
+    @discardableResult
+    func deferInteractivePlaybackStartIfNeeded(allowStartWithoutResume: Bool) -> Bool {
+        guard !isVideoPreferred,
+              viewModel.jobContext != nil
+        else { return false }
+        pendingInteractivePlaybackStart = true
+        pendingInteractivePlaybackAllowsStartWithoutResume = allowStartWithoutResume
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Job deferring interactive autoplay until player ready allowStart=\(allowStartWithoutResume) ready=\(interactivePlayerReadyForAutoplay)"
+        )
+        if interactivePlayerReadyForAutoplay {
+            Task { @MainActor in
+                await Task.yield()
+                handleInteractivePlayerReadyForPlayback()
+            }
+        } else {
+            scheduleInteractivePlaybackReadinessRetry()
+        }
+        return true
+    }
+
+    func scheduleInteractivePlaybackReadinessRetry() {
+        Task { @MainActor in
+            let probes: [UInt64] = [
+                50_000_000,
+                150_000_000,
+                350_000_000,
+                750_000_000,
+                1_250_000_000,
+                2_000_000_000
+            ]
+            for delay in probes {
+                try? await Task.sleep(nanoseconds: delay)
+                guard pendingInteractivePlaybackStart else { return }
+                guard !interactivePlayerReadyForAutoplay else {
+                    handleInteractivePlayerReadyForPlayback()
+                    return
+                }
+                guard let chunk = viewModel.selectedChunk,
+                      viewModel.isTranscriptReady(for: chunk) else {
+                    continue
+                }
+                playbackTransportDebugLog(
+                    "[PlaybackTransport] Job interactive player readiness retry accepted selectedChunk=\(chunk.id)"
+                )
+                interactivePlayerReadyForAutoplay = true
+                handleInteractivePlayerReadyForPlayback()
+                return
+            }
+            if pendingInteractivePlaybackStart {
+                playbackTransportDebugLog(
+                    "[PlaybackTransport] Job interactive player readiness retry exhausted selectedChunk=\(viewModel.selectedChunkID ?? "nil") transcriptLoading=\(viewModel.isTranscriptLoading)"
+                )
+            }
+        }
+    }
+
+    func handleInteractivePlayerReadyForPlayback() {
+        let wasPending = pendingInteractivePlaybackStart
+        interactivePlayerReadyForAutoplay = true
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Job interactive player ready pendingStart=\(wasPending)"
+        )
+        guard wasPending else { return }
+        let allowStart = pendingInteractivePlaybackAllowsStartWithoutResume
+        pendingInteractivePlaybackStart = false
+        pendingInteractivePlaybackAllowsStartWithoutResume = false
+        drainInteractivePlaybackStart(allowStartWithoutResume: allowStart)
+    }
+
+    func drainInteractivePlaybackStart(allowStartWithoutResume: Bool) {
+        if let chunk = viewModel.selectedChunk {
+            _ = viewModel.reassertSelectedAudioTrackAfterContextRebuild()
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Job draining interactive autoplay context chunk=\(chunk.id) trackID=\(viewModel.selectedAudioTrackID ?? "nil") sequence=\(viewModel.isSequenceModeActive) transcriptReady=\(viewModel.isTranscriptReady(for: chunk))"
+            )
+        }
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Job draining interactive autoplay mode=\(String(describing: playbackMode)) allowStart=\(allowStartWithoutResume) selectedChunk=\(viewModel.selectedChunkID ?? "nil") requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying)"
+        )
+        switch playbackMode {
+        case .resume:
+            if let resumeEntry = resolveResumeEntry() {
+                applyResume(resumeEntry)
+            } else if allowStartWithoutResume {
+                startPlaybackFromBeginning()
+            }
+        case .resumeExisting:
+            if let resumeEntry = resolveResumeEntry() {
+                applyResume(resumeEntry)
+            }
+        case .startOver:
+            clearResumeEntry()
+            if allowStartWithoutResume {
+                startPlaybackFromBeginning()
             }
         }
     }

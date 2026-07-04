@@ -93,26 +93,10 @@ extension InteractivePlayerView {
                         return [display]
                     }
                 } else {
-                    // Sentence change: show PREVIOUS sentence fully revealed during transition
-                    // This prevents the blip where we briefly show the new sentence before it should appear
-                    // The new sentence will be shown once the transition completes and time-based lookup takes over
-                    if let prevIdx = viewModel.preTransitionSentenceIndex,
-                       chunk.sentences.indices.contains(prevIdx) {
-                        // Build a fully-revealed display for the previous sentence
-                        if let display = TextPlayerTimeline.buildFullyRevealedDisplay(
-                            sentences: chunk.sentences,
-                            activeIndex: prevIdx
-                        ) {
-                            if transcriptDebug {
-                                interactiveLayoutLogger.debug(
-                                    "Sentence-change transitioning=\(isTransitioning, privacy: .public), showing previous=\(prevIdx, privacy: .public), target=\(targetIdx, privacy: .public)"
-                                )
-                            }
-                            return [display]
-                        }
-                    }
-                    // Fallback: show target sentence with first word revealed
-                    // This happens if preTransitionSentenceIndex wasn't captured
+                    // Sentence changes should render the sequence controller's
+                    // target sentence immediately. Holding the previous sentence
+                    // fully revealed creates a visible wrong-sentence flash on
+                    // real tvOS/iPadOS devices once the audio handoff has begun.
                     if let display = TextPlayerTimeline.buildInitialDisplay(
                         sentences: chunk.sentences,
                         activeIndex: targetIdx,
@@ -121,10 +105,10 @@ extension InteractivePlayerView {
                         if transcriptDebug {
                             let variants = debugVariantSummary(display.variants)
                             interactiveLayoutLogger.debug(
-                                "Sentence-change fallback transitioning=\(isTransitioning, privacy: .public), sentence=\(targetIdx, privacy: .public), variants=\(variants, privacy: .public)"
-                            )
-                        }
-                        return [display]
+                            "Sentence-change transitioning=\(isTransitioning, privacy: .public), sentence=\(targetIdx, privacy: .public), variants=\(variants, privacy: .public)"
+                        )
+                    }
+                    return [display]
                     }
                 }
             }
@@ -169,25 +153,11 @@ extension InteractivePlayerView {
                 }
             }
 
-            // Settling window for sentence changes: continue showing PREVIOUS sentence fully revealed
-            // This prevents the blip where we briefly show the new sentence before time stabilizes
+            // Settling window for sentence changes: keep rendering the target
+            // sentence from the sequence controller until AVPlayer time settles.
+            // Time-based lookup can briefly point at an adjacent sentence during
+            // the seek/validation window.
             if isInSentenceChangeSettling {
-                // Use preTransitionSentenceIndex if available (captured at transition start)
-                if let prevIdx = viewModel.preTransitionSentenceIndex,
-                   chunk.sentences.indices.contains(prevIdx) {
-                    if let display = TextPlayerTimeline.buildFullyRevealedDisplay(
-                        sentences: chunk.sentences,
-                        activeIndex: prevIdx
-                    ) {
-                        if transcriptDebug {
-                            interactiveLayoutLogger.debug(
-                                "Sentence-change settling showing previous=\(prevIdx, privacy: .public), target=\(currentSentenceIdx ?? -1, privacy: .public)"
-                            )
-                        }
-                        return [display]
-                    }
-                }
-                // Fallback: show target sentence with initial display if preTransitionSentenceIndex not available
                 if let targetIdx = currentSentenceIdx {
                     if let display = TextPlayerTimeline.buildInitialDisplay(
                         sentences: chunk.sentences,
@@ -197,7 +167,7 @@ extension InteractivePlayerView {
                         if transcriptDebug {
                             let variants = debugVariantSummary(display.variants)
                             interactiveLayoutLogger.debug(
-                                "Sentence-change settling fallback sentence=\(targetIdx, privacy: .public), variants=\(variants, privacy: .public)"
+                                "Sentence-change settling sentence=\(targetIdx, privacy: .public), variants=\(variants, privacy: .public)"
                             )
                         }
                         return [display]
@@ -274,6 +244,37 @@ extension InteractivePlayerView {
                             "Post-stabilization guard sentence=\(targetIdx, privacy: .public), time=\(playbackTime, privacy: .public)"
                         )
                     }
+                    return [display]
+                }
+            }
+
+            // In sequence mode, the sequence controller is the authoritative
+            // source for the current sentence/track. This keeps resume and
+            // slider seeks rendered in lockstep with audio even before a user
+            // interaction causes selectedSentenceID to refresh.
+            if sequenceRenderGuardsActive,
+               let targetIdx = currentSentenceIdx,
+               chunk.sentences.indices.contains(targetIdx),
+               audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying {
+                let playbackTime = viewModel.highlightingTime
+                let playbackDuration = viewModel.playbackDuration(for: chunk) ?? audioCoordinator.duration
+                let timelineDuration = viewModel.timelineDuration(for: chunk)
+                let durationValue: Double? = timelineDuration ?? (playbackDuration > 0 ? playbackDuration : nil)
+                if let display = TextPlayerTimeline.buildSettlingDisplay(
+                    sentences: chunk.sentences,
+                    activeIndex: targetIdx,
+                    newPrimaryTrack: sequenceTimingTrack,
+                    chunkTime: playbackTime,
+                    audioDuration: durationValue,
+                    timingVersion: chunk.timingVersion
+                ) {
+                    return [display]
+                }
+                if let display = TextPlayerTimeline.buildInitialDisplay(
+                    sentences: chunk.sentences,
+                    activeIndex: targetIdx,
+                    primaryTrack: sequenceTimingTrack
+                ) {
                     return [display]
                 }
             }

@@ -139,6 +139,7 @@ extension InteractivePlayerView {
             }
         }
         #endif
+        notifyReadyForPlaybackIfTranscriptRenderable(for: chunk)
     }
 
     private func handleMusicPickerSelection() {
@@ -159,23 +160,31 @@ extension InteractivePlayerView {
         syncSelectedSentence(for: chunk)
         viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
         updateFrozenTranscriptState(for: chunk, shouldFreeze: isMenuVisible && !audioCoordinator.isPlaying)
+        notifyReadyForPlaybackIfTranscriptRenderable(for: chunk)
     }
 
     private func handleTrackAvailabilityChange() {
         guard let chunk = viewModel.selectedChunk else { return }
         prepareAudioModeForInitialPlayback(for: chunk)
+        notifyReadyForPlaybackIfTranscriptRenderable(for: chunk)
     }
 
     private func handleHighlightingTimeChange() {
         guard !isMenuVisible else { return }
         guard focusedArea != .controls && focusedArea != .bubble else { return }
         guard let chunk = viewModel.selectedChunk else { return }
+        notifyReadyForPlaybackIfTranscriptRenderable(for: chunk)
         if audioCoordinator.isPlaying {
             viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: true)
             syncSelectedSentence(for: chunk)
             return
         }
         syncSelectedSentence(for: chunk)
+    }
+
+    private func notifyReadyForPlaybackIfTranscriptRenderable(for chunk: InteractiveChunk) {
+        guard !transcriptSentences(for: chunk).isEmpty else { return }
+        onReadyForPlayback?()
     }
 
     private func handleReadingBedEnabledChange(_ isEnabled: Bool) {
