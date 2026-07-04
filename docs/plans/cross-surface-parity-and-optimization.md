@@ -2386,7 +2386,11 @@ Suggested features to evaluate after parity scaffolding:
   reads at `/api/creation/templates/{template_id}` with the same sanitized,
   user-scoped payload shape as list/save; Web and Apple clients both expose the
   single-template fetch primitive, and Apple encodes template path components
-  without letting `/`, `?`, or `#` split the route. Web `?view=...&template_id=...`
+  without letting `/`, `?`, or `#` split the route. Backend Create template
+  get/delete routes now trim padded template identifiers through the shared
+  route-id helper before applying the template canonicalizer, keeping Web and
+  Apple saved-template handoffs aligned with acquisition, playback, and Library
+  route boundaries. Web `?view=...&template_id=...`
   handoffs now fetch the saved template after login and apply compatible
   Narrate Ebook or generated-book form state into the selected creation surface;
   generated-book templates also carry sanitized prompt fields (topic, book name,

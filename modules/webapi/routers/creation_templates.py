@@ -13,6 +13,7 @@ from ..dependencies import (
     get_creation_template_service,
     get_request_user,
 )
+from ..route_ids import normalize_route_id
 from ..route_telemetry import log_started_route_result
 from ..schemas.creation_templates import (
     CreationTemplateDeleteResponse,
@@ -156,7 +157,8 @@ def get_creation_template(
         )
         raise
 
-    canonical_template_id = template_service.canonical_template_id(template_id)
+    normalized_template_id = normalize_route_id(template_id)
+    canonical_template_id = template_service.canonical_template_id(normalized_template_id)
     if not canonical_template_id:
         _log_template_route_result(operation="get", result="not_found", started_at=started_at)
         raise HTTPException(
@@ -199,7 +201,8 @@ def delete_creation_template(
         )
         raise
 
-    canonical_template_id = template_service.canonical_template_id(template_id)
+    normalized_template_id = normalize_route_id(template_id)
+    canonical_template_id = template_service.canonical_template_id(normalized_template_id)
     if not canonical_template_id:
         _log_template_route_result(
             operation="delete",

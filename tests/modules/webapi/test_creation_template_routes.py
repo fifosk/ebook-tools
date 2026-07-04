@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
@@ -119,6 +121,69 @@ def test_creation_template_openapi_marks_cross_surface_response_fields_required(
 
     delete_required = set(schemas["CreationTemplateDeleteResponse"]["required"])
     assert {"deleted", "template_id"} <= delete_required
+
+
+def test_creation_template_routes_use_shared_route_id_normalizer() -> None:
+    source = Path(creation_template_router.__file__).read_text(encoding="utf-8")
+
+    assert "from ..route_ids import normalize_route_id" in source
+    assert "def _normalize_route_id" not in source
+    assert "normalized_template_id = normalize_route_id(template_id)" in source
+    assert "canonical_template_id = template_service.canonical_template_id(normalized_template_id)" in source
+
+
+def test_creation_template_routes_normalize_padded_template_id() -> None:
+    class RecordingService(CreationTemplateService):
+        def __init__(self) -> None:
+            super().__init__()
+            self.canonical_inputs: list[str] = []
+            self.get_calls: list[tuple[str, str]] = []
+            self.delete_calls: list[tuple[str, str]] = []
+
+        def canonical_template_id(self, template_id: str) -> str:  # type: ignore[override]
+            self.canonical_inputs.append(template_id)
+            return CreationTemplateService.canonical_template_id(template_id)
+
+        def get_template(self, user_id: str, template_id: str) -> CreationTemplateEntry | None:  # type: ignore[override]
+            self.get_calls.append((user_id, template_id))
+            return CreationTemplateEntry(
+                id=template_id,
+                name="Trimmed template",
+                mode="generated_book",
+                created_at=1_800_000_000.0,
+                updated_at=1_800_000_100.0,
+                payload={},
+            )
+
+        def delete_template(self, user_id: str, template_id: str) -> bool:  # type: ignore[override]
+            self.delete_calls.append((user_id, template_id))
+            return True
+
+    app = create_app()
+    service = RecordingService()
+    app.dependency_overrides[get_creation_template_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice@example.test",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            fetched = client.get("/api/creation/templates/%20%20draft%20template%3Fsecret%20%20")
+            deleted = client.delete("/api/creation/templates/%20%20draft%20template%3Fsecret%20%20")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert fetched.status_code == 200
+    assert fetched.json()["id"] == "draft_template_secret"
+    assert deleted.status_code == 200
+    assert deleted.json() == {"deleted": True, "template_id": "draft_template_secret"}
+    assert service.canonical_inputs == [
+        "draft template?secret",
+        "draft template?secret",
+    ]
+    assert service.get_calls == [("alice@example.test", "draft_template_secret")]
+    assert service.delete_calls == [("alice@example.test", "draft_template_secret")]
 
 
 def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -> None:

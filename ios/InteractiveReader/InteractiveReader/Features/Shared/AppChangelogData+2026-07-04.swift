@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-create-template-route-id-helper",
+            title: "Template IDs share cleanup",
+            detail: "Backend Create template get and delete routes now trim template identifiers through the shared route helper before canonicalizing them, keeping Apple and Web saved-template handoffs aligned."
+        ),
+        AppChangelogEntry(
             id: "backend-lookup-cache-route-id-helper",
             title: "Lookup cache IDs share cleanup",
             detail: "Backend MyLinguist lookup-cache full, summary, word, and bulk routes now trim job identifiers through the shared route helper before cache lookup, keeping Web and Apple lookup handoffs aligned."
