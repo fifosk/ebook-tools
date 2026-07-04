@@ -128,6 +128,7 @@ extension InteractivePlayerView {
                 PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)
             }
         }
+        .environment(\.colorScheme, .dark)
     }
 
     @ViewBuilder

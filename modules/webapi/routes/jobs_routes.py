@@ -490,9 +490,13 @@ async def get_pipeline_status(
 ):
     """Return the latest status for the requested job."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
+
     try:
         job = pipeline_service.get_job(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
@@ -602,9 +606,13 @@ async def stream_pipeline_events(
 ):
     """Stream progress events for ``job_id`` as Server-Sent Events."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
+
     try:
         job = pipeline_service.get_job(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )

@@ -6,6 +6,11 @@ extension AppChangelogData {
             detail: "Apple playback headers now keep their white sheen, pill fills, and fallback cover highlights more restrained on top of the dark glass base, preventing light-mode iPad chrome from looking washed out over dark playback."
         ),
         AppChangelogEntry(
+            id: "ipad-reader-header-dark-surface-lock",
+            title: "iPad header ignores light chrome",
+            detail: "The Apple interactive reader header now renders its controls inside a dark color-scheme island, keeping system light mode from washing out the dark playback header over book backgrounds."
+        ),
+        AppChangelogEntry(
             id: "backend-playback-state-route-id-helper",
             title: "Playback state routes share ID cleanup",
             detail: "Bookmark and resume routes now trim playback-state route identifiers through one shared backend helper, keeping Web and Apple Continue/bookmark sync boundary behavior aligned."
@@ -24,6 +29,11 @@ extension AppChangelogData {
             id: "backend-jobs-action-route-id-helper",
             title: "Job action IDs share cleanup",
             detail: "Backend pause, resume, cancel, delete, and restart job actions now trim padded job identifiers through the shared route helper before service calls, keeping Apple Jobs and Web action behavior aligned."
+        ),
+        AppChangelogEntry(
+            id: "backend-jobs-status-route-id-helper",
+            title: "Job status IDs share cleanup",
+            detail: "Backend Pipeline Jobs status and event-stream routes now trim padded job identifiers through the shared route helper before service lookup, keeping Apple Jobs polling and progress streams aligned with Web."
         ),
         AppChangelogEntry(
             id: "backend-notification-route-id-helper",

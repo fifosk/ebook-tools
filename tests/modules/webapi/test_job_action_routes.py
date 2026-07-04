@@ -48,6 +48,9 @@ class _RecordingPipelineService:
     def restart_job(self, job_id: str, *, user_id=None, user_role=None) -> PipelineJob:
         return self._record("restart", job_id, user_id=user_id, user_role=user_role)
 
+    def get_job(self, job_id: str, *, user_id=None, user_role=None) -> PipelineJob:
+        return self._record("get", job_id, user_id=user_id, user_role=user_role)
+
 
 class _RestartValueErrorPipelineService:
     def restart_job(self, job_id: str, *, user_id=None, user_role=None):
@@ -103,7 +106,7 @@ def test_job_action_routes_use_shared_route_id_normalizer() -> None:
     assert "normalized_job_id = normalize_route_id(job_id)" in source
 
 
-def test_job_action_routes_reject_blank_job_id_without_service_lookup() -> None:
+def test_job_status_and_events_normalize_route_job_id() -> None:
     app = create_app()
     service = _RecordingPipelineService()
     app.dependency_overrides[get_pipeline_service] = lambda: service
@@ -114,7 +117,43 @@ def test_job_action_routes_reject_blank_job_id_without_service_lookup() -> None:
 
     try:
         with TestClient(app) as client:
-            response = client.post("/api/pipelines/jobs/%20%20%20/restart")
+            status_response = client.get("/api/pipelines/%20%20job-1%20%20")
+            event_response = client.get("/api/pipelines/%20%20job-1%20%20/events")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert status_response.status_code == 200
+    assert status_response.json()["job_id"] == "job-1"
+    assert event_response.status_code == 200
+    assert service.calls == [
+        ("get", "job-1", "alice", "editor"),
+        ("get", "job-1", "alice", "editor"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("get", "/api/pipelines/%20%20%20"),
+        ("get", "/api/pipelines/%20%20%20/events"),
+        ("post", "/api/pipelines/jobs/%20%20%20/restart"),
+    ],
+)
+def test_job_routes_reject_blank_job_id_without_service_lookup(
+    method: str,
+    path: str,
+) -> None:
+    app = create_app()
+    service = _RecordingPipelineService()
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = getattr(client, method)(path)
     finally:
         app.dependency_overrides.clear()
 

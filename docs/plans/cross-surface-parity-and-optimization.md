@@ -2595,9 +2595,9 @@ Suggested features to evaluate after parity scaffolding:
   shared client runtime helpers. The public runtime descriptor advertises both
   Jobs action routes and Library action routes, and Apple Settings/readiness
   checks compare them before simulator or device deployment. Backend Jobs
-  action routes now share the same route-id cleanup helper used by playback
-  state/media/search routes before pause, resume, cancel, delete, or restart
-  service calls.
+  status, SSE event-stream, and action routes now share the same route-id
+  cleanup helper used by playback state/media/search routes before status,
+  event, pause, resume, cancel, delete, or restart service calls.
 - Apple playback media/linguist route contract. Status: Apple media,
   live-media, chunk, library media, timing, subtitle metadata, lookup-cache,
   assistant lookup, and audio synthesis paths now use route helpers. The public
