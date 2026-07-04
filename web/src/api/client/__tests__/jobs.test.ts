@@ -369,6 +369,15 @@ describe('jobs API client', () => {
       })))
       .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
         providers: [
+          acquisitionProvider({
+            id: 'zlibrary_attended',
+            discovery_media_kinds: [],
+            default_eligible_media_kinds: ['book']
+          })
+        ]
+      })))
+      .mockResolvedValueOnce(jsonResponse(acquisitionProviderListResponse({
+        providers: [
           acquisitionProvider({ configured: 'true' })
         ]
       })))
@@ -419,6 +428,9 @@ describe('jobs API client', () => {
     );
     await expect(fetchAcquisitionProviders()).rejects.toThrow(
       'Invalid acquisition provider response: missing default_eligible_media_kinds.'
+    );
+    await expect(fetchAcquisitionProviders()).rejects.toThrow(
+      'Invalid acquisition provider response: default_eligible_media_kinds must be discoverable for zlibrary_attended.'
     );
     await expect(fetchAcquisitionProviders()).rejects.toThrow(
       'Invalid acquisition provider response: missing configured.'

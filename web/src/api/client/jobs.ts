@@ -440,13 +440,16 @@ function assertAcquisitionProviderListResponse(
     if (!Array.isArray(provider.default_eligible_media_kinds)) {
       throw new Error('Invalid acquisition provider response: missing default_eligible_media_kinds.');
     }
-    assertStringArray(provider.discovery_media_kinds, 'discovery_media_kinds');
+    const discoveryMediaKinds = assertStringArray(
+      provider.discovery_media_kinds,
+      'discovery_media_kinds'
+    );
     const defaultEligibleMediaKinds = assertStringArray(
       provider.default_eligible_media_kinds,
       'default_eligible_media_kinds'
     );
     assertAllowedStringArray(
-      provider.discovery_media_kinds,
+      discoveryMediaKinds,
       ACQUISITION_MEDIA_KINDS,
       'discovery_media_kinds'
     );
@@ -454,6 +457,11 @@ function assertAcquisitionProviderListResponse(
       defaultEligibleMediaKinds,
       ACQUISITION_MEDIA_KINDS,
       'default_eligible_media_kinds'
+    );
+    assertDefaultEligibleMediaKindsAreDiscoverable(
+      providerId,
+      defaultEligibleMediaKinds,
+      discoveryMediaKinds
     );
     defaultEligibleMediaKindsByProviderId.set(providerId, defaultEligibleMediaKinds);
     if (
@@ -483,6 +491,19 @@ function assertAcquisitionProviderListResponse(
     defaultEligibleMediaKindsByProviderId,
     'default_provider_ids'
   );
+}
+
+function assertDefaultEligibleMediaKindsAreDiscoverable(
+  providerId: string,
+  defaultEligibleMediaKinds: string[],
+  discoveryMediaKinds: string[]
+): void {
+  const discoveryMediaKindSet = new Set(discoveryMediaKinds);
+  if (defaultEligibleMediaKinds.some((mediaKind) => !discoveryMediaKindSet.has(mediaKind))) {
+    throw new Error(
+      `Invalid acquisition provider response: default_eligible_media_kinds must be discoverable for ${providerId}.`
+    );
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

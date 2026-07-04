@@ -318,6 +318,7 @@ struct AcquisitionDiscoveryResponse: Decodable, Equatable {
 
 enum AcquisitionContractValidationError: Error, LocalizedError, Equatable {
     case invalidProviderValue(providerID: String, field: String, value: String)
+    case invalidProviderDefaultEligibility(providerID: String, mediaKind: String)
     case invalidDefaultProviderMediaKind(mediaKind: String)
     case invalidDefaultProviderID(mediaKind: String, providerID: String)
     case invalidDefaultProviderEligibility(mediaKind: String, providerID: String)
@@ -327,6 +328,8 @@ enum AcquisitionContractValidationError: Error, LocalizedError, Equatable {
         switch self {
         case let .invalidProviderValue(providerID, field, value):
             return "Invalid acquisition provider response: provider \(providerID) has unsupported \(field) value \(value)."
+        case let .invalidProviderDefaultEligibility(providerID, mediaKind):
+            return "Invalid acquisition provider response: provider \(providerID) default eligibility for \(mediaKind) is not discoverable."
         case let .invalidDefaultProviderMediaKind(mediaKind):
             return "Invalid acquisition provider response: default providers include unsupported media kind \(mediaKind)."
         case let .invalidDefaultProviderID(mediaKind, providerID):
@@ -368,6 +371,12 @@ enum AcquisitionContractValidation {
                 providerID: provider.id,
                 field: "default_eligible_media_kinds"
             )
+            for mediaKind in provider.defaultEligibleMediaKinds where !provider.discoveryMediaKinds.contains(mediaKind) {
+                throw AcquisitionContractValidationError.invalidProviderDefaultEligibility(
+                    providerID: provider.id,
+                    mediaKind: mediaKind
+                )
+            }
         }
         for mediaKind in response.defaultProviderIds.keys where !mediaKinds.contains(mediaKind) {
             throw AcquisitionContractValidationError.invalidDefaultProviderMediaKind(mediaKind: mediaKind)
