@@ -317,6 +317,33 @@ describe('videoDubbingDiscovery', () => {
     );
   });
 
+  it('uses backend policy notes for unavailable selected video providers', () => {
+    const state = resolveVideoDiscoveryProviderState({
+      selectedProvider: 'manual_downloads',
+      providers: [
+        provider({
+          id: 'manual_downloads',
+          label: 'Manual folders',
+          media_kinds: ['book', 'video'],
+          capabilities: ['import_local'],
+          status: 'not_configured',
+          configured: true,
+          available: false,
+          source_label: 'Manual download roots',
+          policy_notes: [
+            'Scans configured backend-visible folders after attended downloads.',
+            'Configure manual download roots.'
+          ]
+        })
+      ]
+    });
+
+    expect(state.isSelectedVideoDiscoveryProviderAvailable).toBe(false);
+    expect(state.selectedVideoDiscoveryProviderUnavailableMessage).toBe(
+      'Manual folders is not configured. Scans configured backend-visible folders after attended downloads.'
+    );
+  });
+
   it('resolves default-provider availability from available backend defaults', () => {
     const state = resolveVideoDiscoveryProviderState({
       selectedProvider: DEFAULT_VIDEO_DISCOVERY_PROVIDER,

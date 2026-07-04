@@ -177,7 +177,7 @@ export function resolveVideoDiscoveryProviderState({
       : selectedVideoDiscoveryProvider && !selectedVideoDiscoveryProvider.available
         ? selectedProvider === 'youtube_search'
           ? youtubeSearchUnavailableMessage
-          : `${selectedVideoDiscoveryProvider.label} is ${selectedVideoDiscoveryProvider.status.replace('_', ' ')}. Configure ${providerSourceLabel(selectedVideoDiscoveryProvider).toLowerCase()} or choose another discovery source.`
+          : providerUnavailableMessage(selectedVideoDiscoveryProvider)
         : null;
 
   return {
@@ -240,6 +240,14 @@ export function filterDiscoveredVideoCandidates(
 
 function isVideoDiscoveryProvider(provider: AcquisitionProvider) {
   return provider.discovery_media_kinds.includes('video');
+}
+
+function providerUnavailableMessage(provider: AcquisitionProvider): string {
+  const policyNote = provider.policy_notes.find((note) => note.trim());
+  if (policyNote) {
+    return `${provider.label} is ${provider.status.replace('_', ' ')}. ${policyNote.trim()}`;
+  }
+  return `${provider.label} is ${provider.status.replace('_', ' ')}. Configure ${providerSourceLabel(provider).toLowerCase()} or choose another discovery source.`;
 }
 
 function defaultableVideoProviderIds(
