@@ -245,56 +245,13 @@ private struct LibraryPlaybackInfoPill: View {
             .foregroundStyle(Color.white.opacity(0.84))
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.78))
-                    .overlay(
-                        Capsule(style: .continuous)
-                            .fill(.ultraThinMaterial)
-                            .environment(\.colorScheme, .dark)
-                            .opacity(0.08)
-                    )
-                    .overlay(
-                        Capsule(style: .continuous)
-                            .fill(Color.white.opacity(0.045))
-                    )
-                    .overlay(
-                        Capsule(style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
-                    )
-            )
+            .background(PlayerHeaderPillBackground(isActive: true))
     }
 }
 
 private struct LibraryPlaybackIdentityBannerBackground: View {
     var body: some View {
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(Color(red: 0.012, green: 0.016, blue: 0.026).opacity(0.99))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.thinMaterial)
-                    .environment(\.colorScheme, .dark)
-                    .opacity(0.035)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.006),
-                                Color.black.opacity(0.28),
-                                Color.black.opacity(0.74)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.34), lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.38), radius: 16, x: 0, y: 10)
+        PlayerHeaderIdentityBannerBackground(cornerRadius: 16)
     }
 }
 

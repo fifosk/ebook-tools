@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-04
 
+### 2026.07.04.009
+
+- Apple Library playback now uses the same shared dark header and pill chrome as the interactive reader, keeping iPad light mode from washing out metadata over dark playback backgrounds.
+- Advanced visible Apple app versioning to `v2026.07.04.009`.
+
 ### 2026.07.04.008
 
 - Apple deploy readiness now has `make apple-device-deploy-dry-run-matrix`, a no-install preview for the default iPad Pro, iPhone, and Living Room TV build/install/verify/launch routes before any explicit device deploy.

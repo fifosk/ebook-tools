@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-library-header-shares-dark-chrome",
+            title: "Library header keeps dark contrast",
+            detail: "Apple Library playback now uses the same shared dark header and pill chrome as the interactive reader, keeping iPad light mode from washing out metadata over dark playback backgrounds."
+        ),
+        AppChangelogEntry(
             id: "backend-admin-user-route-id-helper",
             title: "Admin user IDs share cleanup",
             detail: "Backend admin user suspend, edit, activate, password reset, and delete routes now trim usernames through the shared route helper before account lookup, keeping Web admin controls on the same boundary contract."
