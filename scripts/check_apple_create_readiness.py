@@ -176,26 +176,17 @@ REQUIRED_ACQUISITION_PROVIDERS = {
         "capabilities": {"search", "metadata", "acquire"},
     },
 }
-EXPLICIT_ONLY_ACQUISITION_DISCOVERY_PROVIDERS = {
-    "youtube_url",
-}
+EXPLICIT_ONLY_ACQUISITION_DISCOVERY_PROVIDERS = frozenset(
+    _provider_catalog.EXPLICIT_ONLY_DISCOVERY_PROVIDER_IDS
+)
 SOURCE_LABELED_ACQUISITION_PROVIDERS = {
     "local_epub",
     "manual_downloads",
     "nas_video",
 }
 REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS = {
-    "local_epub": {"book"},
-    "manual_downloads": {"book", "video"},
-    "nas_video": {"video"},
-    "youtube_url": {"video"},
-    "youtube_search": {"video"},
-    "newznab_torznab": {"video"},
-    "openlibrary": {"book"},
-    "gutenberg": {"book"},
-    "internet_archive": {"book"},
-    "download_station": set(),
-    "zlibrary_attended": set(),
+    provider_id: set(_provider_catalog.discovery_media_kinds_for(provider_id))
+    for provider_id in REQUIRED_ACQUISITION_PROVIDERS
 }
 EXPECTED_ACQUISITION_PROVIDER_LABELS = dict(_provider_catalog.ACQUISITION_PROVIDER_LABELS)
 
@@ -707,6 +698,16 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, set())
             - declared_discovery_media_kinds
         )
+        if isinstance(raw_default_eligible_media_kinds, list):
+            declared_default_eligible_media_kinds = _string_set(raw_default_eligible_media_kinds)
+            non_discoverable_default_media = sorted(
+                declared_default_eligible_media_kinds - declared_discovery_media_kinds
+            )
+            if non_discoverable_default_media:
+                invalid.append(
+                    f"{provider_id}.default_eligible_media_kinds_not_discoverable:"
+                    + ",".join(non_discoverable_default_media)
+                )
         if missing_media:
             invalid.append(f"{provider_id}.media_kinds:{','.join(missing_media)}")
         if missing_capabilities:

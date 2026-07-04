@@ -91,6 +91,9 @@ def build_sentence_splitter_capabilities() -> dict[str, object]:
 
 def test_create_readiness_paths_follow_runtime_descriptor() -> None:
     assert module.EXPECTED_CREATE_PATHS == module._runtime_descriptor.CREATION_DESCRIPTOR
+    assert module.EXPLICIT_ONLY_ACQUISITION_DISCOVERY_PROVIDERS == frozenset(
+        module._provider_catalog.EXPLICIT_ONLY_DISCOVERY_PROVIDER_IDS
+    )
     assert module.EXPECTED_PIPELINE_FILES_PICKER_MIN_LIMIT == 1
     assert module.EXPECTED_PIPELINE_FILES_PICKER_LIMIT == 200
     assert module.EXPECTED_PIPELINE_FILES_PICKER_MAX_LIMIT == 500
@@ -1030,6 +1033,83 @@ def test_acquisition_provider_inventory_rejects_default_without_default_eligibil
     ]
 
 
+def test_acquisition_provider_inventory_rejects_default_eligibility_outside_discovery() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        entry = {
+            "id": provider_id,
+            "media_kinds": sorted(requirements["media_kinds"]),
+            "capabilities": sorted(requirements["capabilities"]),
+            "available": provider_id != "zlibrary_attended",
+            "policy_notes": (
+                [
+                    "Direct Z-Library automation is intentionally disabled.",
+                    "Use an attended browser/download workflow only.",
+                ]
+                if provider_id == "zlibrary_attended"
+                else []
+            ),
+            "discovery_media_kinds": sorted(
+                module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, [])
+            ),
+        }
+        providers.append(add_source_label(entry, provider_id))
+
+    local_epub = next(provider for provider in providers if provider["id"] == "local_epub")
+    local_epub["discovery_media_kinds"] = ["book"]
+    local_epub["default_eligible_media_kinds"] = ["book", "video"]
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["local_epub"],
+            "video": ["nas_video"],
+        },
+    })
+
+    assert inventory["acquisition_providers_ready"] is False
+    assert inventory["invalid_acquisition_providers"] == [
+        "local_epub.default_eligible_media_kinds_not_discoverable:video"
+    ]
+    assert inventory["acquisition_default_provider_issues"] == []
+
+
+def test_acquisition_provider_inventory_rejects_zlibrary_default_as_explicit_only() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        entry = {
+            "id": provider_id,
+            "media_kinds": sorted(requirements["media_kinds"]),
+            "capabilities": sorted(requirements["capabilities"]),
+            "available": provider_id != "zlibrary_attended",
+            "policy_notes": (
+                [
+                    "Direct Z-Library automation is intentionally disabled.",
+                    "Use an attended browser/download workflow only.",
+                ]
+                if provider_id == "zlibrary_attended"
+                else []
+            ),
+            "discovery_media_kinds": sorted(
+                module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, [])
+            ),
+        }
+        providers.append(add_source_label(entry, provider_id))
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["zlibrary_attended"],
+            "video": ["nas_video"],
+        },
+    })
+
+    assert inventory["acquisition_default_providers_ready"] is False
+    assert inventory["acquisition_default_provider_issues"] == [
+        "book.zlibrary_attended.explicit_only"
+    ]
+
+
 def test_acquisition_provider_inventory_reports_indexer_handoff_misconfiguration() -> None:
     providers = []
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
@@ -1546,7 +1626,7 @@ def test_acquisition_default_discovery_inventory_ignores_explicit_only_defaults(
     inventory = module.acquisition_default_discovery_inventory(
         "https://api.example.test",
         "token",
-        {"default_provider_ids": {"book": ["youtube_url"], "video": ["youtube_url"]}},
+        {"default_provider_ids": {"book": ["zlibrary_attended"], "video": ["youtube_url"]}},
         1.0,
     )
 
