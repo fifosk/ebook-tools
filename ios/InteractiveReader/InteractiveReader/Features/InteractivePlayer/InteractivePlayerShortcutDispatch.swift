@@ -111,7 +111,7 @@ extension KeyboardCommandHandler.KeyCommandController {
         if source != "gc",
            let lastShortcutDispatch,
            lastShortcutDispatch.shortcut == shortcut,
-           now - lastShortcutDispatch.timestamp < 0.16 {
+           now - lastShortcutDispatch.timestamp < duplicateShortcutWindow(for: shortcut) {
             return
         }
         lastShortcutDispatch = (shortcut, now)
@@ -137,7 +137,7 @@ extension KeyboardCommandHandler.KeyCommandController {
         let now = ProcessInfo.processInfo.systemUptime
         if let lastShortcutDispatch,
            lastShortcutDispatch.shortcut == shortcut,
-           now - lastShortcutDispatch.timestamp < 0.16 {
+           now - lastShortcutDispatch.timestamp < duplicateShortcutWindow(for: shortcut) {
             #if DEBUG
             keyboardShortcutDebugLog("[KeyboardShortcut] UIKit ignored \(shortcut) after recent GameController dispatch")
             #endif
@@ -149,7 +149,7 @@ extension KeyboardCommandHandler.KeyCommandController {
             let now = ProcessInfo.processInfo.systemUptime
             if let lastShortcutDispatch = self.lastShortcutDispatch,
                lastShortcutDispatch.shortcut == shortcut,
-               now - lastShortcutDispatch.timestamp < 0.16 {
+               now - lastShortcutDispatch.timestamp < self.duplicateShortcutWindow(for: shortcut) {
                 return
             }
             guard !self.shouldSuppressPhysicalArrowDuplicate(shortcut, source: "ui-backup") else {
@@ -167,6 +167,10 @@ extension KeyboardCommandHandler.KeyCommandController {
         keyboardShortcutDebugLog("[KeyboardShortcut] UIKit deferred \(shortcut) because GameController is active")
         #endif
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: workItem)
+    }
+
+    private func duplicateShortcutWindow(for shortcut: ShortcutDispatch) -> TimeInterval {
+        shortcut == .playPause ? 0.45 : 0.16
     }
 
     private func cancelPendingUIKitFallback(_ shortcut: ShortcutDispatch) {

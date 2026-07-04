@@ -522,7 +522,7 @@ struct MusicBedSyncE2EControls: View {
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
             .padding()
             .task {
-                await runAutoSequenceIfNeeded()
+                scheduleAutoSequenceWhenReady()
             }
             #if os(tvOS)
             .onChange(of: musicOwnership.e2eMusicBedSyncPhase) { _, phase in
@@ -568,20 +568,24 @@ struct MusicBedSyncE2EControls: View {
     @MainActor
     private func runAutoSequenceIfNeeded() async {
         guard !MusicBedSyncE2EState.didRunAutoSequence else { return }
+        guard hasReaderContext else { return }
         MusicBedSyncE2EState.didRunAutoSequence = true
-        #if os(tvOS)
-        let initialPauseDelay: TimeInterval = 18.0
+        musicOwnership.simulateReadingBedPlayForE2E()
+        for retryDelay in [0.5, 1.0, 2.0, 3.5, 5.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) {
+                attemptInteractiveStartForE2EIfReady()
+            }
+        }
+        #if os(iOS)
         #else
-        let initialPauseDelay: TimeInterval = 8.0
-        #endif
-        DispatchQueue.main.asyncAfter(deadline: .now() + initialPauseDelay) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 18.0) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPauseForE2E()
-            #if os(tvOS)
             audioCoordinator.pause()
-            #endif
         }
-        #if os(tvOS)
+        #endif
+        #if os(iOS)
+        #else
         DispatchQueue.main.asyncAfter(deadline: .now() + 36.0) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPlayForE2E()
@@ -606,6 +610,20 @@ struct MusicBedSyncE2EControls: View {
                   !musicOwnership.isReaderTransportPauseGuardActive
             else { return }
             musicOwnership.simulateReadingBedPlayForE2E()
+        }
+    }
+
+    @MainActor
+    private func scheduleAutoSequenceWhenReady() {
+        Task { @MainActor in
+            await runAutoSequenceIfNeeded()
+        }
+        for retryDelay in [0.5, 1.0, 2.0, 3.5, 5.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) {
+                Task { @MainActor in
+                    await runAutoSequenceIfNeeded()
+                }
+            }
         }
     }
 

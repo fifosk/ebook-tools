@@ -581,10 +581,18 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func recoverReadingBedForActiveNarration(reason: String) {
-        guard ownershipState == .appleMusicBed else { return }
+        #if DEBUG
+        let canRecoverForE2E = isE2EMusicBedSyncTest
+        #else
+        let canRecoverForE2E = false
+        #endif
+        guard ownershipState == .appleMusicBed || hasQueuedMusicForAutoResume || canRecoverForE2E else { return }
         guard !isPlaying, !isManuallyPaused, !isPausedByReaderTransport else { return }
         guard !isReaderTransportPauseHoldActive else { return }
         hasAutoResumeIntent = true
+        ownershipState = .appleMusicBed
+        isSuppressingMusicPlaybackSurface = true
+        updateMusicPlaybackSurfaceSuppression(reason: "\(reason)-recovery")
         #if DEBUG
         if isE2EMusicBedSyncTest {
             simulateReadingBedPlayForE2E()

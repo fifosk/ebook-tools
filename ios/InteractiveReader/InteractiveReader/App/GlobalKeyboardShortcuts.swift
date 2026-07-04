@@ -626,7 +626,7 @@ final class PlayerKeyboardShortcutBroker {
         let now = ProcessInfo.processInfo.systemUptime
         if let lastDispatch,
            lastDispatch.name == name,
-           now - lastDispatch.timestamp < 0.12 {
+           now - lastDispatch.timestamp < duplicateDispatchWindow(for: name) {
             return
         }
         lastDispatch = (name, now)
@@ -634,6 +634,10 @@ final class PlayerKeyboardShortcutBroker {
             return
         }
         NotificationCenter.default.post(name: name, object: self)
+    }
+
+    private func duplicateDispatchWindow(for name: Notification.Name) -> TimeInterval {
+        name == .keyboardShortcutPlayPause ? 0.45 : 0.12
     }
 
     private func invokeRegisteredAction(for name: Notification.Name) -> Bool {

@@ -340,6 +340,9 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "case .next, .nextSentence, .extendSelectionForward, .bubbleNavigateRight:" in shortcut_dispatch
     assert "func shouldSuppressPhysicalArrowDuplicate(" in shortcut_dispatch
     assert "now - lastPhysicalArrowDispatch.timestamp < 0.16" in shortcut_dispatch
+    assert "private func duplicateShortcutWindow(for shortcut: ShortcutDispatch) -> TimeInterval" in shortcut_dispatch
+    assert "shortcut == .playPause ? 0.45 : 0.16" in shortcut_dispatch
+    assert "now - lastShortcutDispatch.timestamp < duplicateShortcutWindow(for: shortcut)" in shortcut_dispatch
     assert "source != \"gc\", source != \"broker\", hardwareKeyboardInput != nil" in shortcut_dispatch
     assert "scheduleUIKitFallback(shortcut, action: action)\n            return" not in dispatch_body
     assert "scheduleUIKitFallback(shortcut, action: action)\n        }\n        guard !shouldSuppressPhysicalArrowDuplicate" in dispatch_body
@@ -438,6 +441,9 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "case .spacebar, .leftArrow, .rightArrow, .returnOrEnter," in app_shortcuts
     assert "case .keyboardSpacebar, .keyboardLeftArrow, .keyboardRightArrow," in app_shortcuts
     assert "post(.keyboardShortcutPlayPause)" in app_shortcuts
+    assert "private func duplicateDispatchWindow(for name: Notification.Name) -> TimeInterval" in app_shortcuts
+    assert "name == .keyboardShortcutPlayPause ? 0.45 : 0.12" in app_shortcuts
+    assert "now - lastDispatch.timestamp < duplicateDispatchWindow(for: name)" in app_shortcuts
     assert "#if os(iOS) || os(tvOS)" in app_shortcuts
     assert "handleRemotePress(press)" in app_shortcuts
     assert "private func handleRemotePress(_ press: UIPress)" in app_shortcuts

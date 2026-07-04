@@ -2170,9 +2170,12 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "handleObservedNonPlayingStatus()" in reconcile_body
 
     recovery_body = _function_body(music, "func recoverReadingBedForActiveNarration(reason: String)")
-    assert "guard ownershipState == .appleMusicBed else { return }" in recovery_body
+    assert "ownershipState == .appleMusicBed || hasQueuedMusicForAutoResume || canRecoverForE2E" in recovery_body
     assert "guard !isPlaying, !isManuallyPaused, !isPausedByReaderTransport else { return }" in recovery_body
     assert "hasAutoResumeIntent = true" in recovery_body
+    assert "ownershipState = .appleMusicBed" in recovery_body
+    assert "isSuppressingMusicPlaybackSurface = true" in recovery_body
+    assert 'updateMusicPlaybackSurfaceSuppression(reason: "\\(reason)-recovery")' in recovery_body
     assert "if isE2EMusicBedSyncTest" in recovery_body
     assert "simulateReadingBedPlayForE2E()" in recovery_body
     assert "guard canAutoResumeReadingBed else { return }" in recovery_body

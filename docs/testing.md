@@ -1175,6 +1175,13 @@ make apple-device-verify-music-bed-launch-log \
   APPLE_DEVICE_ID="Living Room Apple TV"
 ```
 
+Current launch-console verification requires the app startup breadcrumb
+`Apple app build release=...` to match the repo's Apple release through
+`APPLE_MUSIC_BED_LAUNCH_REQUIRED_RELEASE` (defaulting to the tvOS Info plist
+release). A stale physical install or older launch capture now fails before
+reader/Music breadcrumbs are interpreted, with a hint to deploy the current
+build first.
+
 Use `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=reader-progress` after a launch/playback
 capture to require the reader Now Playing sentence position to advance beyond
 startup, catching logs where transport says `playing` but stays pinned at zero.
@@ -1339,7 +1346,10 @@ tests, use `apple-device-pull-and-verify-current-playback-transport-log`,
 `apple-device-pull-and-verify-current-playback-transport-pause-resume-log`,
 `apple-device-pull-and-verify-current-playback-resume-offset-log`, or the
 combined `apple-device-pull-and-verify-current-reader-repro-log`; these targets
-resolve the current git commit and pass it to the verifier automatically.
+resolve the current git commit plus the Apple release and pass both to the
+verifier automatically. If the latest physical log reports an older release
+(`playback build header release ... does not match required ...`), redeploy the
+current build before using that log as evidence for a new playback fix.
 For pause-only captures, the pulled playback-log checker evaluates every
 Music/app pause handoff as a numbered pause episode. If any episode does not
 contain active narration-pause evidence and settled

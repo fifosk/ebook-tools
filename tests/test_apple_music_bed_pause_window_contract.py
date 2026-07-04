@@ -45,7 +45,8 @@ def test_tvos_observed_music_pause_after_reader_play_is_time_bounded() -> None:
     assert "return duplicateWindow" in window_body
     assert "return 0" in window_body
     assert "#if os(tvOS)" in adopted_window_body
-    assert adopted_window_body.count("return brokerEchoWindow") == 2
+    assert "return hardwarePressEchoWindow" in adopted_window_body
+    assert adopted_window_body.count("return brokerEchoWindow") == 1
     assert "#if os(tvOS)" in recovery_limit_body
     assert "return 6" in recovery_limit_body
     assert "return 2" in recovery_limit_body
@@ -136,6 +137,23 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         observed_pause_body = _function_body(source, "private func isObservedAppleMusicNonPlayingPause(reason: String?, source: String?)")
         assert 'reason == "observedNonPlaying"' in observed_pause_body, label
         assert 'localizedCaseInsensitiveContains("observed non-playing")' in observed_pause_body, label
+
+
+def test_apple_music_bed_ownership_seeds_reader_activity_before_now_playing() -> None:
+    for filename, label, expected_reason in (
+        ("JobPlaybackView.swift", "Job", "jobAudioOwnership"),
+        ("LibraryPlaybackView.swift", "Library", "libraryAudioOwnership"),
+    ):
+        source = _source(PLAYBACK / filename)
+        ownership_body = _function_body(source, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")
+        apple_music_bed_branch = ownership_body[
+            ownership_body.index("case .appleMusicBed:") : ownership_body.index("case .appleMusic:")
+        ]
+
+        assert f'refreshReaderNarrationActivityForMusicBed(reason: "{expected_reason}")' in apple_music_bed_branch, label
+        assert apple_music_bed_branch.index(
+            f'refreshReaderNarrationActivityForMusicBed(reason: "{expected_reason}")'
+        ) < apple_music_bed_branch.index("publishReaderNowPlayingSnapshot(force: true)"), label
 
 
 def test_tvos_music_paused_resume_does_not_override_active_reader_pause() -> None:

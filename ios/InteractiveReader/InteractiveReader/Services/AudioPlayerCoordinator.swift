@@ -64,6 +64,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     @Published private(set) var audioSessionLastLabel = "unconfigured"
     @Published private(set) var e2eRequestedTransitionPauseCount = 0
     @Published private(set) var e2eStickySequenceResumeCount = 0
+    @Published private(set) var isE2ERequestedTransitionPauseActive = false
 
     var isAudioSessionStableForMusicBed: Bool {
         let isMixingLabel = audioSessionLastLabel == "mixing" || audioSessionLastLabel == "mixing-ducked"
@@ -73,6 +74,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     func simulateRequestedTransitionPauseForMusicBedE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
         e2eRequestedTransitionPauseCount += 1
+        isE2ERequestedTransitionPauseActive = true
         isPlaybackRequested = true
         isPlaying = true
         setIdleTimerDisabled(true)
@@ -84,6 +86,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
 
     func simulateRequestedTransitionResumeForMusicBedE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        isE2ERequestedTransitionPauseActive = false
         isPlaybackRequested = true
         isPlaying = true
         setIdleTimerDisabled(true)

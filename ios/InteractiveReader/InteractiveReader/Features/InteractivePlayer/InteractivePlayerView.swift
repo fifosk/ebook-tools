@@ -64,6 +64,7 @@ struct InteractivePlayerView: View {
     @State var isShortcutHelpPinned = false
     @State var isShortcutHelpModifierActive = false
     @State var readingBedPauseTask: Task<Void, Never>?
+    @State var lastReaderTransportPauseToggleTime: TimeInterval = 0
     @AppStorage("interactive.trackFontScale") var trackFontScaleValue: Double =
         Double(InteractivePlayerView.defaultTrackFontScale)
     @AppStorage("interactive.autoScaleEnabled") var autoScaleEnabled: Bool = true

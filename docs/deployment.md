@@ -374,6 +374,11 @@ check the startup breadcrumbs, or set
 capture to also require reader Now Playing sentence position to advance beyond
 startup. The named shortcut is
 `make apple-device-verify-music-bed-reader-progress-log APPLE_DEVICE_ID=<device>`.
+Current launch-console verification also requires the app's token-safe
+`Apple app build release=...` breadcrumb to match the repo release by default
+(`APPLE_MUSIC_BED_LAUNCH_REQUIRED_RELEASE`). If an older physical install or a
+pre-breadcrumb capture is reused, the verifier fails before Music-bed evidence
+is treated as current-source proof.
 Set
 `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release` after a manual Play/Pause
 capture to require reader-owned Music pause and tvOS Music surface release
@@ -507,8 +512,11 @@ commit. For a specific test candidate, pass
 standalone verify target so a stale physical install is rejected before transport
 breadcrumbs are interpreted. The `apple-device-pull-and-verify-current-*`
 playback targets, including `apple-device-pull-and-verify-current-reader-repro-log`,
-resolve the current git commit and pass it to the same verifier automatically for
-normal latest-candidate hardware tests.
+resolve the current git commit and Apple release and pass both to the same
+verifier automatically for normal latest-candidate hardware tests. A mismatch
+such as `playback build header release 2026.07.03.001 does not match required
+2026.07.04.008` means the physical app must be redeployed before the log can
+diagnose a current playback regression.
 The cached transport verifier is intentionally narrower than the launch-console
 checker: it proves reader transport accepted pause/resume and rejects the legacy
 hardware echo resume sources before explicit reader play, without requiring

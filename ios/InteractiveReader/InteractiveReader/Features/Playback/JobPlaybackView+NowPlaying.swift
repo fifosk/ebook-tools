@@ -82,13 +82,13 @@ extension JobPlaybackView {
     }
 
     func toggleInteractiveReaderPlaybackTransport() {
-        if shouldForceInteractiveReaderTransportResume {
-            forcePlayReaderNowPlayingTransport(source: "interactiveOverride")
-            return
-        }
         if viewModel.audioCoordinator.isPlaybackRequested ||
             viewModel.audioCoordinator.isPlaying {
             forcePauseReaderNowPlayingTransport(source: "interactiveOverride")
+            return
+        }
+        if shouldForceInteractiveReaderTransportResume {
+            forcePlayReaderNowPlayingTransport(source: "interactiveOverride")
             return
         }
         toggleReaderNowPlayingTransport()
@@ -335,7 +335,6 @@ extension JobPlaybackView {
     }
 
     private var shouldDeferAppleMusicBedResumeUntilReaderActive: Bool {
-        #if os(tvOS)
         return musicOwnership.ownershipState == .appleMusicBed &&
             (
                 musicOwnership.isPausedByReaderTransport ||
@@ -347,9 +346,6 @@ extension JobPlaybackView {
                     )
                 )
             )
-        #else
-        return false
-        #endif
     }
 
     private func reassertReaderTransportAudioSessionForPlay() {

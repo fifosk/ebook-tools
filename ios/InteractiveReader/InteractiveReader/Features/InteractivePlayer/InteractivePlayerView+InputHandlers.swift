@@ -218,6 +218,15 @@ extension InteractivePlayerView {
     #endif
 
     func handlePlaybackToggleCommand() {
+        let now = ProcessInfo.processInfo.systemUptime
+        let shouldPauseActiveReader = audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested
+        if shouldSuppressReaderTransportPauseEcho(at: now, shouldPauseActiveReader: shouldPauseActiveReader) {
+            keyboardShortcutDebugLog("[KeyboardShortcut] Interactive ignored duplicate reader transport pause echo")
+            return
+        }
+        if shouldPauseActiveReader {
+            lastReaderTransportPauseToggleTime = now
+        }
         #if DEBUG
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
             InteractivePlayerE2EState.recordPlayPauseCommand(
@@ -252,6 +261,19 @@ extension InteractivePlayerView {
             return
         }
         resumeReaderTransportFromCommand()
+    }
+
+    private func shouldSuppressReaderTransportPauseEcho(
+        at now: TimeInterval,
+        shouldPauseActiveReader: Bool
+    ) -> Bool {
+        guard !shouldPauseActiveReader else { return false }
+        guard playbackToggleOverride != nil else { return false }
+        guard shouldCoordinateAppleMusicBedWithReaderTransport else { return false }
+        guard musicCoordinator.isPausedByReaderTransport ||
+            musicCoordinator.isReaderTransportPauseGuardActive
+        else { return false }
+        return now - lastReaderTransportPauseToggleTime < 1.0
     }
 
     private var shouldCoordinateAppleMusicBedWithReaderTransport: Bool {

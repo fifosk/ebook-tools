@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-music-bed-ownership-seeds-reader",
+            title: "TV playback keeps reader active",
+            detail: "Apple TV and iPad Job/Library playback now keep Apple Music bed ownership synchronized with active narration during startup, lookup-bubble resume, and sentence-transition recovery so one transport action resumes or pauses both layers."
+        ),
+        AppChangelogEntry(
             id: "tvos-reader-transport-sequence-rearm",
             title: "TV resume keeps sequence playback alive",
             detail: "Apple TV reader playback now re-arms sequence progression after reader-owned pause/resume and reloads the current segment when the tvOS bleed guard detached the audio item, preventing playback from stopping at the next sentence boundary."

@@ -262,6 +262,7 @@ struct LibraryPlaybackView: View {
             publishReaderNowPlayingSnapshot(force: true)
         case .appleMusicBed:
             configureAppleMusicBedAudioSession()
+            refreshReaderNarrationActivityForMusicBed(reason: "libraryAudioOwnership")
             publishReaderNowPlayingSnapshot(force: true)
             scheduleAppleMusicBedNowPlayingReassertion()
         case .appleMusic:
@@ -413,6 +414,9 @@ struct LibraryPlaybackView: View {
         }
         guard !viewModel.sequenceController.isDwelling else { return }
         guard !viewModel.isSequenceTransitioning else { return }
+        #if DEBUG
+        guard !viewModel.audioCoordinator.isE2ERequestedTransitionPauseActive else { return }
+        #endif
         guard viewModel.audioCoordinator.isPlaybackRequested,
               pendingInteractiveAutoplaySentence == nil,
               (
@@ -563,7 +567,11 @@ struct LibraryPlaybackView: View {
     }
 
     private func handleMusicKitReadingBedWatchdogTick() {
-        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else { return }
+        guard musicOwnership.ownershipState == .appleMusicBed else {
+            musicOwnership.recoverReadingBedForActiveNarration(reason: "libraryWatchdog")
+            return
+        }
         musicOwnership.refreshMusicPlaybackSurfaceSuppression(reason: "libraryWatchdog")
         refreshReaderNarrationActivityForMusicBed(reason: "libraryWatchdog")
         recoverPendingInteractiveAutoplayIfNeeded(reason: "libraryWatchdog")
@@ -580,7 +588,6 @@ struct LibraryPlaybackView: View {
             return
         }
         #endif
-        guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else { return }
         if shouldMirrorAppleMusicPauseToNarration {
             playbackLogger.info(
                 "Library playback watchdog pausing narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
