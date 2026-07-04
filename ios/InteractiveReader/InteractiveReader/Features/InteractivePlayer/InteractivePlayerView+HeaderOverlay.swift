@@ -850,6 +850,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                 headerIdentitySheen
             }
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .environment(\.colorScheme, .dark)
             .accessibilityIdentifier("interactiveReaderHeaderIdentityBanner")
     }
 
@@ -940,7 +941,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     private func headerProgressPill(label: String) -> some View {
         Text(label)
             .font(eyebrowFont)
-            .foregroundStyle(Color.white.opacity(0.86))
+            .foregroundStyle(Color.white.opacity(0.90))
             .multilineTextAlignment(.center)
             .lineLimit(2)
             .minimumScaleFactor(0.78)
@@ -963,9 +964,9 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                     Spacer(minLength: 8)
                     Text("\(Int(sentenceProgressValue.rounded()))")
                         .font(eyebrowFont.monospacedDigit())
-                        .foregroundStyle(Color.white.opacity(0.68))
+                        .foregroundStyle(Color.white.opacity(0.74))
                 }
-                .foregroundStyle(Color.white.opacity(0.78))
+                .foregroundStyle(Color.white.opacity(0.84))
                 Slider(
                     value: Binding(
                         get: { sentenceProgressValue },
@@ -994,7 +995,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
             if let subtitle = headerIdentitySubtitle(for: info) {
                 Text(subtitle)
                     .font(metaFont)
-                    .foregroundStyle(Color.white.opacity(0.74))
+                    .foregroundStyle(Color.white.opacity(0.82))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
                     .layoutPriority(1)
@@ -1003,7 +1004,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
             if !category.isEmpty {
                 Text(category.uppercased())
                     .font(eyebrowFont)
-                    .foregroundStyle(Color.white.opacity(0.68))
+                    .foregroundStyle(Color.white.opacity(0.76))
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
             }
@@ -1111,7 +1112,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
         }
-        .foregroundStyle(Color.white.opacity(0.82))
+        .foregroundStyle(Color.white.opacity(0.88))
         .padding(.horizontal, 8 * min(infoPillScale, 1.4))
         .padding(.vertical, 3 * min(infoPillScale, 1.4))
         .background(PlayerHeaderPillBackground(isActive: true, isProminent: true))
@@ -1123,7 +1124,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                 LinearGradient(
                     colors: [
                         Color.white.opacity(0.055),
-                        Color.white.opacity(0.008),
+                        Color.white.opacity(0.004),
                         Color.clear
                     ],
                     startPoint: .topTrailing,

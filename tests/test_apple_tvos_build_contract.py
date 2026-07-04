@@ -148,6 +148,15 @@ LIBRARY_PLAYBACK_CHROME = (
     / "Playback"
     / "LibraryPlaybackChromeViews.swift"
 )
+VIDEO_PLAYER_OVERLAY_STYLES = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "VideoPlayerOverlayStyles.swift"
+)
 MY_LINGUIST_VIEW_MODEL = (
     ROOT
     / "ios"
@@ -541,6 +550,7 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     channel_models_source = PLAYER_CHANNEL_MODELS.read_text(encoding="utf-8")
     header_overlay_source = INTERACTIVE_HEADER_OVERLAY.read_text(encoding="utf-8")
     library_playback_source = LIBRARY_PLAYBACK_CHROME.read_text(encoding="utf-8")
+    video_overlay_styles_source = VIDEO_PLAYER_OVERLAY_STYLES.read_text(encoding="utf-8")
     changelog_source = (
         ROOT
         / "ios"
@@ -574,12 +584,14 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert ".fill(PlayerHeaderContrastColors.panelReinforcement)" in channel_models_source
     assert ".fill(PlayerHeaderContrastColors.identityReinforcement)" in channel_models_source
     assert "PlayerHeaderContrastColors.prominentPillReinforcement : PlayerHeaderContrastColors.pillReinforcement" in channel_models_source
-    assert "static let panelReinforcement = Color.black.opacity(0.34)" in channel_models_source
-    assert "static let identityReinforcement = Color.black.opacity(0.40)" in channel_models_source
+    assert "static let panelReinforcement = Color.black.opacity(0.44)" in channel_models_source
+    assert "static let identityReinforcement = Color.black.opacity(0.54)" in channel_models_source
+    assert "static let pillReinforcement = Color.black.opacity(0.24)" in channel_models_source
+    assert "static let prominentPillReinforcement = Color.black.opacity(0.34)" in channel_models_source
     assert "if isProminent { return isActive ? 0.065 : 0.030 }" in channel_models_source
     assert "return isActive ? 0.055 : 0.025" in channel_models_source
-    assert ".strokeBorder(Color.white.opacity(0.22), lineWidth: 1)" in channel_models_source
     assert ".strokeBorder(Color.white.opacity(0.24), lineWidth: 1)" in channel_models_source
+    assert ".strokeBorder(Color.white.opacity(0.28), lineWidth: 1)" in channel_models_source
     assert ".fill(.thinMaterial)" not in channel_models_source
     assert ".fill(.ultraThinMaterial)" not in channel_models_source
     assert "ipad-reader-header-deterministic-dark-glass" in changelog_source
@@ -590,6 +602,7 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "higher dark contrast floor with less material wash in light mode" in changelog_source
     assert "PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)" in header_overlay_source
     assert "PlayerHeaderIdentityBannerBackground(cornerRadius: cornerRadius)" in header_overlay_source
+    assert ".environment(\\.colorScheme, .dark)" in header_overlay_source
     assert "private struct InteractivePlayerHeaderIdentityBanner: View" in header_overlay_source
     assert "let controls: AnyView" in header_overlay_source
     assert "self.controls = AnyView(controls())" in header_overlay_source
@@ -632,9 +645,14 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "PlayerHeaderPillBackground(isActive: true, isProminent: true)" in header_overlay_source
     assert "PlayerHeaderPillBackground(isActive: isNonDefault)" in header_pills_source
     assert "private struct LibraryPlaybackIdentityBannerBackground: View" in library_playback_source
-    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.94)" in library_playback_source
+    assert "Color(red: 0.012, green: 0.016, blue: 0.026).opacity(0.99)" in library_playback_source
     assert ".environment(\\.colorScheme, .dark)" in library_playback_source
-    assert ".strokeBorder(Color.white.opacity(0.30), lineWidth: 1)" in library_playback_source
+    assert ".strokeBorder(Color.white.opacity(0.34), lineWidth: 1)" in library_playback_source
+    assert ".foregroundStyle(Color.white)" in library_playback_source
+    assert ".foregroundStyle(Color.white.opacity(0.78))" in library_playback_source
     assert ".foregroundStyle(Color.white.opacity(0.84))" in library_playback_source
+    assert "Color(white: 0.07).opacity(0.90)" in video_overlay_styles_source
+    assert "Color(white: 0.04).opacity(0.72)" in video_overlay_styles_source
+    assert "Color(white: 0.02).opacity(0.52)" in video_overlay_styles_source
     assert "apple-library-playback-header-dark-glass" in changelog_source
     assert "avoiding pale light-mode chrome over dark iPad playback backgrounds" in changelog_source

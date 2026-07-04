@@ -10,9 +10,9 @@ enum VideoPlayerOverlayStyles {
     static var headerBackgroundGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(white: 0.18).opacity(0.7),
-                Color(white: 0.12).opacity(0.45),
-                Color(white: 0.08).opacity(0.2)
+                Color(white: 0.07).opacity(0.90),
+                Color(white: 0.04).opacity(0.72),
+                Color(white: 0.02).opacity(0.52)
             ],
             startPoint: .top,
             endPoint: .bottom

@@ -114,11 +114,12 @@ private struct LibraryPlaybackHeaderInfo: View {
                     .lineLimit(titleLineLimit)
                     .minimumScaleFactor(0.84)
                     .truncationMode(.tail)
+                    .foregroundStyle(Color.white)
                 Text(authorText)
                     .font(authorFont)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.white.opacity(0.78))
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 6) {
                         LibraryPlaybackInfoPill(
@@ -141,6 +142,7 @@ private struct LibraryPlaybackHeaderInfo: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(LibraryPlaybackIdentityBannerBackground())
+        .environment(\.colorScheme, .dark)
     }
 
     private var titleText: String {
@@ -267,21 +269,21 @@ private struct LibraryPlaybackInfoPill: View {
 private struct LibraryPlaybackIdentityBannerBackground: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.94))
+            .fill(Color(red: 0.012, green: 0.016, blue: 0.026).opacity(0.99))
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(.thinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(0.08)
+                    .opacity(0.035)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.024),
-                                Color.black.opacity(0.14),
-                                Color.black.opacity(0.58)
+                                Color.white.opacity(0.006),
+                                Color.black.opacity(0.28),
+                                Color.black.opacity(0.74)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -290,7 +292,7 @@ private struct LibraryPlaybackIdentityBannerBackground: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.30), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.34), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.38), radius: 16, x: 0, y: 10)
     }

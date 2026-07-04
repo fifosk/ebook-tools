@@ -81,9 +81,9 @@ struct PlayerHeaderGlassPanelBackground: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.010),
-                                Color.black.opacity(0.30),
-                                Color.black.opacity(0.78)
+                                Color.white.opacity(0.004),
+                                Color.black.opacity(0.38),
+                                Color.black.opacity(0.84)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -92,7 +92,7 @@ struct PlayerHeaderGlassPanelBackground: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.24), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.42), radius: 18, x: 0, y: 12)
     }
@@ -113,9 +113,9 @@ struct PlayerHeaderIdentityBannerBackground: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.010),
-                                Color.black.opacity(0.34),
-                                Color.black.opacity(0.80)
+                                Color.white.opacity(0.004),
+                                Color.black.opacity(0.44),
+                                Color.black.opacity(0.88)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -124,7 +124,7 @@ struct PlayerHeaderIdentityBannerBackground: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.24), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.28), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.38), radius: 16, x: 0, y: 10)
     }
@@ -167,8 +167,8 @@ enum PlayerHeaderContrastColors {
     static let identityBase = Color(red: 0.008, green: 0.012, blue: 0.020).opacity(1.0)
     static let pillBase = Color(red: 0.008, green: 0.012, blue: 0.020).opacity(0.94)
     static let prominentPillBase = Color(red: 0.008, green: 0.012, blue: 0.020).opacity(0.97)
-    static let panelReinforcement = Color.black.opacity(0.34)
-    static let identityReinforcement = Color.black.opacity(0.40)
-    static let pillReinforcement = Color.black.opacity(0.18)
-    static let prominentPillReinforcement = Color.black.opacity(0.26)
+    static let panelReinforcement = Color.black.opacity(0.44)
+    static let identityReinforcement = Color.black.opacity(0.54)
+    static let pillReinforcement = Color.black.opacity(0.24)
+    static let prominentPillReinforcement = Color.black.opacity(0.34)
 }
