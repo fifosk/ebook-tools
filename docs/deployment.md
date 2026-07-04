@@ -126,6 +126,12 @@ optional launch. The build metadata check validates bundled `branch.stamp` and
 skip-build app can touch the device. Add `--launch-console-timeout 10` when
 validating that the app does not immediately crash after launch; a console
 timeout is treated as success after the app survives the launch window.
+For iPhone/iPad profiles, both the repo-owned unattended helper and the shared
+Apple pipeline device helper pre-warm CoreDevice developer disk image services
+with `devicectl device info ddiServices --auto-mount-ddis` and require usable
+DDI metadata before proceeding. If `xcodebuild` waits forever for an otherwise
+available iOS device, unlock it, keep it awake, and rerun preflight so
+`ddiServicesAvailable` returns true before building or installing.
 For manual playback debugging after the app is already installed, prefer
 `--launch-only --launch-console-timeout <seconds>` so CoreDevice terminates and
 relaunches the app with console attached, without rebuilding or reinstalling.

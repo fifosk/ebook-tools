@@ -176,6 +176,9 @@ plus the serial iPad/tvOS Music-bed candidate gate.
 The fast-forward helper also removes stale untracked export-player JS bundles
 that are no longer referenced by `web/export-dist/export.html`, then fails if
 any other remote dirtiness remains.
+The shared physical-device deploy helper also pre-warms iPhone/iPad developer
+disk image services before attended builds or installs, matching the repo-owned
+unattended helper's DDI readiness gate.
 
 ```bash
 cd /Users/fifo/Projects/home/apple-device-app-pipeline

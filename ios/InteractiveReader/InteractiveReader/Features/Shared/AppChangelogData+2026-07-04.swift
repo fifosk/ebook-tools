@@ -3,7 +3,7 @@ extension AppChangelogData {
         AppChangelogEntry(
             id: "apple-reader-header-dark-glass",
             title: "Reader header stays readable",
-            detail: "Apple interactive reader header glass now anchors its panels and pills to a dark translucent base even in system light mode, keeping white book metadata and progress chrome legible over dark reader backgrounds."
+            detail: "Apple interactive reader header glass now anchors its panels and pills to a stronger dark translucent base with reduced light material wash, keeping white book metadata and progress chrome legible over dark reader backgrounds even when iPad is in system light mode."
         ),
         AppChangelogEntry(
             id: "apple-single-track-time-jump-anchor",

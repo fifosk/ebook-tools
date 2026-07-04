@@ -6,6 +6,7 @@ MAKEFILE="${ROOT_DIR}/Makefile"
 APPLE_PIPELINE_ROOT_DEFAULT="/Users/fifo/Projects/home/apple-device-app-pipeline"
 APPLE_PIPELINE_ROOT_RESOLVED="${APPLE_PIPELINE_ROOT:-${APPLE_PIPELINE_ROOT_DEFAULT}}"
 PIPELINE_BACKEND_CHECKER="${APPLE_PIPELINE_ROOT_RESOLVED}/scripts/check_app_backend.py"
+PIPELINE_DEVICE_DEPLOY="${APPLE_PIPELINE_ROOT_RESOLVED}/scripts/deploy_apple_device.py"
 
 assert_contains() {
   local haystack="$1"
@@ -212,6 +213,16 @@ if [[ -f "${PIPELINE_BACKEND_CHECKER}" ]]; then
   assert_contains "${backend_checker}" "deployed backend " "shared backend checker should identify stale deployed backend runtime"
   assert_contains "${backend_checker}" "is older than the app manifest" "shared backend checker should guide stale backend remediation"
   assert_contains "${backend_checker}" "before debugging Apple client or device behavior" "shared backend checker should keep runtime drift from looking like an Apple/device bug"
+fi
+
+if [[ -f "${PIPELINE_DEVICE_DEPLOY}" ]]; then
+  device_deploy_helper="$(<"${PIPELINE_DEVICE_DEPLOY}")"
+  assert_contains "${device_deploy_helper}" "ensure_developer_disk_image_services" "shared device deploy helper should pre-warm iPhone/iPad DDI services"
+  assert_contains "${device_deploy_helper}" '"device",' "shared device deploy helper should call CoreDevice device commands"
+  assert_contains "${device_deploy_helper}" '"info",' "shared device deploy helper should call CoreDevice info commands"
+  assert_contains "${device_deploy_helper}" "ddiServices" "shared device deploy helper should use the CoreDevice DDI readiness endpoint"
+  assert_contains "${device_deploy_helper}" "--auto-mount-ddis" "shared device deploy helper should explicitly auto-mount iOS developer disk images"
+  assert_contains "${device_deploy_helper}" "isUsable" "shared device deploy helper should verify DDI metadata reports usable services"
 fi
 
 echo "apple shared pipeline helper checks passed"

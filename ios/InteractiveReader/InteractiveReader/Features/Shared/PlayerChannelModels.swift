@@ -71,21 +71,21 @@ struct PlayerHeaderGlassPanelBackground: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color.black.opacity(0.56))
+            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.82))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(0.78)
+                    .opacity(0.42)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.10),
-                                Color.white.opacity(0.04),
-                                Color.black.opacity(0.24)
+                                Color.white.opacity(0.08),
+                                Color.white.opacity(0.03),
+                                Color.black.opacity(0.36)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -94,9 +94,9 @@ struct PlayerHeaderGlassPanelBackground: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.20), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.28), lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.32), radius: 18, x: 0, y: 12)
+            .shadow(color: Color.black.opacity(0.42), radius: 18, x: 0, y: 12)
     }
 }
 
@@ -105,21 +105,21 @@ struct PlayerHeaderIdentityBannerBackground: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color.black.opacity(0.62))
+            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.86))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.thinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(0.72)
+                    .opacity(0.38)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.11),
-                                Color.white.opacity(0.04),
-                                Color.black.opacity(0.24)
+                                Color.white.opacity(0.09),
+                                Color.white.opacity(0.03),
+                                Color.black.opacity(0.34)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -128,9 +128,9 @@ struct PlayerHeaderIdentityBannerBackground: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.30), lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.26), radius: 16, x: 0, y: 10)
+            .shadow(color: Color.black.opacity(0.38), radius: 16, x: 0, y: 10)
     }
 }
 
@@ -140,12 +140,12 @@ struct PlayerHeaderPillBackground: View {
 
     var body: some View {
         Capsule(style: .continuous)
-            .fill(Color.black.opacity(isProminent ? 0.46 : 0.38))
+            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(isProminent ? 0.78 : 0.68))
             .overlay(
                 Capsule(style: .continuous)
                     .fill(.ultraThinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(isProminent ? 0.62 : 0.54)
+                    .opacity(isProminent ? 0.34 : 0.28)
             )
             .overlay(
                 Capsule(style: .continuous)
