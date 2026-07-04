@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-single-track-time-jump-anchor",
+            title: "Single-track jumps render sooner",
+            detail: "Apple reader slider, bookmark, and search-style time jumps now record the selected single-track sentence anchor before audio readiness or cross-batch metadata work begins, keeping rendering pinned to the requested sentence while narration seeks."
+        ),
+        AppChangelogEntry(
             id: "apple-reader-playback-candidate-gate",
             title: "Reader playback has one local gate",
             detail: "The Apple pipeline now has make verify-apple-reader-playback-candidate for non-deploying reader playback validation: playback Swift contracts plus iPhone, iPad, tvOS simulator, and local Mac iPad-style builds before a physical device test is requested. Changed-test routing selects that gate automatically for reader playback Swift paths while preserving the Music-bed dry-run for Music-sensitive files."

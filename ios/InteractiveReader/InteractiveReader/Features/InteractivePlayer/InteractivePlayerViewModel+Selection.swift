@@ -1154,6 +1154,12 @@ extension InteractivePlayerViewModel {
             sentenceNumber: sentenceNumber,
             preferredTrackRawValue: preferredTrack?.rawValue
         )
+        if audioModeManager?.isSequenceMode == false, let sentenceNumber {
+            rememberSingleTrackSentenceAnchor(
+                chunkID: chunk.id,
+                sentenceNumber: sentenceNumber
+            )
+        }
         if selectedChunkID == chunk.id {
             seekPlaybackWhenReady(
                 to: time,

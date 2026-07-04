@@ -387,6 +387,14 @@ if "if audioModeManager?.isSequenceMode == false" not in jump_to_sentence_body:
     fail("single-track jumps must remember their sentence anchor immediately before async metadata/audio work")
 if "rememberSingleTrackSentenceAnchor(\n                chunkID: targetChunk.id,\n                sentenceNumber: sentenceNumber" not in jump_to_sentence_body:
     fail("single-track jump anchor must be keyed by target chunk and visible sentence number")
+jump_to_time_body = function_body(
+    selection_source,
+    "func jumpToTime("
+)
+if "if audioModeManager?.isSequenceMode == false, let sentenceNumber" not in jump_to_time_body:
+    fail("single-track time jumps must remember their sentence anchor before async audio readiness")
+if "rememberSingleTrackSentenceAnchor(\n                chunkID: chunk.id,\n                sentenceNumber: sentenceNumber" not in jump_to_time_body:
+    fail("single-track time jump anchor must be keyed by target chunk and visible sentence number")
 if "SentencePositionProvider.sentenceNumber(\n            in: chunk,\n            at: targetIndex" not in selection_source:
     fail("single-track anchors must store the chunk-derived visible sentence number, not a local sentence id")
 if "SentencePositionProvider.sentenceNumber(in: chunk, at: runtime.index) == sentenceNumber" not in selection_source:
