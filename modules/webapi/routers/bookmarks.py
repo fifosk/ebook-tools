@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from modules import logging_manager as log_mgr
 
 from ..dependencies import RequestUserContext, get_bookmark_service, get_request_user
+from ..route_ids import normalize_route_id
 from ..route_telemetry import log_started_route_result
 from ..schemas.bookmarks import (
     PlaybackBookmarkDeleteResponse,
@@ -50,10 +51,6 @@ def _require_user(request_user: RequestUserContext) -> str:
     if not request_user.user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token")
     return request_user.user_id
-
-
-def _normalize_route_id(value: str) -> str:
-    return value.strip()
 
 
 def _raise_missing_bookmark_target(
@@ -101,7 +98,7 @@ def list_bookmarks(
             started_at=started_at,
         )
         raise
-    normalized_job_id = _normalize_route_id(job_id)
+    normalized_job_id = normalize_route_id(job_id)
     if not normalized_job_id:
         _raise_missing_bookmark_target(operation="list", started_at=started_at)
     try:
@@ -139,7 +136,7 @@ def add_bookmark(
             started_at=started_at,
         )
         raise
-    normalized_job_id = _normalize_route_id(job_id)
+    normalized_job_id = normalize_route_id(job_id)
     if not normalized_job_id:
         _raise_missing_bookmark_target(operation="add", started_at=started_at)
     try:
@@ -168,10 +165,10 @@ def delete_bookmark(
             started_at=started_at,
         )
         raise
-    normalized_job_id = _normalize_route_id(job_id)
+    normalized_job_id = normalize_route_id(job_id)
     if not normalized_job_id:
         _raise_missing_bookmark_target(operation="delete", started_at=started_at)
-    normalized_bookmark_id = _normalize_route_id(bookmark_id)
+    normalized_bookmark_id = normalize_route_id(bookmark_id)
     if not normalized_bookmark_id:
         _log_bookmark_route_result(
             operation="delete",
