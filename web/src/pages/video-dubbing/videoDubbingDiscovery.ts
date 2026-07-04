@@ -161,7 +161,10 @@ export function resolveVideoDiscoveryProviderState({
       : null;
   const downloadStationUnavailableMessage =
     downloadStationProvider && !downloadStationProvider.available
-      ? `${downloadStationProvider.label} is ${downloadStationProvider.status.replace('_', ' ')}. Configure backend Download Station credentials, or use manual downloads.`
+      ? providerUnavailableMessage(
+          downloadStationProvider,
+          'Configure backend Download Station credentials, or use manual downloads.'
+        )
       : null;
   const indexerSearchUnavailableMessage =
     indexerSearchProvider && !indexerSearchProvider.available
@@ -242,12 +245,13 @@ function isVideoDiscoveryProvider(provider: AcquisitionProvider) {
   return provider.discovery_media_kinds.includes('video');
 }
 
-function providerUnavailableMessage(provider: AcquisitionProvider): string {
+function providerUnavailableMessage(provider: AcquisitionProvider, fallbackAction?: string): string {
   const policyNote = provider.policy_notes.find((note) => note.trim());
   if (policyNote) {
     return `${provider.label} is ${provider.status.replace('_', ' ')}. ${policyNote.trim()}`;
   }
-  return `${provider.label} is ${provider.status.replace('_', ' ')}. Configure ${providerSourceLabel(provider).toLowerCase()} or choose another discovery source.`;
+  const action = fallbackAction ?? `Configure ${providerSourceLabel(provider).toLowerCase()} or choose another discovery source.`;
+  return `${provider.label} is ${provider.status.replace('_', ' ')}. ${action}`;
 }
 
 function defaultableVideoProviderIds(

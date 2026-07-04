@@ -4016,6 +4016,13 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "static func videoDiscoveryProviderUnavailableMessage(" in video_discovery_source
     assert 'if provider.id == "youtube_search"' in video_discovery_source
     assert 'if provider.id == "newznab_torznab"' in video_discovery_source
+    download_station_unavailable_body = _swift_function_body(
+        video_discovery_source,
+        "private static func downloadStationUnavailableMessage",
+    )
+    assert "discoveryProviderUnavailableMessage(" in download_station_unavailable_body
+    assert 'fallbackAction: "Configure backend Download Station credentials, or use manual downloads."' in download_station_unavailable_body
+    assert "provider.policyNotes.first" not in download_station_unavailable_body
     assert "|| !isSelectedVideoDiscoveryProviderAvailable" in youtube_discovery_source
     assert "AppleBookCreatePresentation.videoDiscoveryCandidates(" in youtube_source
     assert "providers: acquisitionProviders" in youtube_source

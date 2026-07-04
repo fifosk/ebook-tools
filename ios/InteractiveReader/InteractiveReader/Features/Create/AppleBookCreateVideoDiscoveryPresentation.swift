@@ -351,7 +351,10 @@ extension AppleBookCreatePresentation {
         guard !provider.available else {
             return nil
         }
-        return "\(provider.label) is \(formattedProviderStatus(provider.status)). Configure backend Download Station credentials, or use manual downloads."
+        return discoveryProviderUnavailableMessage(
+            for: provider,
+            fallbackAction: "Configure backend Download Station credentials, or use manual downloads."
+        )
     }
 
     private static let fallbackVideoDiscoveryProviders = [

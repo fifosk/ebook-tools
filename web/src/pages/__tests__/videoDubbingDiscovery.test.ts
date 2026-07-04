@@ -344,6 +344,34 @@ describe('videoDubbingDiscovery', () => {
     );
   });
 
+  it('uses backend policy notes for unavailable Download Station handoff', () => {
+    const state = resolveVideoDiscoveryProviderState({
+      selectedProvider: 'nas_video',
+      providers: [
+        provider({ id: 'nas_video', capabilities: ['import_local'] }),
+        provider({
+          id: 'download_station',
+          label: 'Synology Download Station',
+          capabilities: ['acquire', 'poll'],
+          discovery_media_kinds: [],
+          default_eligible_media_kinds: [],
+          status: 'not_configured',
+          configured: false,
+          available: false,
+          policy_notes: [
+            'Queue handoff is for lawful reviewed torrents, magnets, NZBs, or URLs only.',
+            'Requires backend Download Station credentials.'
+          ]
+        })
+      ]
+    });
+
+    expect(state.isDownloadStationAvailable).toBe(false);
+    expect(state.downloadStationUnavailableMessage).toBe(
+      'Synology Download Station is not configured. Queue handoff is for lawful reviewed torrents, magnets, NZBs, or URLs only.'
+    );
+  });
+
   it('resolves default-provider availability from available backend defaults', () => {
     const state = resolveVideoDiscoveryProviderState({
       selectedProvider: DEFAULT_VIDEO_DISCOVERY_PROVIDER,
