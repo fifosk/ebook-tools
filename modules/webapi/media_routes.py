@@ -33,6 +33,7 @@ from .dependencies import (
     get_request_user,
     RequestUserContext,
 )
+from .route_ids import normalize_route_id
 from .schemas import (
     AudioGenerationParameters,
     AudioSynthesisRequest,
@@ -165,6 +166,11 @@ async def stream_chunk_audio_track(
 ):
     """Stream the requested audio track for a generated pipeline chunk."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    normalized_chunk_id = normalize_route_id(chunk_id)
+    if not normalized_job_id or not normalized_chunk_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio track not found")
+
     normalized_track = (track or "trans").strip().lower()
     if normalized_track in {"translation", "trans"}:
         normalized_track = "translation"
@@ -180,7 +186,7 @@ async def stream_chunk_audio_track(
 
     try:
         job = pipeline_service.get_job(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
@@ -196,7 +202,7 @@ async def stream_chunk_audio_track(
 
     generated_files = job.generated_files if isinstance(job.generated_files, Mapping) else {}
     raw_chunks = generated_files.get("chunks") if isinstance(generated_files, Mapping) else None
-    track_path = _extract_track_path_from_chunks(raw_chunks, chunk_id, normalized_track)
+    track_path = _extract_track_path_from_chunks(raw_chunks, normalized_chunk_id, normalized_track)
 
     if track_path is None:
         loader: Optional[MetadataLoader]
@@ -207,14 +213,16 @@ async def stream_chunk_audio_track(
                 loader = None
             if loader is not None:
                 summaries = loader.load_chunks(include_sentences=False)
-                track_path = _extract_track_path_from_chunks(summaries, chunk_id, normalized_track)
+                track_path = _extract_track_path_from_chunks(
+                    summaries, normalized_chunk_id, normalized_track
+                )
 
     if track_path is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio track not found")
 
     chunk_base_dir: Optional[str] = None
-    if "_" in chunk_id:
-        _, base_candidate = chunk_id.split("_", 1)
+    if "_" in normalized_chunk_id:
+        _, base_candidate = normalized_chunk_id.split("_", 1)
         chunk_base_dir = base_candidate.strip() or None
 
     def _resolve_candidate_path(candidate_path: str | Path) -> Optional[Path]:
@@ -252,7 +260,10 @@ async def stream_chunk_audio_track(
         chunk_entry = None
         if isinstance(raw_chunks, list):
             for entry in raw_chunks:
-                if isinstance(entry, Mapping) and str(entry.get("chunk_id") or "") == chunk_id:
+                if (
+                    isinstance(entry, Mapping)
+                    and str(entry.get("chunk_id") or "") == normalized_chunk_id
+                ):
                     chunk_entry = entry
                     break
         desired_type = "audio" if normalized_track == "trans" else "audio_orig"

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-legacy-media-route-id-helper",
+            title: "Legacy media IDs share cleanup",
+            detail: "Backend legacy media streams now trim job and chunk identifiers through the shared route helper before playback lookup, keeping older Web playback URLs aligned with Apple media boundaries."
+        ),
+        AppChangelogEntry(
             id: "backend-pipeline-cover-route-id-helper",
             title: "Cover IDs share cleanup",
             detail: "Backend pipeline cover reads now trim job identifiers through the shared route helper before job, metadata, or Library cover lookup, keeping Apple and Web cover paths aligned."

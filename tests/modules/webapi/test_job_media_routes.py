@@ -11,7 +11,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
+import modules.webapi.media_routes as legacy_media_module
 from modules.services.file_locator import FileLocator
+from modules.services.job_manager import PipelineJob, PipelineJobStatus
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
     RequestUserContext,
@@ -21,7 +23,6 @@ from modules.webapi.dependencies import (
 )
 from modules.webapi.media_routes import router as legacy_media_router
 from modules.webapi.routes.media import media_list
-from modules.services.job_manager import PipelineJob, PipelineJobStatus
 
 pytestmark = pytest.mark.webapi
 
@@ -217,6 +218,86 @@ def test_stream_chunk_audio_track_uses_safe_stat_for_audio_file(
     assert response.status_code == 200
     assert response.content == b"audio bytes"
     assert response.headers["Accept-Ranges"] == "bytes"
+
+
+def test_stream_chunk_audio_track_uses_shared_route_id_normalizer() -> None:
+    module_source = inspect.getsource(legacy_media_module)
+    source = inspect.getsource(legacy_media_module.stream_chunk_audio_track)
+
+    assert "from .route_ids import normalize_route_id" in module_source
+    assert "def _normalize_route_id" not in module_source
+    assert "normalized_job_id = normalize_route_id(job_id)" in source
+    assert "normalized_chunk_id = normalize_route_id(chunk_id)" in source
+
+
+def test_stream_chunk_audio_track_normalizes_padded_job_and_chunk_ids(
+    tmp_path: Path,
+) -> None:
+    app = FastAPI()
+    app.include_router(legacy_media_router)
+    file_locator = FileLocator(storage_dir=tmp_path, base_url="https://example.invalid/jobs")
+    job_id = "job-stream-padded"
+    chunk_id = "chunk_0001"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    audio_path = file_locator.resolve_path(job_id, "media/0001/translation.mp3")
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_path.write_bytes(b"padded audio")
+    job.generated_files = {
+        "chunks": [
+            {
+                "chunk_id": chunk_id,
+                "audioTracks": {
+                    "translation": "media/0001/translation.mp3",
+                },
+            }
+        ],
+    }
+    service = _StubPipelineService(job)
+    app.dependency_overrides[get_file_locator] = lambda: file_locator
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="reader",
+        user_role="admin",
+    )
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/media/%20%20job-stream-padded%20%20/%20%20chunk_0001%20%20?track=translation"
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"padded audio"
+    assert service.calls == [(job_id, "reader", "admin")]
+
+
+def test_stream_chunk_audio_track_rejects_blank_ids_without_service_lookup(
+    tmp_path: Path,
+) -> None:
+    app = FastAPI()
+    app.include_router(legacy_media_router)
+    service = _StubPipelineService()
+    app.dependency_overrides[get_file_locator] = lambda: FileLocator(
+        storage_dir=tmp_path, base_url="https://example.invalid/jobs"
+    )
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="reader",
+        user_role="admin",
+    )
+
+    with TestClient(app) as client:
+        blank_job_response = client.get("/api/media/%20%20%20/chunk_0001?track=translation")
+        blank_chunk_response = client.get("/api/media/job-stream/%20%20%20?track=translation")
+
+    assert blank_job_response.status_code == 404
+    assert blank_job_response.json() == {"detail": "Audio track not found"}
+    assert blank_chunk_response.status_code == 404
+    assert blank_chunk_response.json() == {"detail": "Audio track not found"}
+    assert service.calls == []
 
 
 def test_get_job_media_uses_manifest_size_when_file_is_remote(api_app) -> None:
