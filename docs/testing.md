@@ -1268,9 +1268,13 @@ make apple-device-pull-and-verify-playback-resume-offset-log \
 
 That check expects token-safe `resume offset requested` evidence from the
 Job/Library shell and an Interactive exact `time seek accepted` breadcrumb. It
-rejects `fallback=sentenceStart` and sequence time-seek failures, so a pulled
-Cinema/iPad log can prove whether resume kept the last spoken position inside
-the sentence or merely returned to the saved sentence number.
+rejects `fallback=sentenceStart`, sequence time-seek failures, and
+`time=0.000` resume offsets, so a pulled Cinema/iPad log can prove whether
+resume kept the last spoken position inside the sentence or merely returned to
+the saved sentence number. A `reader resume offset started at the beginning of
+the sentence` diagnostic means the captured app saved or replayed a
+sentence-start offset; retest with a current build after the reader has spoken
+past the first word.
 When one physical session covers both transport and resume-position behavior,
 pull once and run both validators with:
 

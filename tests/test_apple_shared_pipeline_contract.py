@@ -529,8 +529,12 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "apple-device-pull-and-verify-current-playback-resume-offset-log" in testing_doc
     assert "apple-device-verify-music-bed-reader-progress-log" in testing_doc
     assert "fallback=sentenceStart" in testing_doc
-    assert "last spoken position inside\nthe sentence" in testing_doc
+    assert "`time=0.000` resume offsets" in testing_doc
+    assert "reader resume offset started at the beginning of\nthe sentence" in testing_doc
+    assert "last spoken position inside the sentence" in testing_doc
     assert "apple-device-pull-and-verify-playback-resume-offset-log" in deployment_doc
+    assert "fails `time=0.000` resume offsets as sentence-start\nresumes" in deployment_doc
+    assert "reader resume offset started at the beginning of the sentence" in deployment_doc
     assert "launch-console pause-resume verifier also rejects" in deployment_doc
     assert "two-click TV regression signature" in deployment_doc
     assert "launch-console path now catches the same two-click TV\npause/resume signature" in testing_doc

@@ -633,6 +633,21 @@ def test_diagnostic_hint_treats_build_header_as_not_enough_transport_evidence() 
     ]
 
 
+def test_diagnostic_hint_explains_sentence_start_resume_offset() -> None:
+    missing = ["reader resume offset started at the beginning of the sentence"]
+
+    hints = module.diagnostic_hints(
+        RESUME_OFFSET_LOG,
+        mode="resume-offset",
+        missing=missing,
+    )
+
+    assert hints == [
+        "resume offset was saved at sentence start; verify the app build ignores zero interactive "
+        "resume offsets, then reproduce after the reader has spoken past the first word"
+    ]
+
+
 def test_required_build_commit_accepts_matching_header(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(

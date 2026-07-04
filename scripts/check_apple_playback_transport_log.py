@@ -659,6 +659,11 @@ def diagnostic_hints(text: str, *, mode: str, missing: list[str]) -> list[str]:
             "device playback log came from an older app release; deploy the current Apple build "
             "before treating playback breadcrumbs as evidence for the latest source"
         )
+    if "reader resume offset started at the beginning of the sentence" in missing:
+        hints.append(
+            "resume offset was saved at sentence start; verify the app build ignores zero interactive "
+            "resume offsets, then reproduce after the reader has spoken past the first word"
+        )
     if "reader received consecutive broker pauses without an intervening reader play" in missing:
         hints.append(
             "consecutive broker pauses detected; inspect whether stale Apple Music state "

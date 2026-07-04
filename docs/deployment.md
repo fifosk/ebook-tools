@@ -476,12 +476,16 @@ make apple-device-pull-and-verify-playback-resume-offset-log \
 That mode looks only at token-safe numeric breadcrumbs: a Job/Library
 `resume offset requested` or retry line plus an Interactive exact `time seek
 accepted` line. It fails if the reader reports `fallback=sentenceStart` or a
-sequence time seek failure, and it also fails when a retry for the same saved
-sentence/time changes the accepted sequence track from Translation to Original
-or the reverse. That distinguishes a true last-word resume from the Cinema
-symptom where playback restarted at the beginning of the saved sentence and the
-Living Room symptom where opening a job accepted Translation first, then retried
-the same resume point on Original before the next Translation played.
+sequence time seek failure, fails `time=0.000` resume offsets as sentence-start
+resumes, and also fails when a retry for the same saved sentence/time changes
+the accepted sequence track from Translation to Original or the reverse. That
+distinguishes a true last-word resume from the Cinema symptom where playback
+restarted at the beginning of the saved sentence and the Living Room symptom
+where opening a job accepted Translation first, then retried the same resume
+point on Original before the next Translation played. If the CLI reports
+`reader resume offset started at the beginning of the sentence`, retest with a
+current build after the reader has spoken past the first word so the app can
+save a non-zero in-sentence offset.
 When the same physical session intentionally covers both Play/Pause transport
 and last-word resume, use the comprehensive reader-repro target so the cached
 app log is pulled once and checked in both modes:
