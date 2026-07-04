@@ -657,6 +657,13 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
     assert "jobIntakeContract: Self.jobIntakeContractState(from: descriptor.creation)" in view_source
     assert "private static func jobIntakeContractState(" in view_source
     assert "AppleCreateRuntimeContract.pipelineIntakeStatusPath" in view_source
+    assert "var acquisitionPolicyContractState: BackendRuntimeContractState?" in source
+    assert 'title: "Acquisition Policy"' in source
+    assert 'accessibilityIdentifier: "settingsAcquisitionPolicyContractRow"' in source
+    assert "acquisitionPolicyContract: Self.acquisitionPolicyContractState(from: descriptor.acquisition)" in view_source
+    assert "private static func acquisitionPolicyContractState(" in view_source
+    assert "acquisition.discoveryProviderMediaKinds != expected.discoveryProviderMediaKinds" in view_source
+    assert "acquisition.explicitOnlyDiscoveryProviderIds != expected.explicitOnlyDiscoveryProviderIds" in view_source
     assert "var libraryActionsContractState: BackendRuntimeContractState?" in source
     assert 'title: "Library Contract"' in source
     assert 'accessibilityIdentifier: "settingsLibraryActionsContractRow"' in source

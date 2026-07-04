@@ -139,6 +139,15 @@ INTERACTIVE_HEADER_OVERLAY = (
     / "InteractivePlayer"
     / "InteractivePlayerView+HeaderOverlay.swift"
 )
+LIBRARY_PLAYBACK_CHROME = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "LibraryPlaybackChromeViews.swift"
+)
 MY_LINGUIST_VIEW_MODEL = (
     ROOT
     / "ios"
@@ -531,6 +540,7 @@ def test_tvos_observed_music_pause_does_not_stop_requested_reader_startup() -> N
 def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     channel_models_source = PLAYER_CHANNEL_MODELS.read_text(encoding="utf-8")
     header_overlay_source = INTERACTIVE_HEADER_OVERLAY.read_text(encoding="utf-8")
+    library_playback_source = LIBRARY_PLAYBACK_CHROME.read_text(encoding="utf-8")
     changelog_source = (
         ROOT
         / "ios"
@@ -607,3 +617,10 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "PlayerCoverStackView(" in header_overlay_source
     assert "PlayerHeaderPillBackground(isActive: true, isProminent: true)" in header_overlay_source
     assert "PlayerHeaderPillBackground(isActive: isNonDefault)" in header_pills_source
+    assert "private struct LibraryPlaybackIdentityBannerBackground: View" in library_playback_source
+    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.94)" in library_playback_source
+    assert ".environment(\\.colorScheme, .dark)" in library_playback_source
+    assert ".strokeBorder(Color.white.opacity(0.30), lineWidth: 1)" in library_playback_source
+    assert ".foregroundStyle(Color.white.opacity(0.84))" in library_playback_source
+    assert "apple-library-playback-header-dark-glass" in changelog_source
+    assert "avoiding pale light-mode chrome over dark iPad playback backgrounds" in changelog_source

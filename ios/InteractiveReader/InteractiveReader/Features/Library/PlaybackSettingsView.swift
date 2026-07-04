@@ -148,6 +148,7 @@ struct PlaybackSettingsView: View {
                 authContract: Self.authContractState(from: descriptor.auth),
                 createContract: Self.createContractState(from: descriptor.creation),
                 jobIntakeContract: Self.jobIntakeContractState(from: descriptor.creation),
+                acquisitionPolicyContract: Self.acquisitionPolicyContractState(from: descriptor.acquisition),
                 pipelineJobsContract: Self.pipelineJobsContractState(from: descriptor.pipelineJobs),
                 pipelineMediaContract: Self.pipelineMediaContractState(from: descriptor.pipelineMedia),
                 linguistContract: Self.linguistContractState(from: descriptor.linguist),
@@ -280,6 +281,40 @@ struct PlaybackSettingsView: View {
             )
         }
         return .ready(summary: "1 endpoint · \(AppleCreateRuntimeContract.pipelineIntakeStatusPath)")
+    }
+
+    private static func acquisitionPolicyContractState(
+        from acquisition: BackendRuntimeDescriptorResponse.AcquisitionContract?
+    ) -> BackendRuntimeContractState {
+        guard let acquisition else {
+            return .unavailable
+        }
+        let expected = BackendRuntimeDescriptorResponse.AcquisitionContract.supported
+        var mismatches: [String] = []
+        if acquisition.mediaKinds != expected.mediaKinds {
+            mismatches.append("mediaKinds=\(acquisition.mediaKinds.joined(separator: ",")) expected \(expected.mediaKinds.joined(separator: ","))")
+        }
+        if acquisition.capabilities != expected.capabilities {
+            mismatches.append("capabilities=\(acquisition.capabilities.joined(separator: ",")) expected \(expected.capabilities.joined(separator: ","))")
+        }
+        if acquisition.rights != expected.rights {
+            mismatches.append("rights=\(acquisition.rights.joined(separator: ",")) expected \(expected.rights.joined(separator: ","))")
+        }
+        if acquisition.providerStatuses != expected.providerStatuses {
+            mismatches.append("providerStatuses=\(acquisition.providerStatuses.joined(separator: ",")) expected \(expected.providerStatuses.joined(separator: ","))")
+        }
+        if acquisition.discoveryProviderMediaKinds != expected.discoveryProviderMediaKinds {
+            mismatches.append("discoveryProviderMediaKinds changed")
+        }
+        if acquisition.explicitOnlyDiscoveryProviderIds != expected.explicitOnlyDiscoveryProviderIds {
+            mismatches.append("explicitOnlyDiscoveryProviderIds=\(acquisition.explicitOnlyDiscoveryProviderIds.joined(separator: ",")) expected \(expected.explicitOnlyDiscoveryProviderIds.joined(separator: ","))")
+        }
+        if !mismatches.isEmpty {
+            return .mismatch(summary: mismatches.joined(separator: " · "))
+        }
+        return .ready(
+            summary: "\(expected.discoveryProviderMediaKinds.count) providers · explicit-only \(expected.explicitOnlyDiscoveryProviderIds.joined(separator: ", "))"
+        )
     }
 
     private static func libraryActionsContractState(

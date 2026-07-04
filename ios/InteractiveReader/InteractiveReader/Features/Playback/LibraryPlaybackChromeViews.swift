@@ -240,19 +240,25 @@ private struct LibraryPlaybackInfoPill: View {
             .font(font.weight(.semibold))
             .lineLimit(1)
             .minimumScaleFactor(0.78)
-            .foregroundStyle(Color.primary.opacity(0.82))
+            .foregroundStyle(Color.white.opacity(0.84))
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(
                 Capsule(style: .continuous)
-                    .fill(.thinMaterial)
+                    .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.78))
                     .overlay(
                         Capsule(style: .continuous)
-                            .fill(Color.accentColor.opacity(0.12))
+                            .fill(.ultraThinMaterial)
+                            .environment(\.colorScheme, .dark)
+                            .opacity(0.16)
                     )
                     .overlay(
                         Capsule(style: .continuous)
-                            .strokeBorder(Color.accentColor.opacity(0.20), lineWidth: 1)
+                            .fill(Color.white.opacity(0.07))
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
                     )
             )
     }
@@ -261,15 +267,21 @@ private struct LibraryPlaybackInfoPill: View {
 private struct LibraryPlaybackIdentityBannerBackground: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(.regularMaterial)
+            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.94))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.thinMaterial)
+                    .environment(\.colorScheme, .dark)
+                    .opacity(0.20)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.18),
-                                Color.accentColor.opacity(0.08),
-                                Color.black.opacity(0.04)
+                                Color.white.opacity(0.055),
+                                Color.white.opacity(0.015),
+                                Color.black.opacity(0.46)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -278,9 +290,9 @@ private struct LibraryPlaybackIdentityBannerBackground: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.30), lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 6)
+            .shadow(color: Color.black.opacity(0.38), radius: 16, x: 0, y: 10)
     }
 }
 
