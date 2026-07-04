@@ -40,7 +40,7 @@
        build-apple-tvos-simulator build-apple-tvos-uitests \
        build-apple-office-ipad-surfaces verify-apple-office-ipad-surfaces \
        build-apple-local-surfaces verify-apple-local-surfaces \
-       verify-apple-cross-surface-checkpoint verify-apple-reader-playback-candidate verify-apple-playback-no-regression-candidate verify-apple-create-no-regression-candidate verify-apple-music-bed-candidate verify-apple-music-bed-candidate-dry-run \
+       verify-apple-cross-surface-checkpoint verify-apple-reader-playback-candidate verify-apple-playback-no-regression-candidate verify-apple-create-no-regression-candidate verify-creation-discovery-no-regression-candidate verify-apple-music-bed-candidate verify-apple-music-bed-candidate-dry-run \
        apple-local-checkpoint-bundle \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
        apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync apple-pipeline-web-checks \
@@ -654,6 +654,8 @@ verify-apple-reader-playback-candidate: test-apple-playback-state-swift build-ap
 verify-apple-playback-no-regression-candidate: verify-apple-reader-playback-candidate verify-apple-music-bed-candidate-dry-run
 
 verify-apple-create-no-regression-candidate: test-apple-create-readiness-contract build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style apple-pipeline-ipad-create-readiness-dry-run apple-pipeline-tvos-create-readiness-dry-run
+
+verify-creation-discovery-no-regression-candidate: test-backend-pipeline-sources test-backend-acquisition test-web-create-intake-focused test-web-video-dubbing-focused verify-apple-create-no-regression-candidate
 
 verify-apple-music-bed-candidate: test-e2e-ipad-music-bed-sync test-e2e-tvos-music-bed-sync
 

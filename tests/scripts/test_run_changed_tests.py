@@ -929,107 +929,44 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
 
 def test_select_targets_covers_acquisition_discovery_layer() -> None:
     assert select_targets(["docs/plans/discovery-acquisition-layer.md"]) == [
-        "test-backend-pipeline-sources",
-        "test-backend-acquisition",
-        "test-web-create-intake-focused",
-        "test-web-video-dubbing-focused",
-        "test-apple-create-readiness-contract",
+        "verify-creation-discovery-no-regression-candidate",
         "test-pipeline",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/services/source_discovery.py"]) == [
-        "test-backend-pipeline-sources",
-        "test-backend-acquisition",
-        "test-web-create-intake-focused",
-        "test-web-video-dubbing-focused",
-        "test-apple-create-readiness-contract",
+        "verify-creation-discovery-no-regression-candidate",
         "test-backend-subtitle-router",
         "test-backend-youtube-dubbing-service",
         "test-services",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["tests/modules/services/test_source_discovery.py"]) == [
-        "test-backend-pipeline-sources",
-        "test-backend-acquisition",
-        "test-web-create-intake-focused",
-        "test-web-video-dubbing-focused",
-        "test-apple-create-readiness-contract",
+        "verify-creation-discovery-no-regression-candidate",
         "test-backend-subtitle-router",
         "test-backend-youtube-dubbing-service",
         "test-services",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/services/acquisition/discovery.py"]) == [
-        "test-backend-pipeline-sources",
-        "test-backend-acquisition",
-        "test-web-create-intake-focused",
-        "test-web-video-dubbing-focused",
-        "test-apple-create-readiness-contract",
+        "verify-creation-discovery-no-regression-candidate",
         "test-services",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/webapi/routers/acquisition.py"]) == [
-        "test-backend-pipeline-sources",
-        "test-backend-acquisition",
-        "test-web-create-intake-focused",
-        "test-web-video-dubbing-focused",
-        "test-apple-create-readiness-contract",
+        "verify-creation-discovery-no-regression-candidate",
         "test-webapi",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/webapi/routers/acquisition_payloads.py"]) == [
-        "test-backend-pipeline-sources",
-        "test-backend-acquisition",
-        "test-web-create-intake-focused",
-        "test-web-video-dubbing-focused",
-        "test-apple-create-readiness-contract",
+        "verify-creation-discovery-no-regression-candidate",
         "test-webapi",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/webapi/routers/acquisition_route_support.py"]) == [
-        "test-backend-pipeline-sources",
-        "test-backend-acquisition",
-        "test-web-create-intake-focused",
-        "test-web-video-dubbing-focused",
-        "test-apple-create-readiness-contract",
+        "verify-creation-discovery-no-regression-candidate",
         "test-webapi",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/webapi/schemas/acquisition.py"]) == [
-        "test-backend-pipeline-sources",
-        "test-backend-acquisition",
-        "test-web-create-intake-focused",
-        "test-web-video-dubbing-focused",
-        "test-apple-create-readiness-contract",
+        "verify-creation-discovery-no-regression-candidate",
         "test-webapi",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["tests/modules/webapi/test_acquisition_routes.py"]) == [
-        "test-backend-pipeline-sources",
-        "test-backend-acquisition",
-        "test-web-create-intake-focused",
-        "test-web-video-dubbing-focused",
-        "test-apple-create-readiness-contract",
+        "verify-creation-discovery-no-regression-candidate",
         "test-webapi",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
     ]
 
 

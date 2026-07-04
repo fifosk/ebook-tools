@@ -847,6 +847,36 @@ def test_create_no_regression_candidate_chains_create_builds_and_dry_runs_withou
     assert "devicectl" not in target
 
 
+def test_creation_discovery_no_regression_candidate_chains_backend_web_and_apple_without_deploy() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = (
+        "verify-creation-discovery-no-regression-candidate: "
+        "test-backend-pipeline-sources test-backend-acquisition "
+        "test-web-create-intake-focused test-web-video-dubbing-focused "
+        "verify-apple-create-no-regression-candidate"
+    )
+    assert target_line in makefile
+
+    phony = makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
+    assert "verify-creation-discovery-no-regression-candidate" in phony
+
+    target = makefile.split("verify-creation-discovery-no-regression-candidate:", 1)[1].split("\n\n", 1)[0]
+    assert target.index("test-backend-pipeline-sources") < target.index("test-backend-acquisition")
+    assert target.index("test-backend-acquisition") < target.index("test-web-create-intake-focused")
+    assert target.index("test-web-create-intake-focused") < target.index("test-web-video-dubbing-focused")
+    assert target.index("test-web-video-dubbing-focused") < target.index(
+        "verify-apple-create-no-regression-candidate"
+    )
+    assert "build-apple-ios-simulators" not in target
+    assert "apple-pipeline-ipad-create-readiness-dry-run" not in target
+    assert "apple-device-update" not in target
+    assert "run_app_device_deploy.py" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "apple-device-full-entitlement-stable-install" not in target
+    assert "devicectl" not in target
+
+
 def test_living_room_candidate_gate_runs_dogfood_pipeline_and_music_bed_without_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -1106,6 +1136,7 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "verify-apple-music-bed-candidate" in contract_check
     assert "verify-apple-playback-no-regression-candidate" in contract_check
     assert "verify-apple-create-no-regression-candidate" in contract_check
+    assert "verify-creation-discovery-no-regression-candidate" in contract_check
     assert "verify-apple-living-room-candidate" in contract_check
     assert "test-e2e-ipad-music-bed-sync" in contract_check
     assert "test-e2e-tvos-music-bed-sync" in contract_check
@@ -1233,6 +1264,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-runtime-ssh-check",
         "make verify-apple-shared-pipeline",
         "make verify-apple-create-no-regression-candidate",
+        "make verify-creation-discovery-no-regression-candidate",
         "make verify-apple-music-bed-candidate-dry-run",
         "make verify-apple-living-room-candidate",
         "make verify-apple-dogfood-pipeline",

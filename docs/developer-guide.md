@@ -169,6 +169,9 @@ on top of the dogfood pipeline gate before a Living Room Apple TV install reques
 `make verify-apple-create-no-regression-candidate` checks native Apple Create
 surface/API-client changes with Create readiness contracts, local Apple builds,
 and iPad/tvOS Create journey dry-runs before any hardware Create retest.
+`make verify-creation-discovery-no-regression-candidate` wraps backend
+acquisition/source tests, Web Create/Video Dubbing discovery checks, and that
+Apple Create candidate for shared discovery-layer changes.
 `make verify-apple-dogfood-pipeline` runs the local Web/Apple cross-surface
 checkpoint before the shared gate. After the Mac Studio/runtime checkout has
 been fast-forwarded and source-sync is expected to pass,
@@ -255,6 +258,7 @@ make apple-runtime-ssh-check
 make apple-runtime-xcode-readiness
 make verify-apple-shared-pipeline
 make verify-apple-create-no-regression-candidate
+make verify-creation-discovery-no-regression-candidate
 make verify-apple-music-bed-candidate-dry-run
 make verify-apple-music-bed-candidate
 make verify-apple-living-room-candidate

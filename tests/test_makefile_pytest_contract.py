@@ -80,6 +80,7 @@ def test_testing_docs_note_makefile_python_selection() -> None:
     assert "`make test-changed` reads staged, unstaged, and untracked Git paths" in docs
     assert "`verify-apple-playback-no-regression-candidate`" in docs
     assert "`verify-apple-create-no-regression-candidate`" in docs
+    assert "`verify-creation-discovery-no-regression-candidate`" in docs
     assert "credential-free Music-bed journey dry-runs" in docs
     assert "credential-free iPad/tvOS Create-readiness journey dry-runs" in normalized_docs
     assert "| `make test-changed` | `$(PYTHON) scripts/run_changed_tests.py` |" in docs

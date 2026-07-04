@@ -2705,6 +2705,10 @@ Every cross-surface change should pass the relevant subset:
   Create readiness contracts, iPhone/iPad/tvOS simulator builds, the local Mac
   iPad-style build, and credential-free iPad/tvOS Create-readiness dry-runs
   before physical Create retests,
+  `make verify-creation-discovery-no-regression-candidate` gate for discovery
+  provider/source changes, combining backend acquisition/source tests, Web Create
+  and Video Dubbing discovery checks, and the Apple Create no-regression
+  candidate before Web/Apple creation retests,
   office-iPad local build/verification gates, the local Apple surface build gate,
   the local Apple verification gate,
   `make apple-device-preflight`,

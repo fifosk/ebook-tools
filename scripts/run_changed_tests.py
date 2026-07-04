@@ -68,6 +68,19 @@ AGGREGATE_TARGET_COVERAGE = {
         "apple-pipeline-ipad-create-readiness-dry-run",
         "apple-pipeline-tvos-create-readiness-dry-run",
     },
+    "verify-creation-discovery-no-regression-candidate": {
+        "test-backend-pipeline-sources",
+        "test-backend-acquisition",
+        "test-web-create-intake-focused",
+        "test-web-video-dubbing-focused",
+        "verify-apple-create-no-regression-candidate",
+        "test-apple-create-readiness-contract",
+        "build-apple-ios-simulators",
+        "build-apple-macos-ipad-style",
+        "build-apple-tvos-simulator",
+        "apple-pipeline-ipad-create-readiness-dry-run",
+        "apple-pipeline-tvos-create-readiness-dry-run",
+    },
 }
 
 PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
@@ -373,14 +386,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/webapi/test_acquisition_routes.py",
         ),
         (
-            "test-backend-pipeline-sources",
-            "test-backend-acquisition",
-            "test-web-create-intake-focused",
-            "test-web-video-dubbing-focused",
-            "test-apple-create-readiness-contract",
-            "build-apple-ios-simulators",
-            "build-apple-tvos-simulator",
-            "build-apple-macos-ipad-style",
+            "verify-creation-discovery-no-regression-candidate",
         ),
     ),
     (

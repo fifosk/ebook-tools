@@ -338,13 +338,10 @@ iPad-style build helper, and provisioning-profile finder also route to
 `test-apple-contracts`, keeping physical-evidence and local-surface helper
 contracts covered before manual device work.
 Discovery/acquisition plan, provider, schema, and route changes route to
-`test-backend-acquisition`, `test-web-create-intake-focused`,
-`test-web-video-dubbing-focused`, and
-`test-apple-create-readiness-contract`, then compile the iPhone/iPad simulator,
-tvOS simulator, and local Mac iPad-style surfaces, keeping Web and Apple Create
-source discovery, prepared-artifact handoff, and token-safe provider
-serialization covered before simulator journeys or physical deploys consume
-those contracts. The acquisition slice also covers incomplete local artifact
+`verify-creation-discovery-no-regression-candidate`, covering backend pipeline
+source and acquisition tests, Web Create intake, Web Video Dubbing discovery,
+and the Apple Create no-regression candidate before simulator journeys or
+physical deploys consume those contracts. The acquisition slice also covers incomplete local artifact
 filtering, including `.part` files and zero-byte video placeholders, plus the
 Default sources rule that skips
 optional YouTube/indexer searches when local NAS/manual candidates already fill
@@ -1042,6 +1039,7 @@ For focused Apple Create readiness preflight work, use:
 ```bash
 make test-apple-create-readiness-contract
 make verify-apple-create-no-regression-candidate
+make verify-creation-discovery-no-regression-candidate
 ```
 
 This runs the native Create readiness checker tests plus the simulator-journey
@@ -1049,6 +1047,8 @@ and env-file contracts that prove the preflight is wired before iPhone, iPad,
 and tvOS Create journeys. The no-regression candidate adds iPhone/iPad and tvOS
 simulator builds, the local Mac iPad-style build, and credential-free iPad/tvOS
 Create-readiness journey dry-runs without touching physical devices.
+The creation-discovery candidate adds backend acquisition/source checks and Web
+Create/Video Dubbing discovery checks around that Apple Create candidate.
 
 For focused non-physical Apple build surface wiring, use:
 
