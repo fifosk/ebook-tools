@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-reader-header-dark-glass",
+            title: "Reader header stays readable",
+            detail: "Apple interactive reader header glass now anchors its panels and pills to a dark translucent base even in system light mode, keeping white book metadata and progress chrome legible over dark reader backgrounds."
+        ),
+        AppChangelogEntry(
             id: "apple-single-track-time-jump-anchor",
             title: "Single-track jumps render sooner",
             detail: "Apple reader slider, bookmark, and search-style time jumps now record the selected single-track sentence anchor before audio readiness or cross-batch metadata work begins, keeping rendering pinned to the requested sentence while narration seeks."

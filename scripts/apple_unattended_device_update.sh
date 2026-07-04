@@ -23,6 +23,7 @@ APP_PATH="${APPLE_DEVICE_APP_PATH:-}"
 SIGNED_ARTIFACT_PATH="${APPLE_DEVICE_SIGNED_ARTIFACT_PATH:-}"
 DEVELOPMENT_TEAM="${APPLE_DEVELOPMENT_TEAM:-}"
 DEVICECTL_TIMEOUT="${APPLE_DEVICECTL_TIMEOUT:-60}"
+DEVICECTL_DDI_TIMEOUT="${APPLE_DEVICECTL_DDI_TIMEOUT:-120}"
 ALLOW_PROVISIONING_UPDATES="${ALLOW_PROVISIONING_UPDATES:-0}"
 STRIP_IOS_ENTITLEMENTS="${APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS:-0}"
 FALLBACK_TO_SIGNED_ARTIFACT="${APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT:-0}"
@@ -463,6 +464,47 @@ is_tvos_device_profile() {
       return 1
       ;;
   esac
+}
+
+is_ios_device_profile() {
+  case "${DEVICE_PROFILE}" in
+    ios|iphone|ipad)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+json_reports_usable_developer_disk_image() {
+  local json_path="$1"
+  python3 - "${json_path}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+try:
+    payload = json.loads(path.read_text())
+except Exception:
+    raise SystemExit(1)
+
+def walk(value):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "isUsable" and child is True:
+                return True
+            if walk(child):
+                return True
+    elif isinstance(value, list):
+        for child in value:
+            if walk(child):
+                return True
+    return False
+
+raise SystemExit(0 if walk(payload) else 1)
+PY
 }
 
 wait_for_coredevice_available() {
@@ -1130,6 +1172,7 @@ fi
 
 VERIFY_JSON="$(json_scratch_path apple-device-installed-app)"
 PREFLIGHT_JSON="$(json_scratch_path apple-device-preflight)"
+DDI_JSON="$(json_scratch_path apple-device-ddi)"
 BUILD_DESTINATION_JSON="$(json_scratch_path apple-device-build-destination)"
 COREDEVICE_DESTINATION_JSON="$(json_scratch_path apple-device-coredevice-destination)"
 INSTALL_JSON="$(json_scratch_path apple-device-install)"
@@ -1139,8 +1182,10 @@ if [[ -z "${LAUNCH_LOG}" ]]; then
   LAUNCH_LOG="${LAUNCH_LOG%.json}.log"
 fi
 LAUNCH_COREDEVICE_LOG="${LAUNCH_LOG%.log}.coredevice.log"
+DDI_COREDEVICE_LOG="${DDI_JSON%.json}.coredevice.log"
 XCODEBUILD_DESTINATION_ID="${DEVICE_ID}"
 DEVICECTL_DEVICE_ID="${DEVICE_ID}"
+IOS_DDI_READINESS_DONE=0
 if [[ "${DRY_RUN}" != "1" && "${INSTALL}" == "1" && "${SKIP_BUILD}" != "1" && "${CONFIRM_PHYSICAL_DEVICE_UPDATE:-}" != "YES" ]]; then
   echo "Refusing to install to a physical device without CONFIRM_PHYSICAL_DEVICE_UPDATE=YES." >&2
   exit 2
@@ -1152,6 +1197,9 @@ if [[ "${SKIP_BUILD}" != "1" && "${DRY_RUN}" != "1" && "${PREFLIGHT_ONLY}" != "1
   XCODEBUILD_DESTINATION_ID="$(resolve_xcodebuild_destination_id "${DEVICE_ID}" "${BUILD_DESTINATION_JSON}")"
   if [[ "${XCODEBUILD_DESTINATION_ID}" != "${DEVICE_ID}" ]]; then
     echo "Resolved xcodebuild destination id: ${XCODEBUILD_DESTINATION_ID}"
+  fi
+  if [[ "${INSTALL}" != "1" && "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]] && is_ios_device_profile; then
+    DEVICECTL_DEVICE_ID="${XCODEBUILD_DESTINATION_ID}"
   fi
 fi
 if [[ "${DRY_RUN}" != "1" && ( "${INSTALL}" == "1" || "${PREFLIGHT_ONLY}" == "1" || "${VERIFY_ONLY}" == "1" || "${LAUNCH_ONLY}" == "1" ) ]]; then
@@ -1203,6 +1251,14 @@ PREFLIGHT_CMD=(
   --timeout "${DEVICECTL_TIMEOUT}"
   --json-output "${PREFLIGHT_JSON}"
 )
+DDI_CMD=(
+  "${DEVICECTL}" device info ddiServices
+  --device "${DEVICECTL_DEVICE_ID}"
+  --auto-mount-ddis
+  --timeout "${DEVICECTL_DDI_TIMEOUT}"
+  --json-output "${DDI_JSON}"
+  --log-output "${DDI_COREDEVICE_LOG}"
+)
 LAUNCH_CMD=(
   "${DEVICECTL}" device process launch
 )
@@ -1235,11 +1291,27 @@ if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" ]]; then
 fi
 
 if [[ "${PREFLIGHT_ONLY}" == "1" ]]; then
+  if is_ios_device_profile; then
+    print_command "Developer disk image readiness command" "${DDI_CMD[@]}"
+  fi
   print_command "Device preflight command" "${PREFLIGHT_CMD[@]}"
   if [[ "${DRY_RUN}" == "1" ]]; then
     exit 0
   fi
   validate_host_user_cache
+  if is_ios_device_profile; then
+    mkdir -p "$(dirname "${DDI_JSON}")"
+    run_coredevice_command "apple-device-ddi" "${DDI_CMD[@]}" || {
+      echo "Device preflight failed. Unlock the iPhone/iPad, keep it awake, and retry developer disk image readiness." >&2
+      exit 1
+    }
+    if ! json_reports_usable_developer_disk_image "${DDI_JSON}"; then
+      echo "Device preflight failed. Developer disk image services are not usable for ${DEVICE_ID}; unlock the iPhone/iPad and retry." >&2
+      exit 1
+    fi
+    echo "Developer disk image readiness passed for ${DEVICE_ID}."
+    IOS_DDI_READINESS_DONE=1
+  fi
   mkdir -p "$(dirname "${PREFLIGHT_JSON}")"
   run_coredevice_command "apple-device-preflight" "${PREFLIGHT_CMD[@]}" || {
     echo "Device preflight failed. Confirm the device is connected, awake, trusted, and visible to CoreDevice." >&2
@@ -1265,6 +1337,9 @@ if [[ "${VERIFY_ONLY}" == "1" ]]; then
 fi
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
+  if [[ "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]] && is_ios_device_profile; then
+    print_command "Developer disk image readiness command" "${DDI_CMD[@]}"
+  fi
   print_command "Build command" "${BUILD_CMD[@]}"
   print_command "Build metadata verification command" "${BUILD_METADATA_CMD[@]}"
   echo "Resolved app path: ${APP_PATH}"
@@ -1286,6 +1361,9 @@ if [[ "${INSTALL}" == "1" ]]; then
     print_command "Build metadata verification command" "${BUILD_METADATA_CMD[@]}"
   fi
   if [[ "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]]; then
+    if [[ "${SKIP_BUILD}" == "1" ]] && is_ios_device_profile; then
+      print_command "Developer disk image readiness command" "${DDI_CMD[@]}"
+    fi
     print_command "Device preflight command" "${PREFLIGHT_CMD[@]}"
   fi
   print_command "Install command" "${INSTALL_CMD[@]}"
@@ -1405,6 +1483,19 @@ if [[ "${INSTALL}" == "1" && "${SKIP_BUILD}" == "1" && "${FALLBACK_TO_SIGNED_ART
 fi
 
 if [[ "${INSTALL}" == "1" && "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]]; then
+  if is_ios_device_profile && [[ "${IOS_DDI_READINESS_DONE}" != "1" ]]; then
+    mkdir -p "$(dirname "${DDI_JSON}")"
+    run_coredevice_command "apple-device-ddi" "${DDI_CMD[@]}" || {
+      echo "Device preflight failed. Unlock the iPhone/iPad, keep it awake, and retry developer disk image readiness." >&2
+      exit 1
+    }
+    if ! json_reports_usable_developer_disk_image "${DDI_JSON}"; then
+      echo "Device preflight failed. Developer disk image services are not usable for ${DEVICE_ID}; unlock the iPhone/iPad and retry." >&2
+      exit 1
+    fi
+    echo "Developer disk image readiness passed for ${DEVICE_ID}."
+    IOS_DDI_READINESS_DONE=1
+  fi
   mkdir -p "$(dirname "${PREFLIGHT_JSON}")"
   run_coredevice_command "apple-device-preflight" "${PREFLIGHT_CMD[@]}" || {
     echo "Device preflight failed. Confirm the device is connected, awake, trusted, and visible to CoreDevice." >&2
@@ -1413,6 +1504,19 @@ if [[ "${INSTALL}" == "1" && "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]]; then
 fi
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
+  if [[ "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]] && is_ios_device_profile && [[ "${IOS_DDI_READINESS_DONE}" != "1" ]]; then
+    mkdir -p "$(dirname "${DDI_JSON}")"
+    run_coredevice_command "apple-device-ddi" "${DDI_CMD[@]}" || {
+      echo "Developer disk image readiness failed before xcodebuild. Unlock the iPhone/iPad, keep it awake, and retry." >&2
+      exit 1
+    }
+    if ! json_reports_usable_developer_disk_image "${DDI_JSON}"; then
+      echo "Developer disk image services are not usable for ${DEVICE_ID}; unlock the iPhone/iPad and retry before xcodebuild." >&2
+      exit 1
+    fi
+    echo "Developer disk image readiness passed for ${DEVICE_ID}."
+    IOS_DDI_READINESS_DONE=1
+  fi
   if [[ "${STRIP_IOS_ENTITLEMENTS}" == "1" ]]; then
     strip_ios_entitlements_for_local_signing
   fi

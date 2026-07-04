@@ -68,6 +68,9 @@ build_output="$(
   APPLE_DEVICE_SOURCE_SYNC_MODE=skip \
     bash "${HELPER}" --device TEST-DEVICE --dry-run --build-only
 )"
+assert_contains "${build_output}" "Developer disk image readiness command:" "iOS build-only dry run should pre-warm developer disk image services"
+assert_contains "${build_output}" "device  info  ddiServices" "iOS build-only dry run should use the CoreDevice DDI readiness endpoint"
+assert_contains "${build_output}" "--auto-mount-ddis" "iOS DDI readiness should request automatic DDI mounting"
 assert_contains "${build_output}" "Build command:" "build-only dry run should print the build command"
 assert_contains "${build_output}" "Build metadata verification command:" "build-only dry run should print the build metadata verifier"
 assert_contains "${build_output}" "scripts/check_apple_build_metadata.py" "build-only dry run should disclose bundled metadata verification"
@@ -126,6 +129,14 @@ elif [[ "${FAKE_COREDEVICE_DETAILS_FAILURE:-}" == "1" && "${args}" == *"device i
   echo 'Failed to load provisioning parameter list due to error: XPCError(errorCode: 1001, errorUserInfo: ["XPCConnectionDescription": "<SystemXPCPeerConnection> { name = com.apple.CoreDevice.CoreDeviceService }", "NSLocalizedDescription": "The connection was invalidated."]).' >&2
   echo 'ERROR: Timed out waiting for CoreDeviceService to fully initialize. This is likely a bug in CoreDevice.' >&2
   exit 1
+elif [[ "${FAKE_COREDEVICE_DDI_FAILURE:-}" == "1" && "${args}" == *"device info ddiServices"* ]]; then
+  echo 'ERROR: Developer disk image services are unavailable.' >&2
+  exit 1
+elif [[ "${args}" == *"device info ddiServices"* ]]; then
+cat > "${json_output}" <<'JSON'
+{"result":{"ddiMetadata":{"isUsable":true}}}
+JSON
+echo "fake developer disk image services"
 elif [[ "${args}" == *"device info apps"* ]]; then
 cat > "${json_output}" <<JSON
 {"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"${FAKE_INSTALLED_SHORT_VERSION:-2026.6.26}","bundleVersion":"${FAKE_INSTALLED_BUILD:-20260626175}"},{"bundleIdentifier":"com.example.InteractiveReader.tvos","name":"InteractiveReaderTV","version":"${FAKE_INSTALLED_SHORT_VERSION:-2026.6.26}","bundleVersion":"${FAKE_INSTALLED_BUILD:-20260626175}"}]}}
@@ -409,6 +420,9 @@ assert_contains "${resolved_destination_failed_list_output}" "id=Cinema\\ TV" "f
 assert_not_contains "${resolved_destination_failed_list_output}" "command not found" "failed list fallback should not execute failed JSON metadata as shell text"
 
 preflight_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --device-preflight-only)"
+assert_contains "${preflight_output}" "Developer disk image readiness command:" "iOS preflight dry run should print the DDI readiness command"
+assert_contains "${preflight_output}" "device  info  ddiServices" "iOS preflight should warm developer disk image services"
+assert_contains "${preflight_output}" "--auto-mount-ddis" "iOS preflight should request automatic DDI mounting"
 assert_contains "${preflight_output}" "Device preflight command:" "preflight dry run should print the preflight command"
 assert_contains "${preflight_output}" "device  info  details" "preflight should query device health without mutation"
 assert_contains "${preflight_output}" "apple-device-preflight-TEST-DEVICE.json" "preflight should write a script-readable JSON path"
@@ -433,7 +447,7 @@ if [[ "${coredevice_failure_status}" == "0" ]]; then
   echo "${coredevice_failure_output}" >&2
   exit 1
 fi
-assert_contains "${coredevice_failure_output}" "CoreDeviceService failed during apple-device-preflight" "CoreDevice XPC failures should get a concrete diagnostic"
+assert_contains "${coredevice_failure_output}" "CoreDeviceService failed during apple-device-ddi" "CoreDevice XPC failures should get a concrete diagnostic from the first readiness command"
 assert_contains "${coredevice_failure_output}" "launchctl kickstart -k user/" "CoreDevice diagnostic should include the local service restart command"
 assert_contains "${coredevice_failure_output}" "Captured CoreDevice stderr:" "CoreDevice diagnostic should preserve the captured stderr path"
 assert_contains "${coredevice_failure_output}" "Device preflight failed." "preflight should still fail after printing CoreDevice diagnostics"
@@ -456,6 +470,8 @@ install_output="$(
 assert_not_contains "${install_output}" "Build command:" "skip-build install dry run should not print a build command"
 assert_contains "${install_output}" "Build metadata verification command:" "skip-build install dry run should verify bundled git metadata"
 assert_contains "${install_output}" "scripts/check_apple_build_metadata.py" "skip-build install dry run should disclose bundled metadata verification"
+assert_contains "${install_output}" "Developer disk image readiness command:" "skip-build iOS install dry run should print DDI readiness"
+assert_contains "${install_output}" "device  info  ddiServices" "skip-build iOS install should warm developer disk image services before install"
 assert_contains "${install_output}" "Device preflight command:" "install dry run should print the pre-install device preflight"
 assert_contains "${install_output}" "device  info  details" "install dry run should preflight CoreDevice before install"
 assert_contains "${install_output}" "Install command:" "install dry run should print install command"
@@ -501,6 +517,7 @@ no_preflight_output="$(
     --app-path /tmp/InteractiveReader.app
 )"
 assert_not_contains "${no_preflight_output}" "Device preflight command:" "install --no-preflight dry run should omit the pre-install preflight"
+assert_not_contains "${no_preflight_output}" "Developer disk image readiness command:" "install --no-preflight dry run should omit DDI readiness"
 assert_contains "${no_preflight_output}" "Install command:" "install --no-preflight should still show the install command"
 
 provisioning_output="$(
@@ -687,6 +704,7 @@ appletv_output="$(
     --build-only \
     --profile appletv
 )"
+assert_not_contains "${appletv_output}" "Developer disk image readiness command:" "Apple TV build dry run should not run the iOS DDI readiness path"
 assert_contains "${appletv_output}" "-scheme  InteractiveReaderTV" "Apple TV profile should select the tvOS app scheme"
 assert_contains "${appletv_output}" "Debug-appletvos/InteractiveReaderTV.app" "Apple TV profile should derive the tvOS app bundle path"
 

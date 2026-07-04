@@ -938,6 +938,15 @@ path: wake/unlock/reconnect the device, quit Xcode, try
 when permitted, then use Xcode's Devices window to reconnect or reboot the Mac
 if launchd refuses the restart.
 
+iPhone/iPad deploy note from July 4, 2026: if `xcodebuild` times out waiting
+for a physical iOS destination and CoreDevice device details report
+`ddiServicesAvailable: false`, wake and unlock the device, then pre-warm
+developer disk image services with `devicectl device info ddiServices --device
+<device> --auto-mount-ddis`. The unattended deploy helper now runs that DDI
+readiness command automatically for `ios`, `iphone`, and `ipad` profiles before
+physical device builds or pre-install checks, verifies `isUsable: true` in the
+JSON output, and skips the check for tvOS profiles.
+
 Cinema Apple TV deploy note from June 28, 2026: a generic tvOS device build for
 `InteractiveReaderTV 2026.6.28 (20260628074)` succeeded, but installation to
 `Cinema` was blocked before app transfer because CoreDevice reported the device

@@ -446,6 +446,11 @@ Follow the suggested remediations to restore parity:
   played/remaining-left time, and tapping it should collapse or expand the
   header; timing provenance remains available to diagnostics but should not
   reappear as header chrome.
+- Apple Interactive Reader header glass is dark-anchored across light and dark
+  system appearances because the reader background is commonly dark and the
+  header text/pill chrome is white. Avoid reverting the shared
+  `PlayerHeader*Background` views to purely adaptive light materials without a
+  dark base, or the iPad light-mode header becomes too pale over playback.
 - Apple Music reading-bed auto-resume must require `audioCoordinator.isPlaybackRequested`
   plus MusicKit auto-resume intent (`musicCoordinator.canAutoResumeReadingBed`).
   The guard intentionally does not require `audioCoordinator.isPlaying`, because first sentence starts and
