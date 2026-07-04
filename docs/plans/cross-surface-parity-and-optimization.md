@@ -2616,7 +2616,9 @@ Suggested features to evaluate after parity scaffolding:
   and the Create readiness journey, and routes Apple notification client calls
   through shared helpers. Backend notification device-removal IDs now use the
   shared route-id normalizer before service lookup too, matching playback-state
-  and media route boundary behavior.
+  and media route boundary behavior. Backend built-in reading-bed fetch/update/
+  delete routes now reuse the same shared route-id normalizer, keeping Web and
+  Apple playback background-music controls on the same boundary contract.
 
 ## Verification Contract
 

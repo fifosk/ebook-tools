@@ -20,6 +20,7 @@ from modules.user_management import AuthService
 
 from ..auth_utils import require_admin_user
 from ..dependencies import get_auth_service
+from ..route_ids import normalize_route_id
 from ..route_telemetry import log_started_route_result
 from ..schemas.reading_beds import (
     ReadingBedDeleteResponse,
@@ -107,10 +108,6 @@ def _raise_reading_bed_unavailable(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail=READING_BED_UNAVAILABLE_MESSAGE,
     )
-
-
-def _normalize_route_id(value: str) -> str:
-    return value.strip()
 
 
 def _raise_missing_reading_bed(
@@ -350,7 +347,7 @@ def list_reading_beds() -> ReadingBedListResponse:
 @router.get("/{bed_id}/file")
 def fetch_reading_bed_file(bed_id: str) -> Response:
     started_at = time.perf_counter()
-    normalized_bed_id = _normalize_route_id(bed_id)
+    normalized_bed_id = normalize_route_id(bed_id)
     if not normalized_bed_id:
         _raise_missing_reading_bed(operation="fetch", started_at=started_at)
     try:
@@ -551,7 +548,7 @@ def update_reading_bed(
     default_changed = False
     try:
         _require_admin(authorization, auth_service)
-        normalized_bed_id = _normalize_route_id(bed_id)
+        normalized_bed_id = normalize_route_id(bed_id)
         if not normalized_bed_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -615,7 +612,7 @@ def delete_reading_bed(
     started_at = time.perf_counter()
     try:
         _require_admin(authorization, auth_service)
-        normalized_bed_id = _normalize_route_id(bed_id)
+        normalized_bed_id = normalize_route_id(bed_id)
         if not normalized_bed_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

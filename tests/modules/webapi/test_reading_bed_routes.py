@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import inspect
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -90,6 +91,14 @@ def test_reading_bed_openapi_marks_catalog_fields_required() -> None:
     assert {"default_id", "beds"} <= list_required
     assert {"id", "label", "url", "kind", "is_default"} <= entry_required
     assert {"deleted", "default_id"} <= delete_required
+
+
+def test_reading_bed_routes_use_shared_route_id_normalizer() -> None:
+    source = inspect.getsource(reading_beds)
+
+    assert "from ..route_ids import normalize_route_id" in source
+    assert "def _normalize_route_id" not in source
+    assert "normalize_route_id(bed_id)" in source
 
 
 def test_reading_bed_routes_manage_uploaded_bed_lifecycle(
