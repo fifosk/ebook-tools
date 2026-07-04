@@ -41,6 +41,11 @@ extension AppChangelogData {
             detail: "Backend TV and YouTube subtitle metadata job routes now trim padded job identifiers through the shared helper before service lookup, keeping Web and Apple video metadata drafts aligned."
         ),
         AppChangelogEntry(
+            id: "backend-sentence-image-route-id-helper",
+            title: "Sentence image IDs share cleanup",
+            detail: "Backend sentence-image info, batch, and regeneration routes now trim padded job identifiers through the shared helper before media lookup, keeping Web and Apple image reels aligned."
+        ),
+        AppChangelogEntry(
             id: "backend-playback-search-route-id-helper",
             title: "Playback search IDs share cleanup",
             detail: "Backend media search now trims its job identifier through the shared route helper before pipeline or Library lookup, keeping Apple and Web playback search boundary behavior aligned."

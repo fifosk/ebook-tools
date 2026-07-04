@@ -1262,14 +1262,16 @@ Optimization candidates:
   ids, auth headers, tokens, or file names. Pipeline media manifests and
   single-chunk lookups also share audio/timing track serialization helpers, so
   chunk sidecars and generated job payloads canonicalize track aliases and
-  timing versions the same way for Web and Apple playback. Sentence-image single and batch
-  metadata lookups now record the same token-safe media-route duration
-  telemetry and aggregate count/missing logs without logging job ids, user ids,
-  auth headers, tokens, paths, filenames, or raw sentence content. Sentence
-  image regeneration also returns generic DrawThings failure details, keeping
-  image node URLs, prompts, sampler names, paths, and raw exception strings out
-  of Web/Apple-facing responses. Sentence-image prompt rebuilds now share one
-  ordered chunk-text collection helper for context-window and batch-range
+  timing versions the same way for Web and Apple playback. Sentence-image
+  single and batch metadata lookups now trim padded job identifiers through the
+  shared route helper before media lookup and response serialization, then
+  record the same token-safe media-route duration telemetry and aggregate
+  count/missing logs without logging job ids, user ids, auth headers, tokens,
+  paths, filenames, or raw sentence content. Sentence image regeneration uses
+  the same route-id boundary and returns generic DrawThings failure details,
+  keeping image node URLs, prompts, sampler names, paths, and raw exception
+  strings out of Web/Apple-facing responses. Sentence-image prompt rebuilds now
+  share one ordered chunk-text collection helper for context-window and batch-range
   prompts, reusing chunk payload reads while preserving valid sentence text
   ordering for Web MyPainter and Apple playback image metadata consumers. Library
   media manifests now use the same token-safe aggregate route telemetry for

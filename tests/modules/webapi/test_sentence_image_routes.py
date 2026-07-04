@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -123,6 +124,94 @@ def _assert_sentence_image_metric(metrics_text: str, operation: str) -> None:
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_sentence_image_routes_use_shared_route_id_normalizer() -> None:
+    source = inspect.getsource(images)
+
+    assert "from ...route_ids import normalize_route_id" in source
+    assert "def _normalize_route_id" not in source
+    assert "normalized_job_id = normalize_route_id(job_id)" in source
+    assert "job_id=normalized_job_id" in source
+
+
+def test_sentence_image_info_routes_normalize_padded_job_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_id = "sentence-image-normalized-job"
+    resolved_job_ids: list[str] = []
+    chunk_payload = {
+        "sentences": [
+            {
+                "sentence_number": 1,
+                "original": {"text": "First sentence."},
+                "image": {"path": "media/images/1-2/sentence_00001.png"},
+            }
+        ]
+    }
+
+    def fake_resolve_job_root(**kwargs):
+        resolved_job_ids.append(kwargs["job_id"])
+        return tmp_path
+
+    monkeypatch.setattr(images, "_resolve_job_root", fake_resolve_job_root)
+    monkeypatch.setattr(images, "_load_sentence_image_info", _fake_load_sentence_image_info)
+    monkeypatch.setattr(images, "MetadataLoader", _FakeMetadataLoader)
+    monkeypatch.setattr(images, "_read_chunk_payload", lambda **_kwargs: chunk_payload)
+    monkeypatch.setattr(images, "_load_image_manifest", lambda _job_root: {})
+
+    app = _build_app(tmp_path)
+    try:
+        with TestClient(app) as client:
+            single_response = client.get(
+                f"/pipelines/jobs/%20%20{job_id}%20%20/media/images/sentences/1"
+            )
+            batch_response = client.get(
+                f"/pipelines/jobs/%20%20{job_id}%20%20/media/images/sentences/batch",
+                params={"sentence_numbers": "1"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert single_response.status_code == 200
+    assert single_response.json()["job_id"] == job_id
+    assert batch_response.status_code == 200
+    batch_payload = batch_response.json()
+    assert batch_payload["job_id"] == job_id
+    assert batch_payload["items"][0]["job_id"] == job_id
+    assert resolved_job_ids == [job_id, job_id]
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "json_payload"),
+    [
+        ("GET", "/pipelines/jobs/%20%20/media/images/sentences/1", None),
+        ("GET", "/pipelines/jobs/%20%20/media/images/sentences/batch?sentence_numbers=1", None),
+        ("POST", "/pipelines/jobs/%20%20/media/images/sentences/1/regenerate", {}),
+    ],
+)
+def test_sentence_image_routes_reject_blank_job_id_before_root_lookup(
+    method: str,
+    path: str,
+    json_payload: dict[str, Any] | None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_resolve_job_root(**_kwargs):
+        raise AssertionError("blank sentence-image job ids should not reach root lookup")
+
+    monkeypatch.setattr(images, "_resolve_job_root", fail_resolve_job_root)
+
+    app = _build_app(tmp_path)
+    try:
+        with TestClient(app) as client:
+            response = client.request(method, path, json=json_payload)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Job not found"}
 
 
 def test_sentence_image_lookup_logs_token_safe_aggregate_timing(

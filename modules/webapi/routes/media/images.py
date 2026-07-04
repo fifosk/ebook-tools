@@ -39,6 +39,7 @@ from ...dependencies import (
     get_pipeline_job_manager,
     get_request_user,
 )
+from ...route_ids import normalize_route_id
 from ...route_telemetry import log_started_route_result
 
 from ...schemas.images import (
@@ -47,7 +48,7 @@ from ...schemas.images import (
     SentenceImageRegenerateRequest,
     SentenceImageRegenerateResponse,
 )
-from .common import _resolve_job_path, _resolve_job_root
+from .common import MEDIA_NOT_FOUND_MESSAGE, _resolve_job_path, _resolve_job_root
 
 router = APIRouter()
 LOGGER = logging_manager.get_logger().getChild("webapi.media")
@@ -627,6 +628,10 @@ async def get_sentence_image_info_batch(
 ) -> SentenceImageInfoBatchResponse:
     """Return stored prompt/path metadata for multiple sentence images."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MEDIA_NOT_FOUND_MESSAGE)
+
     requested = _parse_sentence_numbers(sentence_numbers)
     if not requested:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No sentence numbers provided")
@@ -637,7 +642,7 @@ async def get_sentence_image_info_batch(
         )
 
     job_root = _resolve_job_root(
-        job_id=job_id,
+        job_id=normalized_job_id,
         locator=locator,
         library_repository=library_repository,
         request_user=request_user,
@@ -681,7 +686,7 @@ async def get_sentence_image_info_batch(
             )
             items.append(
                 _build_sentence_image_info_response(
-                    job_id=job_id,
+                    job_id=normalized_job_id,
                     sentence_number=sentence_number,
                     chunk=chunk,
                     sentence_entry=entry,
@@ -700,7 +705,7 @@ async def get_sentence_image_info_batch(
         missing=len(missing),
     )
 
-    return SentenceImageInfoBatchResponse(job_id=job_id, items=items, missing=missing)
+    return SentenceImageInfoBatchResponse(job_id=normalized_job_id, items=items, missing=missing)
 
 
 @router.get(
@@ -718,9 +723,13 @@ async def get_sentence_image_info(
 ) -> SentenceImageInfoResponse:
     """Return the stored prompt/path metadata for a sentence image."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MEDIA_NOT_FOUND_MESSAGE)
+
     start = time.perf_counter()
     job_root = _resolve_job_root(
-        job_id=job_id,
+        job_id=normalized_job_id,
         locator=locator,
         library_repository=library_repository,
         request_user=request_user,
@@ -738,7 +747,7 @@ async def get_sentence_image_info(
         else None
     )
     response = _build_sentence_image_info_response(
-        job_id=job_id,
+        job_id=normalized_job_id,
         sentence_number=sentence_number,
         chunk=chunk,
         sentence_entry=sentence_entry,
@@ -768,8 +777,12 @@ async def regenerate_sentence_image(
 ) -> SentenceImageRegenerateResponse:
     """Regenerate and overwrite the stored sentence image using supplied prompt/settings."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MEDIA_NOT_FOUND_MESSAGE)
+
     job_root = _resolve_job_root(
-        job_id=job_id,
+        job_id=normalized_job_id,
         locator=locator,
         library_repository=library_repository,
         request_user=request_user,
@@ -1075,7 +1088,7 @@ async def regenerate_sentence_image(
     await run_in_threadpool(_update_job_metadata)
 
     return SentenceImageRegenerateResponse(
-        job_id=job_id,
+        job_id=normalized_job_id,
         sentence_number=sentence_number,
         range_fragment=range_fragment,
         relative_path=relative_path,
