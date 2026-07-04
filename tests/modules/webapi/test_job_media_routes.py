@@ -157,7 +157,7 @@ def test_pipeline_media_openapi_marks_playback_manifest_fields_required() -> Non
 def test_pipeline_media_diagnostics_use_shared_gap_counter() -> None:
     source = inspect.getsource(media_list._build_media_diagnostics)
 
-    assert "count_media_gaps(" in source
+    assert "build_media_diagnostic_counts(" in source
     assert "chunks_without_files + chunks_without_metadata" not in source
 
 

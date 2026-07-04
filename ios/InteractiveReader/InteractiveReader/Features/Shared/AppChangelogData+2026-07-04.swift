@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-media-diagnostics-helper",
+            title: "Media warnings share one backend counter",
+            detail: "Pipeline media, Library media, and offline export manifests now derive playback warning counts from one schema-neutral backend helper, keeping Web and Apple gap diagnostics aligned."
+        ),
+        AppChangelogEntry(
             id: "web-live-media-refresh-helper",
             title: "Web playback refresh is focused",
             detail: "Web live-media playback now refreshes completed media through a focused helper with playback coverage, keeping final media replacement behavior easier to compare with Apple reader diagnostics."

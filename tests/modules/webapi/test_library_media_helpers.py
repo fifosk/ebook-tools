@@ -22,7 +22,7 @@ def test_library_media_file_url_normalizes_and_quotes_paths() -> None:
 def test_library_media_diagnostics_use_shared_gap_counter() -> None:
     source = inspect.getsource(library_media.build_library_media_diagnostics)
 
-    assert "count_media_gaps(" in source
+    assert "build_media_diagnostic_counts(" in source
     assert "chunks_without_files + chunks_without_metadata" not in source
 
 

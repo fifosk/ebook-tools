@@ -19,7 +19,7 @@ pytestmark = pytest.mark.services
 def test_offline_export_media_diagnostics_use_shared_gap_counter() -> None:
     source = inspect.getsource(export_service._build_export_media_diagnostics)
 
-    assert "count_media_gaps(" in source
+    assert "build_camel_media_diagnostic_counts(" in source
     assert "chunks_without_files + chunks_without_metadata" not in source
 
 

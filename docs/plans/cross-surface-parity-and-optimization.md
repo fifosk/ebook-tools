@@ -1307,7 +1307,11 @@ Optimization candidates:
   Library media manifest URL normalization, chunk audio/timing-track shaping,
   and diagnostics counters now live in
   `modules/webapi/routers/library_media.py` with direct coverage, keeping the
-  shared Web/Apple playback media contract outside the broad route file.
+  shared Web/Apple playback media contract outside the broad route file. The
+  shared media diagnostics counter now lives in
+  `modules/services/media_diagnostics.py` and supports both API model objects
+  and offline-export dictionaries, so pipeline media, Library media, and export
+  bundles derive playback warning counts from the same backend helper.
   Acquisition provider/discovery/acquire routes are now also pinned in the
   global observability contract, so the shared Web/Apple Create discovery layer
   cannot lose its route-duration histogram while still keeping provider tokens,
