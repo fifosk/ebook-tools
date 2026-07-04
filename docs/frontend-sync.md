@@ -320,6 +320,12 @@ Follow the suggested remediations to restore parity:
   membership check before releasing a next-batch lock; stale or hidden-track
   audio must not clear the anchor while the new batch's rendered sentence is
   still waiting for the selected lane.
+- In Apple sequence mode, AVPlayer EOF is only a fallback segment-advance signal
+  when the ended item URL matches `SequencePlaybackController.effectiveURL` for
+  the current Original/Translation lane. Stale EOF callbacks from a detached
+  dwell item, the previous track, or a replaced player item must be ignored so
+  they cannot double-advance the plan, stop playback after the first spoken
+  segment, or briefly resync rendering to the wrong lane.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

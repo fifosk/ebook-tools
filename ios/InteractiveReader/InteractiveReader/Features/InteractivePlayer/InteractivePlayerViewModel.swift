@@ -128,6 +128,12 @@ final class InteractivePlayerViewModel: ObservableObject {
             guard let self else { return }
             if let endedURL,
                self.sequenceController.isEnabled {
+                guard self.sequencePlaybackEndedURLMatchesCurrentLane(endedURL) else {
+                    interactivePlayerViewModelLogger.debug(
+                        "Ignoring stale sequence EOF url=\(endedURL.lastPathComponent, privacy: .private), expected=\(self.sequenceController.effectiveURL?.lastPathComponent ?? "nil", privacy: .private)"
+                    )
+                    return
+                }
                 guard !self.sequenceController.isDwelling,
                       !self.sequenceController.isTransitioning else {
                     interactivePlayerViewModelLogger.debug(
@@ -333,6 +339,12 @@ final class InteractivePlayerViewModel: ObservableObject {
             self.preTransitionSentenceIndex = nil
             self.timeStabilizedAt = Date()
         }
+    }
+
+    private func sequencePlaybackEndedURLMatchesCurrentLane(_ endedURL: URL) -> Bool {
+        guard sequenceController.isEnabled else { return false }
+        guard let expectedURL = sequenceController.effectiveURL else { return false }
+        return endedURL == expectedURL
     }
 
     enum AssistantLookupError: LocalizedError {

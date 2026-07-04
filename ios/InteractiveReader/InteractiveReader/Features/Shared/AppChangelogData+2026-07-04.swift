@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-sequence-eof-current-lane-guard",
+            title: "Reader ignores stale audio endings",
+            detail: "Apple sequence playback now advances only when AVPlayer's end callback belongs to the currently active Original or Translation lane, preventing stale detached items from double-advancing, stopping playback, or knocking single-track rendering out of sync."
+        ),
+        AppChangelogEntry(
             id: "apple-device-deploy-dry-run-matrix",
             title: "Deploy previews cover all default devices",
             detail: "The Apple pipeline now has make apple-device-deploy-dry-run-matrix for no-install default iPad Pro, iPhone, and Living Room TV route previews, plus make apple-device-deploy-readiness-dry-run as a credential-free shared-pipeline app-owned journey that chains host readiness, CoreDevice listing, and those build/install/verify/launch previews before any explicit device deploy."

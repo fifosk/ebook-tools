@@ -303,10 +303,23 @@ def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
     assert "audioCoordinator.onPlaybackEndedWithURL = { [weak self] endedURL in" in view_model
     assert "if let endedURL," in view_model
     assert "self.sequenceController.isEnabled" in view_model
+    assert "self.sequencePlaybackEndedURLMatchesCurrentLane(endedURL)" in view_model
+    assert "Ignoring stale sequence EOF" in view_model
     assert "self.sequenceController.isDwelling" in view_model
     assert "self.sequenceController.isTransitioning" in view_model
     assert "_ = self.sequenceController.advanceToNextSegment()" in view_model
     assert "self.handlePlaybackEnded(endedURL: endedURL)" in view_model
+    assert view_model.index("self.sequencePlaybackEndedURLMatchesCurrentLane(endedURL)") < view_model.index(
+        "_ = self.sequenceController.advanceToNextSegment()"
+    )
+
+    sequence_eof_body = _function_body(
+        view_model,
+        "private func sequencePlaybackEndedURLMatchesCurrentLane(_ endedURL: URL) -> Bool",
+    )
+    assert "guard sequenceController.isEnabled else { return false }" in sequence_eof_body
+    assert "guard let expectedURL = sequenceController.effectiveURL else { return false }" in sequence_eof_body
+    assert "return endedURL == expectedURL" in sequence_eof_body
 
     ended_body = _function_body(selection, "func handlePlaybackEnded(endedURL: URL? = nil)")
     assert "playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk)" in ended_body
