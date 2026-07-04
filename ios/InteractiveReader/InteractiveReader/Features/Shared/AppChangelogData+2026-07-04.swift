@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "shared-media-diagnostics-gap-count",
+            title: "Media warnings match across surfaces",
+            detail: "Playback media diagnostics now include a backend-owned gap count shared by Web Job Detail, Apple playback warning strips, Library media, and offline exports so media-gap warnings stay consistent across surfaces."
+        ),
+        AppChangelogEntry(
             id: "tvos-music-bed-observed-nonplaying-guard",
             title: "TV playback keeps reading through Music dips",
             detail: "Apple TV Music-bed playback now ignores passive observed-non-playing adoption while the reader is actively narrating, keeping book playback alive and recovering the bed instead of letting a MusicKit status dip stop the sentence track."

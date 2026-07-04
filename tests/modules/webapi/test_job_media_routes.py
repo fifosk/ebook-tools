@@ -131,6 +131,7 @@ def test_get_job_media_returns_completed_entries(api_app) -> None:
         "chunksWithoutMetadata": 0,
         "filesWithoutUrl": 0,
         "filesWithoutSize": 0,
+        "gapCount": 0,
     }
     entry = payload["media"]["audio"][0]
     assert entry["name"] == "sample.mp3"
@@ -770,6 +771,7 @@ def test_get_job_media_populates_sentence_count_from_range(api_app) -> None:
         "chunksWithoutMetadata": 0,
         "filesWithoutUrl": 0,
         "filesWithoutSize": 0,
+        "gapCount": 0,
     }
 
 

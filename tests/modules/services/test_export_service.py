@@ -44,6 +44,7 @@ def test_offline_export_media_diagnostics_match_playback_manifest_shape() -> Non
         "chunksWithoutMetadata": 1,
         "filesWithoutUrl": 1,
         "filesWithoutSize": 1,
+        "gapCount": 4,
     }
 
 

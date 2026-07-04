@@ -34,7 +34,8 @@ const mediaDiagnostics = {
   chunksWithoutFiles: 0,
   chunksWithoutMetadata: 0,
   filesWithoutUrl: 0,
-  filesWithoutSize: 0
+  filesWithoutSize: 0,
+  gapCount: 0,
 };
 
 const mediaFile = {

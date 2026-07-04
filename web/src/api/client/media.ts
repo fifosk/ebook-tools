@@ -129,6 +129,7 @@ function assertPipelineMediaDiagnostics(value: unknown): void {
     'chunksWithoutMetadata',
     'filesWithoutUrl',
     'filesWithoutSize',
+    'gapCount',
   ].forEach((key) => {
     assertPlaybackStateNumberField(value, key, 'pipeline media diagnostics');
   });

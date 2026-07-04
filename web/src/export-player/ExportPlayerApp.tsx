@@ -40,6 +40,7 @@ const emptyMediaDiagnostics: PipelineMediaDiagnostics = {
   chunksWithoutMetadata: 0,
   filesWithoutUrl: 0,
   filesWithoutSize: 0,
+  gapCount: 0,
 };
 
 export default function ExportPlayerApp() {

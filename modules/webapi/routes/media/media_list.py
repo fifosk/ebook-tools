@@ -131,6 +131,14 @@ def _build_media_diagnostics(
 ) -> PipelineMediaDiagnostics:
     media_files = [file for entries in media_entries.values() for file in entries]
     chunk_files = [file for chunk in chunk_entries for file in chunk.files]
+    chunks_without_files = sum(1 for chunk in chunk_entries if not chunk.files)
+    chunks_without_metadata = sum(
+        1
+        for chunk in chunk_entries
+        if not chunk.metadata_path and not chunk.metadata_url and not chunk.sentences
+    )
+    files_without_url = sum(1 for file in media_files if not file.url)
+    files_without_size = sum(1 for file in media_files if file.size is None)
 
     return PipelineMediaDiagnostics(
         media_file_count=len(media_files),
@@ -152,14 +160,11 @@ def _build_media_diagnostics(
         ),
         chunks_with_timing=sum(1 for chunk in chunk_entries if _chunk_has_timing(chunk)),
         chunks_with_images=sum(1 for chunk in chunk_entries if _chunk_has_image(chunk)),
-        chunks_without_files=sum(1 for chunk in chunk_entries if not chunk.files),
-        chunks_without_metadata=sum(
-            1
-            for chunk in chunk_entries
-            if not chunk.metadata_path and not chunk.metadata_url and not chunk.sentences
-        ),
-        files_without_url=sum(1 for file in media_files if not file.url),
-        files_without_size=sum(1 for file in media_files if file.size is None),
+        chunks_without_files=chunks_without_files,
+        chunks_without_metadata=chunks_without_metadata,
+        files_without_url=files_without_url,
+        files_without_size=files_without_size,
+        gap_count=chunks_without_files + chunks_without_metadata + files_without_url + files_without_size,
     )
 
 

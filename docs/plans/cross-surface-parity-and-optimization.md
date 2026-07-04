@@ -2523,7 +2523,10 @@ Suggested features to evaluate after parity scaffolding:
   or persisted media entries, avoiding false missing-size warnings when a file
   cannot be statted locally. Web Job Detail now also counts chunks without files
   as media gaps, matching Apple playback's warning-only diagnostics semantics
-  for manifests that may skip sections.
+  for manifests that may skip sections. The backend now emits a shared
+  `gapCount` on live/job media, Library media, and offline export diagnostics;
+  Web and Apple prefer that field for warning state while keeping local fallback
+  sums only for older embedded manifests.
 - Offline export from Apple: request `/api/exports` for a completed job/library
   item and show status in Jobs. Status: Apple Jobs and Library rows can request
   offline player exports for completed media, disable duplicate export requests,

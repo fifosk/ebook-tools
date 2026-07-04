@@ -84,6 +84,7 @@ def test_library_media_response_normalizes_audio_and_timing_tracks() -> None:
     assert response.diagnostics.chunks_with_audio == 1
     assert response.diagnostics.chunks_with_timing == 1
     assert response.diagnostics.files_without_url == 1
+    assert response.diagnostics.gap_count == 3
 
 
 def test_library_media_response_diagnostics_detect_sentence_images() -> None:
@@ -110,3 +111,4 @@ def test_library_media_response_diagnostics_detect_sentence_images() -> None:
     assert response.diagnostics.chunks_with_images == 1
     assert response.diagnostics.chunks_without_files == 1
     assert response.diagnostics.chunks_without_metadata == 0
+    assert response.diagnostics.gap_count == 1

@@ -41,6 +41,7 @@ const emptyMediaDiagnostics: PipelineMediaDiagnostics = {
   chunksWithoutMetadata: 0,
   filesWithoutUrl: 0,
   filesWithoutSize: 0,
+  gapCount: 0,
 };
 
 describe('useLiveMedia', () => {
@@ -79,7 +80,8 @@ describe('useLiveMedia', () => {
         chunksWithoutFiles: 0,
         chunksWithoutMetadata: 0,
         filesWithoutUrl: 0,
-        filesWithoutSize: 0
+        filesWithoutSize: 0,
+        gapCount: 0
       }
     });
 

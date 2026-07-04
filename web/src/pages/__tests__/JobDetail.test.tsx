@@ -61,6 +61,7 @@ const emptyMediaDiagnostics: PipelineMediaDiagnostics = {
   chunksWithoutMetadata: 0,
   filesWithoutUrl: 0,
   filesWithoutSize: 0,
+  gapCount: 0,
 };
 
 describe('JobDetail', () => {
@@ -118,6 +119,7 @@ describe('JobDetail', () => {
         chunksWithoutMetadata: 0,
         filesWithoutUrl: 0,
         filesWithoutSize: 0,
+        gapCount: 0,
       },
     });
 
@@ -239,6 +241,7 @@ describe('JobDetail', () => {
         chunksWithoutMetadata: 1,
         filesWithoutUrl: 1,
         filesWithoutSize: 1,
+        gapCount: 3,
       },
     });
 
@@ -274,6 +277,7 @@ describe('JobDetail', () => {
         chunksWithoutMetadata: 0,
         filesWithoutUrl: 0,
         filesWithoutSize: 0,
+        gapCount: 2,
       },
     });
 

@@ -82,6 +82,7 @@ describe('liveMediaNormalise', () => {
         chunksWithoutMetadata: 0,
         filesWithoutUrl: 0,
         filesWithoutSize: 0,
+        gapCount: 0,
       },
     } as unknown as PipelineMediaResponse;
 

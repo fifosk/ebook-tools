@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-04
 
+### 2026.07.04.007
+
+- Playback media diagnostics now include a backend-owned `gapCount` shared by Web Job Detail, Apple playback warning strips, Library media, and offline exports so media-gap warnings stay consistent across surfaces.
+- Advanced visible Apple app versioning to `v2026.07.04.007`.
+
 ### 2026.07.04.006
 
 - Apple TV Music-bed playback now ignores passive `observedNonPlaying` adoption while the reader is actively narrating, keeping book playback alive and recovering the bed instead of letting a MusicKit status dip stop the sentence track.

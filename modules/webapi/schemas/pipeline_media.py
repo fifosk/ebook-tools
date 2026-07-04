@@ -123,6 +123,11 @@ class PipelineMediaDiagnostics(BaseModel):
     chunks_without_metadata: int = Field(default=0, serialization_alias="chunksWithoutMetadata")
     files_without_url: int = Field(default=0, serialization_alias="filesWithoutUrl")
     files_without_size: int = Field(default=0, serialization_alias="filesWithoutSize")
+    gap_count: int = Field(
+        default=0,
+        serialization_alias="gapCount",
+        description="Backend-owned sum of media gap counters that should trigger warning UI.",
+    )
 
 
 class PipelineMediaResponse(BaseModel):

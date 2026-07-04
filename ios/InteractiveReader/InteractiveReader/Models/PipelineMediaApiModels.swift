@@ -47,13 +47,97 @@ struct PipelineMediaDiagnostics: Decodable, Equatable {
     let chunksWithoutMetadata: Int
     let filesWithoutUrl: Int
     let filesWithoutSize: Int
+    let gapCount: Int
 
     var missingCount: Int {
-        chunksWithoutMetadata + filesWithoutUrl + filesWithoutSize
+        gapCount
     }
 
     var hasGaps: Bool {
-        missingCount > 0 || chunksWithoutFiles > 0
+        gapCount > 0
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case mediaFileCount
+        case chunkCount
+        case chunkFileCount
+        case audioFileCount
+        case imageFileCount
+        case chunksWithAudio
+        case chunksWithTiming
+        case chunksWithImages
+        case chunksWithoutFiles
+        case chunksWithoutMetadata
+        case filesWithoutUrl
+        case filesWithoutSize
+        case gapCount
+    }
+
+    init(
+        mediaFileCount: Int,
+        chunkCount: Int,
+        chunkFileCount: Int,
+        audioFileCount: Int,
+        imageFileCount: Int,
+        chunksWithAudio: Int,
+        chunksWithTiming: Int,
+        chunksWithImages: Int,
+        chunksWithoutFiles: Int,
+        chunksWithoutMetadata: Int,
+        filesWithoutUrl: Int,
+        filesWithoutSize: Int,
+        gapCount: Int? = nil
+    ) {
+        self.mediaFileCount = mediaFileCount
+        self.chunkCount = chunkCount
+        self.chunkFileCount = chunkFileCount
+        self.audioFileCount = audioFileCount
+        self.imageFileCount = imageFileCount
+        self.chunksWithAudio = chunksWithAudio
+        self.chunksWithTiming = chunksWithTiming
+        self.chunksWithImages = chunksWithImages
+        self.chunksWithoutFiles = chunksWithoutFiles
+        self.chunksWithoutMetadata = chunksWithoutMetadata
+        self.filesWithoutUrl = filesWithoutUrl
+        self.filesWithoutSize = filesWithoutSize
+        self.gapCount = gapCount ?? PipelineMediaDiagnostics.derivedGapCount(
+            chunksWithoutFiles: chunksWithoutFiles,
+            chunksWithoutMetadata: chunksWithoutMetadata,
+            filesWithoutUrl: filesWithoutUrl,
+            filesWithoutSize: filesWithoutSize
+        )
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let chunksWithoutFiles = try container.decode(Int.self, forKey: .chunksWithoutFiles)
+        let chunksWithoutMetadata = try container.decode(Int.self, forKey: .chunksWithoutMetadata)
+        let filesWithoutUrl = try container.decode(Int.self, forKey: .filesWithoutUrl)
+        let filesWithoutSize = try container.decode(Int.self, forKey: .filesWithoutSize)
+        self.init(
+            mediaFileCount: try container.decode(Int.self, forKey: .mediaFileCount),
+            chunkCount: try container.decode(Int.self, forKey: .chunkCount),
+            chunkFileCount: try container.decode(Int.self, forKey: .chunkFileCount),
+            audioFileCount: try container.decode(Int.self, forKey: .audioFileCount),
+            imageFileCount: try container.decode(Int.self, forKey: .imageFileCount),
+            chunksWithAudio: try container.decode(Int.self, forKey: .chunksWithAudio),
+            chunksWithTiming: try container.decode(Int.self, forKey: .chunksWithTiming),
+            chunksWithImages: try container.decode(Int.self, forKey: .chunksWithImages),
+            chunksWithoutFiles: chunksWithoutFiles,
+            chunksWithoutMetadata: chunksWithoutMetadata,
+            filesWithoutUrl: filesWithoutUrl,
+            filesWithoutSize: filesWithoutSize,
+            gapCount: try container.decodeIfPresent(Int.self, forKey: .gapCount)
+        )
+    }
+
+    private static func derivedGapCount(
+        chunksWithoutFiles: Int,
+        chunksWithoutMetadata: Int,
+        filesWithoutUrl: Int,
+        filesWithoutSize: Int
+    ) -> Int {
+        chunksWithoutFiles + chunksWithoutMetadata + filesWithoutUrl + filesWithoutSize
     }
 
     static let empty = PipelineMediaDiagnostics(
@@ -68,7 +152,8 @@ struct PipelineMediaDiagnostics: Decodable, Equatable {
         chunksWithoutFiles: 0,
         chunksWithoutMetadata: 0,
         filesWithoutUrl: 0,
-        filesWithoutSize: 0
+        filesWithoutSize: 0,
+        gapCount: 0
     )
 }
 

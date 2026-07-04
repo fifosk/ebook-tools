@@ -65,7 +65,7 @@ struct MediaDiagnosticsStripView: View {
         if diagnostics.filesWithoutSize > 0 {
             parts.append("files without size metadata")
         }
-        let detail = parts.isEmpty ? "media gaps detected" : parts.joined(separator: ", ")
+        let detail = parts.isEmpty ? "\(diagnostics.gapCount) media gaps detected" : parts.joined(separator: ", ")
         return "Media needs attention, \(detail). Playback may skip sections until missing media is repaired."
     }
 

@@ -41,6 +41,11 @@ def test_pipeline_media_decoder_requires_manifest_shape() -> None:
     assert "chunks = try container.decode([PipelineMediaChunk].self, forKey: .chunks)" in source
     assert "complete = try container.decode(Bool.self, forKey: .complete)" in source
     assert "diagnostics = try container.decode(PipelineMediaDiagnostics.self, forKey: .diagnostics)" in source
+    assert "let gapCount: Int" in source
+    assert "case gapCount" in source
+    assert "gapCount: try container.decodeIfPresent(Int.self, forKey: .gapCount)" in source
+    assert "chunksWithoutFiles + chunksWithoutMetadata + filesWithoutUrl + filesWithoutSize" in source
+    assert "var hasGaps: Bool {\n        gapCount > 0\n    }" in source
     assert "name = try container.decode(String.self, forKey: .name)" in source
     assert "source = try container.decode(String.self, forKey: .source)" in source
     assert "files = try container.decode([PipelineMediaFile].self, forKey: .files)" in source

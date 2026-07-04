@@ -22,12 +22,16 @@ function MediaDiagnosticsStrip({ diagnostics }: { diagnostics: PipelineMediaDiag
     return null;
   }
 
-  const missingCount =
+  const derivedGapCount =
     diagnostics.chunksWithoutFiles +
     diagnostics.chunksWithoutMetadata +
     diagnostics.filesWithoutUrl +
     diagnostics.filesWithoutSize;
-  const state = missingCount > 0 ? 'warning' : 'ready';
+  const gapCount =
+    typeof diagnostics.gapCount === 'number' && Number.isFinite(diagnostics.gapCount)
+      ? diagnostics.gapCount
+      : derivedGapCount;
+  const state = gapCount > 0 ? 'warning' : 'ready';
   const timingLabel =
     diagnostics.chunkCount > 0
       ? `${diagnostics.chunksWithTiming}/${diagnostics.chunkCount}`
@@ -39,8 +43,8 @@ function MediaDiagnosticsStrip({ diagnostics }: { diagnostics: PipelineMediaDiag
     { id: 'timing', label: 'Timing', value: timingLabel },
     { id: 'images', label: 'Images', value: diagnostics.chunksWithImages },
   ];
-  if (missingCount > 0) {
-    rows.push({ id: 'gaps', label: 'Gaps', value: missingCount });
+  if (gapCount > 0) {
+    rows.push({ id: 'gaps', label: 'Gaps', value: gapCount });
   }
 
   return (

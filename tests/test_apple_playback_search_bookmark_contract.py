@@ -1276,6 +1276,7 @@ def test_playback_media_diagnostics_are_warning_only_by_default() -> None:
     library_playback = _source(PLAYBACK / "LibraryPlaybackView.swift")
 
     assert "if let diagnostics, diagnostics.hasGaps" in diagnostics
+    assert "diagnostics.gapCount" in diagnostics
     assert "Playback may skip sections until missing media is repaired." in diagnostics
     assert "LazyVGrid" not in diagnostics
     assert "MediaDiagnosticsMetricView" not in diagnostics

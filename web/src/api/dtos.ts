@@ -1190,6 +1190,7 @@ export interface PipelineMediaDiagnostics {
   chunksWithoutMetadata: number;
   filesWithoutUrl: number;
   filesWithoutSize: number;
+  gapCount: number;
 }
 
 export interface PipelineMediaResponse {

@@ -109,6 +109,14 @@ def _build_export_media_diagnostics(
         for entry in chunk.get("files", [])
         if isinstance(entry, Mapping)
     ]
+    chunks_without_files = sum(1 for chunk in chunk_entries if not chunk.get("files"))
+    chunks_without_metadata = sum(
+        1
+        for chunk in chunk_entries
+        if not chunk.get("metadata_path") and not chunk.get("metadata_url") and not chunk.get("sentences")
+    )
+    files_without_url = sum(1 for entry in media_files if not entry.get("url"))
+    files_without_size = sum(1 for entry in media_files if entry.get("size") is None)
 
     return {
         "mediaFileCount": len(media_files),
@@ -132,14 +140,11 @@ def _build_export_media_diagnostics(
         ),
         "chunksWithTiming": sum(1 for chunk in chunk_entries if _chunk_has_timing(chunk)),
         "chunksWithImages": sum(1 for chunk in chunk_entries if _chunk_has_image(chunk)),
-        "chunksWithoutFiles": sum(1 for chunk in chunk_entries if not chunk.get("files")),
-        "chunksWithoutMetadata": sum(
-            1
-            for chunk in chunk_entries
-            if not chunk.get("metadata_path") and not chunk.get("metadata_url") and not chunk.get("sentences")
-        ),
-        "filesWithoutUrl": sum(1 for entry in media_files if not entry.get("url")),
-        "filesWithoutSize": sum(1 for entry in media_files if entry.get("size") is None),
+        "chunksWithoutFiles": chunks_without_files,
+        "chunksWithoutMetadata": chunks_without_metadata,
+        "filesWithoutUrl": files_without_url,
+        "filesWithoutSize": files_without_size,
+        "gapCount": chunks_without_files + chunks_without_metadata + files_without_url + files_without_size,
     }
 
 
