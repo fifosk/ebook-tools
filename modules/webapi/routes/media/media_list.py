@@ -547,7 +547,7 @@ def _resolve_chunk_entry(
     chunks: Sequence[Any],
     chunk_id: str,
 ) -> Optional[Mapping[str, Any]]:
-    chunk_id = chunk_id.strip()
+    chunk_id = normalize_route_id(chunk_id)
     if not chunk_id:
         return None
     if chunk_id.startswith("chunk-"):
@@ -725,6 +725,10 @@ async def get_job_media_chunk(
 ) -> PipelineMediaChunk:
     """Return sentence metadata for a single chunk."""
 
+    normalized_chunk_id = normalize_route_id(chunk_id)
+    if not normalized_chunk_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk not found")
+
     job = _get_media_job(
         job_id,
         pipeline_service=pipeline_service,
@@ -746,7 +750,7 @@ async def get_job_media_chunk(
     if not isinstance(chunks_section, list):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk not found")
 
-    chunk_entry = _resolve_chunk_entry(chunks_section, chunk_id)
+    chunk_entry = _resolve_chunk_entry(chunks_section, normalized_chunk_id)
     if not isinstance(chunk_entry, Mapping):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk not found")
 

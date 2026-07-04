@@ -3,7 +3,7 @@ extension AppChangelogData {
         AppChangelogEntry(
             id: "backend-legacy-media-route-id-helper",
             title: "Legacy media IDs share cleanup",
-            detail: "Backend legacy media streams now trim job and chunk identifiers through the shared route helper before playback lookup, keeping older Web playback URLs aligned with Apple media boundaries."
+            detail: "Backend legacy media streams and chunk detail reads now trim job and chunk identifiers through the shared route helper before playback lookup, keeping older Web playback URLs aligned with Apple media boundaries."
         ),
         AppChangelogEntry(
             id: "backend-pipeline-cover-route-id-helper",

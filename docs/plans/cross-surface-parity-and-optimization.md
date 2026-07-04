@@ -2635,7 +2635,8 @@ Suggested features to evaluate after parity scaffolding:
   `/api/media/{job_id}/{chunk_id}` playback streams now trim job and chunk
   identifiers through the same shared helper before job and metadata lookup, so
   older Web playback URLs follow the same boundary behavior as Apple media
-  routes.
+  routes. Pipeline chunk-detail reads now also normalize chunk identifiers
+  before media metadata lookup and reject blank chunk IDs before service access.
 - Status: Apple auth/playback-state preflight contract now advertises OAuth,
   session, bookmarks, reading-bed, and resume paths in the public runtime
   descriptor, routes Apple auth/playback-state calls through shared helpers,

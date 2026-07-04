@@ -162,6 +162,15 @@ def test_pipeline_media_diagnostics_use_shared_gap_counter() -> None:
     assert "chunks_without_files + chunks_without_metadata" not in source
 
 
+def test_pipeline_media_chunk_route_uses_shared_chunk_id_normalizer() -> None:
+    source = inspect.getsource(media_list.get_job_media_chunk)
+    resolver_source = inspect.getsource(media_list._resolve_chunk_entry)
+
+    assert "normalized_chunk_id = normalize_route_id(chunk_id)" in source
+    assert "_resolve_chunk_entry(chunks_section, normalized_chunk_id)" in source
+    assert "chunk_id = normalize_route_id(chunk_id)" in resolver_source
+
+
 def test_stream_chunk_audio_track_uses_safe_stat_for_audio_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -733,7 +742,7 @@ def test_get_job_media_permission_error_uses_generic_detail(api_app) -> None:
     assert service.calls == [("job-media-secret", "alice", "editor")]
 
 
-def test_get_job_media_chunk_normalizes_padded_job_id(api_app) -> None:
+def test_get_job_media_chunk_normalizes_padded_job_and_chunk_ids(api_app) -> None:
     app, file_locator = api_app
     job_id = "job-chunk-padded"
     job = PipelineJob(
@@ -779,12 +788,25 @@ def test_get_job_media_chunk_normalizes_padded_job_id(api_app) -> None:
 
     with TestClient(app) as client:
         response = client.get(
-            "/pipelines/jobs/%20%20job-chunk-padded%20%20/media/chunks/chunk-001"
+            "/pipelines/jobs/%20%20job-chunk-padded%20%20/media/chunks/%20%20chunk-001%20%20"
         )
 
     assert response.status_code == 200
     assert response.json()["sentences"][0]["original"]["text"] == "Hello"
     assert service.calls == [(job_id, None, None)]
+
+
+def test_get_job_media_chunk_rejects_blank_chunk_id_without_service_lookup(api_app) -> None:
+    app, _file_locator = api_app
+    service = _StubPipelineService()
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    with TestClient(app) as client:
+        response = client.get("/pipelines/jobs/job-chunk-blank/media/chunks/%20%20%20")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Chunk not found"}
+    assert service.calls == []
 
 
 def test_get_job_media_populates_sentence_count_from_range(api_app) -> None:
