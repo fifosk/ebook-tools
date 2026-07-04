@@ -129,6 +129,7 @@ REPO_OWNED_APP_JOURNEYS = {
     "tvos-create": "make test-e2e-tvos-create-readiness",
     "tvos-music-bed-sync": "make test-e2e-tvos-music-bed-sync",
     "runtime-xcode-readiness": "make apple-runtime-xcode-readiness",
+    "device-deploy-readiness-dry-run": "make apple-device-deploy-readiness-dry-run",
 }
 
 REPO_OWNED_CREDENTIAL_FREE_APP_JOURNEYS = [
@@ -138,6 +139,7 @@ REPO_OWNED_CREDENTIAL_FREE_APP_JOURNEYS = [
     "macos-ipad-style",
     "macos-ipad-style-dry-run",
     "runtime-xcode-readiness",
+    "device-deploy-readiness-dry-run",
 ]
 
 EXPECTED_DEVICE_PROFILES = {
@@ -264,7 +266,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert (
         "APPLE_PIPELINE_JOURNEY_PROFILES ?= apple-e2e-journeys iphone ipados tvos iphone-create "
         "ipados-create tvos-create ipados-music-bed-sync tvos-music-bed-sync runtime-xcode-readiness ios-uitests-build "
-        "tvos-uitests-build macos-ipad-style-dry-run macos-ipad-style"
+        "tvos-uitests-build macos-ipad-style-dry-run macos-ipad-style device-deploy-readiness-dry-run"
     ) in makefile
     assert "MAC_STUDIO_SSH_TARGET ?= fifo@192.168.1.9" in makefile
     assert "MAC_STUDIO_REPO_PATH ?= /Users/fifo/Projects/home/ebook-tools" in makefile
@@ -604,9 +606,11 @@ def test_shared_pipeline_wrapper_skips_remote_env_for_credential_free_journeys()
     assert "apple-e2e-journeys" in module.credential_free_journeys(manifest)
     assert "ios-uitests-build" in module.credential_free_journeys(manifest)
     assert "runtime-xcode-readiness" in module.credential_free_journeys(manifest)
+    assert "device-deploy-readiness-dry-run" in module.credential_free_journeys(manifest)
     assert module.should_load_remote_env(manifest, "apple-e2e-journeys", requested=True) is False
     assert module.should_load_remote_env(manifest, "ios-uitests-build", requested=True) is False
     assert module.should_load_remote_env(manifest, "runtime-xcode-readiness", requested=True) is False
+    assert module.should_load_remote_env(manifest, "device-deploy-readiness-dry-run", requested=True) is False
     assert module.should_load_remote_env(manifest, "ipados", requested=True) is True
     assert module.should_load_remote_env(manifest, "ipados", requested=False) is False
 
@@ -783,6 +787,7 @@ def test_device_deploy_dry_run_matrix_is_visible_in_changelogs() -> None:
         assert "apple-device-deploy-dry-run-matrix" in source
         assert "apple-device-deploy-readiness-dry-run" in source
         assert "no-install" in source
+        assert "credential-free shared-pipeline app-owned journey" in source
         assert "host readiness" in source
         assert "CoreDevice listing" in source
         assert "iPad Pro" in source

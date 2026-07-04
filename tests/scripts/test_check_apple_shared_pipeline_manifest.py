@@ -212,6 +212,7 @@ def _write_manifest(
             "macos-ipad-style": "make build-apple-macos-ipad-style",
             "macos-ipad-style-dry-run": "make build-apple-macos-ipad-style-dry-run",
             "runtime-xcode-readiness": "make apple-runtime-xcode-readiness",
+            "device-deploy-readiness-dry-run": "make apple-device-deploy-readiness-dry-run",
         },
         "credentialFreeAppOwnedJourneys": credential_free_journeys
         if credential_free_journeys is not None
@@ -222,6 +223,7 @@ def _write_manifest(
             "macos-ipad-style",
             "macos-ipad-style-dry-run",
             "runtime-xcode-readiness",
+            "device-deploy-readiness-dry-run",
         ],
         "backendTestChecks": backend_test_checks
         if backend_test_checks is not None

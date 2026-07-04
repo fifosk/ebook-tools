@@ -43,6 +43,7 @@ REQUIRED_APP_OWNED_JOURNEYS = (
     "macos-ipad-style",
     "macos-ipad-style-dry-run",
     "runtime-xcode-readiness",
+    "device-deploy-readiness-dry-run",
 )
 REQUIRED_CREDENTIAL_FREE_APP_OWNED_JOURNEYS = (
     "apple-e2e-journeys",
@@ -51,6 +52,7 @@ REQUIRED_CREDENTIAL_FREE_APP_OWNED_JOURNEYS = (
     "macos-ipad-style",
     "macos-ipad-style-dry-run",
     "runtime-xcode-readiness",
+    "device-deploy-readiness-dry-run",
 )
 REQUIRED_SIMULATOR_PROFILES = ("ios", "ipados", "tvos", "tvos-cinema")
 REQUIRED_DEVICE_PROFILES = ("iphone", "ipad", "appletv", "cinema")
