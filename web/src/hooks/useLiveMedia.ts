@@ -7,7 +7,6 @@ import {
 import { subscribeToJobEvents } from '../services/api';
 import {
   createEmptyState,
-  hasChunkSentences,
   mergeChunkCollections,
   mergeMediaBuckets,
   type LiveMediaChunk,
@@ -18,6 +17,10 @@ import {
   normaliseGeneratedSnapshot,
 } from './liveMediaNormalise';
 import { resolveLiveMediaEventAction } from './liveMediaEvents';
+import {
+  loadCompletedMediaFallback,
+  shouldFetchCompletedMediaFallback,
+} from './liveMediaLoad';
 export { createEmptyState } from './liveMediaState';
 export { useMediaClock } from './liveMediaClock';
 export type { MediaClock } from './liveMediaClock';
@@ -84,31 +87,18 @@ export function useLiveMedia(
         if (cancelled || !payload) {
           return;
         }
-        if (hasChunkSentences(payload.initialChunks)) {
+        if (!shouldFetchCompletedMediaFallback(payload.initialChunks)) {
           return;
         }
-        return fetchJobMedia(jobId)
-          .then((fallbackResponse: PipelineMediaResponse) => {
-            if (cancelled) {
-              return;
-            }
-            const {
-              media: fallbackMedia,
-              chunks: fallbackChunks,
-              complete: fallbackComplete,
-              diagnostics: fallbackDiagnostics,
-            } = normaliseFetchedMedia(fallbackResponse, jobId);
-            if (fallbackMedia.text.length + fallbackMedia.audio.length + fallbackMedia.video.length === 0) {
-              return;
-            }
-            setMedia(fallbackMedia);
-            setChunks(fallbackChunks);
-            setDiagnostics(fallbackDiagnostics);
-            setIsComplete(fallbackComplete || payload.complete);
-          })
-          .catch(() => {
-            // Ignore failures; live snapshot will remain in place.
-          });
+        return loadCompletedMediaFallback(jobId, fetchJobMedia, payload.complete).then((fallback) => {
+          if (cancelled || !fallback) {
+            return;
+          }
+          setMedia(fallback.media);
+          setChunks(fallback.chunks);
+          setDiagnostics(fallback.diagnostics);
+          setIsComplete(fallback.complete);
+        });
       })
       .catch((fetchError: unknown) => {
         if (cancelled) {

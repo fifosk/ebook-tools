@@ -35,7 +35,7 @@ Web-only or Web-primary creation flows:
 
 Large Web UI hotspots to split before redesign work:
 
-- `web/src/hooks/useLiveMedia.ts` - 207 lines. Status: live media state
+- `web/src/hooks/useLiveMedia.ts` - 197 lines. Status: live media state
   types, empty-state creation, media bucket merging, generated-file extraction,
   chunk merging, audio-track detection, chunk-sentence detection, scalar
   coercion, media-category normalization, media signature building, relative
@@ -50,7 +50,10 @@ Large Web UI hotspots to split before redesign work:
   `web/src/hooks/liveMediaClock.ts` and is included in the playback-focused
   Vitest lane. Live media event classification for final refreshes, media
   resets, and generated chunk merges now lives in `web/src/hooks/liveMediaEvents.ts`
-  with hook-level completion refresh coverage.
+  with hook-level completion refresh coverage. Initial detail-manifest fallback
+  decisions now live in `web/src/hooks/liveMediaLoad.ts`, preserving immediate
+  live snapshot rendering while only applying completed-media fallbacks that
+  contain visible files.
 - `web/src/pages/LibraryPage.tsx` - 591 lines. Status: TV/YouTube/library
   title, author, genre, thumbnail, upload-date, ISBN preview merge/cover, and
   tab bucketing and pagination helpers now live in

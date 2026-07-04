@@ -303,6 +303,7 @@ def test_playback_focused_web_target_covers_player_and_media_state() -> None:
     for path in [
         "src/api/client/__tests__/media.test.ts",
         "src/hooks/__tests__/liveMediaEvents.test.ts",
+        "src/hooks/__tests__/liveMediaLoad.test.ts",
         "src/hooks/__tests__/liveMediaState.test.ts",
         "src/hooks/__tests__/liveMediaTiming.test.ts",
         "src/hooks/__tests__/useMediaClock.test.tsx",
