@@ -2589,7 +2589,10 @@ Suggested features to evaluate after parity scaffolding:
   instead of deriving it ad hoc. The shared pipeline backend manifest now pins the
   offline export `sourceKinds` and `playerTypes` list values as well as the
   export URLs, so reusable backend preflight fails if the Web/Apple offline
-  player payload contract changes. The manifest-registered
+  player payload contract changes. The backend download route now trims padded
+  export identifiers through the shared route helper before resolving archive
+  files, keeping Apple offline-download handoffs aligned with playback route-id
+  boundaries. The manifest-registered
   `test-backend-offline-export` target now exercises the `/api/exports` create
   and download routes, including missing-download handling, token-safe logging,
   and Prometheus timing metrics through the shared route wrapper, so Apple

@@ -135,6 +135,59 @@ def test_export_routes_record_token_safe_timing(
     assert _has_export_metric_count(metrics_response.text, operation="download", result="success")
 
 
+def test_export_download_route_uses_shared_route_id_normalizer() -> None:
+    source = Path(exports.__file__).read_text(encoding="utf-8")
+
+    assert "from ..route_ids import normalize_route_id" in source
+    assert "def _normalize_route_id" not in source
+    assert "normalized_export_id = normalize_route_id(export_id)" in source
+    assert "resolve_export_download(normalized_export_id)" in source
+
+
+def test_export_download_normalizes_padded_export_id(
+    tmp_path: Path,
+) -> None:
+    zip_path = tmp_path / "secret-export-id.zip"
+    zip_path.write_bytes(b"zip")
+    service = _StubExportService(zip_path)
+    app = create_app()
+    app.dependency_overrides[get_export_service] = lambda: service
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/exports/%20%20secret-export-id%20%20/download")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.content == b"zip"
+    assert service.download_calls == ["secret-export-id"]
+
+
+def test_export_download_rejects_blank_export_id_before_service_lookup(
+    tmp_path: Path,
+) -> None:
+    service = _StubExportService(tmp_path / "unused.zip")
+    app = create_app()
+    app.dependency_overrides[get_export_service] = lambda: service
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/exports/%20%20/download")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == exports.EXPORT_DOWNLOAD_UNAVAILABLE_MESSAGE
+    assert service.download_calls == []
+    assert _has_export_metric_count(
+        metrics_response.text,
+        operation="download",
+        result="not_found",
+    )
+
+
 @pytest.mark.parametrize(
     ("raised", "expected_status", "expected_detail", "expected_result"),
     [

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 
 from ..dependencies import RequestUserContext, get_export_service, get_request_user
+from ..route_ids import normalize_route_id
 from ..route_telemetry import log_started_route_result
 from ..schemas.exports import ExportRequestPayload, ExportResponse
 from modules.services.export_service import ExportService, ExportServiceError
@@ -132,8 +133,15 @@ def download_export(
     export_service: ExportService = Depends(get_export_service),
 ) -> FileResponse:
     started_at = time.perf_counter()
+    normalized_export_id = normalize_route_id(export_id)
+    if not normalized_export_id:
+        _log_export_route("download", "not_found", started_at)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=EXPORT_DOWNLOAD_UNAVAILABLE_MESSAGE,
+        )
     try:
-        result = export_service.resolve_export_download(export_id)
+        result = export_service.resolve_export_download(normalized_export_id)
     except ExportServiceError as exc:
         _log_export_route("download", "not_found", started_at)
         raise HTTPException(

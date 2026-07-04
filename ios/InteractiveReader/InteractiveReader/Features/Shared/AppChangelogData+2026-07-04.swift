@@ -51,6 +51,11 @@ extension AppChangelogData {
             detail: "Backend Library action, metadata, access, media, and media-file routes now trim padded job identifiers through the shared helper before service lookup, keeping Web and Apple Library rows aligned."
         ),
         AppChangelogEntry(
+            id: "backend-offline-export-route-id-helper",
+            title: "Offline export IDs share cleanup",
+            detail: "Backend offline-export downloads now trim padded export identifiers through the shared route helper before archive lookup, keeping Apple offline sync handoffs aligned with Web download boundaries."
+        ),
+        AppChangelogEntry(
             id: "backend-playback-search-route-id-helper",
             title: "Playback search IDs share cleanup",
             detail: "Backend media search now trims its job identifier through the shared route helper before pipeline or Library lookup, keeping Apple and Web playback search boundary behavior aligned."
