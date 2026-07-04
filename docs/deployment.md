@@ -105,7 +105,10 @@ APPLE_DEVICE_ID="<device-id-or-name>" \
 APPLE_DEVICE_ID="<device-id-or-name>" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   bash scripts/apple_unattended_device_update.sh --profile ipad --install --launch --dry-run
 
-# Preview the default iPad Pro, iPhone, and Living Room TV routes without installing.
+# Check the host, list CoreDevice targets, and preview default routes without installing.
+make apple-device-deploy-readiness-dry-run
+
+# Preview only the default iPad Pro, iPhone, and Living Room TV routes.
 make apple-device-deploy-dry-run-matrix
 
 # Relaunch an already-installed app with console attached; no build or install.

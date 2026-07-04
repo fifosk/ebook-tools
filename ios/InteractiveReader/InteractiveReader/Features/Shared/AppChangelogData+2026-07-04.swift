@@ -3,7 +3,7 @@ extension AppChangelogData {
         AppChangelogEntry(
             id: "apple-device-deploy-dry-run-matrix",
             title: "Deploy previews cover all default devices",
-            detail: "The Apple pipeline now has a no-install dry-run matrix for the default iPad Pro, iPhone, and Living Room TV routes, previewing build/install/verify/launch commands before any explicit device deploy."
+            detail: "The Apple pipeline now has make apple-device-deploy-dry-run-matrix for no-install default iPad Pro, iPhone, and Living Room TV route previews, plus make apple-device-deploy-readiness-dry-run to chain host readiness, CoreDevice listing, and those build/install/verify/launch previews before any explicit device deploy."
         ),
         AppChangelogEntry(
             id: "tvos-music-bed-ownership-seeds-reader",

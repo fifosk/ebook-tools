@@ -30,7 +30,7 @@
        test-apple-contracts \
        build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-host-readiness apple-device-update \
-       apple-device-preflight apple-device-launch-console apple-device-pull-playback-log apple-device-pull-and-verify-playback-transport-log apple-device-pull-and-verify-current-playback-transport-log apple-device-pull-and-verify-playback-transport-pause-resume-log apple-device-pull-and-verify-current-playback-transport-pause-resume-log apple-device-pull-and-verify-playback-resume-offset-log apple-device-pull-and-verify-current-playback-resume-offset-log apple-device-pull-and-verify-reader-repro-log apple-device-pull-and-verify-current-reader-repro-log apple-device-verify-playback-transport-log apple-device-verify-playback-transport-pause-resume-log apple-device-verify-playback-resume-offset-log apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-reader-progress-log apple-device-verify-music-bed-guarded-play-log apple-device-verify-music-bed-pause-resume-log apple-device-signed-build-only apple-device-deploy-dry-run apple-device-deploy-dry-run-matrix \
+       apple-device-preflight apple-device-launch-console apple-device-pull-playback-log apple-device-pull-and-verify-playback-transport-log apple-device-pull-and-verify-current-playback-transport-log apple-device-pull-and-verify-playback-transport-pause-resume-log apple-device-pull-and-verify-current-playback-transport-pause-resume-log apple-device-pull-and-verify-playback-resume-offset-log apple-device-pull-and-verify-current-playback-resume-offset-log apple-device-pull-and-verify-reader-repro-log apple-device-pull-and-verify-current-reader-repro-log apple-device-verify-playback-transport-log apple-device-verify-playback-transport-pause-resume-log apple-device-verify-playback-resume-offset-log apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-reader-progress-log apple-device-verify-music-bed-guarded-play-log apple-device-verify-music-bed-pause-resume-log apple-device-signed-build-only apple-device-deploy-dry-run apple-device-deploy-dry-run-matrix apple-device-deploy-readiness-dry-run \
        apple-device-full-entitlement-plan apple-device-full-entitlement-build \
        apple-device-full-entitlement-install apple-device-full-entitlement-fallback-install \
        apple-device-full-entitlement-stable-install \
@@ -734,6 +734,11 @@ apple-device-deploy-dry-run-matrix:
 	APPLE_DEVICE_ID="$(APPLE_DEVICE_IPAD_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile ipad --install --launch --dry-run
 	APPLE_DEVICE_ID="$(APPLE_DEVICE_IPHONE_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile iphone --install --launch --dry-run
 	APPLE_DEVICE_ID="$(APPLE_DEVICE_TV_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile appletv --install --launch --dry-run
+
+apple-device-deploy-readiness-dry-run:
+	$(MAKE) apple-device-host-readiness
+	$(MAKE) apple-devices
+	$(MAKE) apple-device-deploy-dry-run-matrix
 
 apple-device-full-entitlement-plan:
 	bash scripts/apple_full_entitlement_signing_plan.sh --device "$(APPLE_DEVICE_ID)" $(if $(strip $(FULL_CAPABILITY_IOS_PROFILE)),--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)") $(if $(strip $(WILDCARD_IOS_EXTENSION_PROFILE)),--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)") $(if $(strip $(APPLE_DEVELOPMENT_IDENTITY)),--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)")

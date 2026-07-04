@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.04.008
 
 - Apple deploy readiness now has `make apple-device-deploy-dry-run-matrix`, a no-install preview for the default iPad Pro, iPhone, and Living Room TV build/install/verify/launch routes before any explicit device deploy.
+- Apple deploy readiness now also has `make apple-device-deploy-readiness-dry-run`, chaining host readiness, CoreDevice listing, and the default device dry-run matrix before any explicit device deploy.
 - Apple TV reader playback now re-arms sequence progression after reader-owned pause/resume and reloads the current segment when the tvOS bleed guard detached the audio item, preventing playback from stopping at the next sentence boundary.
 - Acquisition job payloads now recursively sanitize nested completed-file metadata before Web or Apple Create reconnects to downloader handoffs, keeping outside-root paths and URL secrets out of reviewed source metadata.
 - Apple Create readiness now rejects unsafe nested downloader completed-file metadata, including token fields and URL-shaped path hints, before simulator or device journeys reuse those handoffs.

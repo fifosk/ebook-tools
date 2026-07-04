@@ -61,6 +61,9 @@ deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scr
 deploy_dry_run_matrix_ipad_line='APPLE_DEVICE_ID="$(APPLE_DEVICE_IPAD_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile ipad --install --launch --dry-run'
 deploy_dry_run_matrix_iphone_line='APPLE_DEVICE_ID="$(APPLE_DEVICE_IPHONE_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile iphone --install --launch --dry-run'
 deploy_dry_run_matrix_tv_line='APPLE_DEVICE_ID="$(APPLE_DEVICE_TV_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile appletv --install --launch --dry-run'
+deploy_readiness_dry_run_host_line='$(MAKE) apple-device-host-readiness'
+deploy_readiness_dry_run_devices_line='$(MAKE) apple-devices'
+deploy_readiness_dry_run_matrix_line='$(MAKE) apple-device-deploy-dry-run-matrix'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
 host_readiness_line='bash scripts/apple_unattended_device_update.sh --host-readiness-only'
 preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only'
@@ -166,6 +169,10 @@ assert_contains "${makefile}" "apple-device-deploy-dry-run-matrix:" "Makefile sh
 assert_contains "${makefile}" "${deploy_dry_run_matrix_ipad_line}" "dry-run matrix should preview the iPad Pro install and launch route"
 assert_contains "${makefile}" "${deploy_dry_run_matrix_iphone_line}" "dry-run matrix should preview the iPhone install and launch route"
 assert_contains "${makefile}" "${deploy_dry_run_matrix_tv_line}" "dry-run matrix should preview the Living Room Apple TV install and launch route"
+assert_contains "${makefile}" "apple-device-deploy-readiness-dry-run:" "Makefile should expose a one-command non-installing device deploy readiness check"
+assert_contains "${makefile}" "${deploy_readiness_dry_run_host_line}" "deploy readiness dry-run should start with host readiness"
+assert_contains "${makefile}" "${deploy_readiness_dry_run_devices_line}" "deploy readiness dry-run should list visible CoreDevice targets"
+assert_contains "${makefile}" "${deploy_readiness_dry_run_matrix_line}" "deploy readiness dry-run should finish with the default device route previews"
 assert_contains "${makefile}" "apple-device-full-entitlement-plan:" "Makefile should expose the full-entitlement signing planner"
 assert_contains "${makefile}" "${full_entitlement_plan_line}" "full-entitlement planner should route through the repo-owned planner script"
 assert_contains "${makefile}" "${conditional_app_profile_line}" "full-entitlement planner should pass the app provisioning profile only when overridden"

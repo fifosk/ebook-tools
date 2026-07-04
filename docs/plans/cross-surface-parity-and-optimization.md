@@ -2621,6 +2621,8 @@ Every cross-surface change should pass the relevant subset:
   `make apple-device-signed-build-only`, `make apple-device-deploy-dry-run`,
   `make apple-device-deploy-dry-run-matrix` for the default iPad Pro, iPhone,
   and Living Room TV install/launch previews,
+  `make apple-device-deploy-readiness-dry-run` for host readiness plus visible
+  CoreDevice listing plus the no-install default route previews,
   `make apple-device-full-entitlement-plan`,
   `make apple-device-full-entitlement-stable-install`,
   `make apple-device-full-entitlement-fallback-install`, guarded CoreDevice

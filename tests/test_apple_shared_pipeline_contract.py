@@ -313,6 +313,16 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "--profile appletv --install --launch --dry-run" in matrix_target
     assert matrix_target.count("CONFIRM_PHYSICAL_DEVICE_UPDATE=YES") == 3
     assert "devicectl" not in matrix_target
+    assert "apple-device-deploy-readiness-dry-run:" in makefile
+    readiness_target = makefile.split("apple-device-deploy-readiness-dry-run:", 1)[1].split("\n\n", 1)[0]
+    assert "$(MAKE) apple-device-host-readiness" in readiness_target
+    assert "$(MAKE) apple-devices" in readiness_target
+    assert "$(MAKE) apple-device-deploy-dry-run-matrix" in readiness_target
+    assert readiness_target.index("apple-device-host-readiness") < readiness_target.index("apple-devices")
+    assert readiness_target.index("apple-devices") < readiness_target.index("apple-device-deploy-dry-run-matrix")
+    assert "apple-device-update" not in readiness_target
+    assert "apple-device-full-entitlement-stable-install" not in readiness_target
+    assert "devicectl" not in readiness_target
     assert "apple-pipeline-contracts:" in makefile
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "test-release-version:" in makefile
@@ -771,7 +781,10 @@ def test_device_deploy_dry_run_matrix_is_visible_in_changelogs() -> None:
     assert 'id: "apple-device-deploy-dry-run-matrix"' in swift_changelog
     for source in (swift_changelog, markdown_changelog):
         assert "apple-device-deploy-dry-run-matrix" in source
+        assert "apple-device-deploy-readiness-dry-run" in source
         assert "no-install" in source
+        assert "host readiness" in source
+        assert "CoreDevice listing" in source
         assert "iPad Pro" in source
         assert "iPhone" in source
         assert "Living Room TV" in source
