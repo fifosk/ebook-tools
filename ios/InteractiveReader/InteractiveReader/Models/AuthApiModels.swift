@@ -87,6 +87,8 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let capabilities: [String]
         let rights: [String]
         let providerStatuses: [String]
+        let discoveryProviderMediaKinds: [String: [String]]
+        let explicitOnlyDiscoveryProviderIds: [String]
     }
 
     struct OfflineExportContract: Decodable, Equatable {
@@ -212,7 +214,21 @@ extension BackendRuntimeDescriptorResponse.AcquisitionContract {
             "unknown",
             "restricted",
         ],
-        providerStatuses: ["available", "not_configured", "planned"]
+        providerStatuses: ["available", "not_configured", "planned"],
+        discoveryProviderMediaKinds: [
+            "local_epub": ["book"],
+            "nas_video": ["video"],
+            "manual_downloads": ["book", "video"],
+            "youtube_url": ["video"],
+            "youtube_search": ["video"],
+            "download_station": [],
+            "newznab_torznab": ["video"],
+            "openlibrary": ["book"],
+            "zlibrary_attended": [],
+            "gutenberg": ["book"],
+            "internet_archive": ["book"],
+        ],
+        explicitOnlyDiscoveryProviderIds: ["youtube_url", "zlibrary_attended"]
     )
 }
 

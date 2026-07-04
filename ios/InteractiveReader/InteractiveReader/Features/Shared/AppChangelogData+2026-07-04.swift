@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-runtime-acquisition-provider-catalog",
+            title: "Deploy checks know source policy",
+            detail: "The public runtime descriptor now advertises the token-safe acquisition provider discovery catalog and explicit-only source providers, letting Apple deploy readiness catch stale Default sources policy before device installs."
+        ),
+        AppChangelogEntry(
             id: "ipad-reader-header-light-mode-contrast",
             title: "iPad reader header gets darker",
             detail: "The Apple reader header now uses a higher dark contrast floor with less material wash in light mode, so the title, book cover chrome, progress pill, and language controls remain readable over dark playback backgrounds."

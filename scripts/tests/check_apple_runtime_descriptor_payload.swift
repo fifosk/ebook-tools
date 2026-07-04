@@ -86,7 +86,21 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "mediaKinds": ["book", "video"],
             "capabilities": ["search", "metadata", "acquire", "poll", "extract_subtitles", "import_local"],
             "rights": ["public_domain", "open_license", "user_provided", "unknown", "restricted"],
-            "providerStatuses": ["available", "not_configured", "planned"]
+            "providerStatuses": ["available", "not_configured", "planned"],
+            "discoveryProviderMediaKinds": {
+              "local_epub": ["book"],
+              "nas_video": ["video"],
+              "manual_downloads": ["book", "video"],
+              "youtube_url": ["video"],
+              "youtube_search": ["video"],
+              "download_station": [],
+              "newznab_torznab": ["video"],
+              "openlibrary": ["book"],
+              "zlibrary_attended": [],
+              "gutenberg": ["book"],
+              "internet_archive": ["book"]
+            },
+            "explicitOnlyDiscoveryProviderIds": ["youtube_url", "zlibrary_attended"]
           },
           "offlineExports": {
             "createPath": "/api/exports",
@@ -411,6 +425,18 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.acquisition?.providerStatuses == ["available", "not_configured", "planned"],
             "Apple runtime descriptor should decode acquisition provider statuses"
+        )
+        require(
+            current.acquisition?.discoveryProviderMediaKinds["manual_downloads"] == ["book", "video"],
+            "Apple runtime descriptor should decode acquisition provider discovery media kinds"
+        )
+        require(
+            current.acquisition?.discoveryProviderMediaKinds["zlibrary_attended"] == [],
+            "Apple runtime descriptor should decode non-discoverable attended providers"
+        )
+        require(
+            current.acquisition?.explicitOnlyDiscoveryProviderIds == ["youtube_url", "zlibrary_attended"],
+            "Apple runtime descriptor should decode explicit-only discovery providers"
         )
         require(
             current.offlineExports?.createPath == "/api/exports",

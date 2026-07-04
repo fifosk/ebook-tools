@@ -221,6 +221,18 @@ REQUIRED_APPLE_CONTRACT_TARGETS = (
     "test-apple-playback-state-swift",
     "test-apple-contracts",
 )
+
+
+def _runtime_expected_value(value: object) -> object:
+    if isinstance(value, tuple):
+        return [_runtime_expected_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _runtime_expected_value(child) for key, child in value.items()}
+    if isinstance(value, list):
+        return [_runtime_expected_value(item) for item in value]
+    return value
+
+
 REQUIRED_BACKEND_RUNTIME_EXPECTED = {
     "app": "ebook-tools",
     "service": "ebook-tools-api",
@@ -229,11 +241,11 @@ REQUIRED_BACKEND_RUNTIME_EXPECTED = {
         for key, value in _runtime_descriptor.AUTH_DESCRIPTOR.items()
     },
     **{
-        f"clientConfig.{key}": list(value) if isinstance(value, tuple) else value
+        f"clientConfig.{key}": _runtime_expected_value(value)
         for key, value in _runtime_descriptor.CLIENT_CONFIG_DESCRIPTOR.items()
     },
     **{
-        f"applePipeline.{key}": list(value) if isinstance(value, tuple) else value
+        f"applePipeline.{key}": _runtime_expected_value(value)
         for key, value in _runtime_descriptor.APPLE_PIPELINE_DESCRIPTOR.items()
     },
     **{
@@ -253,7 +265,7 @@ REQUIRED_BACKEND_RUNTIME_EXPECTED = {
         for key, value in _runtime_descriptor.PLAYBACK_STATE_DESCRIPTOR.items()
     },
     **{
-        f"offlineExports.{key}": list(value) if isinstance(value, tuple) else value
+        f"offlineExports.{key}": _runtime_expected_value(value)
         for key, value in _runtime_descriptor.OFFLINE_EXPORTS_DESCRIPTOR.items()
     },
     **{
@@ -261,7 +273,7 @@ REQUIRED_BACKEND_RUNTIME_EXPECTED = {
         for key, value in _runtime_descriptor.CREATION_DESCRIPTOR.items()
     },
     **{
-        f"acquisition.{key}": list(value) if isinstance(value, tuple) else value
+        f"acquisition.{key}": _runtime_expected_value(value)
         for key, value in _runtime_descriptor.ACQUISITION_DESCRIPTOR.items()
     },
     **{

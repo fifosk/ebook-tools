@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -19,18 +20,18 @@ def build_runtime_descriptor() -> dict[str, object]:
         "status": "ok",
         "app": "ebook-tools",
         "service": "ebook-tools-api",
-        "auth": dict(module.AUTH_DESCRIPTOR),
-        "clientConfig": dict(module.CLIENT_CONFIG_DESCRIPTOR),
-        "applePipeline": dict(module.APPLE_PIPELINE_DESCRIPTOR),
-        "creation": dict(module.CREATION_DESCRIPTOR),
-        "acquisition": dict(module.ACQUISITION_DESCRIPTOR),
-        "libraryActions": dict(module.LIBRARY_ACTIONS_DESCRIPTOR),
-        "pipelineJobs": dict(module.PIPELINE_JOBS_DESCRIPTOR),
-        "pipelineMedia": dict(module.PIPELINE_MEDIA_DESCRIPTOR),
-        "linguist": dict(module.LINGUIST_DESCRIPTOR),
-        "offlineExports": dict(module.OFFLINE_EXPORTS_DESCRIPTOR),
-        "playbackState": dict(module.PLAYBACK_STATE_DESCRIPTOR),
-        "notifications": dict(module.NOTIFICATIONS_DESCRIPTOR),
+        "auth": copy.deepcopy(module.AUTH_DESCRIPTOR),
+        "clientConfig": copy.deepcopy(module.CLIENT_CONFIG_DESCRIPTOR),
+        "applePipeline": copy.deepcopy(module.APPLE_PIPELINE_DESCRIPTOR),
+        "creation": copy.deepcopy(module.CREATION_DESCRIPTOR),
+        "acquisition": copy.deepcopy(module.ACQUISITION_DESCRIPTOR),
+        "libraryActions": copy.deepcopy(module.LIBRARY_ACTIONS_DESCRIPTOR),
+        "pipelineJobs": copy.deepcopy(module.PIPELINE_JOBS_DESCRIPTOR),
+        "pipelineMedia": copy.deepcopy(module.PIPELINE_MEDIA_DESCRIPTOR),
+        "linguist": copy.deepcopy(module.LINGUIST_DESCRIPTOR),
+        "offlineExports": copy.deepcopy(module.OFFLINE_EXPORTS_DESCRIPTOR),
+        "playbackState": copy.deepcopy(module.PLAYBACK_STATE_DESCRIPTOR),
+        "notifications": copy.deepcopy(module.NOTIFICATIONS_DESCRIPTOR),
     }
 
 
@@ -88,6 +89,8 @@ def test_deploy_readiness_contract_includes_subtitle_source_cleanup_path() -> No
 def test_deploy_readiness_validates_library_offline_and_playback_sections() -> None:
     payload = build_runtime_descriptor()
     payload["acquisition"]["providerStatuses"] = ["available"]
+    payload["acquisition"]["discoveryProviderMediaKinds"]["zlibrary_attended"] = ["book"]
+    payload["acquisition"]["explicitOnlyDiscoveryProviderIds"] = ["youtube_url"]
     del payload["libraryActions"]["isbnLookupPath"]
     del payload["pipelineJobs"]["deletePathTemplate"]
     del payload["pipelineMedia"]["libraryMediaFilePathTemplate"]
@@ -98,6 +101,8 @@ def test_deploy_readiness_validates_library_offline_and_playback_sections() -> N
 
     assert module.validate_runtime_descriptor(payload) == [
         "runtime.acquisition.providerStatuses=['available'] expected ['available', 'not_configured', 'planned']",
+        "runtime.acquisition.discoveryProviderMediaKinds.zlibrary_attended=['book'] expected []",
+        "runtime.acquisition.explicitOnlyDiscoveryProviderIds=['youtube_url'] expected ['youtube_url', 'zlibrary_attended']",
         "runtime.libraryActions.isbnLookupPath=None expected '/api/library/isbn/lookup'",
         "runtime.pipelineJobs.deletePathTemplate=None expected '/api/pipelines/jobs/{job_id}/delete'",
         "runtime.pipelineMedia.libraryMediaFilePathTemplate=None expected '/api/library/media/{job_id}/file/{file_path}'",

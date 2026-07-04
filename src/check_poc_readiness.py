@@ -206,15 +206,49 @@ def _validate_mapping_values(
 ) -> list[str]:
     failures: list[str] = []
     for key, expected in expected_values.items():
-        actual = _normalize_descriptor_value(payload.get(key))
-        normalized_expected = _normalize_descriptor_value(expected)
-        if actual != normalized_expected:
-            failures.append(f"{label}.{key}={actual!r} expected {normalized_expected!r}")
+        failures.extend(
+            _validate_descriptor_value(
+                payload.get(key),
+                expected,
+                f"{label}.{key}",
+            )
+        )
     return failures
 
 
+def _validate_descriptor_value(actual: Any, expected: Any, label: str) -> list[str]:
+    if isinstance(expected, Mapping):
+        if not isinstance(actual, Mapping):
+            return [
+                f"{label}={_normalize_descriptor_value(actual)!r} "
+                f"expected {_normalize_descriptor_value(expected)!r}"
+            ]
+        failures: list[str] = []
+        for key, expected_child in expected.items():
+            failures.extend(
+                _validate_descriptor_value(
+                    actual.get(key),
+                    expected_child,
+                    f"{label}.{key}",
+                )
+            )
+        return failures
+
+    normalized_actual = _normalize_descriptor_value(actual)
+    normalized_expected = _normalize_descriptor_value(expected)
+    if normalized_actual != normalized_expected:
+        return [f"{label}={normalized_actual!r} expected {normalized_expected!r}"]
+    return []
+
+
 def _normalize_descriptor_value(value: Any) -> Any:
-    return list(value) if isinstance(value, tuple) else value
+    if isinstance(value, tuple):
+        return [_normalize_descriptor_value(item) for item in value]
+    if isinstance(value, Mapping):
+        return {key: _normalize_descriptor_value(child) for key, child in value.items()}
+    if isinstance(value, list):
+        return [_normalize_descriptor_value(item) for item in value]
+    return value
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

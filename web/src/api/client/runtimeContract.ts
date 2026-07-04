@@ -150,6 +150,20 @@ export const WEB_ACQUISITION_RUNTIME_CONTRACT = {
     'restricted'
   ],
   providerStatuses: ['available', 'not_configured', 'planned'],
+  discoveryProviderMediaKinds: {
+    local_epub: ['book'],
+    nas_video: ['video'],
+    manual_downloads: ['book', 'video'],
+    youtube_url: ['video'],
+    youtube_search: ['video'],
+    download_station: [],
+    newznab_torznab: ['video'],
+    openlibrary: ['book'],
+    zlibrary_attended: [],
+    gutenberg: ['book'],
+    internet_archive: ['book'],
+  },
+  explicitOnlyDiscoveryProviderIds: ['youtube_url', 'zlibrary_attended'],
 } as const;
 
 export const WEB_LINGUIST_RUNTIME_CONTRACT = {

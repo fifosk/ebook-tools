@@ -191,6 +191,20 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
             "restricted",
         ],
         "providerStatuses": ["available", "not_configured", "planned"],
+        "discoveryProviderMediaKinds": {
+            "local_epub": ["book"],
+            "nas_video": ["video"],
+            "manual_downloads": ["book", "video"],
+            "youtube_url": ["video"],
+            "youtube_search": ["video"],
+            "download_station": [],
+            "newznab_torznab": ["video"],
+            "openlibrary": ["book"],
+            "zlibrary_attended": [],
+            "gutenberg": ["book"],
+            "internet_archive": ["book"],
+        },
+        "explicitOnlyDiscoveryProviderIds": ["youtube_url", "zlibrary_attended"],
     }
     assert payload["creation"]["acquisitionProvidersPath"] == "/api/acquisition/providers"
     assert payload["creation"]["acquisitionDiscoverPath"] == "/api/acquisition/discover"
@@ -267,6 +281,7 @@ def test_runtime_descriptor_returns_fresh_public_lists() -> None:
     first["clientConfig"]["apiBaseUrlEnvironment"].append("MUTATED")
     first["applePipeline"]["simulatorProfiles"].append("mutated")
     first["creation"]["bookOptionsPath"] = "MUTATED"
+    first["acquisition"]["discoveryProviderMediaKinds"]["local_epub"].append("mutated")
 
     assert second["clientConfig"]["apiBaseUrlEnvironment"] == [
         "INTERACTIVE_READER_API_BASE_URL",
@@ -280,6 +295,7 @@ def test_runtime_descriptor_returns_fresh_public_lists() -> None:
         "tvos-cinema",
     ]
     assert second["creation"]["bookOptionsPath"] == "/api/books/options"
+    assert second["acquisition"]["discoveryProviderMediaKinds"]["local_epub"] == ["book"]
 
 
 def test_runtime_descriptor_uses_prevalidated_static_template(monkeypatch) -> None:

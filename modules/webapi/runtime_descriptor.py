@@ -12,6 +12,12 @@ _DISCOVERY_VALUES_PATH = (
     / "acquisition"
     / "discovery_values.py"
 )
+_PROVIDER_CATALOG_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "services"
+    / "acquisition"
+    / "provider_catalog.py"
+)
 _DISCOVERY_VALUES_SPEC = importlib.util.spec_from_file_location(
     "ebook_tools_acquisition_discovery_values",
     _DISCOVERY_VALUES_PATH,
@@ -20,11 +26,24 @@ if _DISCOVERY_VALUES_SPEC is None or _DISCOVERY_VALUES_SPEC.loader is None:
     raise RuntimeError(f"Unable to load acquisition values from {_DISCOVERY_VALUES_PATH}")
 _discovery_values = importlib.util.module_from_spec(_DISCOVERY_VALUES_SPEC)
 _DISCOVERY_VALUES_SPEC.loader.exec_module(_discovery_values)
+_PROVIDER_CATALOG_SPEC = importlib.util.spec_from_file_location(
+    "ebook_tools_acquisition_provider_catalog",
+    _PROVIDER_CATALOG_PATH,
+)
+if _PROVIDER_CATALOG_SPEC is None or _PROVIDER_CATALOG_SPEC.loader is None:
+    raise RuntimeError(f"Unable to load acquisition provider catalog from {_PROVIDER_CATALOG_PATH}")
+_provider_catalog = importlib.util.module_from_spec(_PROVIDER_CATALOG_SPEC)
+_PROVIDER_CATALOG_SPEC.loader.exec_module(_provider_catalog)
 
 ACQUISITION_CAPABILITIES = _discovery_values.ACQUISITION_CAPABILITIES
 ACQUISITION_MEDIA_KINDS = _discovery_values.ACQUISITION_MEDIA_KINDS
 ACQUISITION_PROVIDER_STATUSES = _discovery_values.ACQUISITION_PROVIDER_STATUSES
 ACQUISITION_RIGHTS = _discovery_values.ACQUISITION_RIGHTS
+ACQUISITION_DISCOVERY_PROVIDER_MEDIA_KINDS = {
+    provider_id: _provider_catalog.discovery_media_kinds_for(provider_id)
+    for provider_id in _provider_catalog.ACQUISITION_PROVIDER_ORDER
+}
+EXPLICIT_ONLY_DISCOVERY_PROVIDER_IDS = _provider_catalog.EXPLICIT_ONLY_DISCOVERY_PROVIDER_IDS
 
 API_BASE_URL_ENVIRONMENT = (
     "INTERACTIVE_READER_API_BASE_URL",
@@ -112,6 +131,8 @@ ACQUISITION_DESCRIPTOR = {
     "capabilities": ACQUISITION_CAPABILITIES,
     "rights": ACQUISITION_RIGHTS,
     "providerStatuses": ACQUISITION_PROVIDER_STATUSES,
+    "discoveryProviderMediaKinds": ACQUISITION_DISCOVERY_PROVIDER_MEDIA_KINDS,
+    "explicitOnlyDiscoveryProviderIds": EXPLICIT_ONLY_DISCOVERY_PROVIDER_IDS,
 }
 OFFLINE_EXPORTS_DESCRIPTOR = {
     "createPath": "/api/exports",
@@ -249,20 +270,19 @@ def _walk_descriptor_keys(value: object) -> list[str]:
     return []
 
 
-def _copy_public_descriptor_section(section: Mapping[str, object]) -> dict[str, object]:
-    return {
-        key: list(value) if isinstance(value, tuple) else value
-        for key, value in section.items()
-    }
+def _copy_public_descriptor_value(value: object) -> object:
+    if isinstance(value, tuple):
+        return [_copy_public_descriptor_value(item) for item in value]
+    if isinstance(value, Mapping):
+        return {key: _copy_public_descriptor_value(child) for key, child in value.items()}
+    if isinstance(value, list):
+        return [_copy_public_descriptor_value(item) for item in value]
+    return value
 
 
 def _copy_runtime_descriptor_template() -> dict[str, object]:
     return {
-        key: (
-            _copy_public_descriptor_section(value)
-            if isinstance(value, Mapping)
-            else value
-        )
+        key: _copy_public_descriptor_value(value)
         for key, value in _PUBLIC_RUNTIME_DESCRIPTOR_TEMPLATE.items()
     }
 

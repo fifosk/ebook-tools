@@ -260,7 +260,7 @@ def _swift_model_fields(source: str, struct_name: str) -> dict[str, str]:
     return {
         field_match.group("name"): field_match.group("type")
         for field_match in re.finditer(
-            r"        let (?P<name>[A-Za-z0-9_]+): (?P<type>\[?[A-Za-z0-9_]+\]?\??)",
+            r"        let (?P<name>[A-Za-z0-9_]+): (?P<type>[^\n]+)",
             match.group("body"),
         )
     }
@@ -269,6 +269,8 @@ def _swift_model_fields(source: str, struct_name: str) -> dict[str, str]:
 def _swift_model_type_for_descriptor_value(value: object, *, optional: bool) -> str:
     if isinstance(value, tuple):
         field_type = "[String]"
+    elif isinstance(value, dict):
+        field_type = "[String: [String]]"
     elif isinstance(value, int):
         field_type = "Int"
     else:
@@ -301,7 +303,14 @@ def _swift_enum_static_lets(source: str, enum_name: str) -> dict[str, object]:
 
 
 def _runtime_descriptor_expected_constant_value(value: object) -> object:
-    return list(value) if isinstance(value, tuple) else value
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, dict):
+        return {
+            key: _runtime_descriptor_expected_constant_value(child)
+            for key, child in value.items()
+        }
+    return value
 
 
 def _typescript_const_object_body(source: str, const_name: str) -> str:
@@ -316,7 +325,7 @@ def _typescript_const_object_body(source: str, const_name: str) -> str:
 
 def _typescript_const_object_keys(source: str, const_name: str) -> set[str]:
     body = _typescript_const_object_body(source, const_name)
-    return set(re.findall(r"^\s*(?P<key>[A-Za-z0-9_]+):", body, re.M))
+    return set(re.findall(r"^  (?P<key>[A-Za-z0-9_]+):", body, re.M))
 
 
 def _typescript_const_object_value(
@@ -325,6 +334,20 @@ def _typescript_const_object_value(
     key: str,
 ) -> object:
     body = _typescript_const_object_body(source, const_name)
+    object_match = re.search(
+        rf"^  {re.escape(key)}: \{{(?P<value>.*?)^  \}},",
+        body,
+        re.M | re.S,
+    )
+    if object_match is not None:
+        return {
+            item_match.group("key"): re.findall(r"'([^']*)'", item_match.group("value"))
+            for item_match in re.finditer(
+                r"^    (?P<key>[A-Za-z0-9_]+): (?P<value>\[[^\]]*?\]),",
+                object_match.group("value"),
+                re.M | re.S,
+            )
+        }
     match = re.search(
         rf"^\s*{re.escape(key)}: (?P<value>'[^']*'|\d+|\[[^\]]*?\]),",
         body,
@@ -377,6 +400,20 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
             "restricted",
         ],
         "providerStatuses": ["available", "not_configured", "planned"],
+        "discoveryProviderMediaKinds": {
+            "local_epub": ["book"],
+            "nas_video": ["video"],
+            "manual_downloads": ["book", "video"],
+            "youtube_url": ["video"],
+            "youtube_search": ["video"],
+            "download_station": [],
+            "newznab_torznab": ["video"],
+            "openlibrary": ["book"],
+            "zlibrary_attended": [],
+            "gutenberg": ["book"],
+            "internet_archive": ["book"],
+        },
+        "explicitOnlyDiscoveryProviderIds": ["youtube_url", "zlibrary_attended"],
     }
     assert descriptor["offlineExports"] == {
         "createPath": "/api/exports",
@@ -458,6 +495,8 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let capabilities: [String]" in source
     assert "let rights: [String]" in source
     assert "let providerStatuses: [String]" in source
+    assert "let discoveryProviderMediaKinds: [String: [String]]" in source
+    assert "let explicitOnlyDiscoveryProviderIds: [String]" in source
     assert "extension BackendRuntimeDescriptorResponse.AcquisitionContract" in source
     assert "static let supported = Self(" in source
     assert "let applePipeline: ApplePipelineContract?" in source
@@ -672,9 +711,16 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "pipelineFilesMaxLimit: 500" in web_runtime_source
     assert "export const WEB_ACQUISITION_RUNTIME_CONTRACT" in web_runtime_source
     for key, values in ACQUISITION_DESCRIPTOR.items():
-        assert f"{key}: [" in web_runtime_source
-        for value in values:
-            assert f"'{value}'" in web_runtime_source
+        if isinstance(values, dict):
+            assert f"{key}: {{" in web_runtime_source
+            for provider_id, media_kinds in values.items():
+                assert f"{provider_id}: [" in web_runtime_source
+                for media_kind in media_kinds:
+                    assert f"'{media_kind}'" in web_runtime_source
+        else:
+            assert f"{key}: [" in web_runtime_source
+            for value in values:
+                assert f"'{value}'" in web_runtime_source
     assert (
         "export const MIN_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesMinLimit;"
         in web_jobs_source
@@ -889,6 +935,13 @@ def test_standalone_swift_runtime_descriptor_payload_check_covers_runtime_contra
                     source,
                     f"{accessor}.{key} == {value}",
                 )
+                continue
+            if isinstance(value, dict):
+                assert f'"{key}": {{' in source
+                for nested_key, nested_values in value.items():
+                    assert f'"{nested_key}": [' in source
+                    for nested_value in nested_values:
+                        assert f'"{nested_value}"' in source
                 continue
             assert f'"{key}": [' in source
             for item in value:
