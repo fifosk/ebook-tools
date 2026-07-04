@@ -746,6 +746,10 @@ same pytest contract now parses the Xcode project and requires
 `InteractiveReader` app target and the tvOS `InteractiveReaderTV` app target,
 so shared track/timing fixes cannot quietly ship to iPad without also compiling
 into Apple TV.
+`make verify-apple-reader-playback-candidate` bundles that Swift playback lane
+with iPhone, iPad, and tvOS simulator builds, and `make test-changed` selects
+the aggregate automatically for reader playback Swift paths while still adding
+the Music-bed dry-run for Music-sensitive files.
 Reader-owned pause paths must hard-cancel pending interactive autoplay before
 stopping narration, and the same-track handoff trim constants are contract-pinned
 so a wider tvOS preroll margin cannot quietly regress into next-sentence audio

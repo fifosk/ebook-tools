@@ -44,6 +44,14 @@ SIMULATOR_BUILD_TARGETS = {
     "build-apple-tvos-simulator",
 }
 
+AGGREGATE_TARGET_COVERAGE = {
+    "verify-apple-reader-playback-candidate": {
+        "test-apple-playback-state-swift",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+    },
+}
+
 PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
@@ -288,6 +296,18 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "ios/InteractiveReader/InteractiveReader/Services/NowPlayingCoordinator.swift",
         ),
         ("verify-apple-music-bed-candidate-dry-run",),
+    ),
+    (
+        (
+            "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/",
+            "ios/InteractiveReader/InteractiveReader/Features/Playback/",
+            "ios/InteractiveReader/InteractiveReader/Services/AudioPlayerCoordinator.swift",
+            "ios/InteractiveReader/InteractiveReader/Services/NowPlayingCoordinator.swift",
+            "ios/InteractiveReader/InteractiveReader/Services/PlayerCoordinating.swift",
+            "ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift",
+            "ios/InteractiveReader/InteractiveReader/Services/VideoPlayerCoordinator.swift",
+        ),
+        ("verify-apple-reader-playback-candidate",),
     ),
     (
         (
@@ -727,8 +747,25 @@ def select_targets(paths: Iterable[str]) -> list[str]:
         targets = [target for target in targets if target not in SIMULATOR_BUILD_TARGETS]
 
     if targets:
+        targets = _remove_targets_covered_by_aggregates(targets)
         return _order_targets_for_feedback(targets)
     return ["test-fast"]
+
+
+def _remove_targets_covered_by_aggregates(targets: list[str]) -> list[str]:
+    aggregate_targets = [target for target in targets if target in AGGREGATE_TARGET_COVERAGE]
+    if not aggregate_targets:
+        return targets
+
+    covered_targets: set[str] = set()
+    for aggregate_target in aggregate_targets:
+        covered_targets.update(AGGREGATE_TARGET_COVERAGE[aggregate_target])
+
+    return [
+        target
+        for target in targets
+        if target in aggregate_targets or target not in covered_targets
+    ]
 
 
 def _order_targets_for_feedback(targets: list[str]) -> list[str]:
