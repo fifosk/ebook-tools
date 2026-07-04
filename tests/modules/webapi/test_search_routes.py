@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -595,6 +596,14 @@ def test_search_normalizes_job_id_before_lookup(api_app) -> None:
     assert response.status_code == 200, response.text
     assert service.get_job_calls == [job_id]
     assert library_sync.get_item_calls == []
+
+
+def test_search_route_uses_shared_route_id_normalizer() -> None:
+    source = inspect.getsource(library_routes)
+
+    assert "from ..route_ids import normalize_route_id" in source
+    assert "normalized_job_id = normalize_route_id(job_id)" in source
+    assert "normalized_job_id = job_id.strip()" not in source
 
 
 def test_search_rejects_blank_job_id_without_service_lookup(api_app) -> None:

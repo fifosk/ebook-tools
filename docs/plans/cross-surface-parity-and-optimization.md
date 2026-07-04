@@ -1357,10 +1357,10 @@ Optimization candidates:
   `/api/pipelines/search` now defers the library item lookup until the pipeline
   job is missing, so normal active-job media searches avoid a library sync
   lookup while preserving library fallback behavior for archived items and
-  unknown-job 404s. The route also trims `job_id` once at the boundary and
-  rejects blank normalized ids before touching pipeline or library services, so
-  malformed Web/Apple playback search state does not trigger avoidable storage
-  or repository work.
+  unknown-job 404s. The route also trims `job_id` once through the shared
+  route-id normalizer and rejects blank normalized ids before touching pipeline
+  or library services, so malformed Web/Apple playback search state does not
+  trigger avoidable storage or repository work.
 - Avoid avoidable public runtime descriptor work in Apple preflight paths.
   Status: `/api/system/runtime` now serves from a static prevalidated descriptor
   template, only copying caller-mutable section dictionaries/lists and filling
@@ -1683,9 +1683,9 @@ Optimization candidates:
   blank normalized job IDs before storage access, and treat blank bookmark
   deletes as idempotent `deleted=false` responses so malformed Web/Apple
   playback state does not create stray fallback bookmark files. Bookmark,
-  resume, pipeline media, timing, and storage routes now share the same tiny
-  route-id normalizer, so future Web/Apple playback endpoints can reuse the
-  boundary behavior without reintroducing local trim helpers.
+  resume, pipeline media, timing, storage, and media-search routes now share
+  the same tiny route-id normalizer, so future Web/Apple playback endpoints can
+  reuse the boundary behavior without reintroducing local trim helpers.
 
 ## Parity Roadmap
 

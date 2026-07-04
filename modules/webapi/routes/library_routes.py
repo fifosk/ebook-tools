@@ -21,6 +21,7 @@ from ..dependencies import (
     get_pipeline_service,
     get_request_user,
 )
+from ..route_ids import normalize_route_id
 from ..route_telemetry import log_started_route_result
 from modules.services.job_manager import PipelineJob
 from ..schemas import MediaSearchHit, MediaSearchResponse, PipelineMediaFile
@@ -185,7 +186,7 @@ async def search_pipeline_media(
 
     started_at = time.perf_counter()
     normalized_query = query.strip()
-    normalized_job_id = job_id.strip()
+    normalized_job_id = normalize_route_id(job_id)
     if not normalized_query:
         _log_search_route_result(
             message="Pipeline media search skipped blank query",
