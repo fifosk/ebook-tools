@@ -1832,7 +1832,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     )
     assert "now - lastPendingInteractiveAutoplayRecoveryTime >= 1.0" in job_pending_recovery_body
     assert "lastPendingInteractiveAutoplayRecoveryTime = now" in job_pending_recovery_body
-    assert "pendingInteractiveAutoplayRecoveryAttempts < 2" in job_pending_recovery_body
+    assert "pendingInteractiveAutoplayRecoveryAttempts <" in job_pending_recovery_body
+    assert "ReaderTransportCommandResolver.pendingInteractiveAutoplayRecoveryAttemptLimit" in job_pending_recovery_body
     assert "pendingInteractiveAutoplayRecoveryAttempts += 1" in job_pending_recovery_body
     assert '"\\(reason)RecoveryExhausted"' in job_pending_recovery_body
     assert "clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason)" in job_pending_recovery_body
@@ -1883,9 +1884,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)" in job_muted_recovery_body
     assert job_muted_recovery_body.index(
         "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)"
-    ) < job_muted_recovery_body.index("guard !viewModel.isSequenceModeActive else { return }")
+    ) < job_muted_recovery_body.index("guard !viewModel.sequenceController.isDwelling else { return }")
     assert "Job recovered stale sequence transition" in job_muted_recovery_body
-    assert "guard !viewModel.isSequenceModeActive else { return }" in job_muted_recovery_body
+    assert "guard !viewModel.isSequenceModeActive else { return }" not in job_muted_recovery_body
+    assert "guard !viewModel.sequenceController.isDwelling else { return }" in job_muted_recovery_body
     assert "guard !viewModel.isSequenceTransitioning else { return }" in job_muted_recovery_body
     assert "pendingInteractiveAutoplaySentence == nil" in job_muted_recovery_body
     assert "viewModel.audioCoordinator.volume <= 0.001" in job_muted_recovery_body
@@ -2187,7 +2189,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     )
     assert "now - lastPendingInteractiveAutoplayRecoveryTime >= 1.0" in library_pending_recovery_body
     assert "lastPendingInteractiveAutoplayRecoveryTime = now" in library_pending_recovery_body
-    assert "pendingInteractiveAutoplayRecoveryAttempts < 2" in library_pending_recovery_body
+    assert "pendingInteractiveAutoplayRecoveryAttempts <" in library_pending_recovery_body
+    assert "ReaderTransportCommandResolver.pendingInteractiveAutoplayRecoveryAttemptLimit" in library_pending_recovery_body
     assert "pendingInteractiveAutoplayRecoveryAttempts += 1" in library_pending_recovery_body
     assert '"\\(reason)RecoveryExhausted"' in library_pending_recovery_body
     assert "clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: reason)" in library_pending_recovery_body
@@ -2245,9 +2248,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)" in library_muted_recovery_body
     assert library_muted_recovery_body.index(
         "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)"
-    ) < library_muted_recovery_body.index("guard !viewModel.isSequenceModeActive else { return }")
+    ) < library_muted_recovery_body.index("guard !viewModel.sequenceController.isDwelling else { return }")
     assert "Library recovered stale sequence transition" in library_muted_recovery_body
-    assert "guard !viewModel.isSequenceModeActive else { return }" in library_muted_recovery_body
+    assert "guard !viewModel.isSequenceModeActive else { return }" not in library_muted_recovery_body
+    assert "guard !viewModel.sequenceController.isDwelling else { return }" in library_muted_recovery_body
     assert "guard !viewModel.isSequenceTransitioning else { return }" in library_muted_recovery_body
     assert "pendingInteractiveAutoplaySentence == nil" in library_muted_recovery_body
     assert "viewModel.audioCoordinator.volume <= 0.001" in library_muted_recovery_body
@@ -2568,7 +2572,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "static var brokerEchoWindow: TimeInterval" in resolver
     assert "#if os(tvOS)\n        return 1.5\n        #else\n        return 1.25" in resolver
     assert "static var playbackRecoveryProbeDelaysNanoseconds: [UInt64]" in resolver
-    assert "[180_000_000, 600_000_000, 1_200_000_000]" in resolver
+    assert "[180_000_000, 600_000_000, 1_200_000_000, 2_000_000_000, 3_200_000_000, 5_000_000_000]" in resolver
+    assert "static var pendingInteractiveAutoplayRecoveryAttemptLimit: Int" in resolver
     assert "static var pauseConfirmationProbeDelaysNanoseconds: [UInt64]" in resolver
     assert "[60_000_000, 180_000_000, 420_000_000, 900_000_000, 1_500_000_000]" in resolver
     assert "static var deferredMusicResumeProbeDelaysNanoseconds: [UInt64]" in resolver

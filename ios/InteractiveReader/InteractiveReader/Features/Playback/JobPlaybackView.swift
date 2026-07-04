@@ -336,7 +336,9 @@ struct JobPlaybackView: View {
             pendingInteractiveAutoplayRecoverySentence = pendingSentence
             pendingInteractiveAutoplayRecoveryAttempts = 0
         }
-        guard pendingInteractiveAutoplayRecoveryAttempts < 2 else {
+        guard pendingInteractiveAutoplayRecoveryAttempts <
+            ReaderTransportCommandResolver.pendingInteractiveAutoplayRecoveryAttemptLimit
+        else {
             _ = clearPendingInteractiveAutoplayForReaderPauseIfNeeded(reason: "\(reason)RecoveryExhausted")
             pendingInteractiveAutoplayID = nil
             pendingInteractiveAutoplaySentence = nil
@@ -419,7 +421,7 @@ struct JobPlaybackView: View {
             scheduleAppleMusicBedNowPlayingReassertion()
             return
         }
-        guard !viewModel.isSequenceModeActive else { return }
+        guard !viewModel.sequenceController.isDwelling else { return }
         guard !viewModel.isSequenceTransitioning else { return }
         guard viewModel.audioCoordinator.isPlaybackRequested,
               pendingInteractiveAutoplaySentence == nil,

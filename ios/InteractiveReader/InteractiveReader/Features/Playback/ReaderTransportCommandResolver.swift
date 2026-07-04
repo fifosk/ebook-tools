@@ -46,7 +46,19 @@ enum ReaderTransportCommandResolver {
     }
 
     static var playbackRecoveryProbeDelaysNanoseconds: [UInt64] {
-        [180_000_000, 600_000_000, 1_200_000_000]
+        #if os(tvOS)
+        return [180_000_000, 600_000_000, 1_200_000_000, 2_000_000_000, 3_200_000_000, 5_000_000_000]
+        #else
+        return [180_000_000, 600_000_000, 1_200_000_000]
+        #endif
+    }
+
+    static var pendingInteractiveAutoplayRecoveryAttemptLimit: Int {
+        #if os(tvOS)
+        return 6
+        #else
+        return 2
+        #endif
     }
 
     static var pauseConfirmationProbeDelaysNanoseconds: [UInt64] {
