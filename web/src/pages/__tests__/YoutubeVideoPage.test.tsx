@@ -104,7 +104,11 @@ describe('YoutubeVideoPage', () => {
           policy_notes: []
         }
       ],
-      policy_notes: [],
+      policy_notes: [
+        'Search results are metadata only until reviewed.',
+        'Review source rights before downloading.',
+        ' Review source rights before downloading. ',
+      ],
       providers_queried: ['youtube_search']
     });
   });
@@ -128,6 +132,8 @@ describe('YoutubeVideoPage', () => {
     );
 
     const discoveryPanel = screen.getByLabelText('YouTube discovery panel');
+    expect(await within(discoveryPanel).findByText('Search results are metadata only until reviewed.')).toBeInTheDocument();
+    expect(within(discoveryPanel).getAllByText('Review source rights before downloading.')).toHaveLength(1);
     fireEvent.click(await within(discoveryPanel).findByRole('button', { name: /Readable History Interview/i }));
 
     const urlInput = screen.getByLabelText(/YouTube URL/i);
