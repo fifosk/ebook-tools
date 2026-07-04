@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
 import type { AcquisitionCandidate } from '../../api/dtos';
+import { normalizeDiscoveryPolicyNotes } from '../../utils/acquisitionPolicyNotes';
 import type {
   BookNarrationDiscoveryProvider,
   BookNarrationDiscoveryProviderOption
@@ -90,16 +91,6 @@ function candidateActionLabel(candidate: AcquisitionCandidate, acquiringCandidat
   return candidate.capabilities.includes('metadata') ? 'Apply metadata' : 'Review';
 }
 
-function distinctPolicyNotes(policyNotes: string[]): string[] {
-  return policyNotes.reduce<string[]>((notes, rawNote) => {
-    const note = rawNote.trim();
-    if (note && !notes.includes(note)) {
-      notes.push(note);
-    }
-    return notes;
-  }, []);
-}
-
 export function BookNarrationDiscoveryDialog({
   active,
   provider,
@@ -128,7 +119,7 @@ export function BookNarrationDiscoveryDialog({
     event.preventDefault();
     onSearch(query);
   };
-  const visiblePolicyNotes = distinctPolicyNotes(policyNotes);
+  const visiblePolicyNotes = normalizeDiscoveryPolicyNotes(policyNotes);
 
   return (
     <div className="modal-backdrop" role="presentation">

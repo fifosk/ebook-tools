@@ -18,6 +18,7 @@ import type {
   YoutubeVideoFormat
 } from '../api/dtos';
 import EmojiIcon from '../components/EmojiIcon';
+import { normalizeDiscoveryPolicyNotes } from '../utils/acquisitionPolicyNotes';
 import styles from './YoutubeVideoPage.module.css';
 import {
   describeFormat,
@@ -38,16 +39,6 @@ import {
 // The API returns the configured base_dir in its response.
 const SUBTITLE_NAS_DIR = '';
 const VIDEO_NAS_DIR = '';
-
-function distinctPolicyNotes(policyNotes: string[]): string[] {
-  return policyNotes.reduce<string[]>((notes, rawNote) => {
-    const note = rawNote.trim();
-    if (note && !notes.includes(note)) {
-      notes.push(note);
-    }
-    return notes;
-  }, []);
-}
 
 export default function YoutubeVideoPage() {
   const [activeTab, setActiveTab] = useState<'video' | 'downloads'>('video');
@@ -162,7 +153,7 @@ export default function YoutubeVideoPage() {
           (candidate) => candidate.provider === 'youtube_search' && Boolean(candidate.source_url?.trim())
         )
       );
-      setDiscoveryPolicyNotes(distinctPolicyNotes(response.policy_notes));
+      setDiscoveryPolicyNotes(normalizeDiscoveryPolicyNotes(response.policy_notes));
     } catch (error) {
       const message =
         error instanceof Error ? error.message || 'Unable to search YouTube.' : 'Unable to search YouTube.';

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { discoverAcquisitionCandidates } from '../../api/client';
 import type { AcquisitionDiscoveryResponse, AcquisitionProvider } from '../../api/dtos';
+import { normalizeDiscoveryPolicyNotes } from '../../utils/acquisitionPolicyNotes';
 import {
   DEFAULT_VIDEO_DISCOVERY_PROVIDER,
   filterDiscoveredVideoCandidates,
@@ -45,16 +46,7 @@ export function useVideoDubbingDiscoverySearch({
     );
   }, [acquisitionProviders, discoveryResponse, videoDiscoveryProvider]);
   const discoveryPolicyNotes = useMemo(() => {
-    const seen = new Set<string>();
-    return (discoveryResponse?.policy_notes ?? []).reduce<string[]>((notes, rawNote) => {
-      const note = rawNote.trim();
-      if (!note || seen.has(note)) {
-        return notes;
-      }
-      seen.add(note);
-      notes.push(note);
-      return notes;
-    }, []);
+    return normalizeDiscoveryPolicyNotes(discoveryResponse?.policy_notes);
   }, [discoveryResponse]);
 
   const discoverVideos = useCallback(async ({
