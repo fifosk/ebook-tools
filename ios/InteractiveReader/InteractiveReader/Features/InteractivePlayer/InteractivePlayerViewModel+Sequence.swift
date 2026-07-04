@@ -12,6 +12,8 @@ extension InteractivePlayerViewModel {
     private static var readyCancellableKey: UInt8 = 0
     /// Storage key for the transition token
     private static var transitionTokenKey: UInt8 = 0
+    /// Storage key for a short watchdog suppression window around sequence handoffs.
+    private static var sequenceHandoffRecoveryHoldUntilKey: UInt8 = 0
 
     /// Cancellable for observing audioCoordinator.isReady during transitions
     private var readyCancellable: AnyCancellable? {
@@ -24,6 +26,32 @@ extension InteractivePlayerViewModel {
     var currentTransitionToken: Int {
         get { (objc_getAssociatedObject(self, &Self.transitionTokenKey) as? NSNumber)?.intValue ?? 0 }
         set { objc_setAssociatedObject(self, &Self.transitionTokenKey, NSNumber(value: newValue), .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+
+    var sequenceHandoffRecoveryHoldUntil: TimeInterval {
+        get {
+            (objc_getAssociatedObject(
+                self,
+                &Self.sequenceHandoffRecoveryHoldUntilKey
+            ) as? NSNumber)?.doubleValue ?? 0
+        }
+        set {
+            objc_setAssociatedObject(
+                self,
+                &Self.sequenceHandoffRecoveryHoldUntilKey,
+                NSNumber(value: newValue),
+                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+            )
+        }
+    }
+
+    func holdAppleMusicBedNarrationRecoveryForSequenceHandoff(seconds: TimeInterval = 1.2) {
+        let deadline = ProcessInfo.processInfo.systemUptime + seconds
+        sequenceHandoffRecoveryHoldUntil = max(sequenceHandoffRecoveryHoldUntil, deadline)
+    }
+
+    var shouldDeferAppleMusicBedNarrationRecoveryDuringSequenceHandoff: Bool {
+        ProcessInfo.processInfo.systemUptime < sequenceHandoffRecoveryHoldUntil
     }
 
     /// Cancel any pending audio ready subscription and invalidate the current transition
@@ -86,9 +114,7 @@ extension InteractivePlayerViewModel {
     func recoverStuckReaderTransportPlayback() -> Bool {
         guard audioCoordinator.isPlaybackRequested else { return false }
         guard audioCoordinator.nowPlayingPlayer != nil else { return false }
-        guard audioCoordinator.volume <= 0.001 ||
-                !audioCoordinator.isPlaying
-        else { return false }
+        guard !audioCoordinator.isPlaying else { return false }
         if isSequenceTransitioning {
             cancelPendingAudioReadySubscription()
             sequenceController.cancelPendingAutomaticAdvanceForPause()
@@ -96,6 +122,22 @@ extension InteractivePlayerViewModel {
         audioCoordinator.clearAudioMix()
         audioCoordinator.restoreVolume()
         audioCoordinator.play()
+        return true
+    }
+
+    @discardableResult
+    func restoreMutedReaderTransportPlaybackIfPlaying() -> Bool {
+        guard audioCoordinator.isPlaybackRequested else { return false }
+        guard audioCoordinator.nowPlayingPlayer != nil else { return false }
+        guard audioCoordinator.isPlaying else { return false }
+        guard audioCoordinator.volume <= 0.001 else { return false }
+        guard !isSequenceTransitioning,
+              !sequenceController.isTransitioning,
+              !sequenceController.isDwelling else {
+            return false
+        }
+        audioCoordinator.clearAudioMix()
+        audioCoordinator.restoreVolume()
         return true
     }
 
@@ -131,6 +173,33 @@ extension InteractivePlayerViewModel {
             }
         }
         return true
+    }
+
+    @discardableResult
+    func recoverStalledSequenceHandoffIfPlaybackIsActive(reason: String) -> Bool {
+        guard isSequenceModeActive,
+              audioCoordinator.isPlaybackRequested,
+              (!audioCoordinator.isPlaying || audioCoordinator.volume <= 0.001),
+              ProcessInfo.processInfo.systemUptime >= sequenceHandoffRecoveryHoldUntil
+        else {
+            return false
+        }
+        if sequenceController.isDwelling {
+            interactiveSequenceLogger.info(
+                "Recovering stalled sequence dwell reason=\(reason, privacy: .public), playing=\(self.audioCoordinator.isPlaying, privacy: .public), ready=\(self.audioCoordinator.isReady, privacy: .public)"
+            )
+            _ = sequenceController.advanceToNextSegment()
+            holdAppleMusicBedNarrationRecoveryForSequenceHandoff()
+            return true
+        }
+        if sequenceController.isTransitioning {
+            let recovered = recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)
+            if recovered {
+                holdAppleMusicBedNarrationRecoveryForSequenceHandoff()
+            }
+            return recovered
+        }
+        return false
     }
 
     var isNarrationAudibleForReaderTransport: Bool {
@@ -236,8 +305,14 @@ extension InteractivePlayerViewModel {
             )
         }
         if sequenceController.isEnabled {
+            let normalizedTargetSentenceIndex = targetSentenceIndex.flatMap { targetIndex -> Int? in
+                if chunk.sentences.indices.contains(targetIndex) {
+                    return targetIndex
+                }
+                return SentencePositionProvider.sentenceIndex(in: chunk, matching: targetIndex)
+            }
             // If we have a target sentence (resume), position to that sentence
-            if let targetIndex = targetSentenceIndex,
+            if let targetIndex = normalizedTargetSentenceIndex,
                let target = sequenceController.seekToSentence(
                 targetIndex,
                 preferredTrack: audioModeManager?.preferredTrack ?? .original
@@ -571,6 +646,7 @@ extension InteractivePlayerViewModel {
             interactiveSequenceLogger.debug("Sequence track switch: track=\(track.rawValue, privacy: .public)")
         }
 
+        holdAppleMusicBedNarrationRecoveryForSequenceHandoff()
         if !sequenceController.isTransitioning {
             onSequenceWillTransition?()
         }

@@ -192,15 +192,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'toggleReaderNowPlayingTransport(source: "brokerToggle")' in job_playback
     job_foreground_handler_body = _function_body(job_playback, "private func handleTVPlayPauseCommand()")
     assert "shouldRecoverTVReaderNowPlayingRequestedPlayback()" in job_foreground_handler_body
-    assert job_foreground_handler_body.index("shouldRecoverTVReaderNowPlayingRequestedPlayback()") < job_foreground_handler_body.index(
-        "if shouldForceTVReaderNowPlayingPause()"
+    assert job_foreground_handler_body.index("if shouldForceTVReaderNowPlayingPause()") < job_foreground_handler_body.index(
+        "shouldRecoverTVReaderNowPlayingRequestedPlayback()"
     )
     job_broker_handler_body = _function_body(job_playback, "private func handleTVBrokerPlayPauseCommand()")
     assert job_broker_handler_body.index("shouldForceTVReaderNowPlayingResume(ignorePauseHold: true)") < job_broker_handler_body.index(
-        "shouldRecoverTVReaderNowPlayingRequestedPlayback()"
-    )
-    assert job_broker_handler_body.index("shouldRecoverTVReaderNowPlayingRequestedPlayback()") < job_broker_handler_body.index(
         "if shouldForceTVReaderNowPlayingPause()"
+    )
+    assert job_broker_handler_body.index("if shouldForceTVReaderNowPlayingPause()") < job_broker_handler_body.index(
+        "shouldRecoverTVReaderNowPlayingRequestedPlayback()"
     )
     assert "@State var e2eReaderTransportCommandCount = 0" in job_playback
     assert "@State var e2eReaderPauseConfirmationCount = 0" in job_playback
@@ -257,6 +257,13 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'lastReaderTransportAction == "pause"' in job_pre_audible_pause_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" in job_pre_audible_pause_body
     assert "!musicOwnership.isManuallyPaused" not in job_pre_audible_pause_body
+    job_keep_active_pause_body = _function_body(
+        job_playback,
+        "private func shouldKeepReaderActiveDuringAppleMusicPause",
+    )
+    assert "isObservedAppleMusicNonPlayingPause(reason: reason, source: source)" in job_keep_active_pause_body
+    assert "return viewModel.sequenceController.isDwelling ||" in job_keep_active_pause_body
+    assert "viewModel.isSequenceTransitioning" in job_keep_active_pause_body
     assert job_mirror_pause_decision_body.index("if musicOwnership.isPausedByReaderTransport") < job_mirror_pause_decision_body.index(
         "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay"
     )
@@ -828,15 +835,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'toggleReaderNowPlayingTransport(source: "brokerToggle")' in library_playback
     library_foreground_handler_body = _function_body(library_playback, "private func handleTVPlayPauseCommand()")
     assert "shouldRecoverTVReaderNowPlayingRequestedPlayback()" in library_foreground_handler_body
-    assert library_foreground_handler_body.index("shouldRecoverTVReaderNowPlayingRequestedPlayback()") < library_foreground_handler_body.index(
-        "if shouldForceTVReaderNowPlayingPause()"
+    assert library_foreground_handler_body.index("if shouldForceTVReaderNowPlayingPause()") < library_foreground_handler_body.index(
+        "shouldRecoverTVReaderNowPlayingRequestedPlayback()"
     )
     library_broker_handler_body = _function_body(library_playback, "private func handleTVBrokerPlayPauseCommand()")
     assert library_broker_handler_body.index("shouldForceTVReaderNowPlayingResume(ignorePauseHold: true)") < library_broker_handler_body.index(
-        "shouldRecoverTVReaderNowPlayingRequestedPlayback()"
-    )
-    assert library_broker_handler_body.index("shouldRecoverTVReaderNowPlayingRequestedPlayback()") < library_broker_handler_body.index(
         "if shouldForceTVReaderNowPlayingPause()"
+    )
+    assert library_broker_handler_body.index("if shouldForceTVReaderNowPlayingPause()") < library_broker_handler_body.index(
+        "shouldRecoverTVReaderNowPlayingRequestedPlayback()"
     )
     assert "@State var e2eReaderTransportCommandCount = 0" in library_playback
     assert "@State var e2eReaderPauseConfirmationCount = 0" in library_playback
@@ -890,6 +897,13 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'lastReaderTransportAction == "pause"' in library_pre_audible_pause_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" in library_pre_audible_pause_body
     assert "!musicOwnership.isManuallyPaused" not in library_pre_audible_pause_body
+    library_keep_active_pause_body = _function_body(
+        library_playback,
+        "private func shouldKeepReaderActiveDuringAppleMusicPause",
+    )
+    assert "isObservedAppleMusicNonPlayingPause(reason: reason, source: source)" in library_keep_active_pause_body
+    assert "return viewModel.sequenceController.isDwelling ||" in library_keep_active_pause_body
+    assert "viewModel.isSequenceTransitioning" in library_keep_active_pause_body
     library_mirror_pause_decision_body = _function_body(library_playback, "private var shouldMirrorAppleMusicPauseToNarration")
     assert "#if os(tvOS)" in library_mirror_pause_decision_body
     assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in library_mirror_pause_decision_body
@@ -1932,19 +1946,32 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "!musicOwnership.isReaderTransportPauseGuardActive" in job_muted_recovery_body
     assert "!musicOwnership.isManuallyPaused" in job_muted_recovery_body
     assert 'guard lastReaderTransportAction != "pause" else { return }' in job_muted_recovery_body
-    assert "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)" in job_muted_recovery_body
+    assert "if viewModel.recoverStalledSequenceHandoffIfPlaybackIsActive(reason: reason)" in job_muted_recovery_body
     assert job_muted_recovery_body.index(
-        "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)"
-    ) < job_muted_recovery_body.index("guard !viewModel.sequenceController.isDwelling else { return }")
-    assert "Job recovered stale sequence transition" in job_muted_recovery_body
+        "guard !viewModel.shouldDeferAppleMusicBedNarrationRecoveryDuringSequenceHandoff else { return }"
+    ) < job_muted_recovery_body.index("if viewModel.recoverStalledSequenceHandoffIfPlaybackIsActive(reason: reason)")
+    assert job_muted_recovery_body.index(
+        "if viewModel.recoverStalledSequenceHandoffIfPlaybackIsActive(reason: reason)"
+    ) < job_muted_recovery_body.index("if viewModel.restoreMutedReaderTransportPlaybackIfPlaying()")
+    assert job_muted_recovery_body.index(
+        "if viewModel.restoreMutedReaderTransportPlaybackIfPlaying()"
+    ) < job_muted_recovery_body.index("if viewModel.recoverStuckReaderTransportPlayback()")
+    assert job_muted_recovery_body.index("configureAppleMusicBedAudioSession()") < job_muted_recovery_body.index(
+        "if viewModel.restoreMutedReaderTransportPlaybackIfPlaying()"
+    )
+    assert job_muted_recovery_body.index("if viewModel.restoreMutedReaderTransportPlaybackIfPlaying()") < (
+        job_muted_recovery_body.index("recovering stalled Apple Music-bed narration")
+    )
+    assert "Job recovered stalled sequence handoff" in job_muted_recovery_body
     assert "guard !viewModel.isSequenceModeActive else { return }" not in job_muted_recovery_body
-    assert "guard !viewModel.sequenceController.isDwelling else { return }" in job_muted_recovery_body
-    assert "guard !viewModel.isSequenceTransitioning else { return }" in job_muted_recovery_body
+    assert "guard !viewModel.sequenceController.isDwelling else { return }" not in job_muted_recovery_body
+    assert "guard !viewModel.isSequenceTransitioning else { return }" not in job_muted_recovery_body
     assert "pendingInteractiveAutoplaySentence == nil" in job_muted_recovery_body
     assert "viewModel.audioCoordinator.volume <= 0.001" in job_muted_recovery_body
     assert "!viewModel.audioCoordinator.isPlaying" in job_muted_recovery_body
     assert "recovering stalled Apple Music-bed narration" in job_muted_recovery_body
     assert "configureAppleMusicBedAudioSession()" in job_muted_recovery_body
+    assert "if viewModel.restoreMutedReaderTransportPlaybackIfPlaying()" in job_muted_recovery_body
     assert "if viewModel.recoverStuckReaderTransportPlayback()" in job_muted_recovery_body
     assert 'lastReaderTransportAction = "play"' in job_muted_recovery_body
     assert 'lastReaderTransportSource = "\\(reason)Recovery"' in job_muted_recovery_body
@@ -2311,19 +2338,32 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "!musicOwnership.isReaderTransportPauseGuardActive" in library_muted_recovery_body
     assert "!musicOwnership.isManuallyPaused" in library_muted_recovery_body
     assert 'guard lastReaderTransportAction != "pause" else { return }' in library_muted_recovery_body
-    assert "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)" in library_muted_recovery_body
+    assert "if viewModel.recoverStalledSequenceHandoffIfPlaybackIsActive(reason: reason)" in library_muted_recovery_body
     assert library_muted_recovery_body.index(
-        "if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)"
-    ) < library_muted_recovery_body.index("guard !viewModel.sequenceController.isDwelling else { return }")
-    assert "Library recovered stale sequence transition" in library_muted_recovery_body
+        "guard !viewModel.shouldDeferAppleMusicBedNarrationRecoveryDuringSequenceHandoff else { return }"
+    ) < library_muted_recovery_body.index("if viewModel.recoverStalledSequenceHandoffIfPlaybackIsActive(reason: reason)")
+    assert library_muted_recovery_body.index(
+        "if viewModel.recoverStalledSequenceHandoffIfPlaybackIsActive(reason: reason)"
+    ) < library_muted_recovery_body.index("if viewModel.restoreMutedReaderTransportPlaybackIfPlaying()")
+    assert library_muted_recovery_body.index(
+        "if viewModel.restoreMutedReaderTransportPlaybackIfPlaying()"
+    ) < library_muted_recovery_body.index("if viewModel.recoverStuckReaderTransportPlayback()")
+    assert library_muted_recovery_body.index("configureAppleMusicBedAudioSession()") < library_muted_recovery_body.index(
+        "if viewModel.restoreMutedReaderTransportPlaybackIfPlaying()"
+    )
+    assert library_muted_recovery_body.index("if viewModel.restoreMutedReaderTransportPlaybackIfPlaying()") < (
+        library_muted_recovery_body.index("recovering stalled Apple Music-bed narration")
+    )
+    assert "Library recovered stalled sequence handoff" in library_muted_recovery_body
     assert "guard !viewModel.isSequenceModeActive else { return }" not in library_muted_recovery_body
-    assert "guard !viewModel.sequenceController.isDwelling else { return }" in library_muted_recovery_body
-    assert "guard !viewModel.isSequenceTransitioning else { return }" in library_muted_recovery_body
+    assert "guard !viewModel.sequenceController.isDwelling else { return }" not in library_muted_recovery_body
+    assert "guard !viewModel.isSequenceTransitioning else { return }" not in library_muted_recovery_body
     assert "pendingInteractiveAutoplaySentence == nil" in library_muted_recovery_body
     assert "viewModel.audioCoordinator.volume <= 0.001" in library_muted_recovery_body
     assert "!viewModel.audioCoordinator.isPlaying" in library_muted_recovery_body
     assert "recovering stalled Apple Music-bed narration" in library_muted_recovery_body
     assert "configureAppleMusicBedAudioSession()" in library_muted_recovery_body
+    assert "if viewModel.restoreMutedReaderTransportPlaybackIfPlaying()" in library_muted_recovery_body
     assert "if viewModel.recoverStuckReaderTransportPlayback()" in library_muted_recovery_body
     assert 'lastReaderTransportAction = "play"' in library_muted_recovery_body
     assert 'lastReaderTransportSource = "\\(reason)Recovery"' in library_muted_recovery_body

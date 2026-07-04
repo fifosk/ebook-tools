@@ -307,6 +307,8 @@ def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
     assert "Ignoring stale sequence EOF" in view_model
     assert "self.sequenceController.isDwelling" in view_model
     assert "self.sequenceController.isTransitioning" in view_model
+    assert "sequenceTransitionObserver = sequenceController.$isTransitioning" in view_model
+    assert "if isTransitioning {\n                    self.holdAppleMusicBedNarrationRecoveryForSequenceHandoff()" in view_model
     assert "_ = self.sequenceController.advanceToNextSegment()" in view_model
     assert "self.handlePlaybackEnded(endedURL: endedURL)" in view_model
     assert view_model.index("self.sequencePlaybackEndedURLMatchesCurrentLane(endedURL)") < view_model.index(
@@ -740,6 +742,7 @@ def test_sentence_position_provider_priority_and_player_integration() -> None:
 
     assert "@MainActor\nstruct SentencePositionProvider" in provider
     assert "let sequenceController: SequencePlaybackController" in provider
+    assert "let sequencePositionIsActive: () -> Bool" in provider
     assert "let transcriptDisplayIndex: () -> Int?" in provider
     assert "let timeBasedIndex: () -> Int?" in provider
     assert 'case sequenceController = "sequenceController"' in provider
@@ -747,7 +750,8 @@ def test_sentence_position_provider_priority_and_player_integration() -> None:
     assert 'case timeBased = "timeBased"' in provider
 
     body = _function_body(provider, "func currentSentenceIndex() -> Result?")
-    sequence_index = body.index("if sequenceController.isEnabled")
+    assert "sequencePositionIsActive()" in body
+    sequence_index = body.index("if sequencePositionIsActive()")
     transcript_index = body.index("if let displayIndex = transcriptDisplayIndex()")
     time_index = body.index("if let timeIndex = timeBasedIndex()")
     assert sequence_index < transcript_index < time_index
@@ -765,7 +769,22 @@ def test_sentence_position_provider_priority_and_player_integration() -> None:
     assert "static func targetSentenceIndex(" in provider
     assert "SentencePositionProvider.from(" in tracks
     assert "sequenceController: viewModel.sequenceController" in tracks
+    assert "sequencePositionIsActive: { [self] in" in tracks
+    assert "viewModel.isSequenceModeActive" in tracks
+    assert "if !viewModel.isSequenceModeActive," in tracks
+    assert "audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying" in tracks
+    assert "Captured live single-track position via playback time" in tracks
+    assert "Captured live single-track position via audio time" in tracks
+    assert "Captured live single-track position via anchor" in tracks
+    assert tracks.index("Captured live single-track position via playback time") < tracks.index(
+        "Captured live single-track position via anchor"
+    )
+    assert "SentencePositionProvider.sentenceIndex(\n                in: chunk,\n                atTime: audioCoordinator.currentTime" in tracks
+    assert tracks.index("Captured live single-track position via anchor") < tracks.index(
+        "let positionProvider = SentencePositionProvider.from("
+    )
     assert "activeSentenceDisplay(for: chunk)" in tracks
+    assert "viewModel.recentSingleTrackSentenceAnchorIndex(in: chunk)" in tracks
     assert "viewModel.activeSentence(at: viewModel.highlightingTime)" in tracks
     assert "return positionResult?.index" in tracks
     assert "captureCurrentSentenceIndex(for: chunk)" in audio_management
@@ -980,7 +999,6 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     stuck_recovery_body = _function_body(sequence, "func recoverStuckReaderTransportPlayback()")
     assert "audioCoordinator.isPlaybackRequested" in stuck_recovery_body
     assert "audioCoordinator.nowPlayingPlayer != nil" in stuck_recovery_body
-    assert "audioCoordinator.volume <= 0.001" in stuck_recovery_body
     assert "!audioCoordinator.isPlaying" in stuck_recovery_body
     assert "cancelPendingAudioReadySubscription()" in stuck_recovery_body
     assert "sequenceController.cancelPendingAutomaticAdvanceForPause()" in stuck_recovery_body
@@ -990,6 +1008,17 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     assert stuck_recovery_body.index("audioCoordinator.restoreVolume()") < stuck_recovery_body.index(
         "audioCoordinator.play()"
     )
+    muted_playing_body = _function_body(sequence, "func restoreMutedReaderTransportPlaybackIfPlaying() -> Bool")
+    assert "audioCoordinator.isPlaybackRequested" in muted_playing_body
+    assert "audioCoordinator.nowPlayingPlayer != nil" in muted_playing_body
+    assert "audioCoordinator.isPlaying" in muted_playing_body
+    assert "audioCoordinator.volume <= 0.001" in muted_playing_body
+    assert "!isSequenceTransitioning" in muted_playing_body
+    assert "!sequenceController.isTransitioning" in muted_playing_body
+    assert "!sequenceController.isDwelling" in muted_playing_body
+    assert "audioCoordinator.clearAudioMix()" in muted_playing_body
+    assert "audioCoordinator.restoreVolume()" in muted_playing_body
+    assert "audioCoordinator.play()" not in muted_playing_body
     stale_transition_body = _function_body(
         sequence,
         "func recoverStaleSequenceTransitionIfPlaybackIsActive(reason: String)",
@@ -1010,6 +1039,30 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     )
     assert "if !audioCoordinator.isPlaying" in stale_transition_body
     assert "audioCoordinator.play()" in stale_transition_body
+    handoff_recovery_body = _function_body(
+        sequence,
+        "func recoverStalledSequenceHandoffIfPlaybackIsActive(reason: String)",
+    )
+    assert "isSequenceModeActive" in handoff_recovery_body
+    assert "audioCoordinator.isPlaybackRequested" in handoff_recovery_body
+    assert "(!audioCoordinator.isPlaying || audioCoordinator.volume <= 0.001)" in handoff_recovery_body
+    assert "ProcessInfo.processInfo.systemUptime >= sequenceHandoffRecoveryHoldUntil" in handoff_recovery_body
+    assert "if sequenceController.isDwelling" in handoff_recovery_body
+    assert "sequenceController.advanceToNextSegment()" in handoff_recovery_body
+    assert "holdAppleMusicBedNarrationRecoveryForSequenceHandoff()" in handoff_recovery_body
+    assert "if sequenceController.isTransitioning" in handoff_recovery_body
+    assert "let recovered = recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason)" in handoff_recovery_body
+    assert "if recovered {\n                holdAppleMusicBedNarrationRecoveryForSequenceHandoff()" in handoff_recovery_body
+    assert "return recovered" in handoff_recovery_body
+
+    configure_body = _function_body(
+        sequence,
+        "func configureSequencePlayback(for chunk: InteractiveChunk, autoPlay: Bool, targetSentenceIndex: Int? = nil)",
+    )
+    assert "let normalizedTargetSentenceIndex = targetSentenceIndex.flatMap" in configure_body
+    assert "chunk.sentences.indices.contains(targetIndex)" in configure_body
+    assert "SentencePositionProvider.sentenceIndex(in: chunk, matching: targetIndex)" in configure_body
+    assert "if let targetIndex = normalizedTargetSentenceIndex" in configure_body
     audible_body = _function_body(sequence, "var isNarrationAudibleForReaderTransport: Bool")
     assert "audioCoordinator.isPlaybackRequested" in audible_body
     assert "audioCoordinator.isPlaying" in audible_body
@@ -1258,14 +1311,14 @@ def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     headroom_body = _function_body(controller, "private func boundaryHeadroom(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in headroom_body
     assert "nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false" in headroom_body
-    assert "min(0.34, max(0.10, segment.duration * 0.12))" in headroom_body
+    assert "min(0.12, max(0.05, segment.duration * 0.045))" in headroom_body
     assert "min(0.24, max(0.08, segment.duration * 0.10))" in headroom_body
     assert "min(0.12, max(0.05, segment.duration * 0.10))" in headroom_body
     assert "min(0.08, max(0.03, segment.duration * 0.08))" in headroom_body
     fade_body = _function_body(controller, "private func fadeOutDuration(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in fade_body
     assert "nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false" in fade_body
-    assert "min(0.20, max(0.06, segment.duration * 0.08))" in fade_body
+    assert "min(0.10, max(0.04, segment.duration * 0.035))" in fade_body
     assert "min(0.16, max(0.05, segment.duration * 0.07))" in fade_body
     assert "min(0.20, max(0.07, segment.duration * 0.12))" in fade_body
     assert "min(0.16, max(0.05, segment.duration * 0.10))" in fade_body
@@ -1353,15 +1406,12 @@ def test_segment_fade_is_bound_to_current_player_item() -> None:
         "func pauseForDwell(atBoundary pinTime: Double?, detachCurrentItem: Bool = false)",
     )
     assert "if detachCurrentItem" in dwell_body
-    assert "detachCurrentItemForSequenceDwell()" in dwell_body
+    assert "detachCurrentItemForSequenceDwell()" not in dwell_body
+    assert "player?.replaceCurrentItem(with: nil)" not in dwell_body
+    assert "activeURL = nil" not in dwell_body
     assert "isPlaybackRequested = false" not in dwell_body
 
-    detach_body = _function_body(coordinator, "private func detachCurrentItemForSequenceDwell()")
-    assert "queuePlayer.removeAllItems()" in detach_body
-    assert "player?.replaceCurrentItem(with: nil)" in detach_body
-    assert "removeBoundaryObserver()" in detach_body
-    assert "isPlaybackRequested = false" not in detach_body
-    assert "AudioPlaybackRegistry.shared.endPlayback" not in detach_body
+    assert "private func detachCurrentItemForSequenceDwell()" not in coordinator
 
     end_guard_body = _function_body(coordinator, "func setSegmentForwardEndTime(_ time: Double?)")
     assert "item.forwardPlaybackEndTime = .invalid" in end_guard_body
@@ -1410,7 +1460,9 @@ def test_sequence_dwell_pin_does_not_seek_to_exact_segment_end() -> None:
     )
     assert "guard let pinTime" in dwell_body
     assert "if detachCurrentItem" in dwell_body
-    assert "detachCurrentItemForSequenceDwell()" in dwell_body
+    assert "detachCurrentItemForSequenceDwell()" not in dwell_body
+    assert "player?.replaceCurrentItem(with: nil)" not in dwell_body
+    assert "activeURL = nil" not in dwell_body
     assert "CMTime(seconds: pinTime" in dwell_body
     assert "currentTime = pinTime" in dwell_body
     assert "boundaryTime" not in dwell_body
@@ -1785,6 +1837,8 @@ def test_passive_audio_mode_observation_keeps_single_track_lane() -> None:
         "func reconfigureAudioForCurrentToggles(preservingSentence currentSentenceIndex: Int? = nil)",
     )
     assert "viewModel.rememberAudioModePreference(audioModeManager.currentMode)" in reconfigure_body
+    assert "[PlaybackTransport] Interactive track reconfigure mode=" in reconfigure_body
+    assert "sentence=\\(currentSentenceIndex ?? -1)" in reconfigure_body
 
     select_audio_body = _function_body(
         menu_controls,

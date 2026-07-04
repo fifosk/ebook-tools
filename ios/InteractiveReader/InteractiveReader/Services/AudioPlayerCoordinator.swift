@@ -276,7 +276,8 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         guard let pinTime, pinTime.isFinite, pinTime >= 0 else { return }
         if detachCurrentItem {
             currentTime = pinTime
-            detachCurrentItemForSequenceDwell()
+            let cmTime = CMTime(seconds: pinTime, preferredTimescale: 600)
+            player?.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
             return
         }
         let cmTime = CMTime(seconds: pinTime, preferredTimescale: 600)
@@ -333,24 +334,6 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             setSegmentForwardEndTime(nil)
         }
         removeBoundaryObserver()
-    }
-
-    /// Stop the old sequence item at a cross-track dwell boundary without
-    /// clearing reader playback intent. Muting and pausing alone can still let
-    /// tvOS drain a tiny decoded tail from the previous continuous narration
-    /// file before the next Original/Translation item is loaded.
-    private func detachCurrentItemForSequenceDwell() {
-        setVolume(0)
-        player?.pause()
-        if let queuePlayer = player as? AVQueuePlayer {
-            queuePlayer.removeAllItems()
-        } else {
-            player?.replaceCurrentItem(with: nil)
-        }
-        removeBoundaryObserver()
-        isPlaying = false
-        isReady = false
-        activeURL = nil
     }
 
     /// Clamp the current AVPlayerItem to the active sequence segment boundary.

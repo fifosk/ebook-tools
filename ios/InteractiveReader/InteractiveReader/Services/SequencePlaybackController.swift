@@ -494,7 +494,7 @@ final class SequencePlaybackController: ObservableObject {
         let isTrackSwitch = nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false
         #if os(tvOS)
         if isTrackSwitch {
-            return min(0.34, max(0.10, segment.duration * 0.12))
+            return min(0.12, max(0.05, segment.duration * 0.045))
         }
         return min(0.24, max(0.08, segment.duration * 0.10))
         #else
@@ -511,7 +511,7 @@ final class SequencePlaybackController: ObservableObject {
         let isTrackSwitch = nextPlayableSegment(after: segment).map { $0.track != segment.track } ?? false
         #if os(tvOS)
         if isTrackSwitch {
-            return min(0.20, max(0.06, segment.duration * 0.08))
+            return min(0.10, max(0.04, segment.duration * 0.035))
         }
         return min(0.16, max(0.05, segment.duration * 0.07))
         #else

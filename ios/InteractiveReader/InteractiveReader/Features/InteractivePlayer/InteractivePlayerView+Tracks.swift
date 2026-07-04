@@ -143,14 +143,42 @@ extension InteractivePlayerView {
             "Capturing position: seqEnabled=\(viewModel.sequenceController.isEnabled, privacy: .public), seqSentenceIdx=\(viewModel.sequenceController.currentSentenceIndex ?? -1, privacy: .public), highlightingTime=\(viewModel.highlightingTime, privacy: .public)"
         )
 
+        if !viewModel.isSequenceModeActive,
+           audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying {
+            if let activeSentence = viewModel.activeSentence(at: viewModel.highlightingTime),
+               let index = chunk.sentences.firstIndex(where: { $0.id == activeSentence.id }) {
+                interactiveTracksLogger.debug("Captured live single-track position via playback time: sentence \(index, privacy: .public)")
+                return index
+            }
+            if let directIndex = SentencePositionProvider.sentenceIndex(
+                in: chunk,
+                atTime: audioCoordinator.currentTime,
+                activeTimingTrack: viewModel.activeTimingTrack(for: chunk)
+            ) {
+                interactiveTracksLogger.debug("Captured live single-track position via audio time: sentence \(directIndex, privacy: .public)")
+                return directIndex
+            }
+            if let anchor = viewModel.recentSingleTrackSentenceAnchorIndex(in: chunk) {
+                interactiveTracksLogger.debug("Captured live single-track position via anchor: sentence \(anchor, privacy: .public)")
+                return anchor
+            }
+        }
+
         let positionProvider = SentencePositionProvider.from(
             sequenceController: viewModel.sequenceController,
+            sequencePositionIsActive: { [self] in
+                viewModel.isSequenceModeActive
+            },
             transcriptDisplayIndex: { [self] in
                 let display = activeSentenceDisplay(for: chunk)
                 interactiveTracksLogger.debug("Transcript display index=\(display?.index ?? -1, privacy: .public)")
                 return display?.index
             },
             timeBasedIndex: { [self] in
+                if let anchor = viewModel.recentSingleTrackSentenceAnchorIndex(in: chunk) {
+                    interactiveTracksLogger.debug("Time-based index using single-track anchor=\(anchor, privacy: .public)")
+                    return anchor
+                }
                 guard let activeSentence = viewModel.activeSentence(at: viewModel.highlightingTime) else {
                     interactiveTracksLogger.debug("Time-based index: no active sentence found")
                     return nil
@@ -182,6 +210,9 @@ extension InteractivePlayerView {
 
         interactiveTracksLogger.debug(
             "Reconfiguring: mode=\(audioModeManager.currentMode.description, privacy: .public), currentSentenceIndex=\(currentSentenceIndex ?? -1, privacy: .public), time=\(viewModel.highlightingTime, privacy: .public), seqEnabled=\(viewModel.sequenceController.isEnabled, privacy: .public)"
+        )
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Interactive track reconfigure mode=\(audioModeManager.currentMode.description) sentence=\(currentSentenceIndex ?? -1) sequenceActive=\(viewModel.isSequenceModeActive) requested=\(audioCoordinator.isPlaybackRequested) playing=\(audioCoordinator.isPlaying)"
         )
 
         viewModel.rememberAudioModePreference(audioModeManager.currentMode)

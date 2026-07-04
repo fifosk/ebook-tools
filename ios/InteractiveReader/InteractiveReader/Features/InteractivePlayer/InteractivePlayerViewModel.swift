@@ -117,7 +117,11 @@ final class InteractivePlayerViewModel: ObservableObject {
         sequenceTransitionObserver = sequenceController.$isTransitioning
             .receive(on: RunLoop.main)
             .sink { [weak self] isTransitioning in
-                self?.isSequenceTransitioning = isTransitioning
+                guard let self else { return }
+                if isTransitioning {
+                    self.holdAppleMusicBedNarrationRecoveryForSequenceHandoff()
+                }
+                self.isSequenceTransitioning = isTransitioning
                 // NOTE: Do NOT clear preTransitionSentenceIndex here.
                 // It needs to persist during the settling window (while expectedPosition is set)
                 // to prevent blips during sentence-change transitions.
@@ -199,6 +203,7 @@ final class InteractivePlayerViewModel: ObservableObject {
 
         sequenceController.onWillBeginTransition = { [weak self] in
             guard let self else { return }
+            self.holdAppleMusicBedNarrationRecoveryForSequenceHandoff()
             // Mute immediately to prevent audio bleed during the transition
             // This happens synchronously before any async operations
             self.audioCoordinator.setVolume(0)
@@ -274,6 +279,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         sequenceController.onPauseForDwell = { [weak self] boundaryTime, shouldDetachCurrentItem in
             guard let self else { return }
             interactivePlayerViewModelLogger.debug("Dwell started, pausing audio")
+            self.holdAppleMusicBedNarrationRecoveryForSequenceHandoff()
             self.cancelPendingAudioReadySubscription()
             self.audioCoordinator.pauseForDwell(
                 atBoundary: boundaryTime,
@@ -288,6 +294,7 @@ final class InteractivePlayerViewModel: ObservableObject {
                 self.cancelPendingAudioReadySubscription()
                 let transitionToken = self.currentTransitionToken
                 interactivePlayerViewModelLogger.debug("Resuming after dwell, seeking time=\(time, privacy: .public)")
+                self.holdAppleMusicBedNarrationRecoveryForSequenceHandoff()
                 // Keep the old item muted while clearing stale boundary/fade state
                 // and seeking to the next same-track segment. This prevents a tiny
                 // buffered tail from becoming audible before the seek lands.

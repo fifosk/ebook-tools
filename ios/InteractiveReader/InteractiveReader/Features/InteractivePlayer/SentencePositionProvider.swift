@@ -15,6 +15,9 @@ struct SentencePositionProvider {
     /// The sequence controller for sequence mode position
     let sequenceController: SequencePlaybackController
 
+    /// Whether sequence-controller position is authoritative for the current playback mode
+    let sequencePositionIsActive: () -> Bool
+
     /// Callback to get the transcript display sentence index
     let transcriptDisplayIndex: () -> Int?
 
@@ -37,7 +40,9 @@ struct SentencePositionProvider {
     /// Get the current sentence index using the best available strategy
     func currentSentenceIndex() -> Result? {
         // Strategy 1: From sequence controller (only valid if sequence mode is active)
-        if sequenceController.isEnabled, let seqIndex = sequenceController.currentSentenceIndex {
+        if sequencePositionIsActive(),
+           sequenceController.isEnabled,
+           let seqIndex = sequenceController.currentSentenceIndex {
             return Result(index: seqIndex, strategy: .sequenceController)
         }
 
@@ -179,11 +184,13 @@ extension SentencePositionProvider {
     /// This is the preferred way to create a provider from InteractivePlayerView
     static func from(
         sequenceController: SequencePlaybackController,
+        sequencePositionIsActive: @escaping () -> Bool = { true },
         transcriptDisplayIndex: @escaping () -> Int?,
         timeBasedIndex: @escaping () -> Int?
     ) -> SentencePositionProvider {
         SentencePositionProvider(
             sequenceController: sequenceController,
+            sequencePositionIsActive: sequencePositionIsActive,
             transcriptDisplayIndex: transcriptDisplayIndex,
             timeBasedIndex: timeBasedIndex
         )

@@ -137,14 +137,14 @@ struct LibraryPlaybackView: View {
         #endif
         playbackTransportDebugLog("[PlaybackTransport] Library foreground tvOS Play/Pause command")
         playbackLogger.info("Library foreground tvOS Play/Pause command")
+        if shouldForceTVReaderNowPlayingPause() {
+            forcePauseReaderNowPlayingTransport(source: "foregroundPause")
+            return
+        }
         if shouldRecoverTVReaderNowPlayingRequestedPlayback() {
             playbackTransportDebugLog("[PlaybackTransport] Library foreground tvOS Play/Pause recovering requested narration")
             playbackLogger.info("Library foreground tvOS Play/Pause recovering requested narration")
             forcePlayReaderNowPlayingTransport(source: "foregroundRequestedResume")
-            return
-        }
-        if shouldForceTVReaderNowPlayingPause() {
-            forcePauseReaderNowPlayingTransport(source: "foregroundPause")
             return
         }
         toggleReaderNowPlayingTransport(source: "foregroundToggle")
@@ -173,14 +173,14 @@ struct LibraryPlaybackView: View {
             forcePlayReaderNowPlayingTransport(source: "brokerResume")
             return
         }
+        if shouldForceTVReaderNowPlayingPause() {
+            forcePauseReaderNowPlayingTransport(source: "brokerPause")
+            return
+        }
         if shouldRecoverTVReaderNowPlayingRequestedPlayback() {
             playbackTransportDebugLog("[PlaybackTransport] Library broker tvOS Play/Pause recovering requested narration")
             playbackLogger.info("Library broker tvOS Play/Pause recovering requested narration")
             forcePlayReaderNowPlayingTransport(source: "brokerRequestedResume")
-            return
-        }
-        if shouldForceTVReaderNowPlayingPause() {
-            forcePauseReaderNowPlayingTransport(source: "brokerPause")
             return
         }
         toggleReaderNowPlayingTransport(source: "brokerToggle")
@@ -401,19 +401,18 @@ struct LibraryPlaybackView: View {
               !musicOwnership.isManuallyPaused
         else { return }
         guard lastReaderTransportAction != "pause" else { return }
-        if viewModel.recoverStaleSequenceTransitionIfPlaybackIsActive(reason: reason) {
+        guard !viewModel.shouldDeferAppleMusicBedNarrationRecoveryDuringSequenceHandoff else { return }
+        if viewModel.recoverStalledSequenceHandoffIfPlaybackIsActive(reason: reason) {
             playbackTransportDebugLog(
-                "[PlaybackTransport] Library recovered stale sequence transition reason=\(reason) playing=\(viewModel.audioCoordinator.isPlaying)"
+                "[PlaybackTransport] Library recovered stalled sequence handoff reason=\(reason) playing=\(viewModel.audioCoordinator.isPlaying)"
             )
             playbackLogger.info(
-                "Library playback recovered stale sequence transition reason=\(reason, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public)"
+                "Library playback recovered stalled sequence handoff reason=\(reason, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public)"
             )
             publishReaderNowPlayingSnapshot(force: true)
             scheduleAppleMusicBedNowPlayingReassertion()
             return
         }
-        guard !viewModel.sequenceController.isDwelling else { return }
-        guard !viewModel.isSequenceTransitioning else { return }
         #if DEBUG
         guard !viewModel.audioCoordinator.isE2ERequestedTransitionPauseActive else { return }
         #endif
@@ -424,13 +423,18 @@ struct LibraryPlaybackView: View {
                 !viewModel.audioCoordinator.isPlaying
               )
         else { return }
+        configureAppleMusicBedAudioSession()
+        if viewModel.restoreMutedReaderTransportPlaybackIfPlaying() {
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+            return
+        }
         playbackTransportDebugLog(
             "[PlaybackTransport] Library recovering stalled Apple Music-bed narration reason=\(reason) transitioning=\(viewModel.isSequenceTransitioning) playing=\(viewModel.audioCoordinator.isPlaying)"
         )
         playbackLogger.info(
             "Library playback recovering stalled Apple Music-bed narration reason=\(reason, privacy: .public) transitioning=\(viewModel.isSequenceTransitioning, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public)"
         )
-        configureAppleMusicBedAudioSession()
         if viewModel.recoverStuckReaderTransportPlayback() {
             lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
             lastReaderTransportAction = "play"
@@ -739,7 +743,8 @@ struct LibraryPlaybackView: View {
             musicOwnership.isPausedByReaderTransport {
             return false
         }
-        return true
+        return viewModel.sequenceController.isDwelling ||
+            viewModel.isSequenceTransitioning
     }
 
     private func shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible(reason: String?, source: String?) -> Bool {
