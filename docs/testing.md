@@ -400,6 +400,10 @@ Music-bed-sensitive reader transport files in the reusable interactive player,
 Job/Library shells, MusicKit coordinator, and Music-bed journey runner also route
 to the iPad and tvOS Music-bed journey dry-runs, so `test-changed` catches stale
 journey wiring before a live simulator or Living Room candidate run.
+Physical playback-log capture and verifier edits route to the same Music-bed
+journey dry-runs, so changes to pause/resume evidence checks still prove the
+registered iPad/tvOS Music-bed profiles are available without credentials,
+simulator boots, or device installs.
 Native Apple app shell, DTO model, utility, and shared UI helper changes also
 route to those simulator builds, because they are imported across the iOS,
 iPadOS, tvOS, and local Mac-style surfaces.

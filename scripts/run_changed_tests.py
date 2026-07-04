@@ -84,6 +84,17 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "scripts/apple_pull_device_playback_log.sh",
+            "scripts/check_apple_music_bed_launch_log.py",
+            "scripts/check_apple_playback_transport_log.py",
+            "tests/scripts/test_apple_pull_device_playback_log.py",
+            "tests/scripts/test_check_apple_music_bed_launch_log.py",
+            "tests/scripts/test_check_apple_playback_transport_log.py",
+        ),
+        ("verify-apple-music-bed-candidate-dry-run",),
+    ),
+    (
+        (
             "scripts/check_apple_shared_pipeline_helper.sh",
             "scripts/check_apple_shared_pipeline_manifest.py",
             "tests/test_apple_shared_pipeline_contract.py",

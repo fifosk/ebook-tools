@@ -104,10 +104,28 @@ def test_select_targets_for_apple_surface_changes() -> None:
         "test-apple-contracts"
     ]
     assert select_targets(["scripts/check_apple_music_bed_launch_log.py"]) == [
-        "test-apple-contracts"
+        "verify-apple-music-bed-candidate-dry-run",
+        "test-apple-contracts",
+    ]
+    assert select_targets(["tests/scripts/test_check_apple_music_bed_launch_log.py"]) == [
+        "verify-apple-music-bed-candidate-dry-run",
+        "test-apple-contracts",
+    ]
+    assert select_targets(["scripts/check_apple_playback_transport_log.py"]) == [
+        "verify-apple-music-bed-candidate-dry-run",
+        "test-apple-contracts",
+    ]
+    assert select_targets(["tests/scripts/test_check_apple_playback_transport_log.py"]) == [
+        "verify-apple-music-bed-candidate-dry-run",
+        "test-apple-contracts",
     ]
     assert select_targets(["scripts/apple_pull_device_playback_log.sh"]) == [
-        "test-apple-contracts"
+        "verify-apple-music-bed-candidate-dry-run",
+        "test-apple-contracts",
+    ]
+    assert select_targets(["tests/scripts/test_apple_pull_device_playback_log.py"]) == [
+        "verify-apple-music-bed-candidate-dry-run",
+        "test-apple-contracts",
     ]
     assert select_targets(["scripts/apple_build_macos_ipad_style.sh"]) == [
         "test-apple-contracts"
