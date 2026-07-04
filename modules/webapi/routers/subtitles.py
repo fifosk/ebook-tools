@@ -35,6 +35,7 @@ from ..dependencies import (
     get_request_user,
     get_subtitle_service,
 )
+from ..route_ids import normalize_route_id
 from ..route_telemetry import (
     log_create_submission_route,
     log_started_route_result,
@@ -634,8 +635,12 @@ def get_subtitle_job_result(
 ):
     """Return the final payload for a subtitle job."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subtitle job not found")
+
     job = job_manager.get(
-        job_id,
+        normalized_job_id,
         user_id=request_user.user_id,
         user_role=request_user.user_role,
     )

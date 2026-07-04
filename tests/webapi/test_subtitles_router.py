@@ -13,7 +13,11 @@ import modules.services.subtitle_service as subtitle_service_module
 import modules.webapi.routers.subtitles as subtitles_router_module
 from modules.webapi.dependencies import RequestUserContext
 from modules.webapi.application import create_app
-from modules.webapi.dependencies import get_request_user, get_subtitle_service
+from modules.webapi.dependencies import (
+    get_pipeline_job_manager,
+    get_request_user,
+    get_subtitle_service,
+)
 from modules.webapi.routers.subtitles import (
     _subtitle_source_entry,
     _subtitle_source_sort_key,
@@ -79,6 +83,80 @@ def test_subtitle_source_openapi_marks_picker_fields_required() -> None:
 
     list_required = set(schemas["SubtitleSourceListResponse"]["required"])
     assert {"sources"} <= list_required
+
+
+def test_subtitle_job_result_route_uses_shared_route_id_normalizer() -> None:
+    source = Path(subtitles_router_module.__file__).read_text(encoding="utf-8")
+
+    assert "from ..route_ids import normalize_route_id" in source
+    assert "def _normalize_route_id" not in source
+    assert "normalized_job_id = normalize_route_id(job_id)" in source
+    assert "job_manager.get(\n        normalized_job_id," in source
+
+
+def test_subtitle_job_result_route_normalizes_padded_job_id() -> None:
+    class RecordingJobManager:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, object]] = []
+
+        def get(self, job_id: str, *, user_id: str | None, user_role: str | None):
+            self.calls.append(
+                {
+                    "job_id": job_id,
+                    "user_id": user_id,
+                    "user_role": user_role,
+                }
+            )
+            return SimpleNamespace(
+                job_type="subtitle",
+                result_payload={"output": "ready"},
+            )
+
+    app = create_app()
+    manager = RecordingJobManager()
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: manager
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="subtitle-user",
+        user_role="viewer",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/subtitles/jobs/%20%20subtitle-job%20%20/result")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"output": "ready"}
+    assert manager.calls == [
+        {
+            "job_id": "subtitle-job",
+            "user_id": "subtitle-user",
+            "user_role": "viewer",
+        }
+    ]
+
+
+def test_subtitle_job_result_route_rejects_blank_job_id_without_manager_lookup() -> None:
+    class RaisingJobManager:
+        def get(self, *_args: object, **_kwargs: object):
+            raise AssertionError("blank subtitle result job ids should not reach the manager")
+
+    app = create_app()
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: RaisingJobManager()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="subtitle-user",
+        user_role="viewer",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/subtitles/jobs/%20%20%20/result")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Subtitle job not found"}
 
 
 def test_parse_end_time_accepts_absolute() -> None:

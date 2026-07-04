@@ -2380,7 +2380,10 @@ Suggested features to evaluate after parity scaffolding:
   focused Web tests covering encoded job and lookup terms. Web subtitle model,
   metadata fetch, and TV/YouTube metadata cache-clear helpers now use shared
   Create/PipelineMedia runtime-contract routes too, with focused Web tests
-  covering encoded subtitle job ids.
+  covering encoded subtitle job ids. Backend subtitle job result reads also trim
+  padded job identifiers through the shared route-id helper before job-manager
+  lookup, keeping Web Subtitle Tool and Apple Create result polling aligned with
+  subtitle metadata routes.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-subtitle-result-route-id-helper",
+            title: "Subtitle result IDs share cleanup",
+            detail: "Backend subtitle job result reads now trim job identifiers through the shared route helper before job lookup, keeping Web Subtitle Tool and Apple result polling aligned."
+        ),
+        AppChangelogEntry(
             id: "backend-create-template-route-id-helper",
             title: "Template IDs share cleanup",
             detail: "Backend Create template get and delete routes now trim template identifiers through the shared route helper before canonicalizing them, keeping Apple and Web saved-template handoffs aligned."
