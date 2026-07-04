@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-sequence-stop-hardening",
+            title: "TV playback stop recovery is stronger",
+            detail: "Apple TV sequence playback now force-finishes a stuck reader-owned track handoff if tvOS never reports ready or seek completion, and keeps short sentence segments from being over-trimmed during same-track guards."
+        ),
+        AppChangelogEntry(
             id: "apple-youtube-dub-prepared-subtitle-language",
             title: "Video discovery keeps subtitle language",
             detail: "Apple YouTube Dub now uses prepared subtitle language hints from reviewed video discovery handoffs to set the target language when the user has not edited it, matching Web behavior before the NAS library row refreshes."

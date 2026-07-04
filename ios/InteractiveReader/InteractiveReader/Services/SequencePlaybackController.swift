@@ -396,10 +396,15 @@ final class SequencePlaybackController: ObservableObject {
             let trimmedEnd: Double
             let gapToNextSameTrack = nextStart - segment.end
             if segment.end > nextStart ||
-                (segment.allowsTightPrerollTrim && gapToNextSameTrack <= sameTrackPrerollSlop) {
+                (segment.allowsTightPrerollTrim && gapToNextSameTrack <= sameTrackPrerollSlop(for: segment)) {
+                let minimumRetainedDuration = min(
+                    segment.duration,
+                    max(0.18, segment.duration * 0.65)
+                )
+                let minimumRetainedEnd = segment.start + minimumRetainedDuration
                 trimmedEnd = min(
                     segment.end,
-                    max(segment.start, nextStart - sameTrackHandoffGuard)
+                    max(minimumRetainedEnd, nextStart - sameTrackHandoffGuard(for: segment))
                 )
             } else {
                 trimmedEnd = segment.end
@@ -416,19 +421,19 @@ final class SequencePlaybackController: ObservableObject {
         }
     }
 
-    private var sameTrackHandoffGuard: Double {
+    private func sameTrackHandoffGuard(for segment: SequenceSegment) -> Double {
         #if os(tvOS)
-        return 0.30
+        return min(0.18, max(0.04, segment.duration * 0.10))
         #else
-        return 0.08
+        return min(0.08, max(0.025, segment.duration * 0.08))
         #endif
     }
 
-    private var sameTrackPrerollSlop: Double {
+    private func sameTrackPrerollSlop(for segment: SequenceSegment) -> Double {
         #if os(tvOS)
-        return 0.62
+        return min(0.30, max(0.08, segment.duration * 0.20))
         #else
-        return 0.14
+        return min(0.14, max(0.04, segment.duration * 0.14))
         #endif
     }
 

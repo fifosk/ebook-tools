@@ -610,16 +610,36 @@ extension InteractivePlayerViewModel {
     ) {
         guard shouldPlay else { return }
         Task { @MainActor [weak self] in
-            let delays: [UInt64] = [700_000_000, 1_500_000_000, 2_500_000_000]
-            for delay in delays {
-                try? await Task.sleep(nanoseconds: delay)
+            let probes: [(delay: UInt64, forceFinish: Bool)] = [
+                (700_000_000, false),
+                (1_500_000_000, false),
+                (2_500_000_000, true)
+            ]
+            for probe in probes {
+                try? await Task.sleep(nanoseconds: probe.delay)
                 guard let self else { return }
                 guard !Task.isCancelled else { return }
                 guard transitionToken == self.currentTransitionToken else { return }
                 guard self.sequenceController.isTransitioning else { return }
                 guard self.audioCoordinator.isPlaybackRequested else { return }
                 guard self.audioCoordinator.nowPlayingPlayer != nil else { continue }
-                guard self.audioCoordinator.isReady || self.audioCoordinator.isPlaying else { continue }
+                guard self.audioCoordinator.isReady || self.audioCoordinator.isPlaying || probe.forceFinish else { continue }
+                if probe.forceFinish && !self.audioCoordinator.isReady && !self.audioCoordinator.isPlaying {
+                    let fallbackSeekTime = seekTime ?? self.sequenceController.currentSegment?.start
+                    interactiveSequenceLogger.info(
+                        "Sequence transition recovery force-finishing reason=\(reason, privacy: .public), seekTime=\(fallbackSeekTime ?? -1, privacy: .public)"
+                    )
+                    if let fallbackSeekTime {
+                        self.audioCoordinator.seek(to: fallbackSeekTime)
+                    }
+                    self.finishSequenceTransition(
+                        expectedTime: fallbackSeekTime,
+                        shouldPlay: true,
+                        transitionToken: transitionToken,
+                        requiresPlaybackRequest: true
+                    )
+                    return
+                }
                 interactiveSequenceLogger.info(
                     "Sequence transition recovery probe firing reason=\(reason, privacy: .public), ready=\(self.audioCoordinator.isReady, privacy: .public), playing=\(self.audioCoordinator.isPlaying, privacy: .public)"
                 )

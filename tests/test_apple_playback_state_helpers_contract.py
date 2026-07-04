@@ -33,6 +33,7 @@ INTERACTIVE = (
 )
 PLAYBACK = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Features" / "Playback"
 SHARED = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Features" / "Shared"
+SERVICES = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Services"
 
 
 def _source(name: str) -> str:
@@ -389,18 +390,19 @@ def test_sequence_overlap_trimming_leaves_a_handoff_guard() -> None:
 
     trim_body = _function_body(controller, "private func trimOverlappingSegments(_ segments: [SequenceSegment]) -> [SequenceSegment]")
     assert "segment.end > nextStart" in trim_body
-    assert "gapToNextSameTrack <= sameTrackPrerollSlop" in trim_body
-    assert "nextStart - sameTrackHandoffGuard" in trim_body
+    assert "gapToNextSameTrack <= sameTrackPrerollSlop(for: segment)" in trim_body
+    assert "nextStart - sameTrackHandoffGuard(for: segment)" in trim_body
+    assert "minimumRetainedDuration" in trim_body
     assert "trimmedEnd = segment.end" in trim_body
-    assert trim_body.index("segment.end > nextStart") < trim_body.index("nextStart - sameTrackHandoffGuard")
-    guard_body = _function_body(controller, "private var sameTrackHandoffGuard: Double")
+    assert trim_body.index("segment.end > nextStart") < trim_body.index("nextStart - sameTrackHandoffGuard(for: segment)")
+    guard_body = _function_body(controller, "private func sameTrackHandoffGuard(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in guard_body
-    assert "return 0.30" in guard_body
-    assert "return 0.08" in guard_body
-    preroll_body = _function_body(controller, "private var sameTrackPrerollSlop: Double")
+    assert "segment.duration * 0.10" in guard_body
+    assert "segment.duration * 0.08" in guard_body
+    preroll_body = _function_body(controller, "private func sameTrackPrerollSlop(for segment: SequenceSegment) -> Double")
     assert "#if os(tvOS)" in preroll_body
-    assert "return 0.62" in preroll_body
-    assert "return 0.14" in preroll_body
+    assert "segment.duration * 0.20" in preroll_body
+    assert "segment.duration * 0.14" in preroll_body
 
 
 def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> None:
@@ -1035,6 +1037,33 @@ def test_initial_sequence_seek_has_startup_fallback_without_weakening_resume_see
     assert "expectedTime >= 0, expectedTime <= 0.1" in finish_body
     assert "stableExpectedTime = nil" in finish_body
     assert "sequenceController.endTransition(expectedTime: stableExpectedTime)" in finish_body
+
+    transition_probe_body = _function_body(
+        sequence,
+        "private func scheduleSequenceTransitionRecoveryProbe(\n        seekTime: Double?,\n        shouldPlay: Bool,\n        transitionToken: Int,\n        reason: String\n    )",
+    )
+    assert "(2_500_000_000, true)" in transition_probe_body
+    assert "probe.forceFinish" in transition_probe_body
+    assert "Sequence transition recovery force-finishing" in transition_probe_body
+    assert "self.finishSequenceTransition(" in transition_probe_body
+    assert "requiresPlaybackRequest: true" in transition_probe_body
+
+
+def test_tvos_sequence_trim_preserves_short_sentence_segments() -> None:
+    controller = (SERVICES / "SequencePlaybackController.swift").read_text(encoding="utf-8")
+
+    trim_body = _function_body(controller, "private func trimOverlappingSegments(_ segments: [SequenceSegment]) -> [SequenceSegment]")
+    assert "sameTrackPrerollSlop(for: segment)" in trim_body
+    assert "sameTrackHandoffGuard(for: segment)" in trim_body
+    assert "minimumRetainedDuration" in trim_body
+    assert "max(0.18, segment.duration * 0.65)" in trim_body
+
+    handoff_body = _function_body(controller, "private func sameTrackHandoffGuard(for segment: SequenceSegment) -> Double")
+    slop_body = _function_body(controller, "private func sameTrackPrerollSlop(for segment: SequenceSegment) -> Double")
+    assert "segment.duration * 0.10" in handoff_body
+    assert "segment.duration * 0.20" in slop_body
+    assert "return 0.30" not in handoff_body
+    assert "return 0.62" not in slop_body
 
 
 def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
