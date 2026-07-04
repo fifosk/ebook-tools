@@ -2101,6 +2101,68 @@ def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
     assert "api_key" not in rendered
 
 
+def test_acquisition_job_poll_route_prefers_completed_files_metadata(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from modules.services.acquisition import AcquisitionJobStatus
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    manual_root = tmp_path / "manual-downloads"
+    manual_root.mkdir()
+    preferred_file = manual_root / "Preferred.mkv"
+    fallback_file = manual_root / "Fallback.mkv"
+    loose_file = manual_root / "Loose.mkv"
+    for path in (preferred_file, fallback_file, loose_file):
+        path.write_text("video", encoding="utf-8")
+
+    def _fake_poll_job(**kwargs):
+        return AcquisitionJobStatus(
+            provider="download_station",
+            task_id="dbid_priority",
+            status="completed",
+            progress=1.0,
+            external_task_id="dbid_priority",
+            raw_status="finished",
+            completed_files=(),
+            next_actions=("discover_manual_downloads", "import_local"),
+            metadata={
+                "source_kind": "download_station",
+                "files": [loose_file.as_posix()],
+                "completed_paths": [fallback_file.as_posix()],
+                "completed_files": [preferred_file.as_posix()],
+            },
+        )
+
+    monkeypatch.setattr(acquisition_router, "poll_download_station_task", _fake_poll_job)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+            "manual_download_root": manual_root.as_posix(),
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/jobs/dbid_priority")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["completed_files"] == [preferred_file.as_posix()]
+    assert payload["metadata"]["completed_files"] == [preferred_file.as_posix()]
+    assert payload["metadata"]["completed_paths"] == [fallback_file.as_posix()]
+    assert payload["metadata"]["files"] == [loose_file.as_posix()]
+
+
 def test_acquisition_job_poll_route_sanitizes_nested_completed_file_metadata(
     tmp_path: Path,
     monkeypatch,

@@ -27,10 +27,10 @@ from ..schemas.acquisition import (
 )
 
 
-_COMPLETED_FILE_LIST_KEYS = frozenset(("completed_files", "completed_paths", "files"))
-_COMPLETED_FILE_VALUE_KEYS = frozenset(
-    ("completed_file", "completed_path", "local_path")
-)
+_COMPLETED_FILE_LIST_KEYS = ("completed_files", "completed_paths", "files")
+_COMPLETED_FILE_VALUE_KEYS = ("completed_file", "completed_path", "local_path")
+_COMPLETED_FILE_LIST_KEY_SET = frozenset(_COMPLETED_FILE_LIST_KEYS)
+_COMPLETED_FILE_VALUE_KEY_SET = frozenset(_COMPLETED_FILE_VALUE_KEYS)
 
 
 def public_metadata_value(value: Any) -> Any:
@@ -152,12 +152,12 @@ def _sanitize_completed_file_metadata_value(
         sanitized: dict[str, Any] = {}
         for raw_key, nested_value in value.items():
             key = str(raw_key)
-            if key in _COMPLETED_FILE_LIST_KEYS:
+            if key in _COMPLETED_FILE_LIST_KEY_SET:
                 values = metadata_string_values(nested_value, safe_roots=safe_roots)
                 if values:
                     sanitized[key] = values
                 continue
-            if key in _COMPLETED_FILE_VALUE_KEYS:
+            if key in _COMPLETED_FILE_VALUE_KEY_SET:
                 values = metadata_string_values(nested_value, safe_roots=safe_roots)
                 if values:
                     sanitized[key] = values[0]
