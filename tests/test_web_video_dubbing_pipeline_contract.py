@@ -287,6 +287,7 @@ def test_job_progress_focused_web_target_covers_health_timeline() -> None:
     assert "src/api/client/__tests__/jobs.test.ts" in block
     assert "src/components/__tests__/JobStatusBadge.test.tsx" in block
     assert "src/components/__tests__/JobProgress.test.tsx" in block
+    assert "src/components/__tests__/jobProgressImageCluster.test.ts" in block
     assert "src/components/__tests__/jobProgressParameters.test.ts" in block
     assert "src/components/__tests__/jobProgressUtils.test.ts" in block
     assert "src/utils/__tests__/progressEvents.test.ts" in block

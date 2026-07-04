@@ -3,10 +3,12 @@ import { MetadataGrid, type MetadataRow } from '../metadata/MetadataGrid';
 import type { JobParameterEntry } from './jobProgressParameters';
 import {
   formatSecondsPerImage,
+  type ImageClusterNodeSummary,
+} from './jobProgressImageCluster';
+import {
   formatTuningDescription,
   formatTuningLabel,
   formatTuningValue,
-  type ImageClusterNodeSummary,
   type JobParallelismEntry,
 } from './jobProgressUtils';
 

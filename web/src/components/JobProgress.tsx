@@ -30,12 +30,15 @@ import {
 } from './job-progress/jobProgressActions';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
 import {
+  buildImageClusterNodes,
+  resolveImageClusterSummary,
+} from './job-progress/jobProgressImageCluster';
+import {
   TERMINAL_STATES,
   areTranslationsUnavailable,
   buildBatchProgress,
   buildBatchStatEntries,
   buildFallbackEntries,
-  buildImageClusterNodes,
   buildParallelismEntries,
   coerceNumber,
   formatTuningValue,
@@ -43,7 +46,6 @@ import {
   normalizeTranslationProvider,
   normalizeTextValue,
   resolveGeneratedFileRecord,
-  resolveImageClusterSummary,
   resolveLookupCacheBuildingProgress,
   resolveLookupCacheProgress,
   resolveJobMetadataEntries,

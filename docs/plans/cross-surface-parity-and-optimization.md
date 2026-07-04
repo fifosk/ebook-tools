@@ -318,14 +318,17 @@ Large Web UI hotspots to split before redesign work:
   presentation now lives in `JobProgressStageSection.tsx`. Latest progress
   metrics now live in `JobProgressLatestSection.tsx`. Metadata tab cover,
   lookup, display rows, technical rows, and reload action now live in
-  `JobProgressMetadataSection.tsx`. Overview tab parameters, image-cluster
-  status, notices, batch stats, parallelism, tuning, and fallback sections now
-  live in `JobProgressOverviewSection.tsx`. Job lifecycle timing summary now
-  lives in `JobProgressTimingSummary.tsx`, and the compact active-stage health
-  row lives in `JobProgressHealthSummary.tsx`. The repo-owned
+  `JobProgressMetadataSection.tsx`. Image-cluster summary extraction, configured
+  node merging, and seconds-per-image formatting now live in
+  `web/src/components/job-progress/jobProgressImageCluster.ts` with focused
+  Vitest coverage. Overview tab parameters, image-cluster status, notices,
+  batch stats, parallelism, tuning, and fallback sections now live in
+  `JobProgressOverviewSection.tsx`. Job lifecycle timing summary now lives in
+  `JobProgressTimingSummary.tsx`, and the compact active-stage health row lives
+  in `JobProgressHealthSummary.tsx`. The repo-owned
   `test-web-job-progress-focused` target covers the JobProgress component,
-  job settings summary rows, stage label formatting, and shared job-progress
-  utilities.
+  job settings summary rows, stage label formatting, image-cluster helpers, and
+  shared job-progress utilities.
 - `web/src/components/LibraryList.tsx` - 265 lines. Status: layout type
   detection, title/author/genre fallback labels, and author/genre/language
   grouping now live in `web/src/components/library-list/libraryListUtils.ts`

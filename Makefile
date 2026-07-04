@@ -324,6 +324,7 @@ test-web-job-progress-focused:
 		src/components/__tests__/JobStatusBadge.test.tsx \
 		src/components/__tests__/JobProgress.test.tsx \
 		src/components/__tests__/jobProgressActions.test.ts \
+		src/components/__tests__/jobProgressImageCluster.test.ts \
 		src/components/__tests__/jobProgressParameters.test.ts \
 		src/components/__tests__/jobProgressUtils.test.ts \
 		src/utils/__tests__/progressEvents.test.ts

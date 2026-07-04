@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "web-job-progress-image-cluster-helper",
+            title: "Job detail image stats are split out",
+            detail: "Web Job Detail now resolves image-cluster node summaries through a focused helper with its own pipeline test, keeping generated-book image status easier to maintain alongside Apple creation and playback diagnostics."
+        ),
+        AppChangelogEntry(
             id: "library-router-shared-access-gate",
             title: "Library actions share access checks",
             detail: "Backend Library item, media, and source-action routes now reuse one existing-item view/edit access gate while preserving route-specific token-safe forbidden telemetry, keeping Web and Apple Library behavior aligned with less duplicated router logic."
