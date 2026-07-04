@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-07-03
+Last updated: 2026-07-04
 
 ## Goal
 
@@ -2710,6 +2710,11 @@ Every cross-surface change should pass the relevant subset:
   narration. The coordinator now blocks that mutating adoption path while tvOS
   Apple Music is the bed and the reader is active, records token-safe kept-reader
   evidence, and recovers the bed instead of clearing sentence playback.
+  On July 4, `61676bb2f` added a bounded tvOS-only recovery extension for
+  requested interactive autoplay and lets requested-but-silent sequence-mode
+  narration restart when the player is not in a real dwell or transition;
+  `make test-e2e-tvos-music-bed-sync` and `make test-changed` both passed
+  without physical deployment.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

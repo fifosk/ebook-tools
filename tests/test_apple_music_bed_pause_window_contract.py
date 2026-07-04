@@ -32,6 +32,10 @@ def test_tvos_observed_music_pause_after_reader_play_is_time_bounded() -> None:
     resolver = _source(PLAYBACK / "ReaderTransportCommandResolver.swift")
     window_body = _function_body(resolver, "static var observedPauseAfterPlayEchoWindow")
     adopted_window_body = _function_body(resolver, "static var adoptedMusicPauseBrokerEchoWindow")
+    recovery_limit_body = _function_body(
+        resolver,
+        "static var pendingInteractiveAutoplayRecoveryAttemptLimit",
+    )
     ignore_body = _function_body(
         resolver,
         "static func shouldIgnoreObservedPauseAfterReaderPlay",
@@ -42,6 +46,9 @@ def test_tvos_observed_music_pause_after_reader_play_is_time_bounded() -> None:
     assert "return 0" in window_body
     assert "#if os(tvOS)" in adopted_window_body
     assert adopted_window_body.count("return brokerEchoWindow") == 2
+    assert "#if os(tvOS)" in recovery_limit_body
+    assert "return 6" in recovery_limit_body
+    assert "return 2" in recovery_limit_body
     assert 'previousAction == "play"' in ignore_body
     assert "now - lastCommandTime < observedPauseAfterPlayEchoWindow" in ignore_body
     assert "lastCommandTime" in ignore_body
