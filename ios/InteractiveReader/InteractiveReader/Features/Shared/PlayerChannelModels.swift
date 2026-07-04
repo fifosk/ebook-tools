@@ -71,21 +71,21 @@ struct PlayerHeaderGlassPanelBackground: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.82))
+            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.90))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(0.42)
+                    .opacity(0.26)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.08),
-                                Color.white.opacity(0.03),
-                                Color.black.opacity(0.36)
+                                Color.white.opacity(0.05),
+                                Color.white.opacity(0.015),
+                                Color.black.opacity(0.44)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -105,21 +105,21 @@ struct PlayerHeaderIdentityBannerBackground: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.86))
+            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.94))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.thinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(0.38)
+                    .opacity(0.20)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.09),
-                                Color.white.opacity(0.03),
-                                Color.black.opacity(0.34)
+                                Color.white.opacity(0.055),
+                                Color.white.opacity(0.015),
+                                Color.black.opacity(0.46)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -140,12 +140,12 @@ struct PlayerHeaderPillBackground: View {
 
     var body: some View {
         Capsule(style: .continuous)
-            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(isProminent ? 0.78 : 0.68))
+            .fill(Color(red: 0.02, green: 0.03, blue: 0.05).opacity(isProminent ? 0.88 : 0.78))
             .overlay(
                 Capsule(style: .continuous)
                     .fill(.ultraThinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(isProminent ? 0.34 : 0.28)
+                    .opacity(isProminent ? 0.18 : 0.16)
             )
             .overlay(
                 Capsule(style: .continuous)
@@ -158,8 +158,8 @@ struct PlayerHeaderPillBackground: View {
     }
 
     private var fillOpacity: Double {
-        if isProminent { return isActive ? 0.20 : 0.13 }
-        return isActive ? 0.16 : 0.09
+        if isProminent { return isActive ? 0.14 : 0.09 }
+        return isActive ? 0.12 : 0.07
     }
 
     private var strokeOpacity: Double {

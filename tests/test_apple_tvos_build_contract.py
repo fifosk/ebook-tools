@@ -553,16 +553,17 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "struct PlayerHeaderGlassPanelBackground: View" in channel_models_source
     assert "struct PlayerHeaderIdentityBannerBackground: View" in channel_models_source
     assert "struct PlayerHeaderPillBackground: View" in channel_models_source
-    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.82)" in channel_models_source
-    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.86)" in channel_models_source
-    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(isProminent ? 0.78 : 0.68)" in channel_models_source
+    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.90)" in channel_models_source
+    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.94)" in channel_models_source
+    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(isProminent ? 0.88 : 0.78)" in channel_models_source
     assert ".fill(.ultraThinMaterial)" in channel_models_source
-    assert ".opacity(0.42)" in channel_models_source
-    assert ".opacity(0.38)" in channel_models_source
-    assert ".opacity(isProminent ? 0.34 : 0.28)" in channel_models_source
+    assert ".opacity(0.26)" in channel_models_source
+    assert ".opacity(0.20)" in channel_models_source
+    assert ".opacity(isProminent ? 0.18 : 0.16)" in channel_models_source
     assert ".strokeBorder(Color.white.opacity(0.28), lineWidth: 1)" in channel_models_source
     assert ".strokeBorder(Color.white.opacity(0.30), lineWidth: 1)" in channel_models_source
     assert "iPad is in system light mode" in changelog_source
+    assert "higher dark contrast floor with less material wash in light mode" in changelog_source
     assert "PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)" in header_overlay_source
     assert "PlayerHeaderIdentityBannerBackground(cornerRadius: cornerRadius)" in header_overlay_source
     assert "private struct InteractivePlayerHeaderIdentityBanner: View" in header_overlay_source

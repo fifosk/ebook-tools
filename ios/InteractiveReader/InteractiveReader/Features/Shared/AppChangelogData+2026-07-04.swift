@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "ipad-reader-header-light-mode-contrast",
+            title: "iPad reader header gets darker",
+            detail: "The Apple reader header now uses a higher dark contrast floor with less material wash in light mode, so the title, book cover chrome, progress pill, and language controls remain readable over dark playback backgrounds."
+        ),
+        AppChangelogEntry(
             id: "apple-reader-header-dark-glass",
             title: "Reader header stays readable",
             detail: "Apple interactive reader header glass now anchors its panels and pills to a stronger dark translucent base with reduced light material wash, keeping white book metadata and progress chrome legible over dark reader backgrounds even when iPad is in system light mode."
