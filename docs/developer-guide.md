@@ -165,7 +165,7 @@ deployment. `make verify-apple-music-bed-candidate-dry-run` checks the iPad and
 tvOS Music-bed journey wiring without credentials, `make verify-apple-music-bed-candidate`
 runs the real iPad and tvOS Music-bed XCUITest journeys serially, and
 `make verify-apple-living-room-candidate` adds that cross-surface Music-bed gate
-on top of the shared pipeline gate before a Living Room Apple TV install request.
+on top of the dogfood pipeline gate before a Living Room Apple TV install request.
 `make verify-apple-dogfood-pipeline` runs the local Web/Apple cross-surface
 checkpoint before the shared gate. After the Mac Studio/runtime checkout has
 been fast-forwarded and source-sync is expected to pass,

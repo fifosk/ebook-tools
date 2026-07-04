@@ -2724,7 +2724,10 @@ Every cross-surface change should pass the relevant subset:
   aggregate in one non-physical gate, with the cross-surface checkpoint now
   running the shared backend manifest slices plus focused Web manifest checks,
   full Vitest, the Web production/export build, and Apple local-surface
-  verification,
+  verification, and `make verify-apple-living-room-candidate` now layers that
+  dogfood gate in front of the serial iPad/tvOS Music-bed candidate so TV
+  playback validation covers both repo-owned and reusable-pipeline preflights
+  before any explicit Living Room deploy,
   `make verify-apple-golden-pipeline`, which runs the Mac Studio runtime
   fast-forward, SSH check, and source-sync before that dogfood gate, repo-owned
   shared simulator-smoke dry-runs, explicit app-owned journey listing, and

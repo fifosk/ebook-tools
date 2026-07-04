@@ -655,7 +655,7 @@ verify-apple-music-bed-candidate: test-e2e-ipad-music-bed-sync test-e2e-tvos-mus
 
 verify-apple-music-bed-candidate-dry-run: test-e2e-ipad-music-bed-sync-dry-run test-e2e-tvos-music-bed-sync-dry-run
 
-verify-apple-living-room-candidate: verify-apple-shared-pipeline verify-apple-music-bed-candidate
+verify-apple-living-room-candidate: verify-apple-dogfood-pipeline verify-apple-music-bed-candidate
 
 verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline
 

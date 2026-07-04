@@ -678,9 +678,9 @@ journey wiring without credentials or simulator boots. `verify-apple-music-bed-c
 runs the real iPad Music-bed journey followed by the real tvOS Music-bed journey
 serially, so keyboard/lookup and remote transport checks do not compete for
 simulator timing. `verify-apple-living-room-candidate`
-composes the shared non-physical gate with that serial Music-bed candidate check,
-giving Living Room Apple TV changes a single cross-surface check before an
-explicit hardware deploy request. When
+composes the dogfood pipeline gate with that serial Music-bed candidate check,
+giving Living Room Apple TV changes one repo-owned and shared cross-surface
+check before an explicit hardware deploy request. When
 that runtime SSH check and source-sync check are expected to pass,
 `verify-apple-golden-pipeline` runs the fast-forward, SSH check, and source-sync
 steps, plus the remote Xcode readiness preflight, in front of
@@ -844,7 +844,7 @@ journey and then the real tvOS Music-bed XCUITest journey
 Use it when a change affects reader transport, Apple Music bed ownership, Apple
 Music picker/search/control surfaces, Now Playing session/remote-command state,
 keyboard lookup, or TV playback chrome. `make verify-apple-living-room-candidate`
-adds the full non-physical shared pipeline gate before that serial Music-bed
+adds the full non-physical dogfood pipeline gate before that serial Music-bed
 candidate check, and `make verify-apple-golden-pipeline` runs the same serial
 Music-bed candidate after the dogfood gate once runtime fast-forward/source-sync
 has passed. These targets intentionally do not call device install, `devicectl`,

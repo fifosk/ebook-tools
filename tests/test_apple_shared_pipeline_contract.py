@@ -785,11 +785,11 @@ def test_reader_playback_candidate_gate_runs_local_simulator_checks_without_depl
     assert "devicectl" not in target
 
 
-def test_living_room_candidate_gate_runs_shared_pipeline_and_music_bed_without_deploy() -> None:
+def test_living_room_candidate_gate_runs_dogfood_pipeline_and_music_bed_without_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
     target_line = (
-        "verify-apple-living-room-candidate: verify-apple-shared-pipeline "
+        "verify-apple-living-room-candidate: verify-apple-dogfood-pipeline "
         "verify-apple-music-bed-candidate"
     )
     assert target_line in makefile
@@ -798,7 +798,9 @@ def test_living_room_candidate_gate_runs_shared_pipeline_and_music_bed_without_d
     assert "verify-apple-living-room-candidate" in phony
 
     target = makefile.split("verify-apple-living-room-candidate:", 1)[1].split("\n\n", 1)[0]
-    assert "verify-apple-shared-pipeline" in target
+    assert "verify-apple-dogfood-pipeline" in target
+    assert "verify-apple-cross-surface-checkpoint" not in target
+    assert "verify-apple-shared-pipeline" not in target
     assert "verify-apple-music-bed-candidate" in target
     assert "test-e2e-ipad-music-bed-sync" not in target
     assert "test-e2e-tvos-music-bed-sync" not in target

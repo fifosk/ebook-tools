@@ -54,7 +54,7 @@ tvos_music_bed_sync_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run A
 verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs"
 music_bed_candidate_line="verify-apple-music-bed-candidate: test-e2e-ipad-music-bed-sync test-e2e-tvos-music-bed-sync"
 music_bed_candidate_dry_run_line="verify-apple-music-bed-candidate-dry-run: test-e2e-ipad-music-bed-sync-dry-run test-e2e-tvos-music-bed-sync-dry-run"
-living_room_candidate_line="verify-apple-living-room-candidate: verify-apple-shared-pipeline verify-apple-music-bed-candidate"
+living_room_candidate_line="verify-apple-living-room-candidate: verify-apple-dogfood-pipeline verify-apple-music-bed-candidate"
 dogfood_verify_line="verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline"
 golden_verify_line="verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync verify-apple-dogfood-pipeline verify-apple-music-bed-candidate"
 local_checkpoint_bundle_line='$(PYTHON) scripts/write_git_checkpoint_bundle.py --base "$(CHECKPOINT_BASE)" --output-dir "$(CHECKPOINT_OUTPUT_DIR)"'
@@ -150,7 +150,7 @@ assert_contains "${makefile}" "apple-pipeline-orchestration-dry-runs: apple-pipe
 assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, backend tests, Web checks, and orchestration dry-runs"
 assert_contains "${makefile}" "${music_bed_candidate_line}" "Music-bed candidate verification should run iPad and tvOS Music-bed journeys serially"
 assert_contains "${makefile}" "${music_bed_candidate_dry_run_line}" "Music-bed candidate dry-run should validate iPad and tvOS Music-bed journey wiring serially"
-assert_contains "${makefile}" "${living_room_candidate_line}" "Living Room candidate verification should compose the shared pipeline gate and serial Music-bed journeys"
+assert_contains "${makefile}" "${living_room_candidate_line}" "Living Room candidate verification should compose the dogfood pipeline gate and serial Music-bed journeys"
 assert_contains "${makefile}" "${dogfood_verify_line}" "dogfood pipeline verification should compose the local cross-surface checkpoint with the non-physical shared pipeline gate"
 assert_contains "${makefile}" "${golden_verify_line}" "golden pipeline verification should fast-forward and source-sync before the non-physical dogfood and Music-bed candidate gates"
 assert_contains "${makefile}" "apple-local-checkpoint-bundle:" "Makefile should expose a local git-bundle checkpoint fallback"
