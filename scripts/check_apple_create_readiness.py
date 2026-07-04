@@ -56,6 +56,26 @@ EXPECTED_PIPELINE_FILES_PICKER_MAX_LIMIT = int(EXPECTED_CREATE_PATHS["pipelineFi
 EXPECTED_PIPELINE_FILES_PICKER_PATH = (
     f"{EXPECTED_CREATE_PATHS['pipelineFilesPath']}?limit={EXPECTED_PIPELINE_FILES_PICKER_LIMIT}"
 )
+COMPLETED_FILE_LIST_METADATA_KEYS = ("completed_files", "completed_paths", "files")
+COMPLETED_FILE_VALUE_METADATA_KEYS = ("completed_file", "completed_path", "local_path")
+COMPLETED_FILE_LIST_METADATA_KEY_SET = frozenset(COMPLETED_FILE_LIST_METADATA_KEYS)
+COMPLETED_FILE_VALUE_METADATA_KEY_SET = frozenset(COMPLETED_FILE_VALUE_METADATA_KEYS)
+FORBIDDEN_ACQUISITION_JOB_METADATA_KEYS = frozenset(
+    (
+        "access_token",
+        "api_key",
+        "apikey",
+        "artifact_token",
+        "authkey",
+        "authorization",
+        "candidate_token",
+        "passkey",
+        "password",
+        "rsskey",
+        "secret",
+        "token",
+    )
+)
 CREATION_TEMPLATE_DETAIL_PROBE_ID = "__apple_create_readiness_missing_template__"
 CREATION_TEMPLATE_MODE_PROBES = (
     "generated_book",
@@ -1414,7 +1434,79 @@ def acquisition_job_status_payload_issues(payload: Any) -> list[str]:
         issues.append("task_id.empty")
     if str(payload.get("status") or "").strip() == "":
         issues.append("status.empty")
+    issues.extend(acquisition_job_metadata_issues(payload.get("metadata")))
     return sorted(issues)
+
+
+def acquisition_job_metadata_issues(metadata: Any) -> list[str]:
+    if not isinstance(metadata, dict):
+        return []
+    return sorted(
+        set(
+            _acquisition_job_metadata_issues(
+                metadata,
+                path="metadata",
+            )
+        )
+    )
+
+
+def _acquisition_job_metadata_issues(value: Any, *, path: str) -> list[str]:
+    issues: list[str] = []
+    if isinstance(value, dict):
+        for raw_key, nested_value in value.items():
+            key = str(raw_key)
+            normalized_key = key.replace("-", "_").casefold()
+            child_path = f"{path}.{key}"
+            if normalized_key in FORBIDDEN_ACQUISITION_JOB_METADATA_KEYS:
+                issues.append(f"{child_path}.forbidden")
+                continue
+            if normalized_key in COMPLETED_FILE_LIST_METADATA_KEY_SET:
+                if not isinstance(nested_value, list):
+                    issues.append(f"{child_path}")
+                    continue
+                if not all(
+                    _safe_completed_file_metadata_value(item)
+                    for item in nested_value
+                ):
+                    issues.append(f"{child_path}.items")
+                continue
+            if normalized_key in COMPLETED_FILE_VALUE_METADATA_KEY_SET:
+                if not _safe_completed_file_metadata_value(nested_value):
+                    issues.append(f"{child_path}.unsafe")
+                continue
+            issues.extend(
+                _acquisition_job_metadata_issues(
+                    nested_value,
+                    path=child_path,
+                )
+            )
+        return issues
+    if isinstance(value, list):
+        for item in value:
+            issues.extend(
+                _acquisition_job_metadata_issues(
+                    item,
+                    path=f"{path}.items",
+                )
+            )
+    return issues
+
+
+def _safe_completed_file_metadata_value(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    normalized = value.strip()
+    if not normalized:
+        return False
+    try:
+        parsed = parse.urlsplit(normalized)
+    except ValueError:
+        return False
+    if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment:
+        return False
+    path = Path(normalized)
+    return not any(part == ".." for part in path.parts)
 
 
 def acquisition_job_status_inventory(

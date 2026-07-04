@@ -2200,6 +2200,8 @@ def test_acquisition_job_poll_route_sanitizes_nested_completed_file_metadata(
                         "files": [
                             ready_file.as_posix(),
                             "Loose nested title.mkv",
+                            "Loose with query.mkv?apikey=secret",
+                            "Loose with fragment.mkv#access_token=secret",
                             "https://indexer.example.invalid/download?id=7&apikey=secret",
                         ],
                         "local_path": "/outside/private/Event.mkv",

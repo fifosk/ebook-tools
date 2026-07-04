@@ -686,7 +686,10 @@ Web/Apple:
   and Web Narrate Ebook template handoff. Download Station job payloads now
   recursively sanitize nested completed-file metadata before Web or Apple
   Create reconnects to downloader handoffs, so outside-root paths and URL
-  secrets cannot survive under provider-specific metadata objects.
+  secrets cannot survive under provider-specific metadata objects. Apple Create
+  readiness now rejects unsafe nested downloader completed-file metadata,
+  including token fields and URL-shaped path hints, before simulator or device
+  journeys reuse those handoffs.
 - No physical device deployment unless explicitly requested.
 
 Sentence quality:

@@ -237,6 +237,76 @@ def test_acquisition_job_status_inventory_reports_payload_shape_issues(monkeypat
     ]
 
 
+def test_acquisition_job_metadata_issues_rejects_nested_unsafe_completed_files() -> None:
+    assert module.acquisition_job_metadata_issues(
+        {
+            "source_kind": "download_station",
+            "candidate_token": "secret-token",
+            "handoff": {
+                "completed_files": [
+                    "Ready.mkv",
+                    "../escape.mkv",
+                    "Loose.mkv?apikey=secret",
+                    "Loose.mkv#access_token=secret",
+                    "https://indexer.example.invalid/download?id=7&apikey=secret",
+                    42,
+                ],
+                "completed_path": "/Volumes/Data/Download/Ready.mkv",
+            },
+            "events": [
+                {
+                    "files": ["Nested Ready.mkv"],
+                    "local_path": "../event-escape.mkv",
+                    "api_key": "secret-key",
+                }
+            ],
+        }
+    ) == [
+        "metadata.candidate_token.forbidden",
+        "metadata.events.items.api_key.forbidden",
+        "metadata.events.items.local_path.unsafe",
+        "metadata.handoff.completed_files.items",
+    ]
+
+
+def test_acquisition_job_status_inventory_reports_nested_metadata_issues(monkeypatch) -> None:
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        return {
+            "provider": "download_station",
+            "task_id": "download_station:submitted",
+            "status": "submitted",
+            "updated_at": "2026-06-27T00:00:00Z",
+            "completed_files": [],
+            "next_actions": ["discover_manual_downloads", "import_local"],
+            "metadata": {
+                "source_kind": "download_station",
+                "handoff": {
+                    "completed_files": [
+                        "Ready.mkv",
+                        "Loose.mkv?apikey=secret",
+                    ],
+                    "token": "secret-token",
+                },
+            },
+        }
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_job_status_inventory(
+        "https://api.example.test",
+        "token",
+        1.0,
+    )
+
+    assert inventory == {
+        "acquisition_job_status_route_ready": False,
+        "acquisition_job_status_issues": [
+            "metadata.handoff.completed_files.items",
+            "metadata.handoff.token.forbidden",
+        ],
+    }
+
+
 def test_resolves_default_create_sources_without_paths_in_summary() -> None:
     files = {
         "ebooks": [

@@ -90,6 +90,8 @@ def normalize_completed_file_value(
         return None
     if parsed.scheme or parsed.netloc:
         return None
+    if parsed.query or parsed.fragment:
+        return None
     path = Path(normalized).expanduser()
     if path.is_absolute():
         return safe_absolute_completed_file_path(path, safe_roots)
