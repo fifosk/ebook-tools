@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import subprocess
 from pathlib import Path
 
 
@@ -34,6 +36,95 @@ def test_pull_helper_reads_debug_playback_transport_cache_from_app_container() -
     assert 'Playback transport log archive: ${LOG_ARCHIVE}' in script
     assert "Playback transport CoreDevice archive:" in script
     assert "not book text or media titles" in script
+    assert "APPLE_DEVICE_COPY_RETRIES" in script
+    assert "APPLE_DEVICE_COPY_RETRY_DELAY" in script
+    assert "Retrying playback transport log pull attempt" in script
+
+
+def test_pull_helper_retries_transient_coredevice_copy_failure(tmp_path: Path) -> None:
+    fake_devicectl = tmp_path / "devicectl"
+    attempts = tmp_path / "attempts.txt"
+    output = tmp_path / "transport.log"
+    baseline = tmp_path / "transport.previous.log"
+
+    fake_devicectl.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+attempt_file="${FAKE_DEVICECTL_ATTEMPTS}"
+attempt=0
+if [[ -f "${attempt_file}" ]]; then
+  attempt="$(cat "${attempt_file}")"
+fi
+attempt=$((attempt + 1))
+printf '%s' "${attempt}" > "${attempt_file}"
+destination=""
+json_output=""
+log_output=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --destination)
+      destination="$2"
+      shift 2
+      ;;
+    --json-output)
+      json_output="$2"
+      shift 2
+      ;;
+    --log-output)
+      log_output="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+if [[ "${attempt}" -eq 1 ]]; then
+  printf 'transient CoreDevice tunnel failure\\n' >&2
+  exit 66
+fi
+printf 'reader transport evidence\\n' > "${destination}"
+printf '{}\\n' > "${json_output}"
+printf 'copy ok\\n' > "${log_output}"
+""",
+        encoding="utf-8",
+    )
+    fake_devicectl.chmod(fake_devicectl.stat().st_mode | 0o111)
+
+    env = {
+        **os.environ,
+        "DEVICECTL": str(fake_devicectl),
+        "FAKE_DEVICECTL_ATTEMPTS": str(attempts),
+        "APPLE_DEVICE_COPY_RETRIES": "1",
+        "APPLE_DEVICE_COPY_RETRY_DELAY": "0",
+        "APPLE_DEVICE_LOG_TIMESTAMP": "20260704T000000Z",
+    }
+    result = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--profile",
+            "appletv",
+            "--device",
+            "Living Room",
+            "--output",
+            str(output),
+            "--baseline-output",
+            str(baseline),
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert attempts.read_text(encoding="utf-8") == "2"
+    assert "Retrying playback transport log pull attempt 2/2" in result.stderr
+    assert output.read_text(encoding="utf-8") == "reader transport evidence\n"
+    assert output.with_name("transport-20260704T000000Z.log").exists()
+    assert output.with_name("transport-20260704T000000Z.coredevice.log").exists()
 
 
 def test_makefile_exposes_playback_log_pull_target() -> None:

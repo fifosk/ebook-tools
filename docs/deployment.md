@@ -494,6 +494,12 @@ pull-and-verify targets validate only the fresh suffix after that baseline by
 default, which keeps stale failures from an older Living Room/Cinema repro from
 masking the current hardware session. Standalone verify targets still check the
 full file unless `APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1` is set.
+The pull helper retries transient CoreDevice copy failures by default
+(`APPLE_DEVICE_COPY_RETRIES=2`, `APPLE_DEVICE_COPY_RETRY_DELAY=4`), covering
+common Apple TV tunnel interruptions such as
+`Device connectivity was interrupted while requesting device start tunnel
+listener`. Set retries to `0` only when intentionally debugging the first
+CoreDevice failure.
 DEBUG app-cache playback logs start with a token-safe
 `[PlaybackTransportBuild]` header that includes release, bundle, branch, and git
 commit. For a specific test candidate, pass

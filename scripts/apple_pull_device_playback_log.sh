@@ -8,6 +8,8 @@ DEVICE_PROFILE="${APPLE_DEVICE_PROFILE:-ipad}"
 OUTPUT_PATH="${APPLE_DEVICE_PLAYBACK_LOG:-}"
 BASELINE_PATH="${APPLE_DEVICE_PLAYBACK_BASELINE_LOG:-}"
 TIMEOUT="${APPLE_DEVICE_COPY_TIMEOUT:-60}"
+COPY_RETRIES="${APPLE_DEVICE_COPY_RETRIES:-2}"
+COPY_RETRY_DELAY="${APPLE_DEVICE_COPY_RETRY_DELAY:-4}"
 
 usage() {
   cat <<'USAGE'
@@ -20,6 +22,7 @@ state only, not book text or media titles.
 Environment equivalents:
   APPLE_DEVICE_ID, APPLE_DEVICE_PROFILE, APPLE_DEVICE_PLAYBACK_LOG,
   APPLE_DEVICE_PLAYBACK_BASELINE_LOG, APPLE_DEVICE_COPY_TIMEOUT,
+  APPLE_DEVICE_COPY_RETRIES, APPLE_DEVICE_COPY_RETRY_DELAY,
   APPLE_DEVICE_LOG_TIMESTAMP, DEVICECTL
 USAGE
 }
@@ -97,15 +100,45 @@ if [[ -f "${OUTPUT_PATH}" && "${BASELINE_PATH}" != "${OUTPUT_PATH}" ]]; then
   cp "${OUTPUT_PATH}" "${BASELINE_PATH}"
 fi
 
-"${DEVICECTL}" device copy from \
-  --device "${DEVICE_ID}" \
-  --source "Library/Caches/interactive-reader-playback-transport.log" \
-  --destination "${OUTPUT_PATH}" \
-  --domain-type appDataContainer \
-  --domain-identifier "${BUNDLE_ID}" \
-  --timeout "${TIMEOUT}" \
-  --json-output "${JSON_PATH}" \
-  --log-output "${COREDEVICE_LOG}"
+if ! [[ "${COPY_RETRIES}" =~ ^[0-9]+$ ]]; then
+  echo "APPLE_DEVICE_COPY_RETRIES must be a non-negative integer." >&2
+  exit 2
+fi
+if ! [[ "${COPY_RETRY_DELAY}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  echo "APPLE_DEVICE_COPY_RETRY_DELAY must be a non-negative number." >&2
+  exit 2
+fi
+
+copy_attempt=0
+copy_status=1
+while (( copy_attempt <= COPY_RETRIES )); do
+  copy_attempt=$((copy_attempt + 1))
+  if (( copy_attempt > 1 )); then
+    echo "Retrying playback transport log pull attempt ${copy_attempt}/$((COPY_RETRIES + 1)) after CoreDevice copy failure..." >&2
+  fi
+  if "${DEVICECTL}" device copy from \
+    --device "${DEVICE_ID}" \
+    --source "Library/Caches/interactive-reader-playback-transport.log" \
+    --destination "${OUTPUT_PATH}" \
+    --domain-type appDataContainer \
+    --domain-identifier "${BUNDLE_ID}" \
+    --timeout "${TIMEOUT}" \
+    --json-output "${JSON_PATH}" \
+    --log-output "${COREDEVICE_LOG}"; then
+    copy_status=0
+    break
+  else
+    copy_status=$?
+  fi
+  if (( copy_attempt <= COPY_RETRIES )); then
+    sleep "${COPY_RETRY_DELAY}"
+  fi
+done
+
+if (( copy_status != 0 )); then
+  echo "Playback transport log pull failed after ${copy_attempt} attempt(s)." >&2
+  exit "${copy_status}"
+fi
 
 cp "${OUTPUT_PATH}" "${LOG_ARCHIVE}"
 if [[ -f "${COREDEVICE_LOG}" ]]; then
