@@ -1277,7 +1277,11 @@ Optimization candidates:
   The Library router's telemetry wrappers now live in
   `modules/webapi/routers/library_telemetry.py`, trimming the route module while
   keeping the same token-safe Library metrics covered by the Library route
-  tests. Library access-policy owner fallback, default visibility resolution,
+  tests. Library item/media/action routes now also share one
+  `_get_accessible_library_item` gate for existing-item view/edit checks while
+  keeping route-specific forbidden telemetry callbacks, reducing duplicated
+  access-policy branches used by Web Library, Apple Library, and Apple playback
+  media routes. Library access-policy owner fallback, default visibility resolution,
   and denial-message helpers now live in
   `modules/webapi/routers/library_access.py` with direct coverage, keeping the
   shared Web/Apple Library authorization contract outside the broad route file.

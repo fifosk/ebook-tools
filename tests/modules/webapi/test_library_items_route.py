@@ -42,6 +42,15 @@ def _patch_library_logger(
     monkeypatch.setattr(library_telemetry, "LOGGER", logger)
 
 
+def test_library_item_routes_use_shared_access_gate() -> None:
+    source = Path(library_router.__file__).read_text(encoding="utf-8")
+
+    assert "def _get_accessible_library_item(" in source
+    assert source.count("sync.get_item(job_id)") == 1
+    assert source.count("_ensure_library_access(item, request_user, permission=permission)") == 1
+    assert source.count("_get_accessible_library_item(") >= 10
+
+
 class _StubLibrarySync:
     def __init__(
         self,

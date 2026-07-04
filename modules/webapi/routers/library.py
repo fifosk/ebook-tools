@@ -6,7 +6,7 @@ import mimetypes
 import tempfile
 import time
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Callable, Literal, Optional
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Response, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
@@ -58,6 +58,7 @@ from ..schemas import (
 )
 from ...library import (
     LibraryConflictError,
+    LibraryEntry,
     LibraryError,
     LibraryNotFoundError,
     LibraryService,
@@ -72,6 +73,25 @@ router = APIRouter(prefix="/api/library", tags=["library"])
 mimetypes.add_type("text/vtt", ".vtt")
 mimetypes.add_type("text/x-srt", ".srt")
 mimetypes.add_type("text/plain", ".ass")
+
+
+def _get_accessible_library_item(
+    sync: LibrarySync,
+    job_id: str,
+    request_user: RequestUserContext,
+    *,
+    permission: str,
+    on_forbidden: Callable[[], None],
+) -> LibraryEntry | None:
+    item = sync.get_item(job_id)
+    if item is None:
+        return None
+    try:
+        _ensure_library_access(item, request_user, permission=permission)
+    except HTTPException:
+        on_forbidden()
+        raise
+    return item
 
 
 @router.post("/move/{job_id}", response_model=LibraryMoveResponse)
@@ -278,13 +298,16 @@ async def remove_library_media(
 ):
     started_at = time.perf_counter()
     try:
-        item = sync.get_item(job_id)
-        if item is not None:
-            try:
-                _ensure_library_access(item, request_user, permission="edit")
-            except HTTPException:
-                _log_library_media_remove(result="forbidden", started_at=started_at)
-                raise
+        _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="edit",
+            on_forbidden=lambda: _log_library_media_remove(
+                result="forbidden",
+                started_at=started_at,
+            ),
+        )
         updated_item, removed = sync.remove_media(job_id)
         location = "library" if updated_item is not None else "queue"
         payload_item = (
@@ -329,13 +352,16 @@ async def remove_library_entry(
 ):
     started_at = time.perf_counter()
     try:
-        item = sync.get_item(job_id)
-        if item is not None:
-            try:
-                _ensure_library_access(item, request_user, permission="edit")
-            except HTTPException:
-                _log_library_remove_entry(result="forbidden", started_at=started_at)
-                raise
+        _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="edit",
+            on_forbidden=lambda: _log_library_remove_entry(
+                result="forbidden",
+                started_at=started_at,
+            ),
+        )
         sync.remove_entry(job_id)
     except LibraryNotFoundError as exc:
         _log_library_remove_entry(result="not_found", started_at=started_at)
@@ -381,17 +407,17 @@ async def update_library_metadata(
         if value is not None
     )
     try:
-        item = sync.get_item(job_id)
-        if item is not None:
-            try:
-                _ensure_library_access(item, request_user, permission="edit")
-            except HTTPException:
-                _log_library_metadata_update(
-                    result="forbidden",
-                    started_at=started_at,
-                    edited_fields=edited_fields,
-                )
-                raise
+        _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="edit",
+            on_forbidden=lambda: _log_library_metadata_update(
+                result="forbidden",
+                started_at=started_at,
+                edited_fields=edited_fields,
+            ),
+        )
         updated_item = sync.update_metadata(
             job_id,
             title=payload.title,
@@ -462,7 +488,17 @@ async def get_library_access(
     started_at = time.perf_counter()
     operation = "access_get"
     try:
-        item = sync.get_item(job_id)
+        item = _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="view",
+            on_forbidden=lambda: _log_library_access_policy(
+                operation=operation,
+                result="forbidden",
+                started_at=started_at,
+            ),
+        )
         if item is None:
             _log_library_access_policy(
                 operation=operation,
@@ -473,15 +509,6 @@ async def get_library_access(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Library item not found.",
             )
-        try:
-            _ensure_library_access(item, request_user, permission="view")
-        except HTTPException:
-            _log_library_access_policy(
-                operation=operation,
-                result="forbidden",
-                started_at=started_at,
-            )
-            raise
         policy = _resolve_library_access(item)
         payload = AccessPolicyPayload.model_validate(policy.to_dict())
     except HTTPException:
@@ -518,7 +545,19 @@ async def update_library_access(
     visibility_present = payload.visibility is not None
     grant_count = len(payload.grants) if payload.grants is not None else None
     try:
-        item = sync.get_item(job_id)
+        item = _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="edit",
+            on_forbidden=lambda: _log_library_access_policy(
+                operation=operation,
+                result="forbidden",
+                started_at=started_at,
+                visibility_present=visibility_present,
+                grant_count=grant_count,
+            ),
+        )
         if item is None:
             _log_library_access_policy(
                 operation=operation,
@@ -531,17 +570,6 @@ async def update_library_access(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Library item not found.",
             )
-        try:
-            _ensure_library_access(item, request_user, permission="edit")
-        except HTTPException:
-            _log_library_access_policy(
-                operation=operation,
-                result="forbidden",
-                started_at=started_at,
-                visibility_present=visibility_present,
-                grant_count=grant_count,
-            )
-            raise
         updated_item = sync.update_access(
             job_id,
             visibility=payload.visibility,
@@ -610,17 +638,17 @@ async def upload_library_source(
     started_at = time.perf_counter()
     temp_path: Optional[Path] = None
     try:
-        item = sync.get_item(job_id)
-        if item is not None:
-            try:
-                _ensure_library_access(item, request_user, permission="edit")
-            except HTTPException:
-                _log_library_source_upload(
-                    result="forbidden",
-                    started_at=started_at,
-                    has_filename=bool(file.filename),
-                )
-                raise
+        _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="edit",
+            on_forbidden=lambda: _log_library_source_upload(
+                result="forbidden",
+                started_at=started_at,
+                has_filename=bool(file.filename),
+            ),
+        )
         if not file.filename:
             _log_library_source_upload(
                 result="bad_request",
@@ -713,17 +741,17 @@ async def apply_isbn_metadata(
     started_at = time.perf_counter()
     has_isbn = bool((payload.isbn or "").strip())
     try:
-        item = sync.get_item(job_id)
-        if item is not None:
-            try:
-                _ensure_library_access(item, request_user, permission="edit")
-            except HTTPException:
-                _log_library_isbn_apply(
-                    result="forbidden",
-                    started_at=started_at,
-                    has_isbn=has_isbn,
-                )
-                raise
+        _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="edit",
+            on_forbidden=lambda: _log_library_isbn_apply(
+                result="forbidden",
+                started_at=started_at,
+                has_isbn=has_isbn,
+            ),
+        )
         updated_item = sync.apply_isbn_metadata(job_id, payload.isbn)
         serialized = sync.serialize_item(updated_item)
         item_payload = LibraryItemPayload.model_validate(serialized)
@@ -783,17 +811,17 @@ async def refresh_library_metadata(
     started_at = time.perf_counter()
     enrich_requested = bool(payload and payload.enrich_from_external)
     try:
-        item = sync.get_item(job_id)
-        if item is not None:
-            try:
-                _ensure_library_access(item, request_user, permission="edit")
-            except HTTPException:
-                _log_library_metadata_refresh(
-                    result="forbidden",
-                    started_at=started_at,
-                    enrich_requested=enrich_requested,
-                )
-                raise
+        _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="edit",
+            on_forbidden=lambda: _log_library_metadata_refresh(
+                result="forbidden",
+                started_at=started_at,
+                enrich_requested=enrich_requested,
+            ),
+        )
         refreshed_item = sync.refresh_metadata(job_id)
         if enrich_requested:
             refreshed_item = sync.enrich_metadata(job_id, force=True)
@@ -861,17 +889,17 @@ async def enrich_library_metadata(
     force = payload.force if payload else False
 
     try:
-        item = sync.get_item(job_id)
-        if item is not None:
-            try:
-                _ensure_library_access(item, request_user, permission="edit")
-            except HTTPException:
-                _log_library_metadata_enrich(
-                    result="forbidden",
-                    started_at=started_at,
-                    force=force,
-                )
-                raise
+        _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="edit",
+            on_forbidden=lambda: _log_library_metadata_enrich(
+                result="forbidden",
+                started_at=started_at,
+                force=force,
+            ),
+        )
         enriched_item = sync.enrich_metadata(job_id, force=force)
         serialized = sync.serialize_item(enriched_item)
         item_payload = LibraryItemPayload.model_validate(serialized)
@@ -1007,20 +1035,20 @@ async def get_library_media(
 ):
     start = time.perf_counter()
     try:
-        item = sync.get_item(job_id)
-        if item is not None:
-            try:
-                _ensure_library_access(item, request_user, permission="view")
-            except HTTPException:
-                _log_library_route_result(
-                    message="Library media lookup failed",
-                    operation="media",
-                    result="forbidden",
-                    started_at=start,
-                    include_operation=True,
-                    summary=summary,
-                )
-                raise
+        _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="view",
+            on_forbidden=lambda: _log_library_route_result(
+                message="Library media lookup failed",
+                operation="media",
+                result="forbidden",
+                started_at=start,
+                include_operation=True,
+                summary=summary,
+            ),
+        )
         media_map, chunk_records, complete = await run_in_threadpool(
             lambda: sync.get_media(job_id, summary=summary),
         )
@@ -1102,17 +1130,17 @@ async def download_library_media(
     started_at = time.perf_counter()
     has_range = bool(range_header)
     try:
-        item = sync.get_item(job_id)
-        if item is not None:
-            try:
-                _ensure_library_access(item, request_user, permission="view")
-            except HTTPException:
-                _log_library_media_file_resolve(
-                    result="forbidden",
-                    started_at=started_at,
-                    has_range=has_range,
-                )
-                raise
+        _get_accessible_library_item(
+            sync,
+            job_id,
+            request_user,
+            permission="view",
+            on_forbidden=lambda: _log_library_media_file_resolve(
+                result="forbidden",
+                started_at=started_at,
+                has_range=has_range,
+            ),
+        )
         resolved = sync.resolve_media_file(job_id, file_path)
         response = _stream_local_file(resolved, range_header)
     except LibraryNotFoundError as exc:

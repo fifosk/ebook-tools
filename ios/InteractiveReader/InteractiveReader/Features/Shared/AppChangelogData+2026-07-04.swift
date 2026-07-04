@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "library-router-shared-access-gate",
+            title: "Library actions share access checks",
+            detail: "Backend Library item, media, and source-action routes now reuse one existing-item view/edit access gate while preserving route-specific token-safe forbidden telemetry, keeping Web and Apple Library behavior aligned with less duplicated router logic."
+        ),
+        AppChangelogEntry(
             id: "apple-library-playback-header-dark-glass",
             title: "Playback header matches dark reader",
             detail: "The Apple library playback header and item-type pill now use the same dark glass contrast floor as the interactive reader header, avoiding pale light-mode chrome over dark iPad playback backgrounds."
