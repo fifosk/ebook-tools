@@ -37,6 +37,7 @@ from ..dependencies import (
     get_request_user,
     RequestUserContext,
 )
+from ..route_ids import normalize_route_id
 from ..routes.media_routes import _stream_local_file
 from ..schemas import (
     LibraryItemPayload,
@@ -94,6 +95,13 @@ def _get_accessible_library_item(
     return item
 
 
+def _normalize_library_route_job_id(job_id: str, *, not_found_detail: str) -> str:
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=not_found_detail)
+    return normalized_job_id
+
+
 @router.post("/move/{job_id}", response_model=LibraryMoveResponse)
 async def move_job_to_library(
     job_id: str,
@@ -105,9 +113,10 @@ async def move_job_to_library(
     started_at = time.perf_counter()
     status_override = payload.status_override if payload else None
     status_override_present = bool(status_override)
+    normalized_job_id = _normalize_library_route_job_id(job_id, not_found_detail="Job not found.")
     try:
         pipeline_service.get_job(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
             permission="edit",
@@ -141,7 +150,7 @@ async def move_job_to_library(
         ) from exc
     try:
         item = sync.move_to_library(
-            job_id,
+            normalized_job_id,
             status_override=status_override,
         )
         serialized = sync.serialize_item(item)
@@ -297,10 +306,14 @@ async def remove_library_media(
     request_user: RequestUserContext = Depends(get_request_user),
 ):
     started_at = time.perf_counter()
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library media not found.",
+    )
     try:
         _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="edit",
             on_forbidden=lambda: _log_library_media_remove(
@@ -308,7 +321,7 @@ async def remove_library_media(
                 started_at=started_at,
             ),
         )
-        updated_item, removed = sync.remove_media(job_id)
+        updated_item, removed = sync.remove_media(normalized_job_id)
         location = "library" if updated_item is not None else "queue"
         payload_item = (
             LibraryItemPayload.model_validate(sync.serialize_item(updated_item))
@@ -341,7 +354,12 @@ async def remove_library_media(
         location=location,
         removed_count=removed,
     )
-    return LibraryMediaRemovalResponse(job_id=job_id, location=location, removed=removed, item=payload_item)
+    return LibraryMediaRemovalResponse(
+        job_id=normalized_job_id,
+        location=location,
+        removed=removed,
+        item=payload_item,
+    )
 
 
 @router.delete("/remove/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -351,10 +369,14 @@ async def remove_library_entry(
     request_user: RequestUserContext = Depends(get_request_user),
 ):
     started_at = time.perf_counter()
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library item not found.",
+    )
     try:
         _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="edit",
             on_forbidden=lambda: _log_library_remove_entry(
@@ -362,7 +384,7 @@ async def remove_library_entry(
                 started_at=started_at,
             ),
         )
-        sync.remove_entry(job_id)
+        sync.remove_entry(normalized_job_id)
     except LibraryNotFoundError as exc:
         _log_library_remove_entry(result="not_found", started_at=started_at)
         raise HTTPException(
@@ -395,6 +417,10 @@ async def update_library_metadata(
     request_user: RequestUserContext = Depends(get_request_user),
 ):
     started_at = time.perf_counter()
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library item not found.",
+    )
     edited_fields = sum(
         1
         for value in (
@@ -409,7 +435,7 @@ async def update_library_metadata(
     try:
         _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="edit",
             on_forbidden=lambda: _log_library_metadata_update(
@@ -419,7 +445,7 @@ async def update_library_metadata(
             ),
         )
         updated_item = sync.update_metadata(
-            job_id,
+            normalized_job_id,
             title=payload.title,
             author=payload.author,
             genre=payload.genre,
@@ -487,10 +513,14 @@ async def get_library_access(
 ) -> AccessPolicyPayload:
     started_at = time.perf_counter()
     operation = "access_get"
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library item not found.",
+    )
     try:
         item = _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="view",
             on_forbidden=lambda: _log_library_access_policy(
@@ -544,10 +574,14 @@ async def update_library_access(
     operation = "access_update"
     visibility_present = payload.visibility is not None
     grant_count = len(payload.grants) if payload.grants is not None else None
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library item not found.",
+    )
     try:
         item = _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="edit",
             on_forbidden=lambda: _log_library_access_policy(
@@ -571,7 +605,7 @@ async def update_library_access(
                 detail="Library item not found.",
             )
         updated_item = sync.update_access(
-            job_id,
+            normalized_job_id,
             visibility=payload.visibility,
             grants=[grant.model_dump(by_alias=True) for grant in payload.grants]
             if payload.grants is not None
@@ -637,10 +671,14 @@ async def upload_library_source(
 ):
     started_at = time.perf_counter()
     temp_path: Optional[Path] = None
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library item not found.",
+    )
     try:
         _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="edit",
             on_forbidden=lambda: _log_library_source_upload(
@@ -680,7 +718,7 @@ async def upload_library_source(
                 detail="Unable to process uploaded source file.",
             )
 
-        updated_item = sync.reupload_source_from_path(job_id, temp_path)
+        updated_item = sync.reupload_source_from_path(normalized_job_id, temp_path)
         serialized = sync.serialize_item(updated_item)
         item_payload = LibraryItemPayload.model_validate(serialized)
     except LibraryNotFoundError as exc:
@@ -740,10 +778,14 @@ async def apply_isbn_metadata(
 ):
     started_at = time.perf_counter()
     has_isbn = bool((payload.isbn or "").strip())
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library item not found.",
+    )
     try:
         _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="edit",
             on_forbidden=lambda: _log_library_isbn_apply(
@@ -752,7 +794,7 @@ async def apply_isbn_metadata(
                 has_isbn=has_isbn,
             ),
         )
-        updated_item = sync.apply_isbn_metadata(job_id, payload.isbn)
+        updated_item = sync.apply_isbn_metadata(normalized_job_id, payload.isbn)
         serialized = sync.serialize_item(updated_item)
         item_payload = LibraryItemPayload.model_validate(serialized)
     except LibraryNotFoundError as exc:
@@ -810,10 +852,14 @@ async def refresh_library_metadata(
     """
     started_at = time.perf_counter()
     enrich_requested = bool(payload and payload.enrich_from_external)
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library item not found.",
+    )
     try:
         _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="edit",
             on_forbidden=lambda: _log_library_metadata_refresh(
@@ -822,9 +868,9 @@ async def refresh_library_metadata(
                 enrich_requested=enrich_requested,
             ),
         )
-        refreshed_item = sync.refresh_metadata(job_id)
+        refreshed_item = sync.refresh_metadata(normalized_job_id)
         if enrich_requested:
-            refreshed_item = sync.enrich_metadata(job_id, force=True)
+            refreshed_item = sync.enrich_metadata(normalized_job_id, force=True)
         serialized = sync.serialize_item(refreshed_item)
         item_payload = LibraryItemPayload.model_validate(serialized)
     except LibraryNotFoundError as exc:
@@ -887,11 +933,15 @@ async def enrich_library_metadata(
     """
     started_at = time.perf_counter()
     force = payload.force if payload else False
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library item not found.",
+    )
 
     try:
         _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="edit",
             on_forbidden=lambda: _log_library_metadata_enrich(
@@ -900,7 +950,7 @@ async def enrich_library_metadata(
                 force=force,
             ),
         )
-        enriched_item = sync.enrich_metadata(job_id, force=force)
+        enriched_item = sync.enrich_metadata(normalized_job_id, force=force)
         serialized = sync.serialize_item(enriched_item)
         item_payload = LibraryItemPayload.model_validate(serialized)
 
@@ -1034,10 +1084,14 @@ async def get_library_media(
     request_user: RequestUserContext = Depends(get_request_user),
 ):
     start = time.perf_counter()
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library media not found.",
+    )
     try:
         _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="view",
             on_forbidden=lambda: _log_library_route_result(
@@ -1050,10 +1104,10 @@ async def get_library_media(
             ),
         )
         media_map, chunk_records, complete = await run_in_threadpool(
-            lambda: sync.get_media(job_id, summary=summary),
+            lambda: sync.get_media(normalized_job_id, summary=summary),
         )
         response_payload = build_library_media_response(
-            job_id=job_id,
+            job_id=normalized_job_id,
             media_map=media_map,
             chunk_records=chunk_records,
             complete=complete,
@@ -1129,10 +1183,14 @@ async def download_library_media(
 ):
     started_at = time.perf_counter()
     has_range = bool(range_header)
+    normalized_job_id = _normalize_library_route_job_id(
+        job_id,
+        not_found_detail="Library media file not found.",
+    )
     try:
         _get_accessible_library_item(
             sync,
-            job_id,
+            normalized_job_id,
             request_user,
             permission="view",
             on_forbidden=lambda: _log_library_media_file_resolve(
@@ -1141,7 +1199,7 @@ async def download_library_media(
                 has_range=has_range,
             ),
         )
-        resolved = sync.resolve_media_file(job_id, file_path)
+        resolved = sync.resolve_media_file(normalized_job_id, file_path)
         response = _stream_local_file(resolved, range_header)
     except LibraryNotFoundError as exc:
         _log_library_media_file_resolve(

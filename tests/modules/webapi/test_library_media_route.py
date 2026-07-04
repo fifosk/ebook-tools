@@ -194,6 +194,49 @@ def test_get_library_media_preserves_audio_and_timing_tracks() -> None:
     assert chunk["timingTracks"]["translation"][0]["text"] == "Hallo"
 
 
+def test_get_library_media_normalizes_padded_job_id() -> None:
+    chunk_records = [
+        {
+            "chunk_id": "chunk-001",
+            "range_fragment": "1-1",
+            "start_sentence": 1,
+            "end_sentence": 1,
+            "files": [],
+            "sentences": [],
+            "sentence_count": 1,
+            "audio_tracks": {
+                "translation": {
+                    "path": "media/chunk-001/translation.mp3",
+                    "duration": 1.2,
+                },
+            },
+        }
+    ]
+    payload = ({}, chunk_records, True)
+
+    app = create_app()
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync(
+        payload,
+        expected_job_id="library-job",
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="test",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/library/media/%20%20library-job%20%20")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    audio_track = response.json()["chunks"][0]["audioTracks"]["translation"]
+    assert audio_track["url"].endswith(
+        "/api/library/media/library-job/file/media/chunk-001/translation.mp3"
+    )
+
+
 def test_get_library_media_records_token_safe_timing(monkeypatch: pytest.MonkeyPatch) -> None:
     job_id = "sensitive-library-job"
     user_id = "sensitive-user-id"

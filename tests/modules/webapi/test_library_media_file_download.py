@@ -132,6 +132,29 @@ def test_library_media_file_supports_range_with_inline_disposition(tmp_path: Pat
     assert _has_stream_count(metrics_response.text, result="partial", media_kind="video")
 
 
+def test_library_media_file_normalizes_padded_job_id(tmp_path: Path) -> None:
+    media_path = tmp_path / "dubbed.mp4"
+    media_path.write_bytes(b"0123456789")
+    sync = _StubLibrarySync(media_path, expected_job_id="library-job")
+
+    app = create_app()
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="test",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/library/media/%20%20library-job%20%20/file/dubbed.mp4")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.content == b"0123456789"
+    assert sync.calls == [{"job_id": "library-job", "relative_path": "dubbed.mp4"}]
+
+
 def test_library_media_file_records_token_safe_resolver_timing(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

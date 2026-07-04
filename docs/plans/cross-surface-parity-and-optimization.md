@@ -1014,8 +1014,11 @@ Current Apple UI partially exposes:
 - Library media file route helpers. Status: Apple online playback and offline
   sync now build and parse `/api/library/media/{job_id}/file/{file_path}` URLs
   through `ApplePipelineMediaRuntimeContract`, so encoded Library asset paths
-  share the same route helper as the rest of the playback media client. The
-  repo-owned Apple contract lane includes
+  share the same route helper as the rest of the playback media client. Backend
+  Library action, metadata, access, media-manifest, and media-file routes now
+  trim padded job identifiers through the shared route helper before Library or
+  pipeline service calls, keeping Web and Apple Library row actions aligned
+  with playback media route boundaries. The repo-owned Apple contract lane includes
   `tests/test_apple_runtime_descriptor_contract.py`.
 - Library metadata route helpers. Status: Apple Library item metadata edits,
   source uploads, ISBN apply, and metadata enrichment now substitute the same

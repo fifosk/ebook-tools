@@ -51,6 +51,21 @@ def test_library_item_routes_use_shared_access_gate() -> None:
     assert source.count("_get_accessible_library_item(") >= 10
 
 
+def test_library_item_routes_use_shared_route_id_normalizer() -> None:
+    source = Path(library_router.__file__).read_text(encoding="utf-8")
+
+    assert "from ..route_ids import normalize_route_id" in source
+    assert "def _normalize_route_id" not in source
+    assert "normalized_job_id = normalize_route_id(job_id)" in source
+    assert source.count("_normalize_library_route_job_id(") >= 10
+    assert "sync.remove_media(normalized_job_id)" in source
+    assert "sync.update_metadata(\n            normalized_job_id," in source
+    assert "sync.update_access(\n            normalized_job_id," in source
+    assert "sync.apply_isbn_metadata(normalized_job_id, payload.isbn)" in source
+    assert "sync.refresh_metadata(normalized_job_id)" in source
+    assert "sync.enrich_metadata(normalized_job_id" in source
+
+
 class _StubLibrarySync:
     def __init__(
         self,
@@ -850,6 +865,26 @@ def test_remove_library_media_records_token_safe_success_telemetry(
     assert "removed_count=5" in rendered
     assert "office-ipad-user" not in rendered
     assert "library-job" not in rendered
+
+
+def test_remove_library_media_normalizes_padded_job_id() -> None:
+    app = create_app()
+    sync = _StubLibraryRemoveMediaSync(removed=2)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/remove-media/%20%20library-job%20%20")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["jobId"] == "library-job"
+    assert sync.calls == ["library-job"]
 
 
 @pytest.mark.parametrize(
