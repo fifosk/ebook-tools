@@ -50,12 +50,9 @@ extension VideoPlayerOverlayView {
             .padding(.top, 6)
             .padding(.horizontal, 6)
             .background(
-                VideoPlayerOverlayStyles.headerBackgroundGradient,
-                in: RoundedRectangle(cornerRadius: VideoPlayerOverlayStyles.headerBackgroundCornerRadius)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: VideoPlayerOverlayStyles.headerBackgroundCornerRadius)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                PlayerHeaderGlassPanelBackground(
+                    cornerRadius: VideoPlayerOverlayStyles.headerBackgroundCornerRadius
+                )
             )
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .onLongPressGesture(minimumDuration: 0.6, perform: handleHeaderLongPress)

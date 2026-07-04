@@ -157,6 +157,24 @@ VIDEO_PLAYER_OVERLAY_STYLES = (
     / "Playback"
     / "VideoPlayerOverlayStyles.swift"
 )
+VIDEO_PLAYER_HEADER_VIEW = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "VideoPlayerHeaderView.swift"
+)
+VIDEO_PLAYER_TV_LAYOUT = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "VideoPlayerOverlayView+TVLayout.swift"
+)
 MY_LINGUIST_VIEW_MODEL = (
     ROOT
     / "ios"
@@ -551,6 +569,8 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     header_overlay_source = INTERACTIVE_HEADER_OVERLAY.read_text(encoding="utf-8")
     library_playback_source = LIBRARY_PLAYBACK_CHROME.read_text(encoding="utf-8")
     video_overlay_styles_source = VIDEO_PLAYER_OVERLAY_STYLES.read_text(encoding="utf-8")
+    video_header_source = VIDEO_PLAYER_HEADER_VIEW.read_text(encoding="utf-8")
+    tv_video_header_source = VIDEO_PLAYER_TV_LAYOUT.read_text(encoding="utf-8")
     changelog_source = (
         ROOT
         / "ios"
@@ -650,14 +670,16 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "Color(red: 0.012, green: 0.016, blue: 0.026).opacity(0.99)" not in library_playback_source
     assert ".fill(.thinMaterial)" not in library_playback_source
     assert ".fill(.ultraThinMaterial)" not in library_playback_source
+    assert "PlayerHeaderGlassPanelBackground(" in video_header_source
+    assert "PlayerHeaderGlassPanelBackground(" in tv_video_header_source
+    assert "headerBackgroundGradient" not in video_overlay_styles_source
+    assert "VideoPlayerOverlayStyles.headerBackgroundGradient" not in video_header_source
+    assert "VideoPlayerOverlayStyles.headerBackgroundGradient" not in tv_video_header_source
     assert ".environment(\\.colorScheme, .dark)" in library_playback_source
     assert ".foregroundStyle(Color.white)" in library_playback_source
     assert ".foregroundStyle(Color.white.opacity(0.78))" in library_playback_source
     assert ".foregroundStyle(Color.white.opacity(0.84))" in library_playback_source
-    assert "Color(white: 0.07).opacity(0.90)" in video_overlay_styles_source
-    assert "Color(white: 0.04).opacity(0.72)" in video_overlay_styles_source
-    assert "Color(white: 0.02).opacity(0.52)" in video_overlay_styles_source
     assert "apple-library-playback-header-dark-glass" in changelog_source
     assert "avoiding pale light-mode chrome over dark iPad playback backgrounds" in changelog_source
-    assert "apple-library-header-shares-dark-chrome" in changelog_source
-    assert "same shared dark header and pill chrome as the interactive reader" in changelog_source
+    assert "apple-playback-headers-share-dark-chrome" in changelog_source
+    assert "same shared dark header and pill chrome" in changelog_source

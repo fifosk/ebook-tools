@@ -6,7 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.04.009
 
-- Apple Library playback now uses the same shared dark header and pill chrome as the interactive reader, keeping iPad light mode from washing out metadata over dark playback backgrounds.
+- Apple Library and video playback now use the same shared dark header and pill chrome as the interactive reader, keeping iPad light mode from washing out metadata over dark playback backgrounds.
 - Advanced visible Apple app versioning to `v2026.07.04.009`.
 
 ### 2026.07.04.008

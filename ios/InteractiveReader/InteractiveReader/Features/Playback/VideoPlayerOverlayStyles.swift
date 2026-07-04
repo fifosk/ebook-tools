@@ -7,18 +7,6 @@ import UIKit
 // MARK: - Header Background Style
 
 enum VideoPlayerOverlayStyles {
-    static var headerBackgroundGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color(white: 0.07).opacity(0.90),
-                Color(white: 0.04).opacity(0.72),
-                Color(white: 0.02).opacity(0.52)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-
     static var headerBackgroundCornerRadius: CGFloat {
         #if os(tvOS)
         return 18

@@ -133,12 +133,9 @@ struct VideoPlayerHeaderView<SearchPill: View, SleepTimerPill: View>: View {
                 }
             }
             .background(
-                VideoPlayerOverlayStyles.headerBackgroundGradient,
-                in: RoundedRectangle(cornerRadius: VideoPlayerOverlayStyles.headerBackgroundCornerRadius)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: VideoPlayerOverlayStyles.headerBackgroundCornerRadius)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                PlayerHeaderGlassPanelBackground(
+                    cornerRadius: VideoPlayerOverlayStyles.headerBackgroundCornerRadius
+                )
             )
         }
     }
