@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import type { MutableRefObject } from 'react';
-import { useMediaClock } from '../useLiveMedia';
+import { useMediaClock } from '../liveMediaClock';
 
 describe('useMediaClock', () => {
   it('normalises effective time based on tempo and offset', () => {

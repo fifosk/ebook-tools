@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { RefObject } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchJobMedia, fetchLiveJobMedia } from '../api/client';
 import {
   PipelineMediaDiagnostics,
   PipelineMediaResponse,
-  TrackTimingPayload,
 } from '../api/dtos';
 import { subscribeToJobEvents } from '../services/api';
 import {
@@ -21,6 +19,8 @@ import {
   normaliseGeneratedSnapshot,
 } from './liveMediaNormalise';
 export { createEmptyState } from './liveMediaState';
+export { useMediaClock } from './liveMediaClock';
+export type { MediaClock } from './liveMediaClock';
 export type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from './liveMediaState';
 
 export interface UseLiveMediaOptions {
@@ -229,65 +229,5 @@ export function useLiveMedia(
       error
     }),
     [media, chunks, diagnostics, isComplete, isLoading, error]
-  );
-}
-
-export interface MediaClock {
-  mediaTime: () => number;
-  playbackRate: () => number;
-  effectiveTime: (track: Pick<TrackTimingPayload, 'trackOffset' | 'tempoFactor'>) => number;
-}
-
-function sanitiseRate(value: number | null | undefined): number {
-  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value) || value <= 0) {
-    return 1;
-  }
-  return value;
-}
-
-export function useMediaClock(audioRef: RefObject<HTMLAudioElement | null>): MediaClock {
-  const mediaTime = useCallback(() => {
-    const element = audioRef.current;
-    if (!element) {
-      return 0;
-    }
-    const raw = element.currentTime;
-    if (typeof raw !== 'number' || Number.isNaN(raw) || !Number.isFinite(raw)) {
-      return 0;
-    }
-    return raw;
-  }, [audioRef]);
-
-  const effectiveTime = useCallback(
-    (track: Pick<TrackTimingPayload, 'trackOffset' | 'tempoFactor'>) => {
-      const offset =
-        typeof track.trackOffset === 'number' && Number.isFinite(track.trackOffset)
-          ? track.trackOffset
-          : 0;
-      const tempoFactor =
-        typeof track.tempoFactor === 'number' && Number.isFinite(track.tempoFactor) && track.tempoFactor > 0
-          ? track.tempoFactor
-          : 1;
-      const adjusted = (mediaTime() - offset) / tempoFactor;
-      if (!Number.isFinite(adjusted) || Number.isNaN(adjusted)) {
-        return 0;
-      }
-      return adjusted < 0 ? 0 : adjusted;
-    },
-    [mediaTime]
-  );
-
-  const playbackRate = useCallback(() => {
-    const element = audioRef.current;
-    return sanitiseRate(element?.playbackRate ?? 1);
-  }, [audioRef]);
-
-  return useMemo(
-    () => ({
-      mediaTime,
-      playbackRate,
-      effectiveTime
-    }),
-    [mediaTime, playbackRate, effectiveTime]
   );
 }

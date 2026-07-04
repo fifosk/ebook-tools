@@ -336,6 +336,7 @@ test-web-playback-focused:
 		src/hooks/__tests__/liveMediaState.test.ts \
 		src/hooks/__tests__/liveMediaNormalise.test.ts \
 		src/hooks/__tests__/liveMediaTiming.test.ts \
+		src/hooks/__tests__/useMediaClock.test.tsx \
 		src/hooks/__tests__/useLiveMedia.test.tsx \
 		src/components/__tests__/playerPanelChapterNavigation.test.ts \
 		src/components/__tests__/playerPanelActiveTextSelection.test.ts \

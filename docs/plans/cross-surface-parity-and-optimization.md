@@ -46,6 +46,9 @@ Large Web UI hotspots to split before redesign work:
   media item registration, chunk assembly, and timing-track attachment now live
   in `web/src/hooks/liveMediaNormalise.ts`, shared by online playback, Library
   media, and offline export playback with focused coverage.
+  Media clock time/rate normalization now lives in
+  `web/src/hooks/liveMediaClock.ts` and is included in the playback-focused
+  Vitest lane.
 - `web/src/pages/LibraryPage.tsx` - 591 lines. Status: TV/YouTube/library
   title, author, genre, thumbnail, upload-date, ISBN preview merge/cover, and
   tab bucketing and pagination helpers now live in
