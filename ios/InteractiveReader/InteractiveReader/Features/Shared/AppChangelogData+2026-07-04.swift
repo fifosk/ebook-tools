@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "web-live-media-refresh-helper",
+            title: "Web playback refresh is focused",
+            detail: "Web live-media playback now refreshes completed media through a focused helper with playback coverage, keeping final media replacement behavior easier to compare with Apple reader diagnostics."
+        ),
+        AppChangelogEntry(
             id: "ipad-reader-header-light-mode-glass-floor",
             title: "iPad header glass stays dark",
             detail: "Apple playback headers now use an explicit near-black contrast palette with reduced material wash, keeping light-mode iPad chrome readable over the dark reader background."

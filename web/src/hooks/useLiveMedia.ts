@@ -21,6 +21,7 @@ import {
   loadCompletedMediaFallback,
   shouldFetchCompletedMediaFallback,
 } from './liveMediaLoad';
+import { loadRefreshedCompletedMedia } from './liveMediaRefresh';
 export { createEmptyState } from './liveMediaState';
 export { useMediaClock } from './liveMediaClock';
 export type { MediaClock } from './liveMediaClock';
@@ -130,24 +131,17 @@ export function useLiveMedia(
 
     const refreshCompletedMedia = () => {
       setIsComplete(true);
-      fetchJobMedia(jobId)
-        .then((fallbackResponse: PipelineMediaResponse) => {
-          const {
-            media: nextMedia,
-            chunks: nextChunks,
-            complete,
-            diagnostics: nextDiagnostics,
-          } = normaliseFetchedMedia(fallbackResponse, jobId);
-          setMedia(nextMedia);
-          setChunks(nextChunks);
-          setDiagnostics(nextDiagnostics);
-          if (complete) {
-            setIsComplete(true);
-          }
-        })
-        .catch(() => {
-          // Ignore failures; last known snapshot will remain in place.
-        });
+      loadRefreshedCompletedMedia(jobId, fetchJobMedia).then((refreshed) => {
+        if (!refreshed) {
+          return;
+        }
+        setMedia(refreshed.media);
+        setChunks(refreshed.chunks);
+        setDiagnostics(refreshed.diagnostics);
+        if (refreshed.complete) {
+          setIsComplete(true);
+        }
+      });
     };
 
     return subscribeToJobEvents(jobId, {
