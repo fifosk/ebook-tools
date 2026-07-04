@@ -536,6 +536,10 @@ That evidence must show active reader state such as `requested=true` or
 regression could mark the pause after Music stopped while sentence audio kept
 playing. If any press only pauses Music and a later press stops the track,
 validation fails with a numbered `pause episode N did not ...` diagnostic.
+The launch-console verifier now rejects the matching requested-only broker
+pause signature (`requested=true playing=false musicPlaying=true`) as
+`broker pause stopped requested narration before audio became audible`, so a
+single-click TV pause cannot pass just because narration intent was still set.
 For pause/resume captures, the same fallback verifier also rejects consecutive
 `brokerPause` decisions from the same Job/Library surface when no accepted
 reader play or narration-restore breadcrumb appears between them. That failure

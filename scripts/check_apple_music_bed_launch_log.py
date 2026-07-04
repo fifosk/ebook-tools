@@ -203,6 +203,13 @@ REQUESTED_ONLY_MUSIC_PAUSE_RE = re.compile(
 )
 
 
+REQUESTED_ONLY_BROKER_PAUSE_RE = re.compile(
+    r"(?:Job|Library) reader transport forced pause "
+    r"source=brokerPause requested=true playing=false musicPlaying=true",
+    flags=re.MULTILINE,
+)
+
+
 APP_BUILD_HEADER_RE = re.compile(
     r"Apple app build (?P<metadata>.+)$",
     flags=re.MULTILINE,
@@ -335,6 +342,14 @@ def _requested_only_music_pause_violations(text: str) -> list[str]:
     return []
 
 
+def _requested_only_broker_pause_violations(text: str) -> list[str]:
+    if REQUESTED_ONLY_BROKER_PAUSE_RE.search(text):
+        return [
+            "broker pause stopped requested narration before audio became audible"
+        ]
+    return []
+
+
 def _reader_progress_violations(text: str) -> list[str]:
     samples: list[tuple[str, float, float, float]] = []
     for match in NOW_PLAYING_TRANSPORT_RE.finditer(text):
@@ -426,6 +441,7 @@ def validate_log(path: Path, *, mode: str, required_release: str | None = None) 
         missing.extend(_pause_guard_violations(text))
         missing.extend(_pause_episode_violations(text))
         missing.extend(_consecutive_broker_pause_violations(text))
+        missing.extend(_requested_only_broker_pause_violations(text))
         missing.extend(_requested_only_music_pause_violations(text))
     missing.extend(_build_release_violations(text, required_release))
     return missing

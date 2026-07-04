@@ -290,6 +290,30 @@ InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface
     assert "Apple Music pause stopped requested narration before audio became audible" in missing
 
 
+def test_pause_release_rejects_broker_pause_before_reader_audible(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        STARTUP_LOG
+        + """
+InteractiveReaderTV[101] tvOS remote playPause forwarded to player broker
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=readerTransportPause
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=readerTransportPause
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
+InteractiveReaderTV[101] Library reader transport forced pause source=brokerPause requested=true playing=false musicPlaying=true systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport pause command requested=true playing=false musicPlaying=true
+InteractiveReaderTV[101] Apple Music reader transport pause adopted source=reader transport reason=readerTransportPause
+InteractiveReaderTV[101] Library playback accepted Apple Music pause as reader transport source=musicAdoption requested=false playing=false musicPlaying=false readerPause=true
+InteractiveReaderTV[101] Library reader transport confirmed pause source=musicAdoption requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=readerTransportPause
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert "broker pause stopped requested narration before audio became audible" in missing
+
+
 def test_pause_release_rejects_music_adoption_pause_before_reader_audible(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(
