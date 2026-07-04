@@ -884,7 +884,12 @@ struct AppleCreationPayloadCheck {
                 year: nil,
                 isbn: nil,
                 coverFile: nil,
-                bookMetadataExtras: [:],
+                bookMetadataExtras: [
+                    "source_provider": .string(" manual_downloads "),
+                    "acquisition_candidate_id": .string(" manual_downloads:book:origin "),
+                    "candidate_token": .string("must-not-persist"),
+                    "authorization": .string("Bearer must-not-persist")
+                ],
                 bookDiscoveryQuery: "dan brown origin",
                 bookDiscoveryProvider: "manual_downloads",
                 startSentence: 1,
@@ -927,9 +932,27 @@ struct AppleCreationPayloadCheck {
                 && sparseDiscoveryState["provider"] == .string("manual_downloads")
                 && sparseDiscoveryState["selected_provider"] == .string("manual_downloads")
                 && sparseDiscoveryState["query"] == .string("dan brown origin")
-                && sparseDiscoveryState["candidate_id"] == nil
+                && sparseDiscoveryState["candidate_id"] == .string("manual_downloads:book:origin")
                 && sparseDiscoveryState["source_url"] == nil,
-            "Apple Narrate EPUB sparse discovery templates should keep provider/query while omitting candidate-only fields"
+            "Apple Narrate EPUB sparse discovery templates should keep provider/query and token-free candidate provenance"
+        )
+        let sparseFormState = try requireValue(
+            sparseDiscoveryTemplateRequest.payload["form_state"]?.objectValue,
+            "Apple Narrate EPUB templates should persist nested form_state"
+        )
+        let sparseBookMetadataString = try requireValue(
+            sparseFormState["book_metadata"]?.stringValue,
+            "Apple Narrate EPUB templates should persist token-free book metadata extras"
+        )
+        let sparseBookMetadata = try jsonObject(from: Data(sparseBookMetadataString.utf8))
+        require(
+            sparseBookMetadata["source_provider"] as? String == "manual_downloads"
+                && sparseBookMetadata["acquisition_candidate_id"] as? String == "manual_downloads:book:origin"
+                && sparseBookMetadata["candidate_token"] == nil
+                && sparseBookMetadata["authorization"] == nil
+                && sparseDiscoveryState["candidate_token"] == nil
+                && sparseDiscoveryState["authorization"] == nil,
+            "Apple Narrate EPUB template discovery state and metadata should preserve source provenance without credential tokens"
         )
         let missingDiscoveryApplication = AppleBookCreateTemplateSettings.discoveryApplication(
             from: generatedTemplate,
