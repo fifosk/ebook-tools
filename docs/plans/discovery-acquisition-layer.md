@@ -683,7 +683,10 @@ Web/Apple:
   pin acquired/prepared book provenance merging, including token-free
   `source_provider`, `acquisition_provider`, `acquisition_candidate_id`,
   `source_kind`, and prepared direct source URL extras for Apple Narrate EPUB
-  and Web Narrate Ebook template handoff.
+  and Web Narrate Ebook template handoff. Download Station job payloads now
+  recursively sanitize nested completed-file metadata before Web or Apple
+  Create reconnects to downloader handoffs, so outside-root paths and URL
+  secrets cannot survive under provider-specific metadata objects.
 - No physical device deployment unless explicitly requested.
 
 Sentence quality:

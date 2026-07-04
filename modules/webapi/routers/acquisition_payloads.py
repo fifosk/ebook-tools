@@ -27,6 +27,12 @@ from ..schemas.acquisition import (
 )
 
 
+_COMPLETED_FILE_LIST_KEYS = frozenset(("completed_files", "completed_paths", "files"))
+_COMPLETED_FILE_VALUE_KEYS = frozenset(
+    ("completed_file", "completed_path", "local_path")
+)
+
+
 def public_metadata_value(value: Any) -> Any:
     if isinstance(value, Mapping):
         public: dict[str, Any] = {}
@@ -114,7 +120,7 @@ def job_metadata_completed_files(
     *,
     safe_roots: tuple[Path, ...],
 ) -> list[str]:
-    for key in ("completed_files", "completed_paths", "files"):
+    for key in _COMPLETED_FILE_LIST_KEYS:
         values = metadata_string_values(metadata.get(key), safe_roots=safe_roots)
         if values:
             return values
@@ -131,24 +137,42 @@ def sanitize_job_completed_file_metadata(
     *,
     safe_roots: tuple[Path, ...],
 ) -> dict[str, Any]:
-    sanitized = dict(metadata)
-    for key in ("completed_files", "completed_paths", "files"):
-        if key not in sanitized:
-            continue
-        values = metadata_string_values(sanitized.get(key), safe_roots=safe_roots)
-        if values:
-            sanitized[key] = values
-        else:
-            sanitized.pop(key, None)
-    for key in ("completed_file", "completed_path", "local_path"):
-        if key not in sanitized:
-            continue
-        values = metadata_string_values(sanitized.get(key), safe_roots=safe_roots)
-        if values:
-            sanitized[key] = values[0]
-        else:
-            sanitized.pop(key, None)
-    return sanitized
+    return _sanitize_completed_file_metadata_value(
+        metadata,
+        safe_roots=safe_roots,
+    )
+
+
+def _sanitize_completed_file_metadata_value(
+    value: Any,
+    *,
+    safe_roots: tuple[Path, ...],
+) -> Any:
+    if isinstance(value, Mapping):
+        sanitized: dict[str, Any] = {}
+        for raw_key, nested_value in value.items():
+            key = str(raw_key)
+            if key in _COMPLETED_FILE_LIST_KEYS:
+                values = metadata_string_values(nested_value, safe_roots=safe_roots)
+                if values:
+                    sanitized[key] = values
+                continue
+            if key in _COMPLETED_FILE_VALUE_KEYS:
+                values = metadata_string_values(nested_value, safe_roots=safe_roots)
+                if values:
+                    sanitized[key] = values[0]
+                continue
+            sanitized[key] = _sanitize_completed_file_metadata_value(
+                nested_value,
+                safe_roots=safe_roots,
+            )
+        return sanitized
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return [
+            _sanitize_completed_file_metadata_value(item, safe_roots=safe_roots)
+            for item in value
+        ]
+    return value
 
 
 def job_completed_files(

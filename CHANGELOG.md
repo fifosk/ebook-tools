@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.04.008
 
 - Apple TV reader playback now re-arms sequence progression after reader-owned pause/resume and reloads the current segment when the tvOS bleed guard detached the audio item, preventing playback from stopping at the next sentence boundary.
+- Acquisition job payloads now recursively sanitize nested completed-file metadata before Web or Apple Create reconnects to downloader handoffs, keeping outside-root paths and URL secrets out of reviewed source metadata.
 - Advanced visible Apple app versioning to `v2026.07.04.008`.
 
 ### 2026.07.04.007

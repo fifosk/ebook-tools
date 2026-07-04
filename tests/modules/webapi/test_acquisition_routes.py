@@ -2101,6 +2101,88 @@ def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
     assert "api_key" not in rendered
 
 
+def test_acquisition_job_poll_route_sanitizes_nested_completed_file_metadata(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from modules.services.acquisition import AcquisitionJobStatus
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    manual_root = tmp_path / "manual-downloads"
+    manual_root.mkdir()
+    ready_file = manual_root / "Nested Ready.mkv"
+    ready_file.write_text("video", encoding="utf-8")
+
+    def _fake_poll_job(**kwargs):
+        return AcquisitionJobStatus(
+            provider="download_station",
+            task_id="dbid_nested",
+            status="completed",
+            progress=1.0,
+            external_task_id="dbid_nested",
+            raw_status="finished",
+            completed_files=(),
+            next_actions=("discover_manual_downloads", "import_local"),
+            metadata={
+                "source_kind": "download_station",
+                "handoff": {
+                    "completed_files": [
+                        f"  {ready_file.as_posix()}  ",
+                        "/outside/private/Nested.mkv",
+                        "../escape.mkv",
+                    ],
+                    "completed_path": "/outside/private/Other.mkv",
+                },
+                "events": [
+                    {
+                        "files": [
+                            ready_file.as_posix(),
+                            "Loose nested title.mkv",
+                            "https://indexer.example.invalid/download?id=7&apikey=secret",
+                        ],
+                        "local_path": "/outside/private/Event.mkv",
+                    }
+                ],
+            },
+        )
+
+    monkeypatch.setattr(acquisition_router, "poll_download_station_task", _fake_poll_job)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+            "manual_download_root": manual_root.as_posix(),
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/jobs/dbid_nested")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["metadata"]["handoff"] == {
+        "completed_files": [ready_file.as_posix()]
+    }
+    assert payload["metadata"]["events"] == [
+        {
+            "files": [ready_file.as_posix(), "Loose nested title.mkv"],
+        }
+    ]
+    rendered = str(payload)
+    assert "/outside/private" not in rendered
+    assert "../escape.mkv" not in rendered
+    assert "secret" not in rendered
+
+
 def test_acquisition_job_poll_route_trusts_download_station_completed_root(
     tmp_path: Path,
     monkeypatch,
