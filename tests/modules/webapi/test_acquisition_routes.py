@@ -32,6 +32,7 @@ from modules.webapi.routers.acquisition_route_support import (
 )
 from modules.webapi.routers.acquisition_payloads import prepared_artifact_payload
 from modules.webapi.schemas.acquisition import AcquisitionProviderListResponse
+from modules.webapi.runtime_descriptor import ACQUISITION_DESCRIPTOR
 
 
 pytestmark = pytest.mark.webapi
@@ -205,6 +206,30 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     assert [provider["id"] for provider in payload["providers"]] == list(
         provider_catalog.ACQUISITION_PROVIDER_ORDER
     )
+    provider_by_id = {provider["id"]: provider for provider in payload["providers"]}
+    runtime_discovery_media_kinds = ACQUISITION_DESCRIPTOR["discoveryProviderMediaKinds"]
+    assert set(provider_by_id) == set(runtime_discovery_media_kinds)
+    for provider_id, media_kinds in runtime_discovery_media_kinds.items():
+        assert provider_by_id[provider_id]["discovery_media_kinds"] == list(media_kinds)
+
+    explicit_only_provider_ids = set(
+        ACQUISITION_DESCRIPTOR["explicitOnlyDiscoveryProviderIds"]
+    )
+    assert explicit_only_provider_ids == {"youtube_url", "zlibrary_attended"}
+    default_provider_ids = {
+        provider_id
+        for provider_ids in payload["default_provider_ids"].values()
+        for provider_id in provider_ids
+    }
+    assert default_provider_ids.isdisjoint(explicit_only_provider_ids)
+    for provider_id in explicit_only_provider_ids:
+        assert provider_by_id[provider_id]["default_eligible_media_kinds"] == []
+
+    for media_kind, provider_ids in payload["default_provider_ids"].items():
+        for provider_id in provider_ids:
+            provider = provider_by_id[provider_id]
+            assert media_kind in provider["discovery_media_kinds"]
+            assert media_kind in provider["default_eligible_media_kinds"]
     provider_ids = {provider["id"] for provider in payload["providers"]}
     assert {
         "local_epub",
