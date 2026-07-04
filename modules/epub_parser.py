@@ -566,6 +566,8 @@ def sentence_span_coverage(
     matched_count = 0
     skipped_character_count = 0
     unmatched_indices: list[int] = []
+    duplicate_indices: list[int] = []
+    seen_sentences: set[str] = set()
     nonempty_count = 0
 
     for index, sentence in enumerate(sentences):
@@ -573,6 +575,10 @@ def sentence_span_coverage(
         if not normalized_sentence:
             continue
         nonempty_count += 1
+        if normalized_sentence in seen_sentences:
+            duplicate_indices.append(index)
+        else:
+            seen_sentences.add(normalized_sentence)
         match_start = normalized_source.find(normalized_sentence, cursor)
         if match_start < 0:
             unmatched_indices.append(index)
@@ -592,6 +598,8 @@ def sentence_span_coverage(
         "matched_sentence_count": matched_count,
         "unmatched_sentence_count": len(unmatched_indices),
         "unmatched_sentence_indices": unmatched_indices,
+        "duplicate_sentence_count": len(duplicate_indices),
+        "duplicate_sentence_indices": duplicate_indices,
         "skipped_text_character_count": skipped_character_count,
         "trailing_text_character_count": trailing_character_count,
     }

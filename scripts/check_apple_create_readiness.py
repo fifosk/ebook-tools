@@ -103,6 +103,8 @@ REQUIRED_SENTENCE_SPLITTER_METRICS = {
     "matched_sentence_count",
     "unmatched_sentence_count",
     "unmatched_sentence_indices",
+    "duplicate_sentence_count",
+    "duplicate_sentence_indices",
     "skipped_text_character_count",
     "trailing_text_character_count",
     "tiny_fragment_count",

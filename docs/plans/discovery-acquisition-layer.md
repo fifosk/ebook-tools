@@ -653,7 +653,9 @@ Likely implementation path:
   playback investigations interpret no-skip/no-overlap metrics consistently.
   `/api/books/options` also advertises `unmatched_sentence_indices` in the
   comparison metric field list so Web and Apple Create can treat repeated or
-  reordered segment diagnostics as part of the stable readiness contract.
+  reordered segment diagnostics as part of the stable readiness contract; it
+  now also advertises duplicate sentence counts and indices so overlap-style
+  splitter regressions are visible without logging EPUB text.
 
 ## Verification Gates
 

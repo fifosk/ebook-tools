@@ -267,6 +267,8 @@ def test_sentence_span_coverage_tolerates_epub_whitespace_normalization():
     assert coverage["contiguous_text_preserved"] is True
     assert coverage["skipped_text_character_count"] == 0
     assert coverage["unmatched_sentence_count"] == 0
+    assert coverage["duplicate_sentence_count"] == 0
+    assert coverage["duplicate_sentence_indices"] == []
     assert report["regex"]["contiguous_text_preserved"] is True
     assert report["regex"]["normalized_text_preserved"] is True
     assert report["contiguous_text_coverage"]["regex"] is True
@@ -422,7 +424,11 @@ def test_sentence_span_coverage_flags_reordered_and_duplicate_segments():
     assert duplicated["matched_sentence_count"] == 3
     assert duplicated["unmatched_sentence_count"] == 1
     assert duplicated["unmatched_sentence_indices"] == [1]
+    assert duplicated["duplicate_sentence_count"] == 1
+    assert duplicated["duplicate_sentence_indices"] == [1]
     assert duplicated["trailing_text_character_count"] == 0
+    assert reordered["duplicate_sentence_count"] == 0
+    assert reordered["duplicate_sentence_indices"] == []
 
 
 def test_sentence_splitter_versions_track_cache_salt():

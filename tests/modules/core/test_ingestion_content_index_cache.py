@@ -430,6 +430,8 @@ def test_build_content_index_records_section_span_coverage_issues(
         "matched_sentence_count": 2,
         "unmatched_sentence_count": 0,
         "unmatched_sentence_indices": [],
+        "duplicate_sentence_count": 0,
+        "duplicate_sentence_indices": [],
         "skipped_text_character_count": len("Missing middle."),
         "trailing_text_character_count": 0,
     }
