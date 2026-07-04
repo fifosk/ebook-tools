@@ -346,6 +346,11 @@ filtering, including `.part` files and zero-byte video placeholders, plus the
 Default sources rule that skips
 optional YouTube/indexer searches when local NAS/manual candidates already fill
 the visible result limit.
+Library, Jobs, resume/bookmark, media, and offline-export paths route through
+`verify-library-jobs-playback-no-regression-candidate`, which composes the
+backend Library/Jobs/playback slices, focused Web Library/Jobs/playback Vitest
+slices, Apple contracts, and the Apple playback no-regression candidate without
+installing to physical devices.
 Shared source-discovery helper edits also route through
 `test-backend-subtitle-router` and `test-backend-youtube-dubbing-service`
 because EPUB, subtitle, manual-download, and NAS video pickers all depend on the
@@ -1039,6 +1044,7 @@ For focused Apple Create readiness preflight work, use:
 ```bash
 make test-apple-create-readiness-contract
 make verify-apple-create-no-regression-candidate
+make verify-library-jobs-playback-no-regression-candidate
 make verify-creation-discovery-no-regression-candidate
 ```
 
@@ -1829,7 +1835,9 @@ surface/API-client changes, covering the Create-readiness contract, iPhone/iPad
 and tvOS simulator builds, the local Mac iPad-style build, and credential-free
 iPad/tvOS Create-readiness journey dry-runs; iPhone/iPad and tvOS simulator
 builds for native Apple Jobs/Library browse, settings, API-client, and shared
-service changes; iPhone/iPad and tvOS simulator builds for native
+service changes; `verify-library-jobs-playback-no-regression-candidate` for
+Library, Jobs, resume/bookmark, playback media, offline export, and matching Web
+surface changes; iPhone/iPad and tvOS simulator builds for native
 Apple app-shell, model, utility, and shared UI helper changes; Apple contracts
 for other `ios/`, Apple contract files, playback metadata docs, and the active
 cross-surface parity plan; the non-physical

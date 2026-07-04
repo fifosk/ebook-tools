@@ -68,6 +68,24 @@ AGGREGATE_TARGET_COVERAGE = {
         "apple-pipeline-ipad-create-readiness-dry-run",
         "apple-pipeline-tvos-create-readiness-dry-run",
     },
+    "verify-library-jobs-playback-no-regression-candidate": {
+        "test-backend-library-search-source-isbn",
+        "test-backend-pipeline-jobs",
+        "test-backend-playback-state",
+        "test-backend-playback-media",
+        "test-backend-offline-export",
+        "test-web-library-focused",
+        "test-web-job-progress-focused",
+        "test-web-playback-focused",
+        "test-apple-contracts",
+        "verify-apple-playback-no-regression-candidate",
+        "verify-apple-reader-playback-candidate",
+        "verify-apple-music-bed-candidate-dry-run",
+        "test-apple-playback-state-swift",
+        "build-apple-ios-simulators",
+        "build-apple-macos-ipad-style",
+        "build-apple-tvos-simulator",
+    },
     "verify-creation-discovery-no-regression-candidate": {
         "test-backend-pipeline-sources",
         "test-backend-acquisition",
@@ -167,7 +185,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/services/test_job_manager_access_control.py",
             "tests/modules/services/test_job_manager_transitions.py",
         ),
-        ("test-backend-pipeline-jobs",),
+        ("verify-library-jobs-playback-no-regression-candidate",),
     ),
     (
         (
@@ -274,11 +292,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "ios/InteractiveReader/InteractiveReader/Features/Library/",
             "ios/InteractiveReader/InteractiveReader/Services/APIClient+LibraryJobs.swift",
         ),
-        (
-            "build-apple-ios-simulators",
-            "build-apple-tvos-simulator",
-            "build-apple-macos-ipad-style",
-        ),
+        ("verify-library-jobs-playback-no-regression-candidate",),
     ),
     (
         (
@@ -470,10 +484,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/webapi/test_resume_routes.py",
         ),
         (
-            "test-backend-playback-state",
-            "test-web-playback-focused",
-            "test-web-library-focused",
-            "test-apple-contracts",
+            "verify-library-jobs-playback-no-regression-candidate",
         ),
     ),
     (
@@ -495,10 +506,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/webapi/test_media_common.py",
         ),
         (
-            "test-backend-playback-media",
-            "test-web-playback-focused",
-            "test-web-library-focused",
-            "test-apple-contracts",
+            "verify-library-jobs-playback-no-regression-candidate",
         ),
     ),
     (
@@ -511,7 +519,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/webapi/test_library_items_route.py",
         ),
         (
-            "test-backend-library-search-source-isbn",
+            "verify-library-jobs-playback-no-regression-candidate",
             "test-webapi",
         ),
     ),
@@ -524,10 +532,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/webapi/test_export_routes.py",
         ),
         (
-            "test-backend-offline-export",
-            "test-web-playback-focused",
-            "test-web-library-focused",
-            "test-apple-contracts",
+            "verify-library-jobs-playback-no-regression-candidate",
         ),
     ),
     (
@@ -661,20 +666,20 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "web/src/pages/__tests__/libraryPageMetadata.test.ts",
             "web/src/api/client/__tests__/resume.test.ts",
         ),
-        ("test-web-library-focused",),
+        ("verify-library-jobs-playback-no-regression-candidate",),
     ),
     (
         (
             "web/src/api/client/library.ts",
         ),
-        ("test-web-library-focused", "test-apple-contracts"),
+        ("verify-library-jobs-playback-no-regression-candidate",),
     ),
     (
         (
             "web/src/api/client/resume.ts",
             "web/src/api/client/runtimeContract.ts",
         ),
-        ("test-web-library-focused", "test-apple-contracts"),
+        ("verify-library-jobs-playback-no-regression-candidate",),
     ),
     (
         (
@@ -688,14 +693,14 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "web/src/utils/progressEvents.ts",
             "web/src/utils/__tests__/progressEvents.test.ts",
         ),
-        ("test-web-job-progress-focused",),
+        ("verify-library-jobs-playback-no-regression-candidate",),
     ),
     (
         (
             "web/src/api/client/jobs.ts",
             "web/src/api/client/runtimeContract.ts",
         ),
-        ("test-web-job-progress-focused", "test-apple-contracts"),
+        ("verify-library-jobs-playback-no-regression-candidate",),
     ),
     (
         (

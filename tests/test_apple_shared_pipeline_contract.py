@@ -847,6 +847,38 @@ def test_create_no_regression_candidate_chains_create_builds_and_dry_runs_withou
     assert "devicectl" not in target
 
 
+def test_library_jobs_playback_no_regression_candidate_chains_cross_surface_gates_without_deploy() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = (
+        "verify-library-jobs-playback-no-regression-candidate: "
+        "test-backend-library-search-source-isbn test-backend-pipeline-jobs "
+        "test-backend-playback-state test-backend-playback-media test-backend-offline-export "
+        "test-web-library-focused test-web-job-progress-focused test-web-playback-focused "
+        "test-apple-contracts verify-apple-playback-no-regression-candidate"
+    )
+    assert target_line in makefile
+
+    phony = makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
+    assert "verify-library-jobs-playback-no-regression-candidate" in phony
+
+    target = makefile.split("verify-library-jobs-playback-no-regression-candidate:", 1)[1].split("\n\n", 1)[0]
+    assert target.index("test-backend-library-search-source-isbn") < target.index("test-backend-pipeline-jobs")
+    assert target.index("test-backend-pipeline-jobs") < target.index("test-backend-playback-state")
+    assert target.index("test-backend-playback-state") < target.index("test-backend-playback-media")
+    assert target.index("test-backend-playback-media") < target.index("test-backend-offline-export")
+    assert target.index("test-backend-offline-export") < target.index("test-web-library-focused")
+    assert target.index("test-web-library-focused") < target.index("test-web-job-progress-focused")
+    assert target.index("test-web-job-progress-focused") < target.index("test-web-playback-focused")
+    assert target.index("test-web-playback-focused") < target.index("test-apple-contracts")
+    assert target.index("test-apple-contracts") < target.index("verify-apple-playback-no-regression-candidate")
+    assert "apple-device-update" not in target
+    assert "run_app_device_deploy.py" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "apple-device-full-entitlement-stable-install" not in target
+    assert "devicectl" not in target
+
+
 def test_creation_discovery_no_regression_candidate_chains_backend_web_and_apple_without_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -1136,6 +1168,7 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "verify-apple-music-bed-candidate" in contract_check
     assert "verify-apple-playback-no-regression-candidate" in contract_check
     assert "verify-apple-create-no-regression-candidate" in contract_check
+    assert "verify-library-jobs-playback-no-regression-candidate" in contract_check
     assert "verify-creation-discovery-no-regression-candidate" in contract_check
     assert "verify-apple-living-room-candidate" in contract_check
     assert "test-e2e-ipad-music-bed-sync" in contract_check
@@ -1264,6 +1297,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-runtime-ssh-check",
         "make verify-apple-shared-pipeline",
         "make verify-apple-create-no-regression-candidate",
+        "make verify-library-jobs-playback-no-regression-candidate",
         "make verify-creation-discovery-no-regression-candidate",
         "make verify-apple-music-bed-candidate-dry-run",
         "make verify-apple-living-room-candidate",

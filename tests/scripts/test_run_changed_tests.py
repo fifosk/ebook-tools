@@ -251,34 +251,22 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Jobs/JobsView.swift"]
     ) == [
-        "test-apple-contracts",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
+        "verify-library-jobs-playback-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Library/LibraryView.swift"]
     ) == [
-        "test-apple-contracts",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
+        "verify-library-jobs-playback-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Library/PlaybackSettingsView.swift"]
     ) == [
-        "test-apple-contracts",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
+        "verify-library-jobs-playback-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/APIClient+LibraryJobs.swift"]
     ) == [
-        "test-apple-contracts",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
+        "verify-library-jobs-playback-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift"]
@@ -410,19 +398,17 @@ def test_select_targets_for_release_metadata_changes() -> None:
 
 def test_select_targets_for_web_changes_runs_web_checks() -> None:
     assert select_targets(["web/src/pages/LibraryPage.tsx"]) == [
-        "test-web-library-focused",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-web-full",
         "build-web-production",
     ]
     assert select_targets(["web/src/api/client/library.ts"]) == [
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-web-full",
         "build-web-production",
     ]
     assert select_targets(["web/src/api/client/resume.ts"]) == [
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-web-full",
         "build-web-production",
     ]
@@ -489,7 +475,11 @@ def test_runtime_descriptor_web_clients_select_apple_contracts() -> None:
         "WEB_SUBTITLES_CLIENT": "web/src/api/client/subtitles.ts",
     }
     for name, path in sorted(paths.items()):
-        assert "test-apple-contracts" in select_targets([path]), name
+        targets = select_targets([path])
+        assert (
+            "test-apple-contracts" in targets
+            or "verify-library-jobs-playback-no-regression-candidate" in targets
+        ), name
 
 
 def test_select_targets_covers_focused_web_feature_slices() -> None:
@@ -500,13 +490,10 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "build-web-production",
     ]
     assert select_targets(["web/src/api/client/runtimeContract.ts"]) == [
-        "test-web-playback-focused",
-        "test-apple-contracts",
         "test-web-auth-focused",
         "test-web-create-book-focused",
         "test-web-creation-templates-focused",
-        "test-web-library-focused",
-        "test-web-job-progress-focused",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-web-video-dubbing-focused",
         "test-web-subtitle-tool-focused",
         "test-web-full",
@@ -562,13 +549,12 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "build-web-production",
     ]
     assert select_targets(["web/src/components/JobProgress.tsx"]) == [
-        "test-web-job-progress-focused",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-web-full",
         "build-web-production",
     ]
     assert select_targets(["web/src/api/client/jobs.ts"]) == [
-        "test-web-job-progress-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-web-full",
         "build-web-production",
     ]
@@ -651,11 +637,7 @@ def test_select_targets_deduplicates_multiple_backend_domains() -> None:
             "modules/services/resume_service.py",
         ]
     ) == [
-        "test-backend-playback-state",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
-        "test-backend-library-search-source-isbn",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
         "test-services",
     ]
@@ -710,19 +692,19 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
         "test-apple-contracts",
     ]
     assert select_targets(["modules/webapi/routes/jobs_routes.py"]) == [
-        "test-backend-pipeline-jobs",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/schemas/pipeline_jobs.py"]) == [
-        "test-backend-pipeline-jobs",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
     ]
     assert select_targets(["modules/services/job_manager/manager.py"]) == [
-        "test-backend-pipeline-jobs",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-services",
     ]
     assert select_targets(["tests/modules/webapi/test_dashboard_access_control.py"]) == [
-        "test-backend-pipeline-jobs",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/admin_routes.py"]) == [
@@ -856,73 +838,43 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/routers/bookmarks.py"]) == [
-        "test-backend-playback-state",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
     ]
     assert select_targets(["modules/services/bookmark_service.py"]) == [
-        "test-backend-playback-state",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-services",
     ]
     assert select_targets(["modules/webapi/routes/media/lookup_cache.py"]) == [
-        "test-backend-playback-state",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/routes/media/media_list.py"]) == [
-        "test-backend-playback-media",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/routes/media/timing.py"]) == [
-        "test-backend-playback-media",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/schemas/pipeline_media.py"]) == [
-        "test-backend-playback-media",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
     ]
     assert select_targets(["tests/modules/webapi/test_library_media_route.py"]) == [
-        "test-backend-playback-media",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/routers/exports.py"]) == [
-        "test-backend-offline-export",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-webapi",
     ]
     assert select_targets(["modules/services/export_service.py"]) == [
-        "test-backend-offline-export",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-services",
     ]
     assert select_targets(["tests/modules/services/test_export_service.py"]) == [
-        "test-backend-offline-export",
-        "test-web-playback-focused",
-        "test-web-library-focused",
-        "test-apple-contracts",
+        "verify-library-jobs-playback-no-regression-candidate",
         "test-services",
     ]
 
