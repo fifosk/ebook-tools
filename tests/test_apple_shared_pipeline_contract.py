@@ -764,6 +764,21 @@ def test_living_room_candidate_gate_is_visible_in_apple_changelog() -> None:
     assert "real tvOS Music-bed simulator journey" in changelog
 
 
+def test_device_deploy_dry_run_matrix_is_visible_in_changelogs() -> None:
+    swift_changelog = _swift_changelog_sources()
+    markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
+
+    assert 'id: "apple-device-deploy-dry-run-matrix"' in swift_changelog
+    for source in (swift_changelog, markdown_changelog):
+        assert "apple-device-deploy-dry-run-matrix" in source
+        assert "no-install" in source
+        assert "iPad Pro" in source
+        assert "iPhone" in source
+        assert "Living Room TV" in source
+        assert "build/install/verify/launch" in source
+        assert "explicit device deploy" in source
+
+
 def test_latest_apple_playback_hardening_is_visible_in_changelogs() -> None:
     swift_changelog = _swift_changelog_sources()
     markdown_changelog = CHANGELOG.read_text(encoding="utf-8")

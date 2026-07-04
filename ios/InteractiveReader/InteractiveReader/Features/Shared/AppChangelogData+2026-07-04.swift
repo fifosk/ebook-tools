@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-device-deploy-dry-run-matrix",
+            title: "Deploy previews cover all default devices",
+            detail: "The Apple pipeline now has a no-install dry-run matrix for the default iPad Pro, iPhone, and Living Room TV routes, previewing build/install/verify/launch commands before any explicit device deploy."
+        ),
+        AppChangelogEntry(
             id: "tvos-music-bed-ownership-seeds-reader",
             title: "TV playback keeps reader active",
             detail: "Apple TV and iPad Job/Library playback now keep Apple Music bed ownership synchronized with active narration during startup, lookup-bubble resume, and sentence-transition recovery so one transport action resumes or pauses both layers."
