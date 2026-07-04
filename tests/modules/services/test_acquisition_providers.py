@@ -192,6 +192,89 @@ def test_acquisition_discovery_planning_orders_default_sources_and_limits() -> N
     ) == 3
 
 
+def test_acquisition_discovery_promotes_visible_candidate_policy_notes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _candidate(title: str, note: str) -> acquisition_discovery.AcquisitionCandidate:
+        return acquisition_discovery.AcquisitionCandidate(
+            candidate_id=f"manual_downloads:{title}",
+            provider="manual_downloads",
+            media_kind="book",
+            title=title,
+            rights="user_provided",
+            capabilities=("import_local", "metadata"),
+            candidate_token=_candidate_token({"provider": "manual_downloads", "title": title}),
+            policy_notes=(note,),
+        )
+
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "_providers_for",
+        lambda media_kind, provider, config: ("manual_downloads",),
+    )
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "_discover_manual_downloads",
+        lambda config, media_kind, query, limit: [
+            _candidate("Alpha Visible", "Review source rights before narrating."),
+            _candidate("Zulu Hidden", "Hidden candidate note should not surface."),
+        ],
+    )
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="",
+        limit=1,
+        config={},
+    )
+
+    assert [candidate.title for candidate in result.candidates] == ["Alpha Visible"]
+    assert result.policy_notes == (
+        *acquisition_discovery.DEFAULT_DISCOVERY_POLICY_NOTES,
+        "Review source rights before narrating.",
+    )
+    assert "Hidden candidate note should not surface." not in result.policy_notes
+
+
+def test_acquisition_discovery_deduplicates_candidate_policy_notes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shared_note = "Discovery results are candidates only; downloader handoff requires a reviewed acquisition step."
+
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "_providers_for",
+        lambda media_kind, provider, config: ("youtube_url",),
+    )
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "_discover_youtube_url",
+        lambda query, limit: [
+            acquisition_discovery.AcquisitionCandidate(
+                candidate_id="youtube_url:demo",
+                provider="youtube_url",
+                media_kind="video",
+                title="Demo",
+                rights="metadata_only",
+                capabilities=("metadata",),
+                candidate_token=_candidate_token({"provider": "youtube_url"}),
+                policy_notes=(shared_note, "Metadata-only handoff."),
+            )
+        ],
+    )
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        provider="youtube_url",
+        query="demo",
+        limit=1,
+        config={},
+    )
+
+    assert result.policy_notes.count(shared_note) == 1
+    assert result.policy_notes[-1] == "Metadata-only handoff."
+
+
 def test_download_station_readiness_requires_endpoint_account_and_password(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

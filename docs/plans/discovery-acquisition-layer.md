@@ -190,7 +190,9 @@ Initial routes:
     returned Web/Apple Create candidate list. The backend planning helper names
     that rule explicitly: only local file-backed providers may overfill the
     default-source limit, while remote default providers run only when visible
-    result slots remain.
+    result slots remain. Discovery responses also promote distinct policy notes
+    from visible candidates into the top-level `policy_notes` list so Web and
+    Apple Create can show source caveats before a candidate row is expanded.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.

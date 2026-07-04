@@ -145,11 +145,32 @@ def discover_acquisition_candidates(
         if is_default_provider_fanout
         else candidates
     )
+    visible_candidates = tuple(ordered_candidates[:effective_limit])
     return AcquisitionDiscoveryResult(
-        candidates=tuple(ordered_candidates[:effective_limit]),
-        policy_notes=tuple(policy_notes),
+        candidates=visible_candidates,
+        policy_notes=_combined_policy_notes(policy_notes, visible_candidates),
         providers_queried=tuple(queried),
     )
+
+
+def _combined_policy_notes(
+    base_notes: Sequence[str],
+    candidates: Sequence[AcquisitionCandidate],
+) -> tuple[str, ...]:
+    """Return panel-level policy notes with visible candidate caveats included."""
+
+    notes: list[str] = []
+    seen: set[str] = set()
+    for raw_note in (
+        *base_notes,
+        *(note for candidate in candidates for note in candidate.policy_notes),
+    ):
+        note = str(raw_note).strip()
+        if not note or note in seen:
+            continue
+        notes.append(note)
+        seen.add(note)
+    return tuple(notes)
 
 
 def _default_provider_failure_note(error: AcquisitionProviderDiscoveryError) -> str:
