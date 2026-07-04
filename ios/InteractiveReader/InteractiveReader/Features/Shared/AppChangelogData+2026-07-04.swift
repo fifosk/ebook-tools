@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-active-bed-pause-bit-recovery",
+            title: "TV playback survives stale Music pause bits",
+            detail: "Apple TV Music-bed playback now treats active reader narration as recoverable even when MusicKit has already marked the bed paused, so passive Apple Music status dips no longer stop the sentence track after startup or resume."
+        ),
+        AppChangelogEntry(
             id: "tvos-requested-sequence-silent-recovery",
             title: "TV playback recovers requested silence",
             detail: "Apple TV Music-bed playback now keeps probing requested interactive autoplay longer and can restart silent sequence-mode narration when it is not in a real dwell or transition, preventing temporary tvOS/MusicKit handoff dips from becoming a stopped reader."

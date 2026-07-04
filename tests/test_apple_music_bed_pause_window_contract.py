@@ -222,8 +222,8 @@ def test_tvos_active_music_pause_keeps_reader_transport() -> None:
     assert "shouldAdoptObservedNonPlayingImmediately" in recover_body
     assert "ownershipState == .appleMusicBed" in recover_body
     assert "!isManuallyPaused" in recover_body
-    assert "!isPausedByReaderTransport" in recover_body
-    assert "isReaderNarrationActiveForMusicBed ||" in recover_body
+    assert "if isReaderNarrationActiveForMusicBed" in recover_body
+    assert "guard !isPausedByReaderTransport else { return false }" in recover_body
     assert "observedPlayingAsReadingBed ||" in recover_body
     assert "hasAutoResumeIntent" in recover_body
     assert "Apple Music deferred non-playing persisted while reader stayed active; keeping narration transport" in deferred_non_playing_body

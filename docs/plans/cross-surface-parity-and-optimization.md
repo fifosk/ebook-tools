@@ -2714,7 +2714,14 @@ Every cross-surface change should pass the relevant subset:
   requested interactive autoplay and lets requested-but-silent sequence-mode
   narration restart when the player is not in a real dwell or transition;
   `make test-e2e-tvos-music-bed-sync` and `make test-changed` both passed
-  without physical deployment.
+  without physical deployment. A later July 4 Living Room log pull showed the
+  physical TV still running `2026.07.03.001` while local main was already
+  `2026.07.04.007`; the coordinator was hardened again so active tvOS reader
+  narration recovers observed MusicKit non-playing even if a stale MusicKit
+  reader-pause bit is set, with the explicit/manual pause path still gated by
+  `isManuallyPaused`. The focused Apple playback contracts passed 48/48 and
+  `make test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped
+  before any physical redeploy.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

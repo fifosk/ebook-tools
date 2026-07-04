@@ -1175,19 +1175,20 @@ final class MusicKitCoordinator: ObservableObject {
         #endif
         return ownershipState == .appleMusicBed &&
             isReaderNarrationActiveForMusicBed &&
-            !isManuallyPaused &&
-            !isPausedByReaderTransport
+            !isManuallyPaused
     }
 
     private var shouldRecoverObservedNonPlayingForReadingBed: Bool {
         #if os(tvOS)
         guard !shouldAdoptObservedNonPlayingImmediately else { return false }
         guard ownershipState == .appleMusicBed,
-              !isManuallyPaused,
-              !isPausedByReaderTransport
+              !isManuallyPaused
         else { return false }
-        return isReaderNarrationActiveForMusicBed ||
-            observedPlayingAsReadingBed ||
+        if isReaderNarrationActiveForMusicBed {
+            return true
+        }
+        guard !isPausedByReaderTransport else { return false }
+        return observedPlayingAsReadingBed ||
             hasAutoResumeIntent
         #else
         return shouldDeferObservedNonPlayingDuringActiveReadingBed
@@ -1202,8 +1203,7 @@ final class MusicKitCoordinator: ObservableObject {
         return isObservedNonPlayingPause &&
             ownershipState == .appleMusicBed &&
             isReaderNarrationActiveForMusicBed &&
-            !isManuallyPaused &&
-            !isPausedByReaderTransport
+            !isManuallyPaused
         #else
         return false
         #endif
