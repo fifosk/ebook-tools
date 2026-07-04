@@ -31,6 +31,15 @@ INTERACTIVE_CONTEXT_BUILDER = (
     / "InteractivePlayer"
     / "InteractivePlayerContextBuilder.swift"
 )
+INTERACTIVE_SEQUENCE_VIEW_MODEL = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "InteractivePlayer"
+    / "InteractivePlayerViewModel+Sequence.swift"
+)
 PIPELINE_MANIFEST = (
     Path("/Users/fifo/Projects/home/apple-device-app-pipeline")
     / "apps"
@@ -974,6 +983,21 @@ def test_apple_sequence_plan_uses_per_sentence_phase_fallback() -> None:
     assert "} else if transDur > 0 {" in source
     assert "if !hasOriginalGate && origDur > 0" not in source
     assert "if !hasTranslationGate && transDur > 0" not in source
+
+
+def test_apple_reader_transport_resume_rearms_sequence_progression() -> None:
+    controller = SEQUENCE_CONTROLLER.read_text(encoding="utf-8")
+    view_model = INTERACTIVE_SEQUENCE_VIEW_MODEL.read_text(encoding="utf-8")
+
+    assert "var isPausedForReaderTransportResume: Bool" in controller
+    assert "func resumeAfterReaderTransportPause()" in controller
+    assert "phase = .playing" in controller
+    assert "installBoundaryForCurrentSegment()" in controller
+    assert "sequenceController.isPausedForReaderTransportResume" in view_model
+    assert "sequenceController.resumeAfterReaderTransportPause()" in view_model
+    assert "audioCoordinator.activeURL == nil" in view_model
+    assert "handleSequenceTrackSwitch(" in view_model
+    assert "seekTime: max(segment.start, min(audioCoordinator.currentTime, segment.end))" in view_model
 
 
 def test_apple_interactive_context_uses_chunk_local_timing_fallbacks() -> None:

@@ -3,7 +3,7 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-07-04",
             dateLabel: "July 4, 2026",
-            version: "2026.07.04.007",
+            version: "2026.07.04.008",
             entries: july4Entries
         ),
         AppChangelogDay(

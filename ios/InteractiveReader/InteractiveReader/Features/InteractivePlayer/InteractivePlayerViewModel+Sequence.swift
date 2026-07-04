@@ -54,6 +54,20 @@ extension InteractivePlayerViewModel {
             prepareAudio(for: chunk, autoPlay: true)
             return
         }
+        if isSequenceModeActive {
+            if sequenceController.isPausedForReaderTransportResume {
+                sequenceController.resumeAfterReaderTransportPause()
+            }
+            if audioCoordinator.activeURL == nil,
+               let segment = sequenceController.currentSegment {
+                handleSequenceTrackSwitch(
+                    track: segment.track,
+                    seekTime: max(segment.start, min(audioCoordinator.currentTime, segment.end)),
+                    shouldPlay: true
+                )
+                return
+            }
+        }
         if isSequenceModeActive &&
             (sequenceController.isDwelling || sequenceController.isTransitioning) {
             cancelPendingAudioReadySubscription()

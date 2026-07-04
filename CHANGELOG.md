@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-07-04
 
+### 2026.07.04.008
+
+- Apple TV reader playback now re-arms sequence progression after reader-owned pause/resume and reloads the current segment when the tvOS bleed guard detached the audio item, preventing playback from stopping at the next sentence boundary.
+- Advanced visible Apple app versioning to `v2026.07.04.008`.
+
 ### 2026.07.04.007
 
 - Playback media diagnostics now include a backend-owned `gapCount` shared by Web Job Detail, Apple playback warning strips, Library media, and offline exports so media-gap warnings stay consistent across surfaces.

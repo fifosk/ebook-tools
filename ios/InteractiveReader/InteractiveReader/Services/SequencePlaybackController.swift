@@ -840,6 +840,31 @@ final class SequencePlaybackController: ObservableObject {
         debugLog("Cancelled sequence playback for reader transport pause")
     }
 
+    /// Whether an explicit reader transport pause idled an otherwise reusable
+    /// sequence. Reader transport resume must wake this back up before AVPlayer
+    /// starts, otherwise boundary/time updates are ignored and playback can stop
+    /// at the first segment boundary.
+    var isPausedForReaderTransportResume: Bool {
+        guard isEnabled else { return false }
+        if case .idle = phase {
+            return true
+        }
+        return false
+    }
+
+    /// Re-arm sequence progression after a reader-owned transport pause while
+    /// preserving the current segment. This is deliberately narrower than
+    /// `endTransition`: no seek has happened yet, so we only restore the playing
+    /// phase and reinstall the boundary guard for the current segment.
+    func resumeAfterReaderTransportPause() {
+        guard isPausedForReaderTransportResume else { return }
+        dwellWorkItem?.cancel()
+        dwellWorkItem = nil
+        phase = .playing
+        installBoundaryForCurrentSegment()
+        debugLog("Resumed sequence playback after reader transport pause")
+    }
+
     /// Mark transition as completed (call after audio is loaded and ready)
     /// - Parameter expectedTime: The expected playback position after the seek
     func endTransition(expectedTime: Double? = nil) {

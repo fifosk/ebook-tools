@@ -2721,7 +2721,11 @@ Every cross-surface change should pass the relevant subset:
   reader-pause bit is set, with the explicit/manual pause path still gated by
   `isManuallyPaused`. The focused Apple playback contracts passed 48/48 and
   `make test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped
-  before any physical redeploy.
+  before any physical redeploy. The next TV playback-stop fix re-arms the
+  sequence controller after reader-owned transport pause/resume and reloads the
+  current segment when the tvOS dwell guard detached the active AVPlayer item;
+  focused Apple contracts, `make test-e2e-tvos-music-bed-sync`, and
+  `make test-changed` passed before physical validation.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.
