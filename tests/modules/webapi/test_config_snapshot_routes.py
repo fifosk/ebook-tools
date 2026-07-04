@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+import modules.config_manager as config_manager_package
 from modules.config_manager.config_repository import SnapshotMetadata
 from modules.user_management import AuthService, LocalUserStore, SessionManager
 from modules.webapi import config_routes
@@ -22,6 +23,9 @@ class _RecordingConfigRepository:
         self.restore_calls: list[tuple[str, str | None]] = []
         self.delete_calls: list[tuple[str, str | None]] = []
         self.export_calls: list[tuple[str, bool]] = []
+        self.log_change_calls: list[dict[str, Any]] = []
+        self.save_snapshot_calls: list[dict[str, Any]] = []
+        self.delete_secret_calls: list[tuple[str, str | None]] = []
         self.metadata = SnapshotMetadata(
             snapshot_id="snap_trimmed",
             label="Trimmed snapshot",
@@ -60,6 +64,35 @@ class _RecordingConfigRepository:
             "config": {"pipeline_workers": 2},
         }
 
+    def log_change(self, **kwargs: Any) -> None:
+        self.log_change_calls.append(kwargs)
+
+    def save_snapshot(
+        self,
+        config: dict[str, Any],
+        *,
+        label: str | None = None,
+        description: str | None = None,
+        created_by: str | None = None,
+        source: str = "manual",
+        activate: bool = False,
+    ) -> str:
+        self.save_snapshot_calls.append(
+            {
+                "config": dict(config),
+                "label": label,
+                "description": description,
+                "created_by": created_by,
+                "source": source,
+                "activate": activate,
+            }
+        )
+        return "snap_updated"
+
+    def delete_secret(self, key_path: str, *, deleted_by: str | None = None) -> bool:
+        self.delete_secret_calls.append((key_path, deleted_by))
+        return key_path == "api/openai"
+
 
 @pytest.fixture
 def config_snapshot_client(
@@ -78,6 +111,7 @@ def config_snapshot_client(
     monkeypatch.setattr(config_routes, "_get_config_repository", lambda: repository)
     monkeypatch.setattr(config_routes, "load_configuration", lambda: {"pipeline_workers": 1})
     monkeypatch.setattr(config_routes, "refresh_runtime_config", lambda: None)
+    monkeypatch.setattr(config_manager_package, "get_settings", lambda: object())
 
     with TestClient(app) as client:
         yield client, repository, admin_token
@@ -95,6 +129,16 @@ def test_config_snapshot_routes_use_shared_route_id_normalizer() -> None:
     assert "repo.restore_snapshot(normalized_snapshot_id" in source
     assert "repo.delete_snapshot(normalized_snapshot_id" in source
     assert "repo.export_snapshot(normalized_snapshot_id" in source
+
+
+def test_config_group_and_secret_routes_use_shared_route_id_normalizer() -> None:
+    source = Path(config_routes.__file__).read_text(encoding="utf-8")
+
+    assert "normalized_group_name = normalize_route_id(group_name)" in source
+    assert "ConfigGroup(normalized_group_name)" in source
+    assert "group=normalized_group_name" in source
+    assert "normalized_key_path = normalize_route_id(key_path)" in source
+    assert "repo.delete_secret(normalized_key_path" in source
 
 
 def test_config_snapshot_routes_normalize_padded_snapshot_id(
@@ -157,3 +201,78 @@ def test_config_snapshot_routes_reject_blank_snapshot_id_before_repository_acces
     assert repository.restore_calls == []
     assert repository.export_calls == []
     assert repository.delete_calls == []
+
+
+def test_config_group_routes_normalize_padded_group_name(
+    config_snapshot_client: tuple[TestClient, _RecordingConfigRepository, str],
+) -> None:
+    client, repository, admin_token = config_snapshot_client
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    get_response = client.get(
+        "/api/admin/config/groups/%20%20backend%20%20",
+        headers=headers,
+    )
+    update_response = client.put(
+        "/api/admin/config/groups/%20%20backend%20%20",
+        json={"values": {"thread_count": 4}, "createBackup": False},
+        headers=headers,
+    )
+
+    assert get_response.status_code == 200
+    assert get_response.json()["group"] == "backend"
+    assert update_response.status_code == 200
+    assert update_response.json()["group"] == "backend"
+    assert update_response.json()["updatedKeys"] == ["thread_count"]
+    assert repository.log_change_calls[0]["group_name"] == "backend"
+    assert repository.save_snapshot_calls[0]["label"] == "Updated backend"
+    assert repository.save_snapshot_calls[0]["config"]["thread_count"] == 4
+
+
+def test_config_group_route_rejects_blank_group_before_repository_access(
+    config_snapshot_client: tuple[TestClient, _RecordingConfigRepository, str],
+) -> None:
+    client, repository, admin_token = config_snapshot_client
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    response = client.put(
+        "/api/admin/config/groups/%20%20%20",
+        json={"values": {"thread_count": 4}, "createBackup": False},
+        headers=headers,
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Unknown configuration group: "}
+    assert repository.log_change_calls == []
+    assert repository.save_snapshot_calls == []
+
+
+def test_config_secret_delete_normalizes_padded_key_path(
+    config_snapshot_client: tuple[TestClient, _RecordingConfigRepository, str],
+) -> None:
+    client, repository, admin_token = config_snapshot_client
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    response = client.delete(
+        "/api/admin/config/secrets/%20%20api/openai%20%20",
+        headers=headers,
+    )
+
+    assert response.status_code == 204
+    assert repository.delete_secret_calls == [("api/openai", "admin")]
+
+
+def test_config_secret_delete_rejects_blank_key_path_before_repository_access(
+    config_snapshot_client: tuple[TestClient, _RecordingConfigRepository, str],
+) -> None:
+    client, repository, admin_token = config_snapshot_client
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    response = client.delete(
+        "/api/admin/config/secrets/%20%20%20",
+        headers=headers,
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Secret not found"}
+    assert repository.delete_secret_calls == []

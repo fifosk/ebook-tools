@@ -2,8 +2,8 @@ extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
             id: "backend-config-snapshot-route-id-helper",
-            title: "Config snapshot IDs share cleanup",
-            detail: "Backend configuration snapshot restore, export, and delete routes now trim snapshot identifiers through the shared route helper before repository access, keeping Web admin controls on the same route-boundary contract."
+            title: "Config route IDs share cleanup",
+            detail: "Backend configuration group, snapshot, and secret-delete routes now trim route identifiers through the shared helper before validation or repository access, keeping Web admin controls on the same route-boundary contract."
         ),
         AppChangelogEntry(
             id: "backend-legacy-media-route-id-helper",

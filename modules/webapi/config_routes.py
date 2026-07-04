@@ -210,13 +210,14 @@ def get_config_group(
 ) -> ConfigGroupResponse:
     """Get configuration for a specific group."""
     _require_admin(authorization, auth_service)
+    normalized_group_name = normalize_route_id(group_name)
 
     try:
-        group = ConfigGroup(group_name)
+        group = ConfigGroup(normalized_group_name)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Unknown configuration group: {group_name}"
+            detail=f"Unknown configuration group: {normalized_group_name}"
         )
 
     config = load_configuration()
@@ -249,13 +250,14 @@ def update_config_group(
 ) -> ConfigGroupUpdateResponse:
     """Update configuration for a specific group."""
     _token, user = _require_admin(authorization, auth_service)
+    normalized_group_name = normalize_route_id(group_name)
 
     try:
-        group = ConfigGroup(group_name)
+        group = ConfigGroup(normalized_group_name)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Unknown configuration group: {group_name}"
+            detail=f"Unknown configuration group: {normalized_group_name}"
         )
 
     repo = _get_config_repository()
@@ -264,8 +266,8 @@ def update_config_group(
     backup_snapshot_id = None
     if payload.create_backup:
         backup_snapshot_id = save_current_config_to_db(
-            label=f"Pre-update backup ({group_name})",
-            description=f"Automatic backup before updating {group_name} group",
+            label=f"Pre-update backup ({normalized_group_name})",
+            description=f"Automatic backup before updating {normalized_group_name} group",
             created_by=user.username,
         )
 
@@ -306,7 +308,7 @@ def update_config_group(
             repo.log_change(
                 action="update",
                 username=user.username,
-                group_name=group_name,
+                group_name=normalized_group_name,
                 key_name=key,
                 old_value=str(old_value) if old_value is not None else None,
                 new_value=str(value) if value is not None else None,
@@ -316,7 +318,7 @@ def update_config_group(
     if updated_keys:
         repo.save_snapshot(
             current_config,
-            label=f"Updated {group_name}",
+            label=f"Updated {normalized_group_name}",
             description=f"Updated keys: {', '.join(updated_keys)}",
             created_by=user.username,
             source="update",
@@ -326,7 +328,7 @@ def update_config_group(
         refresh_runtime_config()
 
     return ConfigGroupUpdateResponse(
-        group=group_name,
+        group=normalized_group_name,
         updated_keys=updated_keys,
         requires_restart=requires_restart,
         backup_snapshot_id=backup_snapshot_id,
@@ -779,14 +781,20 @@ def delete_secret(
 ) -> None:
     """Delete a stored secret."""
     _token, user = _require_admin(authorization, auth_service)
+    normalized_key_path = normalize_route_id(key_path)
+    if not normalized_key_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Secret not found",
+        )
 
     repo = _get_config_repository()
-    deleted = repo.delete_secret(key_path, deleted_by=user.username)
+    deleted = repo.delete_secret(normalized_key_path, deleted_by=user.username)
 
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Secret not found: {key_path}"
+            detail=f"Secret not found: {normalized_key_path}"
         )
 
 
