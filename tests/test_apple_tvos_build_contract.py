@@ -531,6 +531,15 @@ def test_tvos_observed_music_pause_does_not_stop_requested_reader_startup() -> N
 def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     channel_models_source = PLAYER_CHANNEL_MODELS.read_text(encoding="utf-8")
     header_overlay_source = INTERACTIVE_HEADER_OVERLAY.read_text(encoding="utf-8")
+    changelog_source = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Shared"
+        / "AppChangelogData+2026-07-04.swift"
+    ).read_text(encoding="utf-8")
     header_pills_source = (
         ROOT
         / "ios"
@@ -544,7 +553,16 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "struct PlayerHeaderGlassPanelBackground: View" in channel_models_source
     assert "struct PlayerHeaderIdentityBannerBackground: View" in channel_models_source
     assert "struct PlayerHeaderPillBackground: View" in channel_models_source
+    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.82)" in channel_models_source
+    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.86)" in channel_models_source
+    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(isProminent ? 0.78 : 0.68)" in channel_models_source
     assert ".fill(.ultraThinMaterial)" in channel_models_source
+    assert ".opacity(0.42)" in channel_models_source
+    assert ".opacity(0.38)" in channel_models_source
+    assert ".opacity(isProminent ? 0.34 : 0.28)" in channel_models_source
+    assert ".strokeBorder(Color.white.opacity(0.28), lineWidth: 1)" in channel_models_source
+    assert ".strokeBorder(Color.white.opacity(0.30), lineWidth: 1)" in channel_models_source
+    assert "iPad is in system light mode" in changelog_source
     assert "PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)" in header_overlay_source
     assert "PlayerHeaderIdentityBannerBackground(cornerRadius: cornerRadius)" in header_overlay_source
     assert "private struct InteractivePlayerHeaderIdentityBanner: View" in header_overlay_source
