@@ -24,6 +24,7 @@ from ...dependencies import (
     get_pipeline_service,
     get_request_user,
 )
+from ...route_ids import normalize_route_id
 from ...route_telemetry import log_labeled_route_result
 
 storage_router = APIRouter()
@@ -35,10 +36,6 @@ STORAGE_JOB_FORBIDDEN_MESSAGE = "Not authorized to access job files"
 
 class _RangeParseError(Exception):
     """Raised when the supplied Range header cannot be satisfied."""
-
-
-def _normalize_route_id(value: str) -> str:
-    return value.strip()
 
 
 def _parse_byte_range(range_value: str, file_size: int) -> Tuple[int, int]:
@@ -357,7 +354,7 @@ async def download_job_file(
 ):
     """Stream the requested job file supporting optional byte ranges."""
 
-    normalized_job_id = _normalize_route_id(job_id)
+    normalized_job_id = normalize_route_id(job_id)
     _ensure_job_access(
         normalized_job_id,
         pipeline_service=pipeline_service,
@@ -377,7 +374,7 @@ async def download_job_file_without_prefix(
 ):
     """Stream job files that were referenced without the legacy ``/files`` prefix."""
 
-    normalized_job_id = _normalize_route_id(job_id)
+    normalized_job_id = normalize_route_id(job_id)
     _ensure_job_access(
         normalized_job_id,
         pipeline_service=pipeline_service,

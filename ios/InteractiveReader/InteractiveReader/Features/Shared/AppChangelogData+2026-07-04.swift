@@ -11,6 +11,11 @@ extension AppChangelogData {
             detail: "Bookmark and resume routes now trim playback-state route identifiers through one shared backend helper, keeping Web and Apple Continue/bookmark sync boundary behavior aligned."
         ),
         AppChangelogEntry(
+            id: "backend-playback-media-route-id-helper",
+            title: "Playback media IDs share cleanup",
+            detail: "Pipeline media, timing, storage, bookmark, and resume routes now trim route identifiers through the shared backend helper, keeping Web and Apple playback boundary checks aligned."
+        ),
+        AppChangelogEntry(
             id: "backend-media-diagnostics-helper",
             title: "Media warnings share one backend counter",
             detail: "Pipeline media, Library media, and offline export manifests now derive playback warning counts from one schema-neutral backend helper, keeping Web and Apple gap diagnostics aligned."

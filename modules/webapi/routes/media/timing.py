@@ -23,6 +23,7 @@ from ...dependencies import (
     get_pipeline_job_manager,
     get_request_user,
 )
+from ...route_ids import normalize_route_id
 from modules.services.job_manager import PipelineJob
 from ...schemas.pipeline_timing import JobTimingResponse
 from .audio_roles import canonical_audio_track_key, canonical_timing_track_key
@@ -32,10 +33,6 @@ jobs_timing_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 JOB_TIMING_NOT_FOUND_MESSAGE = "Job not found"
 JOB_TIMING_FORBIDDEN_MESSAGE = "Not authorized to access timing"
-
-
-def _normalize_route_id(value: str) -> str:
-    return value.strip()
 
 
 def _safe_is_dir(path: Path) -> bool:
@@ -227,7 +224,7 @@ async def get_job_timing(
 ) -> JSONResponse:
     """Return flattened per-word timing data for ``job_id``."""
 
-    normalized_job_id = _normalize_route_id(job_id)
+    normalized_job_id = normalize_route_id(job_id)
     if not normalized_job_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

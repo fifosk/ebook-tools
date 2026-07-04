@@ -1682,10 +1682,10 @@ Optimization candidates:
   paths in Web/Apple lookup bubble errors or logs. Bookmark routes trim route IDs at the boundary, reject
   blank normalized job IDs before storage access, and treat blank bookmark
   deletes as idempotent `deleted=false` responses so malformed Web/Apple
-  playback state does not create stray fallback bookmark files. Bookmark and
-  resume playback-state routes now share the same tiny route-id normalizer, so
-  future Web/Apple playback-state endpoints can reuse the boundary behavior
-  without reintroducing local trim helpers.
+  playback state does not create stray fallback bookmark files. Bookmark,
+  resume, pipeline media, timing, and storage routes now share the same tiny
+  route-id normalizer, so future Web/Apple playback endpoints can reuse the
+  boundary behavior without reintroducing local trim helpers.
 
 ## Parity Roadmap
 

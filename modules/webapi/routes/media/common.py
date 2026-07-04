@@ -13,6 +13,7 @@ from ....services.source_discovery import safe_stat
 from ....library import LibraryRepository
 from ....permissions import can_access, resolve_access_policy
 from ...dependencies import RequestUserContext
+from ...route_ids import normalize_route_id
 
 MEDIA_NOT_FOUND_MESSAGE = "Job not found"
 MEDIA_FORBIDDEN_MESSAGE = "Not authorized to access media"
@@ -34,10 +35,6 @@ def _resolve_job_path(job_root: Path, relative_path: str) -> Path:
     return resolved
 
 
-def _normalize_route_id(value: str) -> str:
-    return value.strip()
-
-
 def _safe_is_dir(path: Path) -> bool:
     stat_result = safe_stat(path)
     return stat_result is not None and stat_module.S_ISDIR(stat_result.st_mode)
@@ -57,7 +54,7 @@ def _resolve_job_root(
     job_manager: Any,
     permission: str = "view",
 ) -> Path:
-    normalized_job_id = _normalize_route_id(job_id)
+    normalized_job_id = normalize_route_id(job_id)
     if not normalized_job_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MEDIA_NOT_FOUND_MESSAGE)
     try:

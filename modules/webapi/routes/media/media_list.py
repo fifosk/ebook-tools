@@ -23,6 +23,7 @@ from ...dependencies import (
     get_pipeline_service,
     get_request_user,
 )
+from ...route_ids import normalize_route_id
 from ...route_telemetry import log_started_route_result
 from ...schemas import (
     PipelineMediaChunk,
@@ -39,10 +40,6 @@ MEDIA_JOB_NOT_FOUND_MESSAGE = "Job not found"
 MEDIA_JOB_FORBIDDEN_MESSAGE = "Not authorized to access job media"
 
 
-def _normalize_route_id(value: str) -> str:
-    return value.strip()
-
-
 def _get_media_job(
     job_id: str,
     *,
@@ -52,7 +49,7 @@ def _get_media_job(
     source: str | None = None,
     started_at: float | None = None,
 ) -> Any:
-    normalized_job_id = _normalize_route_id(job_id)
+    normalized_job_id = normalize_route_id(job_id)
     if not normalized_job_id:
         if operation and source and started_at is not None:
             _log_media_manifest(operation, started_at, result="not_found", source=source)
