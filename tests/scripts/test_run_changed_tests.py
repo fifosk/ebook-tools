@@ -221,20 +221,14 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateView.swift"]
     ) == [
-        "test-apple-create-readiness-contract",
         "test-apple-contracts",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
+        "verify-apple-create-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/APIClient+Creation.swift"]
     ) == [
-        "test-apple-create-readiness-contract",
         "test-apple-contracts",
-        "build-apple-ios-simulators",
-        "build-apple-tvos-simulator",
-        "build-apple-macos-ipad-style",
+        "verify-apple-create-no-regression-candidate",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/VideoPlayerView+Layout.swift"]

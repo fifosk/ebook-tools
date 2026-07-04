@@ -60,6 +60,14 @@ AGGREGATE_TARGET_COVERAGE = {
         "build-apple-macos-ipad-style",
         "build-apple-tvos-simulator",
     },
+    "verify-apple-create-no-regression-candidate": {
+        "test-apple-create-readiness-contract",
+        "build-apple-ios-simulators",
+        "build-apple-macos-ipad-style",
+        "build-apple-tvos-simulator",
+        "apple-pipeline-ipad-create-readiness-dry-run",
+        "apple-pipeline-tvos-create-readiness-dry-run",
+    },
 }
 
 PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
@@ -245,12 +253,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "ios/InteractiveReader/InteractiveReader/Features/Create/",
             "ios/InteractiveReader/InteractiveReader/Services/APIClient+Creation.swift",
         ),
-        (
-            "test-apple-create-readiness-contract",
-            "build-apple-ios-simulators",
-            "build-apple-tvos-simulator",
-            "build-apple-macos-ipad-style",
-        ),
+        ("test-apple-contracts", "verify-apple-create-no-regression-candidate"),
     ),
     (
         (

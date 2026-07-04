@@ -813,6 +813,40 @@ def test_playback_no_regression_candidate_chains_reader_and_music_dry_run_withou
     assert "devicectl" not in target
 
 
+def test_create_no_regression_candidate_chains_create_builds_and_dry_runs_without_deploy() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = (
+        "verify-apple-create-no-regression-candidate: test-apple-create-readiness-contract "
+        "build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style "
+        "apple-pipeline-ipad-create-readiness-dry-run apple-pipeline-tvos-create-readiness-dry-run"
+    )
+    assert target_line in makefile
+
+    phony = makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
+    assert "verify-apple-create-no-regression-candidate" in phony
+
+    target = makefile.split("verify-apple-create-no-regression-candidate:", 1)[1].split("\n\n", 1)[0]
+    assert target.index("test-apple-create-readiness-contract") < target.index("build-apple-ios-simulators")
+    assert target.index("build-apple-ios-simulators") < target.index("build-apple-tvos-simulator")
+    assert target.index("build-apple-tvos-simulator") < target.index("build-apple-macos-ipad-style")
+    assert target.index("build-apple-macos-ipad-style") < target.index(
+        "apple-pipeline-ipad-create-readiness-dry-run"
+    )
+    assert target.index("apple-pipeline-ipad-create-readiness-dry-run") < target.index(
+        "apple-pipeline-tvos-create-readiness-dry-run"
+    )
+    assert "apple-pipeline-ipad-create-readiness " not in target
+    assert "apple-pipeline-tvos-create-readiness " not in target
+    assert "test-e2e-ipad-create-readiness" not in target
+    assert "test-e2e-tvos-create-readiness" not in target
+    assert "apple-device-update" not in target
+    assert "run_app_device_deploy.py" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "apple-device-full-entitlement-stable-install" not in target
+    assert "devicectl" not in target
+
+
 def test_living_room_candidate_gate_runs_dogfood_pipeline_and_music_bed_without_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -1071,6 +1105,7 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "verify-apple-shared-pipeline" in contract_check
     assert "verify-apple-music-bed-candidate" in contract_check
     assert "verify-apple-playback-no-regression-candidate" in contract_check
+    assert "verify-apple-create-no-regression-candidate" in contract_check
     assert "verify-apple-living-room-candidate" in contract_check
     assert "test-e2e-ipad-music-bed-sync" in contract_check
     assert "test-e2e-tvos-music-bed-sync" in contract_check
@@ -1197,6 +1232,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-orchestration-dry-runs",
         "make apple-runtime-ssh-check",
         "make verify-apple-shared-pipeline",
+        "make verify-apple-create-no-regression-candidate",
         "make verify-apple-music-bed-candidate-dry-run",
         "make verify-apple-living-room-candidate",
         "make verify-apple-dogfood-pipeline",

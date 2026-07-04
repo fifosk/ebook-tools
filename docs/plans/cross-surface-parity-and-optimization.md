@@ -2701,6 +2701,10 @@ Every cross-surface change should pass the relevant subset:
   Swift contracts, iPhone/iPad/tvOS simulator builds, local Mac iPad-style
   builds, and credential-free Music-bed dry-runs before physical reader playback
   retests,
+  `make verify-apple-create-no-regression-candidate` local gate for native Apple
+  Create readiness contracts, iPhone/iPad/tvOS simulator builds, the local Mac
+  iPad-style build, and credential-free iPad/tvOS Create-readiness dry-runs
+  before physical Create retests,
   office-iPad local build/verification gates, the local Apple surface build gate,
   the local Apple verification gate,
   `make apple-device-preflight`,

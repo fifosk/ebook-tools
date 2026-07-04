@@ -1041,11 +1041,14 @@ For focused Apple Create readiness preflight work, use:
 
 ```bash
 make test-apple-create-readiness-contract
+make verify-apple-create-no-regression-candidate
 ```
 
 This runs the native Create readiness checker tests plus the simulator-journey
 and env-file contracts that prove the preflight is wired before iPhone, iPad,
-and tvOS Create journeys.
+and tvOS Create journeys. The no-regression candidate adds iPhone/iPad and tvOS
+simulator builds, the local Mac iPad-style build, and credential-free iPad/tvOS
+Create-readiness journey dry-runs without touching physical devices.
 
 For focused non-physical Apple build surface wiring, use:
 
@@ -1821,10 +1824,12 @@ version checks for release metadata; `verify-apple-playback-no-regression-candid
 for shared Apple Interactive Reader and playback transport/surface changes,
 covering the focused Swift playback lane, iPhone/iPad/tvOS simulator builds,
 the local Mac iPad-style build, and credential-free Music-bed journey dry-runs;
-the focused Create-readiness contract plus iPhone/iPad and tvOS simulator
-builds for native Apple Create surface/API-client changes; iPhone/iPad and tvOS
-simulator builds for native Apple Jobs/Library browse, settings, API-client,
-and shared service changes; iPhone/iPad and tvOS simulator builds for native
+`verify-apple-create-no-regression-candidate` for native Apple Create
+surface/API-client changes, covering the Create-readiness contract, iPhone/iPad
+and tvOS simulator builds, the local Mac iPad-style build, and credential-free
+iPad/tvOS Create-readiness journey dry-runs; iPhone/iPad and tvOS simulator
+builds for native Apple Jobs/Library browse, settings, API-client, and shared
+service changes; iPhone/iPad and tvOS simulator builds for native
 Apple app-shell, model, utility, and shared UI helper changes; Apple contracts
 for other `ios/`, Apple contract files, playback metadata docs, and the active
 cross-surface parity plan; the non-physical
