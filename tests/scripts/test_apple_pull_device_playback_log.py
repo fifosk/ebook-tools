@@ -142,9 +142,9 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     assert "APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY ?= 0" in makefile
     assert "APPLE_PLAYBACK_TRANSPORT_LOG_MODE ?= pause-release" in makefile
     assert "APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT ?=" in makefile
-    assert "APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE ?=" in makefile
     assert "APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT ?= $(shell git rev-parse --short=12 HEAD" in makefile
     assert "APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE ?= $(shell /usr/libexec/PlistBuddy" in makefile
+    assert "APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE ?= $(APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE)" in makefile
     assert "scripts/apple_pull_device_playback_log.sh" in makefile
     assert "scripts/check_apple_playback_transport_log.py" in makefile
     assert '--output "$(APPLE_DEVICE_PLAYBACK_LOG)"' in makefile

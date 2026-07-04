@@ -410,6 +410,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING ?= 0" in makefile
     assert "APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING_FLAG = $(if $(filter 1 YES yes true TRUE,$(APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING)),--preserve-running-app)" in makefile
     assert "APPLE_MUSIC_BED_LAUNCH_LOG_MODE ?= startup" in makefile
+    assert "APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE ?= $(APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE)" in makefile
     assert "APPLE_MUSIC_BED_LAUNCH_REQUIRED_RELEASE ?= $(APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE)" in makefile
     assert "apple-device-launch-console:" in makefile
     launch_console_target = makefile.split("apple-device-launch-console:", 1)[1].split("\n\n", 1)[0]
