@@ -746,6 +746,30 @@ def test_music_bed_candidate_gate_runs_ipad_then_tvos_without_deploy() -> None:
     assert "devicectl" not in dry_run_target
 
 
+def test_reader_playback_candidate_gate_runs_local_simulator_checks_without_deploy() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = (
+        "verify-apple-reader-playback-candidate: test-apple-playback-state-swift "
+        "build-apple-ios-simulators build-apple-tvos-simulator"
+    )
+    assert target_line in makefile
+
+    phony = makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
+    assert "verify-apple-reader-playback-candidate" in phony
+
+    target = makefile.split("verify-apple-reader-playback-candidate:", 1)[1].split("\n\n", 1)[0]
+    assert target.index("test-apple-playback-state-swift") < target.index("build-apple-ios-simulators")
+    assert target.index("build-apple-ios-simulators") < target.index("build-apple-tvos-simulator")
+    assert "test-e2e-ipad-music-bed-sync" not in target
+    assert "test-e2e-tvos-music-bed-sync" not in target
+    assert "apple-device-update" not in target
+    assert "run_app_device_deploy.py" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "apple-device-full-entitlement-stable-install" not in target
+    assert "devicectl" not in target
+
+
 def test_living_room_candidate_gate_runs_shared_pipeline_and_music_bed_without_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 

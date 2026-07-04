@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "apple-reader-playback-candidate-gate",
+            title: "Reader playback has one local gate",
+            detail: "The Apple pipeline now has make verify-apple-reader-playback-candidate for non-deploying reader playback validation: playback Swift contracts plus iPhone, iPad, and tvOS simulator builds before a physical device test is requested."
+        ),
+        AppChangelogEntry(
             id: "apple-sequence-eof-current-lane-guard",
             title: "Reader ignores stale audio endings",
             detail: "Apple sequence playback now advances only when AVPlayer's end callback belongs to the currently active Original or Translation lane, preventing stale detached items from double-advancing, stopping playback, or knocking single-track rendering out of sync."

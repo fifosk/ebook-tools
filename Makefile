@@ -39,7 +39,7 @@
        build-apple-tvos-simulator build-apple-tvos-uitests \
        build-apple-office-ipad-surfaces verify-apple-office-ipad-surfaces \
        build-apple-local-surfaces verify-apple-local-surfaces \
-       verify-apple-cross-surface-checkpoint verify-apple-music-bed-candidate verify-apple-music-bed-candidate-dry-run \
+       verify-apple-cross-surface-checkpoint verify-apple-reader-playback-candidate verify-apple-music-bed-candidate verify-apple-music-bed-candidate-dry-run \
        apple-local-checkpoint-bundle \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
        apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync apple-pipeline-web-checks \
@@ -635,6 +635,8 @@ apple-pipeline-tvos-create-readiness-dry-run:
 apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys-list apple-pipeline-owned-journeys-dry-run
 
 verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs
+
+verify-apple-reader-playback-candidate: test-apple-playback-state-swift build-apple-ios-simulators build-apple-tvos-simulator
 
 verify-apple-music-bed-candidate: test-e2e-ipad-music-bed-sync test-e2e-tvos-music-bed-sync
 
