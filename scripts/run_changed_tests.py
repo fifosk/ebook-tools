@@ -339,6 +339,8 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "test-web-create-intake-focused",
             "test-web-video-dubbing-focused",
             "test-apple-create-readiness-contract",
+            "build-apple-ios-simulators",
+            "build-apple-tvos-simulator",
         ),
     ),
     (

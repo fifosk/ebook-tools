@@ -901,6 +901,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-web-video-dubbing-focused",
         "test-apple-create-readiness-contract",
         "test-pipeline",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
     ]
     assert select_targets(["modules/services/source_discovery.py"]) == [
         "test-backend-pipeline-sources",
@@ -911,6 +913,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-backend-subtitle-router",
         "test-backend-youtube-dubbing-service",
         "test-services",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
     ]
     assert select_targets(["tests/modules/services/test_source_discovery.py"]) == [
         "test-backend-pipeline-sources",
@@ -921,6 +925,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-backend-subtitle-router",
         "test-backend-youtube-dubbing-service",
         "test-services",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
     ]
     assert select_targets(["modules/services/acquisition/discovery.py"]) == [
         "test-backend-pipeline-sources",
@@ -929,6 +935,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-web-video-dubbing-focused",
         "test-apple-create-readiness-contract",
         "test-services",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
     ]
     assert select_targets(["modules/webapi/routers/acquisition.py"]) == [
         "test-backend-pipeline-sources",
@@ -937,6 +945,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-web-video-dubbing-focused",
         "test-apple-create-readiness-contract",
         "test-webapi",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
     ]
     assert select_targets(["modules/webapi/routers/acquisition_payloads.py"]) == [
         "test-backend-pipeline-sources",
@@ -945,6 +955,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-web-video-dubbing-focused",
         "test-apple-create-readiness-contract",
         "test-webapi",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
     ]
     assert select_targets(["modules/webapi/routers/acquisition_route_support.py"]) == [
         "test-backend-pipeline-sources",
@@ -953,6 +965,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-web-video-dubbing-focused",
         "test-apple-create-readiness-contract",
         "test-webapi",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
     ]
     assert select_targets(["modules/webapi/schemas/acquisition.py"]) == [
         "test-backend-pipeline-sources",
@@ -961,6 +975,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-web-video-dubbing-focused",
         "test-apple-create-readiness-contract",
         "test-webapi",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
     ]
     assert select_targets(["tests/modules/webapi/test_acquisition_routes.py"]) == [
         "test-backend-pipeline-sources",
@@ -969,6 +985,8 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-web-video-dubbing-focused",
         "test-apple-create-readiness-contract",
         "test-webapi",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
     ]
 
 
