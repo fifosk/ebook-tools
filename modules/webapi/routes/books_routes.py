@@ -31,6 +31,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
+from ..route_ids import normalize_route_id
 from ..route_telemetry import log_started_route_result
 from ..runtime_descriptor import PIPELINE_FILES_MAX_LIMIT, PIPELINE_FILES_MIN_LIMIT
 from ..schemas import (
@@ -570,11 +571,15 @@ async def fetch_job_cover(
 ):
     """Return the stored cover image for ``job_id`` if available."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cover not found")
+
     permission_denied = False
     job_missing = False
     try:
         pipeline_service.get_job(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
@@ -583,11 +588,11 @@ async def fetch_job_cover(
     except KeyError:
         job_missing = True
 
-    metadata_root = file_locator.metadata_root(job_id)
+    metadata_root = file_locator.metadata_root(normalized_job_id)
     cover_path = _find_job_cover_path(metadata_root)
 
     if (cover_path is None or not _is_present_file(cover_path)) and library_sync is not None:
-        item = library_sync.get_item(job_id)
+        item = library_sync.get_item(normalized_job_id)
         if item is not None:
             metadata_payload = item.metadata.data if hasattr(item.metadata, "data") else {}
             owner_id = item.owner_id or metadata_payload.get("user_id") or metadata_payload.get("owner_id")
@@ -605,12 +610,12 @@ async def fetch_job_cover(
                 library_cover = None
             else:
                 try:
-                    library_cover = library_sync.find_cover_asset(job_id)
+                    library_cover = library_sync.find_cover_asset(normalized_job_id)
                 except LibraryNotFoundError:
                     library_cover = None
         else:
             try:
-                library_cover = library_sync.find_cover_asset(job_id)
+                library_cover = library_sync.find_cover_asset(normalized_job_id)
             except LibraryNotFoundError:
                 library_cover = None
         if library_cover is not None and _is_present_file(library_cover):

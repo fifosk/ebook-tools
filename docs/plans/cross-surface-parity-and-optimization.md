@@ -2473,9 +2473,11 @@ Suggested features to evaluate after parity scaffolding:
   Settings also surfaces this playback-state contract in the Create readiness
   journey so simulator checks validate the routes the app uses for bookmark and
   resume sync. The public runtime descriptor now also advertises the pipeline
-  media-search path used by Apple playback search, and Apple Create readiness
-  validates the full 32-path Create contract including acquisition job polling
-  endpoints before simulator journeys run. The standalone Swift runtime
+  media-search path used by Apple playback search, and the backend pipeline
+  cover route now trims padded job identifiers through the shared route-id
+  helper before job access, metadata cover lookup, or Library cover fallback.
+  Apple Create readiness validates the full 32-path Create contract including
+  acquisition job polling endpoints before simulator journeys run. The standalone Swift runtime
   descriptor payload check now decodes and asserts every Create descriptor path,
   using the backend's current camelCase descriptor shape while retaining a
   legacy snake-case smoke payload without pipeline metadata, keeping the

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-pipeline-cover-route-id-helper",
+            title: "Cover IDs share cleanup",
+            detail: "Backend pipeline cover reads now trim job identifiers through the shared route helper before job, metadata, or Library cover lookup, keeping Apple and Web cover paths aligned."
+        ),
+        AppChangelogEntry(
             id: "backend-subtitle-result-route-id-helper",
             title: "Subtitle result IDs share cleanup",
             detail: "Backend subtitle job result reads now trim job identifiers through the shared route helper before job lookup, keeping Web Subtitle Tool and Apple result polling aligned."
