@@ -254,6 +254,37 @@ def test_append_bounded_sorted_keeps_shared_bounded_order() -> None:
     assert key_calls < 12
 
 
+def test_append_bounded_sorted_keeps_key_cache_aligned() -> None:
+    matches = [("newest", 1), ("middle", 5), ("tail", 9)]
+    key_cache = [(1, "newest"), (5, "middle"), (9, "tail")]
+    key_calls = 0
+
+    def sort_key(item: tuple[str, int]) -> tuple[float, str]:
+        nonlocal key_calls
+        key_calls += 1
+        return (item[1], item[0])
+
+    append_bounded_sorted(matches, ("inserted", 3), 3, key=sort_key, key_cache=key_cache)
+    append_bounded_sorted(matches, ("discarded", 99), 3, key=sort_key, key_cache=key_cache)
+
+    assert matches == [("newest", 1), ("inserted", 3), ("middle", 5)]
+    assert key_cache == [(1, "newest"), (3, "inserted"), (5, "middle")]
+    assert key_calls == 2
+
+
+def test_append_bounded_sorted_recovers_mismatched_key_cache() -> None:
+    matches = [("newest", 1), ("tail", 9)]
+    key_cache = [(99, "stale")]
+
+    def sort_key(item: tuple[str, int]) -> tuple[float, str]:
+        return (item[1], item[0])
+
+    append_bounded_sorted(matches, ("middle", 5), 3, key=sort_key, key_cache=key_cache)
+
+    assert matches == [("newest", 1), ("middle", 5), ("tail", 9)]
+    assert key_cache == [(1, "newest"), (5, "middle"), (9, "tail")]
+
+
 def test_walk_visible_source_files_uses_safe_root_stat_instead_of_exists(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

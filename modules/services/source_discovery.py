@@ -55,6 +55,7 @@ def append_bounded_newest_source_file(
     limit: int,
     *,
     secondary_key: Callable[[DiscoveredSourceFile], str] | None = None,
+    key_cache: list[tuple[float, str]] | None = None,
 ) -> None:
     """Append ``entry`` while keeping only the newest ``limit`` source files."""
 
@@ -73,6 +74,7 @@ def append_bounded_newest_source_file(
             item,
             secondary_key=secondary_key,
         ),
+        key_cache=key_cache,
     )
 
 
@@ -83,18 +85,28 @@ def append_bounded_sorted(
     *,
     key: Callable[[ItemT], tuple[float, str]],
     entry_key: tuple[float, str] | None = None,
+    key_cache: list[tuple[float, str]] | None = None,
 ) -> None:
     """Insert ``item`` into a sorted bounded list if it can beat the tail."""
 
     if limit <= 0:
         return
+    if key_cache is not None and len(key_cache) != len(matches):
+        key_cache[:] = [key(match) for match in matches]
     item_key = entry_key if entry_key is not None else key(item)
-    if len(matches) >= limit and item_key >= key(matches[-1]):
+    tail_key = key_cache[-1] if key_cache else key(matches[-1]) if matches else None
+    if len(matches) >= limit and tail_key is not None and item_key >= tail_key:
         return
-    insert_at = _bisect_right_bounded(matches, item_key, key=key)
+    if key_cache is not None:
+        insert_at = _bisect_right_keys(key_cache, item_key)
+        key_cache.insert(insert_at, item_key)
+    else:
+        insert_at = _bisect_right_bounded(matches, item_key, key=key)
     matches.insert(insert_at, item)
     if len(matches) > limit:
         del matches[limit:]
+        if key_cache is not None:
+            del key_cache[limit:]
 
 
 def _bisect_right_bounded(
@@ -110,6 +122,23 @@ def _bisect_right_bounded(
     while lower < upper:
         middle = (lower + upper) // 2
         if item_key < key(matches[middle]):
+            upper = middle
+        else:
+            lower = middle + 1
+    return lower
+
+
+def _bisect_right_keys(
+    keys: list[tuple[float, str]],
+    item_key: tuple[float, str],
+) -> int:
+    """Return the insertion index for an already materialized sorted key list."""
+
+    lower = 0
+    upper = len(keys)
+    while lower < upper:
+        middle = (lower + upper) // 2
+        if item_key < keys[middle]:
             upper = middle
         else:
             lower = middle + 1

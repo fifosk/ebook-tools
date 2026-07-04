@@ -213,6 +213,7 @@ def _list_ebook_files(root: Path, *, limit: int | None = None) -> List[PipelineF
     if limit is not None and limit <= 0:
         return []
     matches: List[DiscoveredSourceFile] = []
+    match_keys: list[tuple[float, str]] = []
 
     def secondary_key(entry: DiscoveredSourceFile) -> str:
         return _format_relative_path(entry.path, root)
@@ -224,6 +225,7 @@ def _list_ebook_files(root: Path, *, limit: int | None = None) -> List[PipelineF
                 candidate,
                 limit,
                 secondary_key=secondary_key,
+                key_cache=match_keys,
             )
         else:
             matches.append(candidate)
@@ -254,6 +256,8 @@ def _append_bounded_output_entry(
     entries: List[PipelineFileEntry],
     entry: PipelineFileEntry,
     limit: int,
+    *,
+    key_cache: list[tuple[float, str]] | None = None,
 ) -> None:
     append_bounded_sorted(
         entries,
@@ -261,6 +265,7 @@ def _append_bounded_output_entry(
         limit,
         entry_key=_output_sort_key(entry),
         key=_output_sort_key,
+        key_cache=key_cache,
     )
 
 
@@ -268,6 +273,7 @@ def _list_output_entries(root: Path, *, limit: int | None = None) -> List[Pipeli
     if limit is not None and limit <= 0:
         return []
     entries: List[PipelineFileEntry] = []
+    entry_keys: list[tuple[float, str]] = []
     if not _is_present_directory(root):
         return entries
     for path in sorted(safe_iterdir(root)):
@@ -292,7 +298,7 @@ def _list_output_entries(root: Path, *, limit: int | None = None) -> List[Pipeli
             modified_at=datetime.fromtimestamp(stat.st_mtime),
         )
         if limit is not None:
-            _append_bounded_output_entry(entries, entry, limit)
+            _append_bounded_output_entry(entries, entry, limit, key_cache=entry_keys)
         else:
             entries.append(entry)
     return entries if limit is None else sorted(entries, key=_output_sort_key)

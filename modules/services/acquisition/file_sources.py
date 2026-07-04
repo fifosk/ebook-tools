@@ -39,6 +39,7 @@ def discover_local_epubs(
         return []
     root = resolve_books_root(config=config, context=None)
     matches: list[DiscoveredSourceFile] = []
+    match_keys: list[tuple[float, str]] = []
 
     def secondary_key(entry: DiscoveredSourceFile) -> str:
         return title_from_filename(entry.path)
@@ -54,6 +55,7 @@ def discover_local_epubs(
             entry,
             limit,
             secondary_key=secondary_key,
+            key_cache=match_keys,
         )
     return [local_epub_candidate(entry, root) for entry in matches]
 
@@ -142,6 +144,7 @@ def discover_nas_videos(
         return []
 
     matches: list[AcquisitionCandidate] = []
+    match_keys: list[tuple[float, str]] = []
     for video in videos:
         source_relative_path = relative_path(video.path, root)
         if query and query not in _search_blob(video.path.name, source_relative_path):
@@ -150,6 +153,7 @@ def discover_nas_videos(
             matches,
             nas_video_candidate(video),
             limit,
+            key_cache=match_keys,
         )
     return matches
 
@@ -218,6 +222,7 @@ def discover_manual_download_epubs(
     if limit <= 0:
         return []
     matches: list[tuple[DiscoveredSourceFile, Path, str]] = []
+    match_keys: list[tuple[float, str]] = []
     seen_paths: set[str] = set()
     for root in roots:
         for entry in iter_visible_source_files(root, suffixes={".epub"}, resolve_paths=True):
@@ -240,6 +245,7 @@ def discover_manual_download_epubs(
                 root,
                 absolute_path,
                 limit,
+                key_cache=match_keys,
             )
     return [
         manual_download_epub_candidate(entry, root, absolute_path)
@@ -255,6 +261,7 @@ def discover_manual_download_videos(
     if limit <= 0:
         return []
     matches: list[AcquisitionCandidate] = []
+    match_keys: list[tuple[float, str]] = []
     seen_paths: set[str] = set()
     for root in roots:
         try:
@@ -281,6 +288,7 @@ def discover_manual_download_videos(
                 matches,
                 manual_download_video_candidate(video, root, absolute_path),
                 limit,
+                key_cache=match_keys,
             )
     return matches
 

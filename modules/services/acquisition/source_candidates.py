@@ -47,6 +47,8 @@ def append_bounded_newest_manual_entry(
     root: Path,
     absolute_path: str,
     limit: int,
+    *,
+    key_cache: list[tuple[float, str]] | None = None,
 ) -> None:
     if limit <= 0:
         return
@@ -57,6 +59,7 @@ def append_bounded_newest_manual_entry(
         limit,
         entry_key=_manual_source_match_sort_key(match),
         key=_manual_source_match_sort_key,
+        key_cache=key_cache,
     )
 
 
@@ -64,6 +67,8 @@ def append_bounded_newest_candidate(
     matches: list[CandidateT],
     candidate: CandidateT,
     limit: int,
+    *,
+    key_cache: list[tuple[float, str]] | None = None,
 ) -> None:
     """Append and keep the newest visible source candidates up to ``limit``."""
 
@@ -75,6 +80,7 @@ def append_bounded_newest_candidate(
         limit,
         entry_key=_newest_candidate_sort_key(candidate),
         key=_newest_candidate_sort_key,
+        key_cache=key_cache,
     )
 
 
