@@ -1056,8 +1056,8 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.18),
-                            Color.white.opacity(0.06)
+                            Color.white.opacity(0.075),
+                            Color.black.opacity(0.34)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -1121,8 +1121,8 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
             .fill(
                 LinearGradient(
                     colors: [
-                        Color.white.opacity(0.12),
-                        Color.white.opacity(0.02),
+                        Color.white.opacity(0.055),
+                        Color.white.opacity(0.008),
                         Color.clear
                     ],
                     startPoint: .topTrailing,

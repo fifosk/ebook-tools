@@ -450,7 +450,8 @@ Follow the suggested remediations to restore parity:
   system appearances because the reader background is commonly dark and the
   header text/pill chrome is white. Avoid reverting the shared
   `PlayerHeader*Background` views to purely adaptive light materials without a
-  dark base, or the iPad light-mode header becomes too pale over playback.
+  dark base, and keep the white sheen/pill overlay opacities low enough that the
+  iPad light-mode header does not become too pale over playback.
 - Apple Music reading-bed auto-resume must require `audioCoordinator.isPlaybackRequested`
   plus MusicKit auto-resume intent (`musicCoordinator.canAutoResumeReadingBed`).
   The guard intentionally does not require `audioCoordinator.isPlaying`, because first sentence starts and

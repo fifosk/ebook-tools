@@ -572,11 +572,15 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert ".fill(PlayerHeaderContrastColors.identityBase)" in channel_models_source
     assert "isProminent ? PlayerHeaderContrastColors.prominentPillBase : PlayerHeaderContrastColors.pillBase" in channel_models_source
     assert ".fill(.ultraThinMaterial)" in channel_models_source
-    assert ".opacity(0.07)" in channel_models_source
-    assert ".opacity(0.06)" in channel_models_source
-    assert ".opacity(isProminent ? 0.05 : 0.04)" in channel_models_source
+    assert ".opacity(0.045)" in channel_models_source
+    assert ".opacity(0.035)" in channel_models_source
+    assert ".opacity(isProminent ? 0.035 : 0.025)" in channel_models_source
+    assert "if isProminent { return isActive ? 0.095 : 0.055 }" in channel_models_source
+    assert "return isActive ? 0.08 : 0.045" in channel_models_source
     assert ".strokeBorder(Color.white.opacity(0.28), lineWidth: 1)" in channel_models_source
     assert ".strokeBorder(Color.white.opacity(0.30), lineWidth: 1)" in channel_models_source
+    assert "ipad-reader-header-sheen-stays-muted" in changelog_source
+    assert "white sheen, pill fills, and fallback cover highlights more restrained" in changelog_source
     assert "iPad is in system light mode" in changelog_source
     assert "higher dark contrast floor with less material wash in light mode" in changelog_source
     assert "PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)" in header_overlay_source

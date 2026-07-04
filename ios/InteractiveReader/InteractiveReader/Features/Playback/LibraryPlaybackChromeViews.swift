@@ -250,11 +250,11 @@ private struct LibraryPlaybackInfoPill: View {
                         Capsule(style: .continuous)
                             .fill(.ultraThinMaterial)
                             .environment(\.colorScheme, .dark)
-                            .opacity(0.16)
+                            .opacity(0.08)
                     )
                     .overlay(
                         Capsule(style: .continuous)
-                            .fill(Color.white.opacity(0.07))
+                            .fill(Color.white.opacity(0.045))
                     )
                     .overlay(
                         Capsule(style: .continuous)
@@ -272,16 +272,16 @@ private struct LibraryPlaybackIdentityBannerBackground: View {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(.thinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(0.20)
+                    .opacity(0.08)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.055),
-                                Color.white.opacity(0.015),
-                                Color.black.opacity(0.46)
+                                Color.white.opacity(0.024),
+                                Color.black.opacity(0.14),
+                                Color.black.opacity(0.58)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing

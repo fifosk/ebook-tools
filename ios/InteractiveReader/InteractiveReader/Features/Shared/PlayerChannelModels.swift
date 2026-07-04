@@ -76,16 +76,16 @@ struct PlayerHeaderGlassPanelBackground: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(0.07)
+                    .opacity(0.045)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.035),
-                                Color.black.opacity(0.16),
-                                Color.black.opacity(0.58)
+                                Color.white.opacity(0.018),
+                                Color.black.opacity(0.20),
+                                Color.black.opacity(0.64)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -110,16 +110,16 @@ struct PlayerHeaderIdentityBannerBackground: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.thinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(0.06)
+                    .opacity(0.035)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.04),
-                                Color.black.opacity(0.18),
-                                Color.black.opacity(0.60)
+                                Color.white.opacity(0.018),
+                                Color.black.opacity(0.22),
+                                Color.black.opacity(0.66)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -145,7 +145,7 @@ struct PlayerHeaderPillBackground: View {
                 Capsule(style: .continuous)
                     .fill(.ultraThinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(isProminent ? 0.05 : 0.04)
+                    .opacity(isProminent ? 0.035 : 0.025)
             )
             .overlay(
                 Capsule(style: .continuous)
@@ -158,13 +158,13 @@ struct PlayerHeaderPillBackground: View {
     }
 
     private var fillOpacity: Double {
-        if isProminent { return isActive ? 0.14 : 0.09 }
-        return isActive ? 0.12 : 0.07
+        if isProminent { return isActive ? 0.095 : 0.055 }
+        return isActive ? 0.08 : 0.045
     }
 
     private var strokeOpacity: Double {
-        if isProminent { return isActive ? 0.36 : 0.24 }
-        return isActive ? 0.32 : 0.18
+        if isProminent { return isActive ? 0.34 : 0.22 }
+        return isActive ? 0.30 : 0.16
     }
 }
 

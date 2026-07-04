@@ -1079,8 +1079,8 @@ Current Apple UI partially exposes:
   Interactive Reader footer, while video playback keeps the native player
   scrubber instead of adding a duplicate footer timeline. Shared playback
   header glass now owns an explicit near-black contrast palette with reduced
-  material wash, so iPad light mode cannot turn dark reader chrome pale over
-  the playback background.
+  material wash and restrained white sheen overlays, so iPad light mode cannot
+  turn dark reader chrome pale over the playback background.
 - Playback helper state coverage. Status: Apple playback now has repo-owned
   contract coverage for `AudioModeManager` track/mode transitions, timing-track
   routing, and `SentencePositionProvider` strategy priority so iPhone, iPad,

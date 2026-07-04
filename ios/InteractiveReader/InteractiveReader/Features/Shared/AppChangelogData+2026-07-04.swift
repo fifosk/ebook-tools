@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "ipad-reader-header-sheen-stays-muted",
+            title: "iPad header highlights stay muted",
+            detail: "Apple playback headers now keep their white sheen, pill fills, and fallback cover highlights more restrained on top of the dark glass base, preventing light-mode iPad chrome from looking washed out over dark playback."
+        ),
+        AppChangelogEntry(
             id: "backend-playback-state-route-id-helper",
             title: "Playback state routes share ID cleanup",
             detail: "Bookmark and resume routes now trim playback-state route identifiers through one shared backend helper, keeping Web and Apple Continue/bookmark sync boundary behavior aligned."
