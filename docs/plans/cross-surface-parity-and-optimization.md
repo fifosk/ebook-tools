@@ -2537,10 +2537,10 @@ Suggested features to evaluate after parity scaffolding:
   reading-bed regression gate. The repo-owned `test-backend-notifications`
   target now covers Apple Settings notification device registration,
   preferences, test sends, rich test sends, disabled-server messaging, and
-  authentication guards without APNs credentials, plus token-safe
-  NotificationService/APNs logging that omits user IDs, job IDs, device names,
-  and APNs token prefixes; the shared Apple backend manifest runs it as a
-  notification regression gate.
+  authentication guards without APNs credentials, shared route-id cleanup for
+  padded/blank device removal IDs, plus token-safe NotificationService/APNs
+  logging that omits user IDs, job IDs, device names, and APNs token prefixes;
+  the shared Apple backend manifest runs it as a notification regression gate.
 - Shared media diagnostics: surface missing timing/audio/image assets without
   opening logs. Status: media manifest responses now include a token-safe
   aggregate diagnostics object with media, chunk, audio, image, timing,
@@ -2608,7 +2608,9 @@ Suggested features to evaluate after parity scaffolding:
   device registration/removal, test, rich-test, and preference endpoints in the
   public runtime descriptor, surfaces the Notification Contract row in Settings
   and the Create readiness journey, and routes Apple notification client calls
-  through shared helpers.
+  through shared helpers. Backend notification device-removal IDs now use the
+  shared route-id normalizer before service lookup too, matching playback-state
+  and media route boundary behavior.
 
 ## Verification Contract
 

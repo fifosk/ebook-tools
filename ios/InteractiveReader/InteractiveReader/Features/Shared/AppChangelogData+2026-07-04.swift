@@ -16,6 +16,11 @@ extension AppChangelogData {
             detail: "Pipeline media, timing, storage, bookmark, and resume routes now trim route identifiers through the shared backend helper, keeping Web and Apple playback boundary checks aligned."
         ),
         AppChangelogEntry(
+            id: "backend-notification-route-id-helper",
+            title: "Notification IDs share cleanup",
+            detail: "Backend notification device removal now trims padded device identifiers through the shared route helper before service lookup, keeping Apple Settings notification controls aligned with the playback boundary rules."
+        ),
+        AppChangelogEntry(
             id: "backend-media-diagnostics-helper",
             title: "Media warnings share one backend counter",
             detail: "Pipeline media, Library media, and offline export manifests now derive playback warning counts from one schema-neutral backend helper, keeping Web and Apple gap diagnostics aligned."

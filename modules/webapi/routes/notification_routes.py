@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from modules import logging_manager as log_mgr
 
 from ..dependencies import get_notification_service, get_request_user, RequestUserContext
+from ..route_ids import normalize_route_id
 from ..route_telemetry import log_started_route_result
 from ...notifications import (
     NotificationService,
@@ -72,10 +73,6 @@ def _raise_notification_unavailable(*, operation: str, started_at: float) -> Non
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail=NOTIFICATION_UNAVAILABLE_MESSAGE,
     )
-
-
-def _normalize_route_id(value: str) -> str:
-    return value.strip()
 
 
 def _raise_device_token_not_found(*, operation: str, started_at: float) -> None:
@@ -177,7 +174,7 @@ async def unregister_device(
             started_at=started_at,
         )
         raise
-    normalized_device_id = _normalize_route_id(device_id)
+    normalized_device_id = normalize_route_id(device_id)
     if not normalized_device_id:
         _raise_device_token_not_found(
             operation="unregister_device",

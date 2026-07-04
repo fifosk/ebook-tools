@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Iterator
 from typing import Any
 
@@ -355,6 +356,14 @@ def test_notification_device_routes_normalize_tokens(
         "user_id": "alice",
         "token": token,
     }
+
+
+def test_notification_unregister_uses_shared_route_id_normalizer() -> None:
+    source = inspect.getsource(notification_routes)
+
+    assert "from ..route_ids import normalize_route_id" in source
+    assert "def _normalize_route_id" not in source
+    assert "normalized_device_id = normalize_route_id(device_id)" in source
 
 
 def test_notification_unregister_rejects_blank_token_without_service_call(
