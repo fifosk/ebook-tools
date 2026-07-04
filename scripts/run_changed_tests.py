@@ -142,6 +142,15 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "modules/webapi/admin_routes.py",
+            "modules/webapi/config_routes.py",
+            "tests/modules/webapi/test_admin_user_routes.py",
+            "tests/modules/webapi/test_config_snapshot_routes.py",
+        ),
+        ("test-backend-admin-config", "test-web-admin-focused"),
+    ),
+    (
+        (
             "modules/webapi/routers/create_book.py",
             "modules/webapi/routers/create_book_options.py",
             "modules/webapi/schemas/create_book.py",

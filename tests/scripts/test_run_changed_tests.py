@@ -732,6 +732,26 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
         "test-backend-pipeline-jobs",
         "test-webapi",
     ]
+    assert select_targets(["modules/webapi/admin_routes.py"]) == [
+        "test-backend-admin-config",
+        "test-web-admin-focused",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/config_routes.py"]) == [
+        "test-backend-admin-config",
+        "test-web-admin-focused",
+        "test-webapi",
+    ]
+    assert select_targets(["tests/modules/webapi/test_admin_user_routes.py"]) == [
+        "test-backend-admin-config",
+        "test-web-admin-focused",
+        "test-webapi",
+    ]
+    assert select_targets(["tests/modules/webapi/test_config_snapshot_routes.py"]) == [
+        "test-backend-admin-config",
+        "test-web-admin-focused",
+        "test-webapi",
+    ]
     assert select_targets(["modules/webapi/routers/create_book.py"]) == [
         "test-backend-create-book",
         "test-web-create-book-focused",

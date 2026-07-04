@@ -3,6 +3,7 @@
        test-config test-metadata test-changed test-makefile-contract \
        test-backend-auth-session \
        test-backend-library-search-source-isbn test-backend-admin-system-status \
+       test-backend-admin-config \
        test-backend-pipeline-jobs \
        test-backend-runtime-descriptor \
        test-backend-create-book test-backend-creation-templates \
@@ -144,6 +145,12 @@ test-backend-admin-system-status:
 	$(PYTHON) -m pytest \
 		tests/modules/webapi/test_system_routes.py \
 		tests/modules/webapi/test_job_action_routes.py
+
+test-backend-admin-config:
+	$(PYTHON) -m pytest \
+		tests/modules/webapi/test_admin_user_routes.py \
+		tests/modules/webapi/test_config_snapshot_routes.py \
+		tests/modules/webapi/test_route_ids.py
 
 test-backend-pipeline-jobs:
 	$(PYTHON) -m pytest \

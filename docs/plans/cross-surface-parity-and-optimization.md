@@ -2657,6 +2657,9 @@ Suggested features to evaluate after parity scaffolding:
   aligned with the same route boundary policy. Backend admin user suspend,
   edit, activate, password reset, and delete routes now trim username route
   identifiers through the same helper before account lookup or session cleanup.
+  The changed-file pipeline now maps admin/config route and focused-test edits
+  to `test-backend-admin-config` plus Web admin focused tests before the broad
+  WebAPI gate, keeping Web admin contract cleanup quicker to validate.
 
 ## Verification Contract
 
