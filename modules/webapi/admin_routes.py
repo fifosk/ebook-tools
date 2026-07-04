@@ -11,6 +11,7 @@ from ..user_management import AuthService
 from ..user_management.user_store_base import UserRecord
 from .auth_utils import require_admin_user
 from .dependencies import get_auth_service
+from .route_ids import normalize_route_id
 from .schemas import (
     ManagedUserPayload,
     UserAccountResponse,
@@ -32,6 +33,13 @@ def _require_admin(
     auth_service: AuthService,
 ) -> Tuple[str, UserRecord]:
     return require_admin_user(authorization, auth_service)
+
+
+def _normalize_admin_route_username(username: str) -> str:
+    normalized_username = normalize_route_id(username)
+    if not normalized_username:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return normalized_username
 
 
 def _normalise_bool(value: Any) -> bool | None:
@@ -174,8 +182,9 @@ def suspend_user(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserAccountResponse:
     _require_admin(authorization, auth_service)
+    normalized_username = _normalize_admin_route_username(username)
 
-    record = auth_service.user_store.get_user(username)
+    record = auth_service.user_store.get_user(normalized_username)
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -185,11 +194,11 @@ def suspend_user(
     _touch_timestamp(metadata, "updated_at")
 
     try:
-        record = auth_service.user_store.update_user(username, metadata=metadata)
+        record = auth_service.user_store.update_user(normalized_username, metadata=metadata)
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found") from exc
 
-    auth_service.session_manager.clear_sessions_for_user(username)
+    auth_service.session_manager.clear_sessions_for_user(normalized_username)
     return UserAccountResponse(user=_serialize_user(record))
 
 
@@ -201,8 +210,9 @@ def update_user_details(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserAccountResponse:
     _require_admin(authorization, auth_service)
+    normalized_username = _normalize_admin_route_username(username)
 
-    record = auth_service.user_store.get_user(username)
+    record = auth_service.user_store.get_user(normalized_username)
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -213,7 +223,7 @@ def update_user_details(
         _touch_timestamp(metadata, "updated_at")
 
     try:
-        record = auth_service.user_store.update_user(username, metadata=metadata)
+        record = auth_service.user_store.update_user(normalized_username, metadata=metadata)
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found") from exc
 
@@ -227,8 +237,9 @@ def activate_user(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserAccountResponse:
     _require_admin(authorization, auth_service)
+    normalized_username = _normalize_admin_route_username(username)
 
-    record = auth_service.user_store.get_user(username)
+    record = auth_service.user_store.get_user(normalized_username)
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -238,7 +249,7 @@ def activate_user(
     _touch_timestamp(metadata, "updated_at")
 
     try:
-        record = auth_service.user_store.update_user(username, metadata=metadata)
+        record = auth_service.user_store.update_user(normalized_username, metadata=metadata)
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found") from exc
 
@@ -253,13 +264,14 @@ def reset_password(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> None:
     _require_admin(authorization, auth_service)
+    normalized_username = _normalize_admin_route_username(username)
 
     try:
-        auth_service.user_store.update_user(username, password=payload.password)
+        auth_service.user_store.update_user(normalized_username, password=payload.password)
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found") from exc
 
-    auth_service.session_manager.clear_sessions_for_user(username)
+    auth_service.session_manager.clear_sessions_for_user(normalized_username)
 
 
 @router.delete("/users/{username}", status_code=status.HTTP_204_NO_CONTENT)
@@ -269,15 +281,16 @@ def delete_user(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> None:
     _token, caller = _require_admin(authorization, auth_service)
+    normalized_username = _normalize_admin_route_username(username)
 
-    if caller.username == username:
+    if caller.username == normalized_username:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Administrators cannot delete their own account")
 
-    removed = auth_service.user_store.delete_user(username)
+    removed = auth_service.user_store.delete_user(normalized_username)
     if not removed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    auth_service.session_manager.clear_sessions_for_user(username)
+    auth_service.session_manager.clear_sessions_for_user(normalized_username)
 
 
 __all__ = ["router"]

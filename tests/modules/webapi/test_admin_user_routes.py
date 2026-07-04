@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Tuple
 
 import pytest
 from fastapi.testclient import TestClient
 
 from modules.user_management import AuthService, LocalUserStore, SessionManager
+from modules.webapi import admin_routes
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_auth_service
 
@@ -101,6 +103,18 @@ def test_create_user_provisions_account(admin_client) -> None:
     assert service.user_store.get_user("newbie") is not None
 
 
+def test_admin_user_routes_use_shared_route_id_normalizer() -> None:
+    source = Path(admin_routes.__file__).read_text(encoding="utf-8")
+
+    assert "from .route_ids import normalize_route_id" in source
+    assert "def _normalize_route_id" not in source
+    assert "normalized_username = normalize_route_id(username)" in source
+    assert "auth_service.user_store.get_user(normalized_username)" in source
+    assert "auth_service.user_store.update_user(normalized_username" in source
+    assert "auth_service.user_store.delete_user(normalized_username)" in source
+    assert "clear_sessions_for_user(normalized_username)" in source
+
+
 def test_update_user_details_persists_profile_metadata(admin_client) -> None:
     client, service, admin_token, _ = admin_client
 
@@ -125,6 +139,67 @@ def test_update_user_details_persists_profile_metadata(admin_client) -> None:
     assert record.metadata.get("email") == "member@example.com"
     assert record.metadata.get("first_name") == "Member"
     assert record.metadata.get("last_name") == "User"
+
+
+def test_admin_user_routes_normalize_padded_username(admin_client) -> None:
+    client, service, admin_token, member_token = admin_client
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    update_response = client.put(
+        "/api/admin/users/%20%20member%20%20",
+        json={"email": "trimmed@example.com"},
+        headers=headers,
+    )
+    suspend_response = client.post(
+        "/api/admin/users/%20%20member%20%20/suspend",
+        headers=headers,
+    )
+    activate_response = client.post(
+        "/api/admin/users/%20%20member%20%20/activate",
+        headers=headers,
+    )
+    password_response = client.post(
+        "/api/admin/users/%20%20member%20%20/password",
+        json={"password": "new-pass"},
+        headers=headers,
+    )
+    delete_response = client.delete(
+        "/api/admin/users/%20%20member%20%20",
+        headers=headers,
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["user"]["username"] == "member"
+    assert update_response.json()["user"]["email"] == "trimmed@example.com"
+    assert suspend_response.status_code == 200
+    assert suspend_response.json()["user"]["status"] == "suspended"
+    assert service.session_manager.get_session(member_token) is None
+    assert activate_response.status_code == 200
+    assert activate_response.json()["user"]["status"] == "active"
+    assert password_response.status_code == 204
+    assert delete_response.status_code == 204
+    assert service.user_store.get_user("member") is None
+
+
+def test_admin_user_routes_reject_blank_username(admin_client) -> None:
+    client, service, admin_token, _ = admin_client
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    update_response = client.put(
+        "/api/admin/users/%20%20%20",
+        json={"email": "nobody@example.com"},
+        headers=headers,
+    )
+    delete_response = client.delete(
+        "/api/admin/users/%20%20%20",
+        headers=headers,
+    )
+
+    assert update_response.status_code == 404
+    assert update_response.json() == {"detail": "User not found"}
+    assert delete_response.status_code == 404
+    assert delete_response.json() == {"detail": "User not found"}
+    assert service.user_store.get_user("member") is not None
 
 
 def test_suspend_user_updates_metadata_and_clears_sessions(admin_client) -> None:
@@ -191,6 +266,17 @@ def test_delete_user_rejects_self_deletion(admin_client) -> None:
 
     response = client.delete(
         "/api/admin/users/admin",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_delete_user_rejects_padded_self_deletion(admin_client) -> None:
+    client, _, admin_token, _ = admin_client
+
+    response = client.delete(
+        "/api/admin/users/%20%20admin%20%20",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 

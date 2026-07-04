@@ -2654,7 +2654,9 @@ Suggested features to evaluate after parity scaffolding:
   Backend configuration group, snapshot restore/export/delete, and secret
   delete routes now also trim route identifiers through the shared route-id
   helper before validation or repository access, keeping Web admin controls
-  aligned with the same route boundary policy.
+  aligned with the same route boundary policy. Backend admin user suspend,
+  edit, activate, password reset, and delete routes now trim username route
+  identifiers through the same helper before account lookup or session cleanup.
 
 ## Verification Contract
 

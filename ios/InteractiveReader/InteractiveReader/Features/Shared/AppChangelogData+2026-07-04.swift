@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-admin-user-route-id-helper",
+            title: "Admin user IDs share cleanup",
+            detail: "Backend admin user suspend, edit, activate, password reset, and delete routes now trim usernames through the shared route helper before account lookup, keeping Web admin controls on the same boundary contract."
+        ),
+        AppChangelogEntry(
             id: "backend-config-snapshot-route-id-helper",
             title: "Config route IDs share cleanup",
             detail: "Backend configuration group, snapshot, and secret-delete routes now trim route identifiers through the shared helper before validation or repository access, keeping Web admin controls on the same route-boundary contract."
