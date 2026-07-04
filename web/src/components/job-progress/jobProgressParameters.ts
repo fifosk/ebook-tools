@@ -1,9 +1,14 @@
 import type { PipelineResponsePayload, PipelineStatusResponse } from '../../api/dtos';
 import { formatModelLabel } from '../../utils/modelInfo';
 import {
+  countGeneratedImages,
+  resolveImagePromptPlanSummary,
+  resolveSentenceRange,
+  sumRetryCounts,
+} from './jobProgressGeneratedFiles';
+import {
   coerceNumber,
   coerceRecord,
-  countGeneratedImages,
   extractVoiceOverrides,
   formatLanguageList,
   formatPercent,
@@ -15,10 +20,7 @@ import {
   getStringField,
   normalizeTranslationProvider,
   normalizeTransliterationMode,
-  resolveImagePromptPlanSummary,
-  resolveSentenceRange,
   resolveSubtitleMetadata,
-  sumRetryCounts,
 } from './jobProgressUtils';
 
 export type JobParameterEntry = {

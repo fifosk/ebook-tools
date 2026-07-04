@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "ipad-reader-header-contrast-floor",
+            title: "iPad header contrast is stronger",
+            detail: "Apple reader header panels and pills now keep a darker shared contrast floor with less material wash, so light-mode iPad chrome stays legible over the dark playback background."
+        ),
+        AppChangelogEntry(
+            id: "web-job-progress-generated-files-helper",
+            title: "Job detail generated files are split out",
+            detail: "Web Job Detail now resolves generated-file records, chunk/file de-duplication, image counts, retry totals, prompt-plan summaries, and sentence ranges through a focused helper with pipeline coverage, keeping generated-book status easier to compare with Apple diagnostics."
+        ),
+        AppChangelogEntry(
             id: "web-job-progress-image-cluster-helper",
             title: "Job detail image stats are split out",
             detail: "Web Job Detail now resolves image-cluster node summaries through a focused helper with its own pipeline test, keeping generated-book image status easier to maintain alongside Apple creation and playback diagnostics."

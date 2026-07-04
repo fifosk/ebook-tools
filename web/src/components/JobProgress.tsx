@@ -29,6 +29,7 @@ import {
   resolveJobProgressKindFlags
 } from './job-progress/jobProgressActions';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
+import { resolveGeneratedFileRecord } from './job-progress/jobProgressGeneratedFiles';
 import {
   buildImageClusterNodes,
   resolveImageClusterSummary,
@@ -45,7 +46,6 @@ import {
   isNarratedSubtitleJobStatus,
   normalizeTranslationProvider,
   normalizeTextValue,
-  resolveGeneratedFileRecord,
   resolveLookupCacheBuildingProgress,
   resolveLookupCacheProgress,
   resolveJobMetadataEntries,

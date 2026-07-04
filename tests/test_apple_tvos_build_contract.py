@@ -563,13 +563,13 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "struct PlayerHeaderGlassPanelBackground: View" in channel_models_source
     assert "struct PlayerHeaderIdentityBannerBackground: View" in channel_models_source
     assert "struct PlayerHeaderPillBackground: View" in channel_models_source
-    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.90)" in channel_models_source
-    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.94)" in channel_models_source
-    assert "Color(red: 0.02, green: 0.03, blue: 0.05).opacity(isProminent ? 0.88 : 0.78)" in channel_models_source
+    assert "Color(red: 0.012, green: 0.018, blue: 0.028).opacity(0.96)" in channel_models_source
+    assert "Color(red: 0.012, green: 0.018, blue: 0.028).opacity(0.98)" in channel_models_source
+    assert "Color(red: 0.012, green: 0.018, blue: 0.028).opacity(isProminent ? 0.94 : 0.88)" in channel_models_source
     assert ".fill(.ultraThinMaterial)" in channel_models_source
-    assert ".opacity(0.26)" in channel_models_source
-    assert ".opacity(0.20)" in channel_models_source
-    assert ".opacity(isProminent ? 0.18 : 0.16)" in channel_models_source
+    assert ".opacity(0.12)" in channel_models_source
+    assert ".opacity(0.10)" in channel_models_source
+    assert ".opacity(isProminent ? 0.08 : 0.07)" in channel_models_source
     assert ".strokeBorder(Color.white.opacity(0.28), lineWidth: 1)" in channel_models_source
     assert ".strokeBorder(Color.white.opacity(0.30), lineWidth: 1)" in channel_models_source
     assert "iPad is in system light mode" in changelog_source

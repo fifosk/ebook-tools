@@ -303,13 +303,16 @@ Large Web UI hotspots to split before redesign work:
   paused token arrow navigation, Enter lookup fallback, and resize-driven map
   refresh now live in `web/src/components/video-subtitles/useSubtitleTokenNavigation.ts`
   with focused hook coverage.
-- `web/src/components/JobProgress.tsx` - 496 lines. Status: generated-file
-  stat lookup, batch progress, sentence/playable stage progress,
+- `web/src/components/JobProgress.tsx` - 496 lines. Status: batch progress,
+  sentence/playable stage progress,
   lookup-cache progress, parallelism overview entries, fallback display rows,
   unavailable-translation detection, metadata entry splitting, narrated
   subtitle detection, and progress label helpers now live in
   `web/src/components/job-progress/jobProgressUtils.ts` with focused Vitest
-  coverage. OpenLibrary metadata lookup query state, success/error handling,
+  coverage. Generated-file record lookup, chunk/file de-duping, image counts,
+  retry totals, prompt-plan summaries, and sentence-range resolution now live in
+  `web/src/components/job-progress/jobProgressGeneratedFiles.ts` with focused
+  Vitest coverage. OpenLibrary metadata lookup query state, success/error handling,
   backend cache clearing, and reload side effects now live in
   `web/src/components/job-progress/useJobProgressMetadataLookup.ts` with
   focused hook coverage. Job detail tabs and permission editing chrome now live
