@@ -1275,6 +1275,20 @@ the saved sentence number. A `reader resume offset started at the beginning of
 the sentence` diagnostic means the captured app saved or replayed a
 sentence-start offset; retest with a current build after the reader has spoken
 past the first word.
+Use the track-reconfigure verifier when the physical repro is about toggling
+Original/Translation audio pills during playback:
+
+```bash
+make apple-device-pull-and-verify-playback-track-reconfigure-log \
+  APPLE_DEVICE_PROFILE=appletv \
+  APPLE_DEVICE_ID="Living Room"
+```
+
+That check expects token-safe `Interactive track reconfigure` breadcrumbs and
+rejects active toggles that lose the sentence (`sentence=-1`) or reset back to
+sentence `0` after the same captured playback session already reconfigured at a
+later sentence. It is designed for regressions where re-enabling Original from
+translation-only playback restarts the book or loops a Translation segment.
 When one physical session covers both transport and resume-position behavior,
 pull once and run both validators with:
 
@@ -1360,7 +1374,8 @@ candidate, set `APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT=<sha>` so
 device log came from an older install. For ordinary current-checkpoint hardware
 tests, use `apple-device-pull-and-verify-current-playback-transport-log`,
 `apple-device-pull-and-verify-current-playback-transport-pause-resume-log`,
-`apple-device-pull-and-verify-current-playback-resume-offset-log`, or the
+`apple-device-pull-and-verify-current-playback-resume-offset-log`,
+`apple-device-pull-and-verify-current-playback-track-reconfigure-log`, or the
 combined `apple-device-pull-and-verify-current-reader-repro-log`; these targets
 resolve the current git commit plus the Apple release and pass both to the
 verifier automatically. If the latest physical log reports an older release

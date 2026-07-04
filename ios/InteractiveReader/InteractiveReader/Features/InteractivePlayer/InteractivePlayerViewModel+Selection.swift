@@ -1119,6 +1119,10 @@ extension InteractivePlayerViewModel {
                     }
                     return
                 }
+                if self.isSequenceModeActive {
+                    self.attemptPendingSentenceJump(in: updatedChunk)
+                    return
+                }
                 self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)
                 // Clear pending jump since we're passing target index directly
                 self.pendingSentenceJump = nil
@@ -1254,6 +1258,9 @@ extension InteractivePlayerViewModel {
                 )
                 return
             }
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Interactive sequence sentence jump accepted sentence=\(pending.sentenceNumber) time=\(String(format: "%.3f", target.time)) track=\(target.track.rawValue)"
+            )
 
             // Mute immediately to prevent audio bleed during the transition
             audioCoordinator.setVolume(0)

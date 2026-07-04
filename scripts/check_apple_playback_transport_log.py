@@ -79,6 +79,18 @@ RESUME_OFFSET_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
+TRACK_RECONFIGURE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "interactive track reconfigure captured position",
+        (
+            r"\[PlaybackTransport\] Interactive track reconfigure "
+            r"mode=.+? sentence=-?\d+ sequenceActive=(?:true|false) "
+            r"requested=(?:true|false) playing=(?:true|false)",
+        ),
+    ),
+)
+
+
 DEAD_RESUME_PATTERN = re.compile(
     r"\[PlaybackTransport\] (?:Job|Library) forced play source=(?:brokerResume|interactiveOverride) "
     r"requested=false playing=false musicPlaying=false systemMusicPlaying=false\s*\n"
@@ -101,6 +113,7 @@ PLAYBACK_TRANSPORT_BREADCRUMB_PATTERNS: tuple[str, ...] = (
     r"(?:Job|Library) (?:forced pause|forced play|pause command accepted|play command accepted)",
     r"(?:Job|Library) resume offset (?:requested|retry|fallback)",
     r"Interactive (?:sequence )?time seek",
+    r"Interactive track reconfigure",
 )
 
 
@@ -165,6 +178,14 @@ RESUME_OFFSET_ANY_REQUEST_LINE_PATTERN = re.compile(
 SEQUENCE_TIME_SEEK_ACCEPTED_LINE_PATTERN = re.compile(
     r"^\d+(?:\.\d+)? \[PlaybackTransport\] Interactive sequence time seek accepted "
     r"sentence=(?P<sentence>\d+) time=(?P<time>\d+(?:\.\d+)?) track=(?P<track>original|translation)"
+)
+
+
+TRACK_RECONFIGURE_LINE_PATTERN = re.compile(
+    r"^(?P<time>\d+(?:\.\d+)?) \[PlaybackTransport\] Interactive track reconfigure "
+    r"mode=(?P<mode>.+?) sentence=(?P<sentence>-?\d+) "
+    r"sequenceActive=(?P<sequenceActive>true|false) "
+    r"requested=(?P<requested>true|false) playing=(?P<playing>true|false)$"
 )
 
 
@@ -603,6 +624,29 @@ def _resume_retry_track_flip_violations(text: str) -> list[str]:
     return []
 
 
+def _track_reconfigure_position_violations(text: str) -> list[str]:
+    last_active_sentence: int | None = None
+    for line in text.splitlines():
+        match = TRACK_RECONFIGURE_LINE_PATTERN.match(line)
+        if not match:
+            continue
+        if match.group("requested") != "true" and match.group("playing") != "true":
+            continue
+        try:
+            sentence = int(match.group("sentence"))
+        except ValueError:
+            continue
+        if sentence < 0:
+            return ["active track reconfigure lost the current sentence position"]
+        if sentence == 0 and last_active_sentence is not None and last_active_sentence > 0:
+            return [
+                "active track reconfigure reset to the first sentence after playback had progressed"
+            ]
+        if sentence > 0:
+            last_active_sentence = sentence
+    return []
+
+
 def validate_log(
     path: Path,
     *,
@@ -624,8 +668,10 @@ def validate_log(
         requirements = PAUSE_REQUIREMENTS + RESUME_REQUIREMENTS
     elif mode == "resume-offset":
         requirements = RESUME_OFFSET_REQUIREMENTS
+    elif mode == "track-reconfigure":
+        requirements = TRACK_RECONFIGURE_REQUIREMENTS
     missing = _missing_requirements(text, requirements)
-    if mode != "resume-offset":
+    if mode not in {"resume-offset", "track-reconfigure"}:
         missing.extend(_pause_guard_violations(text))
         missing.extend(_pause_episode_violations(text))
         missing.extend(_audio_state_autoplay_recovery_violations(text))
@@ -639,6 +685,7 @@ def validate_log(
         missing.extend(_stale_pause_ignore_violations(text))
     elif mode == "resume-offset":
         missing.extend(_resume_offset_violations(text))
+    missing.extend(_track_reconfigure_position_violations(text))
     missing.extend(_build_commit_violations(text, required_commit))
     missing.extend(_build_release_violations(text, required_release))
     return missing
@@ -688,11 +735,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=("pause-release", "pause-resume", "resume-offset"),
+        choices=("pause-release", "pause-resume", "resume-offset", "track-reconfigure"),
         default=os.environ.get("APPLE_PLAYBACK_TRANSPORT_LOG_MODE", "pause-release"),
         help=(
             "pause-release checks the reader-owned pause route; pause-resume also checks explicit resume; "
-            "resume-offset checks saved in-sentence resume offsets."
+            "resume-offset checks saved in-sentence resume offsets; track-reconfigure checks audio "
+            "track toggle position preservation."
         ),
     )
     parser.add_argument(

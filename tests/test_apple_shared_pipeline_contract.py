@@ -475,6 +475,14 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
         "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
         "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=resume-offset"
     ) in pull_verify_resume_offset_target
+    assert "apple-device-pull-and-verify-playback-track-reconfigure-log:" in makefile
+    pull_verify_track_reconfigure_target = makefile.split(
+        "apple-device-pull-and-verify-playback-track-reconfigure-log:", 1
+    )[1].split("\n\n", 1)[0]
+    assert (
+        "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
+        "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=track-reconfigure"
+    ) in pull_verify_track_reconfigure_target
     assert "apple-device-pull-and-verify-reader-repro-log:" in makefile
     pull_verify_reader_repro_target = makefile.split(
         "apple-device-pull-and-verify-reader-repro-log:", 1
@@ -505,6 +513,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--require-commit "$(APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT)"' in playback_transport_log_target
     assert '--require-release "$(APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE)"' in playback_transport_log_target
     assert "apple-device-verify-playback-resume-offset-log:" in makefile
+    assert "apple-device-verify-playback-track-reconfigure-log:" in makefile
     testing_doc = TESTING_DOC.read_text(encoding="utf-8")
     deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")
     assert "every pause episode" in testing_doc

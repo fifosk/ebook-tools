@@ -234,6 +234,71 @@ def test_resume_offset_requires_request_and_exact_seek(tmp_path: Path) -> None:
     ]
 
 
+def test_track_reconfigure_accepts_current_sentence_preservation(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        """
+1782670002.000 [PlaybackTransport] Interactive track reconfigure mode=singleTrack(translation) sentence=41 sequenceActive=false requested=true playing=true
+1782670003.000 [PlaybackTransport] Interactive track reconfigure mode=sequence sentence=41 sequenceActive=false requested=true playing=true
+""",
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="track-reconfigure") == []
+
+
+def test_track_reconfigure_rejects_lost_active_sentence(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        """
+1782670002.000 [PlaybackTransport] Interactive track reconfigure mode=sequence sentence=-1 sequenceActive=false requested=true playing=true
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="track-reconfigure")
+
+    assert missing == ["active track reconfigure lost the current sentence position"]
+
+
+def test_track_reconfigure_rejects_active_reset_to_first_sentence(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        """
+1782670002.000 [PlaybackTransport] Interactive track reconfigure mode=singleTrack(translation) sentence=41 sequenceActive=false requested=true playing=true
+1782670003.000 [PlaybackTransport] Interactive track reconfigure mode=sequence sentence=0 sequenceActive=false requested=true playing=true
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="track-reconfigure")
+
+    assert missing == [
+        "active track reconfigure reset to the first sentence after playback had progressed"
+    ]
+
+
+def test_track_reconfigure_allows_initial_first_sentence(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        """
+1782670002.000 [PlaybackTransport] Interactive track reconfigure mode=sequence sentence=0 sequenceActive=false requested=true playing=true
+""",
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="track-reconfigure") == []
+
+
+def test_track_reconfigure_requires_reconfigure_evidence(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(PAUSE_RESUME_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="track-reconfigure")
+
+    assert missing == ["interactive track reconfigure captured position"]
+
+
 def test_pause_release_accepts_music_pause_adoption_when_narration_mirrors_same_episode(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(MUSIC_ADOPTION_PAUSE_LOG, encoding="utf-8")

@@ -134,9 +134,11 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     assert "apple-device-pull-and-verify-playback-transport-log" in makefile
     assert "apple-device-pull-and-verify-playback-transport-pause-resume-log" in makefile
     assert "apple-device-pull-and-verify-playback-resume-offset-log" in makefile
+    assert "apple-device-pull-and-verify-playback-track-reconfigure-log" in makefile
     assert "apple-device-verify-playback-transport-log" in makefile
     assert "apple-device-verify-playback-transport-pause-resume-log" in makefile
     assert "apple-device-verify-playback-resume-offset-log" in makefile
+    assert "apple-device-verify-playback-track-reconfigure-log" in makefile
     assert "APPLE_DEVICE_PLAYBACK_LOG ?=" in makefile
     assert "APPLE_DEVICE_PLAYBACK_BASELINE_LOG ?=" in makefile
     assert "APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY ?= 0" in makefile
@@ -164,6 +166,7 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     assert "apple-device-pull-and-verify-current-playback-transport-log" in phony
     assert "apple-device-pull-and-verify-current-playback-transport-pause-resume-log" in phony
     assert "apple-device-pull-and-verify-current-playback-resume-offset-log" in phony
+    assert "apple-device-pull-and-verify-current-playback-track-reconfigure-log" in phony
     assert "apple-device-pull-and-verify-current-reader-repro-log" in phony
     assert "$(MAKE) apple-device-verify-playback-transport-pause-resume-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1" in makefile
     assert "$(MAKE) apple-device-verify-playback-resume-offset-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1" in makefile
@@ -174,6 +177,10 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     assert (
         "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
         "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=resume-offset"
+    ) in makefile
+    assert (
+        "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
+        "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=track-reconfigure"
     ) in makefile
 
 

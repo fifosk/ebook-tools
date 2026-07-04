@@ -486,6 +486,19 @@ point on Original before the next Translation played. If the CLI reports
 `reader resume offset started at the beginning of the sentence`, retest with a
 current build after the reader has spoken past the first word so the app can
 save a non-zero in-sentence offset.
+For Original/Translation pill toggles, keep the same app session open after
+re-enabling the track and run the track-reconfigure verifier:
+
+```bash
+make apple-device-pull-and-verify-playback-track-reconfigure-log \
+  APPLE_DEVICE_PROFILE=appletv \
+  APPLE_DEVICE_ID="Living Room"
+```
+
+That mode fails active track reconfigures that report `sentence=-1` or reset to
+`sentence=0` after playback had already reached a later sentence, which catches
+the regression where re-enabling Original restarted playback or sent Translation
+into a loop.
 When the same physical session intentionally covers both Play/Pause transport
 and last-word resume, use the comprehensive reader-repro target so the cached
 app log is pulled once and checked in both modes:
@@ -521,7 +534,9 @@ commit. For a specific test candidate, pass
 `APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT=<sha>` to the pull-and-verify or
 standalone verify target so a stale physical install is rejected before transport
 breadcrumbs are interpreted. The `apple-device-pull-and-verify-current-*`
-playback targets, including `apple-device-pull-and-verify-current-reader-repro-log`,
+playback targets, including
+`apple-device-pull-and-verify-current-playback-track-reconfigure-log` and
+`apple-device-pull-and-verify-current-reader-repro-log`,
 resolve the current git commit and Apple release and pass both to the same
 verifier automatically for normal latest-candidate hardware tests. A mismatch
 such as `playback build header release 2026.07.03.001 does not match required
