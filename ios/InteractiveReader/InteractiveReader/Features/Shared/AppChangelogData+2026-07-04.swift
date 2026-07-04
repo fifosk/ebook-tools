@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-lookup-cache-route-id-helper",
+            title: "Lookup cache IDs share cleanup",
+            detail: "Backend MyLinguist lookup-cache full, summary, word, and bulk routes now trim job identifiers through the shared route helper before cache lookup, keeping Web and Apple lookup handoffs aligned."
+        ),
+        AppChangelogEntry(
             id: "ipad-reader-header-light-mode-reinforced",
             title: "iPad header stays darker",
             detail: "Apple reader and video playback headers now keep a deeper near-black contrast floor, brighter white metadata text, and a dimmer sheen so system light mode does not make the header look pale over dark playback backgrounds."

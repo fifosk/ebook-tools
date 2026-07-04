@@ -23,6 +23,7 @@ from ...dependencies import (
     get_request_user,
 )
 from ...route_telemetry import log_started_route_result
+from ...route_ids import normalize_route_id
 from .common import _resolve_job_root
 
 router = APIRouter()
@@ -166,9 +167,10 @@ async def get_lookup_cache_full(
 ) -> LookupCacheFullResponse:
     """Get the full lookup cache for offline download."""
     started_at = time.perf_counter()
+    normalized_job_id = normalize_route_id(job_id)
     try:
         cache = _load_cache_for_job(
-            job_id,
+            normalized_job_id,
             locator,
             library_repository,
             request_user,
@@ -233,9 +235,10 @@ async def get_lookup_cache_summary(
 ) -> LookupCacheSummaryResponse:
     """Get summary information about the lookup cache."""
     started_at = time.perf_counter()
+    normalized_job_id = normalize_route_id(job_id)
     try:
         cache = _load_cache_for_job(
-            job_id,
+            normalized_job_id,
             locator,
             library_repository,
             request_user,
@@ -300,9 +303,10 @@ async def get_cached_lookup(
 ) -> LookupCacheEntryResponse:
     """Look up a word from the job's lookup cache."""
     started_at = time.perf_counter()
+    normalized_job_id = normalize_route_id(job_id)
     try:
         cache = _load_cache_for_job(
-            job_id,
+            normalized_job_id,
             locator,
             library_repository,
             request_user,
@@ -388,9 +392,10 @@ async def get_cached_lookups_bulk(
 ) -> LookupCacheBulkResponse:
     """Look up multiple words from the job's lookup cache."""
     started_at = time.perf_counter()
+    normalized_job_id = normalize_route_id(job_id)
     try:
         cache = _load_cache_for_job(
-            job_id,
+            normalized_job_id,
             locator,
             library_repository,
             request_user,

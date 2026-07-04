@@ -2523,7 +2523,10 @@ Suggested features to evaluate after parity scaffolding:
   and bulk routes now record token-safe playback-state telemetry and aggregate
   logs through the shared route wrapper for success, unavailable, not-found,
   forbidden, cache-hit, and cache-miss outcomes without logging job ids, user ids,
-  queried words, definitions, languages, or audio paths, and
+  queried words, definitions, languages, or audio paths. Those same MyLinguist
+  routes now trim padded job identifiers through the shared backend route-id
+  helper before cache lookup while keeping looked-up word normalization separate,
+  and
   corrupt lookup-cache files now recover as unavailable/empty caches with
   generic service warnings that omit cache paths, job ids, source languages,
   definition languages, audio paths, and raw JSON content. The

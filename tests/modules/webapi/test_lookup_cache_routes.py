@@ -141,6 +141,45 @@ def test_lookup_cache_openapi_marks_cross_surface_fields_required() -> None:
     assert {"version", "input_language", "definition_language", "entries"} <= full_required
 
 
+def test_lookup_cache_routes_use_shared_route_id_normalizer() -> None:
+    source = Path(lookup_cache.__file__).read_text(encoding="utf-8")
+
+    assert "from ...route_ids import normalize_route_id" in source
+    assert "def _normalize_route_id" not in source
+    assert "normalized_job_id = normalize_route_id(job_id)" in source
+    assert "_load_cache_for_job(\n            normalized_job_id," in source
+
+
+def test_lookup_cache_routes_normalize_padded_job_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    capture_logger = _ListLogger()
+    resolved_job_ids: list[str] = []
+
+    def _load_cache(job_id: str, *_args: object, **_kwargs: object) -> _Cache:
+        resolved_job_ids.append(job_id)
+        return _Cache()
+
+    monkeypatch.setattr(lookup_cache, "_load_cache_for_job", _load_cache)
+
+    with _build_client(monkeypatch, capture_logger) as client:
+        full_response = client.get("/api/pipelines/jobs/%20%20private-job%20%20/lookup-cache")
+        summary_response = client.get("/api/pipelines/jobs/%20%20private-job%20%20/lookup-cache/summary")
+        word_response = client.get(
+            "/api/pipelines/jobs/%20%20private-job%20%20/lookup-cache/secretword"
+        )
+        bulk_response = client.post(
+            "/api/pipelines/jobs/%20%20private-job%20%20/lookup-cache/bulk",
+            json={"words": ["secretword"]},
+        )
+
+    assert full_response.status_code == 200
+    assert summary_response.status_code == 200
+    assert word_response.status_code == 200
+    assert bulk_response.status_code == 200
+    assert resolved_job_ids == ["private-job", "private-job", "private-job", "private-job"]
+
+
 def test_lookup_cache_resolution_preserves_forbidden(monkeypatch) -> None:
     def _raise_forbidden(**_kwargs: object) -> Path:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not allowed")
