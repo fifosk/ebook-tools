@@ -65,6 +65,17 @@ def validate_provider_registry_contract(
             values=provider.default_eligible_media_kinds,
             allowed_values=ACQUISITION_MEDIA_KINDS,
         )
+        non_discoverable_defaults = tuple(
+            media_kind
+            for media_kind in provider.default_eligible_media_kinds
+            if media_kind not in provider.discovery_media_kinds
+        )
+        if non_discoverable_defaults:
+            raise ValueError(
+                "Acquisition provider default_eligible_media_kinds must be "
+                "discoverable for provider "
+                f"{provider.id!r}: {', '.join(non_discoverable_defaults)}."
+            )
         if provider.status not in ACQUISITION_PROVIDER_STATUSES:
             raise ValueError(
                 "Unsupported acquisition provider status "

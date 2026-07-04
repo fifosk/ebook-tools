@@ -868,6 +868,11 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     assert discovery_media_kinds_for("download_station") == ()
     assert discovery_media_kinds_for("zlibrary_attended") == ()
     assert discovery_media_kinds_for("unknown_provider") == ()
+    assert provider_catalog.can_join_default_discovery("local_epub", "book")
+    assert provider_catalog.can_join_default_discovery("manual_downloads", "video")
+    assert not provider_catalog.can_join_default_discovery("youtube_url", "video")
+    assert not provider_catalog.can_join_default_discovery("zlibrary_attended", "book")
+    assert not provider_catalog.can_join_default_discovery("local_epub", "video")
     assert provider_catalog.acquisition_provider_label("newznab_torznab") == "Newznab/Torznab indexers"
     assert provider_catalog.acquisition_provider_label(" LOCAL_EPUB ") == "Local EPUB library"
     assert provider_catalog.acquisition_provider_label("unknown_provider") == "unknown_provider"
@@ -1079,6 +1084,28 @@ def test_provider_contract_helper_rejects_status_drift() -> None:
         provider_contract.validate_provider_registry_contract(registry)
 
 
+def test_provider_contract_rejects_non_discoverable_default_eligibility() -> None:
+    registry = acquisition_provider_registry.AcquisitionProviderRegistry(
+        providers=(
+            acquisition_provider_registry.AcquisitionProvider(
+                id="zlibrary_attended",
+                label="Z-Library attended import",
+                media_kinds=("book",),
+                capabilities=("import_local",),
+                status="planned",
+                configured=False,
+                available=False,
+                rights=("unknown", "restricted"),
+                discovery_media_kinds=(),
+                default_eligible_media_kinds=("book",),
+            ),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="must be discoverable"):
+        provider_contract.validate_provider_registry_contract(registry)
+
+
 def test_provider_registry_defaults_and_listing_share_readiness_snapshot(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1130,6 +1157,45 @@ def test_provider_registry_defaults_and_listing_share_readiness_snapshot(
     assert providers["youtube_search"].default_eligible_media_kinds == ("video",)
     assert providers["newznab_torznab"].default_eligible_media_kinds == ("video",)
     assert len(calls) == 2
+
+
+def test_default_discovery_provider_ids_filters_non_discoverable_readiness_defaults(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    books_root = tmp_path / "books"
+    video_root = tmp_path / "videos"
+
+    def _fake_readiness(*, config, context=None):
+        return acquisition_provider_registry._ProviderReadiness(
+            books_root=books_root,
+            video_root=video_root,
+            manual_download_roots=(),
+            readable_manual_roots=(),
+            readable_default_manual_roots=(),
+            books_root_readable=True,
+            video_root_readable=False,
+            youtube_search_configured=False,
+            download_station_configured=False,
+            indexer_search_configured=False,
+            default_provider_ids={
+                "book": ("local_epub", "zlibrary_attended"),
+                "video": ("youtube_url", "nas_video"),
+            },
+        )
+
+    monkeypatch.setattr(
+        acquisition_provider_registry,
+        "_resolve_provider_readiness",
+        _fake_readiness,
+    )
+
+    assert default_discovery_provider_ids("book", {"config": "shared"}) == (
+        "local_epub",
+    )
+    assert default_discovery_provider_ids("video", {"config": "shared"}) == (
+        "nas_video",
+    )
 
 
 def test_default_discovery_provider_ids_are_config_aware(

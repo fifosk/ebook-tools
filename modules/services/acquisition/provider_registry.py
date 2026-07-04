@@ -16,6 +16,7 @@ from .provider_catalog import (
     DISCOVERY_PROVIDER_MEDIA_KINDS,
     acquisition_provider_label,
     acquisition_provider_sort_key,
+    can_join_default_discovery,
     discovery_media_kinds_for,
     normalized_provider_id as _normalized_provider_id,
 )
@@ -54,7 +55,11 @@ def default_discovery_provider_ids(
     if normalized_media_kind not in ACQUISITION_MEDIA_KINDS:
         return ()
     readiness = _resolve_provider_readiness(config=config or {}, context=None)
-    return readiness.default_provider_ids.get(normalized_media_kind, ())
+    return tuple(
+        provider_id
+        for provider_id in readiness.default_provider_ids.get(normalized_media_kind, ())
+        if can_join_default_discovery(provider_id, normalized_media_kind)
+    )
 
 
 @dataclass(frozen=True)
@@ -370,5 +375,6 @@ def _default_eligible_media_kinds(
     return tuple(
         media_kind
         for media_kind in ACQUISITION_MEDIA_KINDS
-        if provider_id in default_provider_ids.get(media_kind, ())
+        if can_join_default_discovery(provider_id, media_kind)
+        and provider_id in default_provider_ids.get(media_kind, ())
     )

@@ -17,6 +17,11 @@ DISCOVERY_PROVIDER_MEDIA_KINDS: Mapping[str, tuple[str, ...]] = {
     "youtube_url": ("video",),
 }
 
+EXPLICIT_ONLY_DISCOVERY_PROVIDER_IDS: tuple[str, ...] = (
+    "youtube_url",
+    "zlibrary_attended",
+)
+
 ACQUISITION_PROVIDER_ORDER: tuple[str, ...] = (
     "local_epub",
     "nas_video",
@@ -71,6 +76,15 @@ def discovery_media_kinds_for(provider_id: str) -> tuple[str, ...]:
     """Return media kinds the provider supports through /api/acquisition/discover."""
 
     return DISCOVERY_PROVIDER_MEDIA_KINDS.get(normalized_provider_id(provider_id), ())
+
+
+def can_join_default_discovery(provider_id: str, media_kind: str) -> bool:
+    """Return whether provider may participate in backend-owned Default sources."""
+
+    normalized = normalized_provider_id(provider_id)
+    if normalized in EXPLICIT_ONLY_DISCOVERY_PROVIDER_IDS:
+        return False
+    return normalized_provider_id(media_kind) in discovery_media_kinds_for(normalized)
 
 
 def acquisition_provider_label(provider_id: str) -> str:
