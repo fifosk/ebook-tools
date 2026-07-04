@@ -552,7 +552,7 @@ make verify-apple-cross-surface-checkpoint
 ```
 
 This runs the shared backend manifest slices, including auth/session,
-Library/Search/source, admin/system, runtime descriptor, Create, pipeline
+Library/Search/source, admin/system, admin/config, runtime descriptor, Create, pipeline
 source, acquisition, audio, reading beds, notifications, subtitle,
 playback-state/media, offline export, and YouTube dubbing; the manifest
 registered focused Web checks plus full Vitest and production/export Web build;

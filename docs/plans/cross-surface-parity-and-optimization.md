@@ -2659,7 +2659,8 @@ Suggested features to evaluate after parity scaffolding:
   identifiers through the same helper before account lookup or session cleanup.
   The changed-file pipeline now maps admin/config route and focused-test edits
   to `test-backend-admin-config` plus Web admin focused tests before the broad
-  WebAPI gate, keeping Web admin contract cleanup quicker to validate.
+  WebAPI gate, and the cross-surface checkpoint includes the same admin/config
+  slice so safe pre-deploy gates cannot skip that boundary contract.
 
 ## Verification Contract
 
