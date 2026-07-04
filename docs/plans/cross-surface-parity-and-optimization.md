@@ -1081,9 +1081,10 @@ Current Apple UI partially exposes:
   compact baseline where possible. Sentence scrubbing lives in a thin
   Interactive Reader footer, while video playback keeps the native player
   scrubber instead of adding a duplicate footer timeline. Shared playback
-  header glass now owns an explicit near-black contrast palette with reduced
-  material wash and restrained white sheen overlays, so iPad light mode cannot
-  turn dark reader chrome pale over the playback background.
+  header glass now owns an explicit near-black contrast palette with
+  deterministic dark reinforcement instead of SwiftUI material wash plus
+  restrained white sheen overlays, so iPad light mode cannot turn dark reader
+  chrome pale over the playback background.
 - Playback helper state coverage. Status: Apple playback now has repo-owned
   contract coverage for `AudioModeManager` track/mode transitions, timing-track
   routing, and `SentencePositionProvider` strategy priority so iPhone, iPad,

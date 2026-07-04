@@ -74,18 +74,16 @@ struct PlayerHeaderGlassPanelBackground: View {
             .fill(PlayerHeaderContrastColors.panelBase)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .environment(\.colorScheme, .dark)
-                    .opacity(0.045)
+                    .fill(PlayerHeaderContrastColors.panelReinforcement)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.018),
-                                Color.black.opacity(0.20),
-                                Color.black.opacity(0.64)
+                                Color.white.opacity(0.010),
+                                Color.black.opacity(0.30),
+                                Color.black.opacity(0.78)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -94,7 +92,7 @@ struct PlayerHeaderGlassPanelBackground: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.28), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.42), radius: 18, x: 0, y: 12)
     }
@@ -108,18 +106,16 @@ struct PlayerHeaderIdentityBannerBackground: View {
             .fill(PlayerHeaderContrastColors.identityBase)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.thinMaterial)
-                    .environment(\.colorScheme, .dark)
-                    .opacity(0.035)
+                    .fill(PlayerHeaderContrastColors.identityReinforcement)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.018),
-                                Color.black.opacity(0.22),
-                                Color.black.opacity(0.66)
+                                Color.white.opacity(0.010),
+                                Color.black.opacity(0.34),
+                                Color.black.opacity(0.80)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -128,7 +124,7 @@ struct PlayerHeaderIdentityBannerBackground: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.30), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.24), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.38), radius: 16, x: 0, y: 10)
     }
@@ -143,9 +139,7 @@ struct PlayerHeaderPillBackground: View {
             .fill(isProminent ? PlayerHeaderContrastColors.prominentPillBase : PlayerHeaderContrastColors.pillBase)
             .overlay(
                 Capsule(style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .environment(\.colorScheme, .dark)
-                    .opacity(isProminent ? 0.035 : 0.025)
+                    .fill(isProminent ? PlayerHeaderContrastColors.prominentPillReinforcement : PlayerHeaderContrastColors.pillReinforcement)
             )
             .overlay(
                 Capsule(style: .continuous)
@@ -158,8 +152,8 @@ struct PlayerHeaderPillBackground: View {
     }
 
     private var fillOpacity: Double {
-        if isProminent { return isActive ? 0.095 : 0.055 }
-        return isActive ? 0.08 : 0.045
+        if isProminent { return isActive ? 0.065 : 0.030 }
+        return isActive ? 0.055 : 0.025
     }
 
     private var strokeOpacity: Double {
@@ -173,4 +167,8 @@ enum PlayerHeaderContrastColors {
     static let identityBase = Color(red: 0.008, green: 0.012, blue: 0.020).opacity(1.0)
     static let pillBase = Color(red: 0.008, green: 0.012, blue: 0.020).opacity(0.94)
     static let prominentPillBase = Color(red: 0.008, green: 0.012, blue: 0.020).opacity(0.97)
+    static let panelReinforcement = Color.black.opacity(0.34)
+    static let identityReinforcement = Color.black.opacity(0.40)
+    static let pillReinforcement = Color.black.opacity(0.18)
+    static let prominentPillReinforcement = Color.black.opacity(0.26)
 }
