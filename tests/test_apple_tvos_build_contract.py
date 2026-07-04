@@ -497,6 +497,37 @@ def test_reader_music_bed_pause_clears_autoplay_and_sequence_handoffs() -> None:
         assert pause_body.index(clear_call) < pause_body.index(confirmed_log)
 
 
+def test_tvos_observed_music_pause_does_not_stop_requested_reader_startup() -> None:
+    for source_path, prefix in [
+        (JOB_PLAYBACK_VIEW, "Job"),
+        (LIBRARY_PLAYBACK_VIEW, "Library"),
+    ]:
+        source = source_path.read_text(encoding="utf-8")
+        guard_body = _function_body(
+            source,
+            "private func shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible",
+        )
+        assert "reason: String?, source: String?" in source
+        assert "viewModel.audioCoordinator.isPlaybackRequested" in guard_body
+        assert "!viewModel.audioCoordinator.isPlaying" in guard_body
+        assert "!viewModel.isNarrationAudibleForReaderTransport" in guard_body
+        assert 'reason == "readerTransportPause" || source == "reader transport"' in guard_body
+        assert 'reason == "manualPause", source == "musicSurface"' in guard_body
+        assert 'lastReaderTransportAction == "pause"' in guard_body
+        assert "musicOwnership.isReaderTransportPauseGuardActive" in guard_body
+        assert "!musicOwnership.isManuallyPaused" not in guard_body
+
+        adoption_body = _function_body(source, "private func handleMusicKitReaderTransportPauseAdoption")
+        ignored_log = f"[PlaybackTransport] {prefix} ignored adopted Apple Music pause before narration active"
+        mirror_log = f"[PlaybackTransport] {prefix} mirroring adopted Apple Music pause"
+        assert ignored_log in adoption_body
+        assert mirror_log in adoption_body
+        assert adoption_body.index("shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible(reason: reason, source: source)") < adoption_body.index(
+            "mirrorAppleMusicPauseToReaderTransport"
+        )
+        assert adoption_body.index(ignored_log) < adoption_body.index(mirror_log)
+
+
 def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     channel_models_source = PLAYER_CHANNEL_MODELS.read_text(encoding="utf-8")
     header_overlay_source = INTERACTIVE_HEADER_OVERLAY.read_text(encoding="utf-8")

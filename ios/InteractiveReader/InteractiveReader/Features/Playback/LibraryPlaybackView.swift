@@ -475,7 +475,10 @@ struct LibraryPlaybackView: View {
             scheduleAppleMusicBedNowPlayingReassertion()
             return
         }
-        if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible {
+        if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible(
+            reason: musicOwnership.readerTransportPauseAdoptionReason,
+            source: musicOwnership.readerTransportPauseAdoptionSource
+        ) {
             playbackTransportDebugLog(
                 "[PlaybackTransport] Library ignored Apple Music pause before narration active requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) audible=\(viewModel.isNarrationAudibleForReaderTransport) musicPlaying=\(musicOwnership.isPlaying)"
             )
@@ -515,7 +518,7 @@ struct LibraryPlaybackView: View {
             resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)
             return
         }
-        if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible {
+        if shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible(reason: reason, source: source) {
             playbackTransportDebugLog(
                 "[PlaybackTransport] Library ignored adopted Apple Music pause before narration active source=\(source ?? "unknown") requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) audible=\(viewModel.isNarrationAudibleForReaderTransport) musicPlaying=\(musicOwnership.isPlaying)"
             )
@@ -730,11 +733,23 @@ struct LibraryPlaybackView: View {
         return true
     }
 
-    private var shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible: Bool {
-        musicOwnership.ownershipState == .appleMusicBed &&
-            !musicOwnership.isManuallyPaused &&
-            viewModel.audioCoordinator.isPlaybackRequested &&
-            !viewModel.audioCoordinator.isPlaying
+    private func shouldIgnoreRequestedAppleMusicPauseBeforeReaderAudible(reason: String?, source: String?) -> Bool {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return false }
+        guard viewModel.audioCoordinator.isPlaybackRequested,
+              !viewModel.audioCoordinator.isPlaying,
+              !viewModel.isNarrationAudibleForReaderTransport
+        else { return false }
+        if reason == "readerTransportPause" || source == "reader transport" {
+            return false
+        }
+        if reason == "manualPause", source == "musicSurface" {
+            return false
+        }
+        if lastReaderTransportAction == "pause" ||
+            musicOwnership.isReaderTransportPauseGuardActive {
+            return false
+        }
+        return true
     }
 
     private func isObservedAppleMusicNonPlayingPause(reason: String?, source: String?) -> Bool {

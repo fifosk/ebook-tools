@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-music-bed-startup-pause-guard",
+            title: "TV startup keeps narration alive",
+            detail: "Apple TV Music-bed playback now treats requested-but-not-yet-audible narration as active when MusicKit reports an observed non-playing dip, so startup and resume no longer convert that transient bed state into a full reader pause."
+        ),
+        AppChangelogEntry(
             id: "shared-media-diagnostics-gap-count",
             title: "Media warnings match across surfaces",
             detail: "Playback media diagnostics now include a backend-owned gap count shared by Web Job Detail, Apple playback warning strips, Library media, and offline exports so media-gap warnings stay consistent across surfaces."
