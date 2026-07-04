@@ -925,6 +925,8 @@ APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh -
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --verify-installed
 make apple-device-verify-installed APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID="Fifo Ipad Pro"
 make apple-device-verify-installed-matrix
+make apple-device-verify-current-installed APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID="Fifo Ipad Pro"
+make apple-device-verify-current-installed-matrix
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --build-only --allow-provisioning-updates
 ```
 
@@ -934,8 +936,12 @@ is the separate installed-app metadata check. `make apple-device-verify-installe
 wraps that check for one selected profile/device, while
 `make apple-device-verify-installed-matrix` checks the remembered iPad Pro,
 iPhone, and Living Room TV installed-app metadata without building, installing,
-launching, or requiring `CONFIRM_PHYSICAL_DEVICE_UPDATE`. Confirmed installs run
-the device preflight before build/install unless `--no-preflight` is passed.
+launching, or requiring `CONFIRM_PHYSICAL_DEVICE_UPDATE`.
+`make apple-device-verify-current-installed` and its matrix variant also compare
+the installed version/build with the repo `Info.plist` for the selected iOS or
+tvOS profile, so stale deployments fail before a playback retest. Confirmed
+installs run the device preflight before build/install unless `--no-preflight`
+is passed.
 If the helper fails first with "Apple device host readiness failed" and a
 `uid ... has no passwd entry` or `DARWIN_USER_CACHE_DIR` detail, repair the Mac
 user session/Directory Services state before retrying; skipping CoreDevice
@@ -1087,6 +1093,7 @@ update:
 make apple-device-deploy-readiness-dry-run
 make apple-device-deploy-dry-run-matrix
 make apple-device-verify-installed-matrix
+make apple-device-verify-current-installed-matrix
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --install --dry-run
 APPLE_DEVICE_ID="Fifo Ipad Pro" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   bash scripts/apple_unattended_device_update.sh --install --launch --dry-run

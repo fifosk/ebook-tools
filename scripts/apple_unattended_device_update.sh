@@ -27,6 +27,9 @@ DEVICECTL_DDI_TIMEOUT="${APPLE_DEVICECTL_DDI_TIMEOUT:-120}"
 ALLOW_PROVISIONING_UPDATES="${ALLOW_PROVISIONING_UPDATES:-0}"
 STRIP_IOS_ENTITLEMENTS="${APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS:-0}"
 FALLBACK_TO_SIGNED_ARTIFACT="${APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT:-0}"
+REQUIRE_CURRENT_INSTALLED="${APPLE_DEVICE_REQUIRE_CURRENT_INSTALLED:-0}"
+REQUIRED_INSTALLED_SHORT_VERSION="${APPLE_DEVICE_REQUIRED_SHORT_VERSION:-}"
+REQUIRED_INSTALLED_BUILD_VERSION="${APPLE_DEVICE_REQUIRED_BUILD_VERSION:-}"
 LAUNCH_CONSOLE_TIMEOUT="${APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT:-}"
 LAUNCH_PRESERVE_RUNNING="${APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING:-0}"
 LAUNCH_LOG="${APPLE_DEVICE_LAUNCH_LOG:-}"
@@ -110,6 +113,10 @@ Environment:
   XCPROJ, SCHEME, CONFIGURATION, PRODUCT_NAME, and BUNDLE_ID override defaults.
   APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT=1 and APPLE_DEVICE_SIGNED_ARTIFACT_PATH
   enable the iCloud-preserving cached signed-artifact install fallback.
+  APPLE_DEVICE_REQUIRE_CURRENT_INSTALLED=1 makes --verify-installed compare the
+  installed app version/build with the repo Info.plist for the selected profile.
+  APPLE_DEVICE_REQUIRED_SHORT_VERSION and APPLE_DEVICE_REQUIRED_BUILD_VERSION
+  can override those expected installed-app values explicitly.
   APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS=1, APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT,
   and APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING=1 enable the matching unattended
   fallback and console-capture behaviors.
@@ -337,13 +344,29 @@ launch_log_archive_path() {
 
 summarize_installed_app_json() {
   local json_path="$1"
-  python3 - "$json_path" "$BUNDLE_ID" <<'PY'
+  local expected_short="${REQUIRED_INSTALLED_SHORT_VERSION}"
+  local expected_build="${REQUIRED_INSTALLED_BUILD_VERSION}"
+  if [[ "${REQUIRE_CURRENT_INSTALLED}" == "1" || "${REQUIRE_CURRENT_INSTALLED}" == "YES" || "${REQUIRE_CURRENT_INSTALLED}" == "yes" || "${REQUIRE_CURRENT_INSTALLED}" == "true" || "${REQUIRE_CURRENT_INSTALLED}" == "TRUE" ]]; then
+    local expected_info
+    expected_info="$(source_info_plist)"
+    if [[ -f "${expected_info}" ]]; then
+      if [[ -z "${expected_short}" ]]; then
+        expected_short="$(plist_value "${expected_info}" CFBundleShortVersionString)"
+      fi
+      if [[ -z "${expected_build}" ]]; then
+        expected_build="$(plist_value "${expected_info}" CFBundleVersion)"
+      fi
+    fi
+  fi
+  python3 - "$json_path" "$BUNDLE_ID" "$expected_short" "$expected_build" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
 bundle_id = sys.argv[2]
+expected_version = sys.argv[3].strip()
+expected_build = sys.argv[4].strip()
 
 try:
     payload = json.loads(path.read_text())
@@ -380,6 +403,19 @@ name = pick("name", "localizedName", "bundleName")
 version = pick("version", "shortVersionString", "CFBundleShortVersionString")
 build = pick("bundleVersion", "buildVersion", "CFBundleVersion")
 print(f"Verified installed app: {name} {bundle_id} version={version} build={build}")
+if expected_version and version != expected_version:
+    raise SystemExit(
+        f"Installed app version {version} does not match required {expected_version}."
+    )
+if expected_build and build != expected_build:
+    raise SystemExit(
+        f"Installed app build {build} does not match required {expected_build}."
+    )
+if expected_version or expected_build:
+    print(
+        "Installed app metadata matches required "
+        f"version={expected_version or '<any>'} build={expected_build or '<any>'}"
+    )
 PY
 }
 

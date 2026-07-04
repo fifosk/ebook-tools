@@ -332,6 +332,23 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "--launch" not in verify_matrix_target
     assert "CONFIRM_PHYSICAL_DEVICE_UPDATE" not in verify_matrix_target
     assert "devicectl" not in verify_matrix_target
+    assert "apple-device-verify-current-installed:" in makefile
+    verify_current_target = makefile.split("apple-device-verify-current-installed:", 1)[1].split("\n\n", 1)[0]
+    assert 'APPLE_DEVICE_REQUIRE_CURRENT_INSTALLED=1 $(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE="$(APPLE_DEVICE_PROFILE)" APPLE_DEVICE_ID="$(APPLE_DEVICE_ID)"' in verify_current_target
+    assert "--install" not in verify_current_target
+    assert "--launch" not in verify_current_target
+    assert "CONFIRM_PHYSICAL_DEVICE_UPDATE" not in verify_current_target
+    assert "devicectl" not in verify_current_target
+    assert "apple-device-verify-current-installed-matrix:" in makefile
+    verify_current_matrix_target = makefile.split("apple-device-verify-current-installed-matrix:", 1)[1].split("\n\n", 1)[0]
+    assert 'APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID="$(APPLE_DEVICE_IPAD_ID)"' in verify_current_matrix_target
+    assert 'APPLE_DEVICE_PROFILE=iphone APPLE_DEVICE_ID="$(APPLE_DEVICE_IPHONE_ID)"' in verify_current_matrix_target
+    assert 'APPLE_DEVICE_PROFILE=appletv APPLE_DEVICE_ID="$(APPLE_DEVICE_TV_ID)"' in verify_current_matrix_target
+    assert verify_current_matrix_target.count("apple-device-verify-current-installed") == 3
+    assert "--install" not in verify_current_matrix_target
+    assert "--launch" not in verify_current_matrix_target
+    assert "CONFIRM_PHYSICAL_DEVICE_UPDATE" not in verify_current_matrix_target
+    assert "devicectl" not in verify_current_matrix_target
     assert "apple-device-deploy-readiness-dry-run:" in makefile
     readiness_target = makefile.split("apple-device-deploy-readiness-dry-run:", 1)[1].split("\n\n", 1)[0]
     assert "$(MAKE) apple-device-host-readiness" in readiness_target
@@ -1321,6 +1338,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make verify-apple-dogfood-pipeline",
         "make verify-apple-golden-pipeline",
         "make apple-device-verify-installed-matrix",
+        "make apple-device-verify-current-installed-matrix",
         "make apple-device-full-entitlement-plan",
         "make apple-device-full-entitlement-fallback-install",
     ]:

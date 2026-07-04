@@ -70,6 +70,10 @@ verify_installed_line='bash scripts/apple_unattended_device_update.sh --profile 
 verify_installed_matrix_ipad_line='$(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID="$(APPLE_DEVICE_IPAD_ID)"'
 verify_installed_matrix_iphone_line='$(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE=iphone APPLE_DEVICE_ID="$(APPLE_DEVICE_IPHONE_ID)"'
 verify_installed_matrix_tv_line='$(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE=appletv APPLE_DEVICE_ID="$(APPLE_DEVICE_TV_ID)"'
+verify_current_installed_line='APPLE_DEVICE_REQUIRE_CURRENT_INSTALLED=1 $(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE="$(APPLE_DEVICE_PROFILE)" APPLE_DEVICE_ID="$(APPLE_DEVICE_ID)"'
+verify_current_installed_matrix_ipad_line='$(MAKE) apple-device-verify-current-installed APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID="$(APPLE_DEVICE_IPAD_ID)"'
+verify_current_installed_matrix_iphone_line='$(MAKE) apple-device-verify-current-installed APPLE_DEVICE_PROFILE=iphone APPLE_DEVICE_ID="$(APPLE_DEVICE_IPHONE_ID)"'
+verify_current_installed_matrix_tv_line='$(MAKE) apple-device-verify-current-installed APPLE_DEVICE_PROFILE=appletv APPLE_DEVICE_ID="$(APPLE_DEVICE_TV_ID)"'
 deploy_readiness_dry_run_host_line='$(MAKE) apple-device-host-readiness'
 deploy_readiness_dry_run_devices_line='$(MAKE) apple-devices'
 deploy_readiness_dry_run_matrix_line='$(MAKE) apple-device-deploy-dry-run-matrix'
@@ -188,6 +192,12 @@ assert_contains "${makefile}" "apple-device-verify-installed-matrix:" "Makefile 
 assert_contains "${makefile}" "${verify_installed_matrix_ipad_line}" "installed-app matrix should query the default iPad Pro"
 assert_contains "${makefile}" "${verify_installed_matrix_iphone_line}" "installed-app matrix should query the default iPhone"
 assert_contains "${makefile}" "${verify_installed_matrix_tv_line}" "installed-app matrix should query the default Living Room Apple TV"
+assert_contains "${makefile}" "apple-device-verify-current-installed:" "Makefile should expose a non-installing current installed-app verifier"
+assert_contains "${makefile}" "${verify_current_installed_line}" "current installed-app verifier should require repo-current app metadata"
+assert_contains "${makefile}" "apple-device-verify-current-installed-matrix:" "Makefile should expose a default-device current installed-app verification matrix"
+assert_contains "${makefile}" "${verify_current_installed_matrix_ipad_line}" "current installed-app matrix should query the default iPad Pro"
+assert_contains "${makefile}" "${verify_current_installed_matrix_iphone_line}" "current installed-app matrix should query the default iPhone"
+assert_contains "${makefile}" "${verify_current_installed_matrix_tv_line}" "current installed-app matrix should query the default Living Room Apple TV"
 assert_contains "${makefile}" "apple-device-deploy-readiness-dry-run:" "Makefile should expose a one-command non-installing device deploy readiness check"
 assert_contains "${makefile}" "${deploy_readiness_dry_run_host_line}" "deploy readiness dry-run should start with host readiness"
 assert_contains "${makefile}" "${deploy_readiness_dry_run_devices_line}" "deploy readiness dry-run should list visible CoreDevice targets"
@@ -234,6 +244,11 @@ assert_not_contains "${verify_installed_line}" "--launch" "installed-app verifie
 assert_not_contains "${verify_installed_matrix_ipad_line}" "CONFIRM_PHYSICAL_DEVICE_UPDATE" "installed-app matrix should not require install confirmation"
 assert_not_contains "${verify_installed_matrix_iphone_line}" "CONFIRM_PHYSICAL_DEVICE_UPDATE" "installed-app matrix should not require install confirmation"
 assert_not_contains "${verify_installed_matrix_tv_line}" "CONFIRM_PHYSICAL_DEVICE_UPDATE" "installed-app matrix should not require install confirmation"
+assert_not_contains "${verify_current_installed_line}" "--install" "current installed-app verifier should not install"
+assert_not_contains "${verify_current_installed_line}" "--launch" "current installed-app verifier should not launch"
+assert_not_contains "${verify_current_installed_matrix_ipad_line}" "CONFIRM_PHYSICAL_DEVICE_UPDATE" "current installed-app matrix should not require install confirmation"
+assert_not_contains "${verify_current_installed_matrix_iphone_line}" "CONFIRM_PHYSICAL_DEVICE_UPDATE" "current installed-app matrix should not require install confirmation"
+assert_not_contains "${verify_current_installed_matrix_tv_line}" "CONFIRM_PHYSICAL_DEVICE_UPDATE" "current installed-app matrix should not require install confirmation"
 assert_not_contains "${dogfood_verify_line}" "apple-device-update" "dogfood pipeline verification should not depend on physical-device update targets"
 assert_not_contains "${dogfood_verify_line}" "run_app_device_deploy.py" "dogfood pipeline verification should not route through physical-device deployment"
 assert_not_contains "${dogfood_verify_line}" "apple-device-full-entitlement-fallback-install" "dogfood pipeline verification should not install signed artifacts"

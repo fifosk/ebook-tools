@@ -432,6 +432,34 @@ verify_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --verify-instal
 assert_contains "${verify_output}" "Installed app verification command:" "verify dry run should print app metadata verification"
 assert_contains "${verify_output}" "apple-device-installed-app-TEST-DEVICE.json" "verify dry run should write a script-readable JSON path"
 
+current_verify_output="$(
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  APPLE_DEVICE_REQUIRE_CURRENT_INSTALLED=1 \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --verify-installed
+)"
+assert_contains "${current_verify_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=${current_short_version} build=${current_build_version}" "current installed verification should summarize installed metadata"
+assert_contains "${current_verify_output}" "Installed app metadata matches required version=${current_short_version} build=${current_build_version}" "current installed verification should compare against the repo Info.plist"
+
+set +e
+stale_verify_output="$(
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  FAKE_INSTALLED_BUILD=20260626121 \
+  APPLE_DEVICE_REQUIRE_CURRENT_INSTALLED=1 \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --verify-installed 2>&1
+)"
+stale_verify_status=$?
+set -e
+if [[ "${stale_verify_status}" == "0" ]]; then
+  echo "ERROR: stale installed app verification should fail" >&2
+  echo "${stale_verify_output}" >&2
+  exit 1
+fi
+assert_contains "${stale_verify_output}" "Installed app build 20260626121 does not match required ${current_build_version}." "current installed verification should reject stale installed builds"
+
 set +e
 coredevice_failure_output="$(
   DEVICECTL="${fake_tools_dir}/devicectl" \
