@@ -36,6 +36,11 @@ extension AppChangelogData {
             detail: "Backend Pipeline Jobs status and event-stream routes now trim padded job identifiers through the shared route helper before service lookup, keeping Apple Jobs polling and progress streams aligned with Web."
         ),
         AppChangelogEntry(
+            id: "backend-jobs-access-metadata-route-id-helper",
+            title: "Job metadata IDs share cleanup",
+            detail: "Backend Pipeline Jobs access, metadata refresh/enrich, and book metadata lookup routes now trim padded job identifiers through the shared helper before service lookup, keeping Apple job settings and Web job metadata panels aligned."
+        ),
+        AppChangelogEntry(
             id: "backend-notification-route-id-helper",
             title: "Notification IDs share cleanup",
             detail: "Backend notification device removal now trims padded device identifiers through the shared route helper before service lookup, keeping Apple Settings notification controls aligned with the playback boundary rules."

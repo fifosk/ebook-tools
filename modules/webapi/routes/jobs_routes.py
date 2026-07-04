@@ -274,14 +274,18 @@ async def get_job_access(
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> AccessPolicyPayload:
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
+
     try:
         job = pipeline_service.get_job(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
     except KeyError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
@@ -300,9 +304,13 @@ async def update_job_access(
     if not request_user.user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token")
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
+
     try:
         job = pipeline_service.update_job_access(
-            job_id,
+            normalized_job_id,
             visibility=payload.visibility,
             grants=[grant.model_dump(by_alias=True) for grant in payload.grants]
             if payload.grants is not None
@@ -311,7 +319,7 @@ async def update_job_access(
             user_role=request_user.user_role,
         )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
@@ -326,14 +334,18 @@ async def refresh_pipeline_metadata(
 ):
     """Trigger metadata inference again for ``job_id`` and return the updated status."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
+
     try:
         job = pipeline_service.refresh_metadata(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except PermissionError as exc:
@@ -360,23 +372,26 @@ async def enrich_pipeline_metadata(
     ISBNs, etc. from external sources.
     """
     force = payload.force if payload else False
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
 
     try:
         job, enrichment_info = pipeline_service.enrich_metadata(
-            job_id,
+            normalized_job_id,
             force=force,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
     except KeyError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     return JobMetadataEnrichResponse(
-        job_id=job_id,
+        job_id=job.job_id,
         enriched=enrichment_info.get("enriched", False),
         confidence=enrichment_info.get("confidence"),
         source=enrichment_info.get("source"),
@@ -392,9 +407,13 @@ async def get_book_openlibrary_metadata(
 ) -> BookOpenLibraryMetadataResponse:
     """Return stored (or inferred) Open Library metadata for a book-like job without triggering a lookup."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
+
     try:
         payload = metadata_service.get_openlibrary_metadata(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
@@ -417,9 +436,13 @@ async def lookup_book_openlibrary_metadata(
 ) -> BookOpenLibraryMetadataResponse:
     """Trigger Open Library metadata enrichment for the job and persist the result."""
 
+    normalized_job_id = normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
+
     try:
         payload = metadata_service.lookup_openlibrary_metadata(
-            job_id,
+            normalized_job_id,
             force=bool(lookup.force),
             user_id=request_user.user_id,
             user_role=request_user.user_role,
