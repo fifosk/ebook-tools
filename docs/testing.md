@@ -340,12 +340,13 @@ contracts covered before manual device work.
 Discovery/acquisition plan, provider, schema, and route changes route to
 `test-backend-acquisition`, `test-web-create-intake-focused`,
 `test-web-video-dubbing-focused`, and
-`test-apple-create-readiness-contract`, then compile the iPhone/iPad and tvOS
-simulator surfaces, keeping Web and Apple Create source discovery,
-prepared-artifact handoff, and token-safe provider serialization covered before
-simulator journeys or physical deploys consume those contracts. The acquisition
-slice also covers incomplete local artifact filtering, including `.part` files
-and zero-byte video placeholders, plus the Default sources rule that skips
+`test-apple-create-readiness-contract`, then compile the iPhone/iPad simulator,
+tvOS simulator, and local Mac iPad-style surfaces, keeping Web and Apple Create
+source discovery, prepared-artifact handoff, and token-safe provider
+serialization covered before simulator journeys or physical deploys consume
+those contracts. The acquisition slice also covers incomplete local artifact
+filtering, including `.part` files and zero-byte video placeholders, plus the
+Default sources rule that skips
 optional YouTube/indexer searches when local NAS/manual candidates already fill
 the visible result limit.
 Shared source-discovery helper edits also route through
@@ -752,9 +753,9 @@ same pytest contract now parses the Xcode project and requires
 so shared track/timing fixes cannot quietly ship to iPad without also compiling
 into Apple TV.
 `make verify-apple-reader-playback-candidate` bundles that Swift playback lane
-with iPhone, iPad, and tvOS simulator builds, and `make test-changed` selects
-the aggregate automatically for reader playback Swift paths while still adding
-the Music-bed dry-run for Music-sensitive files.
+with iPhone, iPad, tvOS simulator, and local Mac iPad-style builds, and
+`make test-changed` selects the aggregate automatically for reader playback
+Swift paths while still adding the Music-bed dry-run for Music-sensitive files.
 Reader-owned pause paths must hard-cancel pending interactive autoplay before
 stopping narration, and the same-track handoff trim constants are contract-pinned
 so a wider tvOS preroll margin cannot quietly regress into next-sentence audio

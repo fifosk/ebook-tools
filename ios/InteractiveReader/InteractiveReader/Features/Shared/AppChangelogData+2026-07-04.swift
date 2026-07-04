@@ -3,7 +3,7 @@ extension AppChangelogData {
         AppChangelogEntry(
             id: "apple-reader-playback-candidate-gate",
             title: "Reader playback has one local gate",
-            detail: "The Apple pipeline now has make verify-apple-reader-playback-candidate for non-deploying reader playback validation: playback Swift contracts plus iPhone, iPad, and tvOS simulator builds before a physical device test is requested. Changed-test routing selects that gate automatically for reader playback Swift paths while preserving the Music-bed dry-run for Music-sensitive files."
+            detail: "The Apple pipeline now has make verify-apple-reader-playback-candidate for non-deploying reader playback validation: playback Swift contracts plus iPhone, iPad, tvOS simulator, and local Mac iPad-style builds before a physical device test is requested. Changed-test routing selects that gate automatically for reader playback Swift paths while preserving the Music-bed dry-run for Music-sensitive files."
         ),
         AppChangelogEntry(
             id: "apple-sequence-eof-current-lane-guard",

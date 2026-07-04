@@ -636,7 +636,7 @@ apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run a
 
 verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs
 
-verify-apple-reader-playback-candidate: test-apple-playback-state-swift build-apple-ios-simulators build-apple-tvos-simulator
+verify-apple-reader-playback-candidate: test-apple-playback-state-swift build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style
 
 verify-apple-music-bed-candidate: test-e2e-ipad-music-bed-sync test-e2e-tvos-music-bed-sync
 

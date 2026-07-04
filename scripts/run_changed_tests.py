@@ -39,8 +39,9 @@ RELEASE_METADATA_ONLY_PREFIXES = (
     "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData+",
 )
 
-SIMULATOR_BUILD_TARGETS = {
+APPLE_LOCAL_BUILD_TARGETS = {
     "build-apple-ios-simulators",
+    "build-apple-macos-ipad-style",
     "build-apple-tvos-simulator",
 }
 
@@ -48,6 +49,7 @@ AGGREGATE_TARGET_COVERAGE = {
     "verify-apple-reader-playback-candidate": {
         "test-apple-playback-state-swift",
         "build-apple-ios-simulators",
+        "build-apple-macos-ipad-style",
         "build-apple-tvos-simulator",
     },
 }
@@ -215,7 +217,11 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "ios/InteractiveReader/InteractiveReader/Features/Music/",
             "ios/InteractiveReader/InteractiveReader/Features/Playback/",
         ),
-        ("build-apple-ios-simulators", "build-apple-tvos-simulator"),
+        (
+            "build-apple-ios-simulators",
+            "build-apple-tvos-simulator",
+            "build-apple-macos-ipad-style",
+        ),
     ),
     (
         (
@@ -226,6 +232,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "test-apple-create-readiness-contract",
             "build-apple-ios-simulators",
             "build-apple-tvos-simulator",
+            "build-apple-macos-ipad-style",
         ),
     ),
     (
@@ -234,13 +241,21 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "ios/InteractiveReader/InteractiveReader/Features/Library/",
             "ios/InteractiveReader/InteractiveReader/Services/APIClient+LibraryJobs.swift",
         ),
-        ("build-apple-ios-simulators", "build-apple-tvos-simulator"),
+        (
+            "build-apple-ios-simulators",
+            "build-apple-tvos-simulator",
+            "build-apple-macos-ipad-style",
+        ),
     ),
     (
         (
             "ios/InteractiveReader/InteractiveReader/Services/",
         ),
-        ("build-apple-ios-simulators", "build-apple-tvos-simulator"),
+        (
+            "build-apple-ios-simulators",
+            "build-apple-tvos-simulator",
+            "build-apple-macos-ipad-style",
+        ),
     ),
     (
         (
@@ -249,7 +264,11 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "ios/InteractiveReader/InteractiveReader/Utilities/",
             "ios/InteractiveReader/InteractiveReader/Features/Shared/",
         ),
-        ("build-apple-ios-simulators", "build-apple-tvos-simulator"),
+        (
+            "build-apple-ios-simulators",
+            "build-apple-tvos-simulator",
+            "build-apple-macos-ipad-style",
+        ),
     ),
     (
         (
@@ -341,6 +360,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "test-apple-create-readiness-contract",
             "build-apple-ios-simulators",
             "build-apple-tvos-simulator",
+            "build-apple-macos-ipad-style",
         ),
     ),
     (
@@ -757,7 +777,7 @@ def select_targets(paths: Iterable[str]) -> list[str]:
                     targets.append(target)
 
     if targets and all(_is_release_metadata_only(path) for path in normalized):
-        targets = [target for target in targets if target not in SIMULATOR_BUILD_TARGETS]
+        targets = [target for target in targets if target not in APPLE_LOCAL_BUILD_TARGETS]
 
     if targets:
         targets = _remove_targets_covered_by_aggregates(targets)
@@ -782,10 +802,10 @@ def _remove_targets_covered_by_aggregates(targets: list[str]) -> list[str]:
 
 
 def _order_targets_for_feedback(targets: list[str]) -> list[str]:
-    """Run non-Xcode checks before simulator builds so host issues don't hide contract failures."""
-    non_simulator = [target for target in targets if target not in SIMULATOR_BUILD_TARGETS]
-    simulator = [target for target in targets if target in SIMULATOR_BUILD_TARGETS]
-    return non_simulator + simulator
+    """Run non-Xcode checks before local Apple builds so host issues don't hide contract failures."""
+    non_build = [target for target in targets if target not in APPLE_LOCAL_BUILD_TARGETS]
+    apple_builds = [target for target in targets if target in APPLE_LOCAL_BUILD_TARGETS]
+    return non_build + apple_builds
 
 
 def run_targets(targets: list[str], *, dry_run: bool) -> int:

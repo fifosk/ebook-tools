@@ -751,7 +751,7 @@ def test_reader_playback_candidate_gate_runs_local_simulator_checks_without_depl
 
     target_line = (
         "verify-apple-reader-playback-candidate: test-apple-playback-state-swift "
-        "build-apple-ios-simulators build-apple-tvos-simulator"
+        "build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style"
     )
     assert target_line in makefile
 
@@ -761,6 +761,7 @@ def test_reader_playback_candidate_gate_runs_local_simulator_checks_without_depl
     target = makefile.split("verify-apple-reader-playback-candidate:", 1)[1].split("\n\n", 1)[0]
     assert target.index("test-apple-playback-state-swift") < target.index("build-apple-ios-simulators")
     assert target.index("build-apple-ios-simulators") < target.index("build-apple-tvos-simulator")
+    assert target.index("build-apple-tvos-simulator") < target.index("build-apple-macos-ipad-style")
     assert "test-e2e-ipad-music-bed-sync" not in target
     assert "test-e2e-tvos-music-bed-sync" not in target
     assert "apple-device-update" not in target

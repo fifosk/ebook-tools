@@ -42,6 +42,7 @@ def test_select_targets_for_apple_surface_changes() -> None:
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         [
@@ -222,6 +223,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/APIClient+Creation.swift"]
@@ -230,6 +232,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/VideoPlayerView+Layout.swift"]
@@ -257,6 +260,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Library/LibraryView.swift"]
@@ -264,6 +268,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Library/PlaybackSettingsView.swift"]
@@ -271,6 +276,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/APIClient+LibraryJobs.swift"]
@@ -278,6 +284,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift"]
@@ -286,6 +293,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "verify-apple-music-bed-candidate-dry-run",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/MusicSearchService.swift"]
@@ -294,6 +302,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "verify-apple-music-bed-candidate-dry-run",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Music/AppleMusicPickerView.swift"]
@@ -302,6 +311,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "verify-apple-music-bed-candidate-dry-run",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/NowPlayingCoordinator.swift"]
@@ -316,6 +326,7 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift"]
@@ -327,16 +338,19 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["ios/InteractiveReader/InteractiveReader/Utilities/MediaURLResolver.swift"]) == [
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["ios/InteractiveReader/InteractiveReader/Features/Shared/AppTheme.swift"]) == [
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
 
 
@@ -347,6 +361,7 @@ def test_select_targets_orders_contracts_before_simulator_builds() -> None:
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
 
 
@@ -396,6 +411,7 @@ def test_select_targets_for_release_metadata_changes() -> None:
         "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
 
 
@@ -903,6 +919,7 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-pipeline",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/services/source_discovery.py"]) == [
         "test-backend-pipeline-sources",
@@ -915,6 +932,7 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-services",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["tests/modules/services/test_source_discovery.py"]) == [
         "test-backend-pipeline-sources",
@@ -927,6 +945,7 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-services",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/services/acquisition/discovery.py"]) == [
         "test-backend-pipeline-sources",
@@ -937,6 +956,7 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-services",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/webapi/routers/acquisition.py"]) == [
         "test-backend-pipeline-sources",
@@ -947,6 +967,7 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-webapi",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/webapi/routers/acquisition_payloads.py"]) == [
         "test-backend-pipeline-sources",
@@ -957,6 +978,7 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-webapi",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/webapi/routers/acquisition_route_support.py"]) == [
         "test-backend-pipeline-sources",
@@ -967,6 +989,7 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-webapi",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["modules/webapi/schemas/acquisition.py"]) == [
         "test-backend-pipeline-sources",
@@ -977,6 +1000,7 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-webapi",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
     assert select_targets(["tests/modules/webapi/test_acquisition_routes.py"]) == [
         "test-backend-pipeline-sources",
@@ -987,6 +1011,7 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-webapi",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+        "build-apple-macos-ipad-style",
     ]
 
 
