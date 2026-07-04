@@ -3676,12 +3676,22 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'return "Configure \\(sourceName) or choose another discovery source."' in discovery_source
     assert "fallbackAction: sourceFallbackAction(for: provider)" in discovery_source
     assert "provider.policyNotes.first" in discovery_source
+    discovery_policy_body = _swift_function_body(
+        discovery_source,
+        "static func discoveryPolicyNotes(from discovery: AcquisitionDiscoveryResponse?) -> [String]",
+    )
+    assert "var seen = Set<String>()" in discovery_policy_body
+    assert "rawNote.trimmingCharacters(in: .whitespacesAndNewlines)" in discovery_policy_body
+    assert "!note.isEmpty, !seen.contains(note)" in discovery_policy_body
+    assert "notes.append(note)" in discovery_policy_body
     assert "let sourceLabel: String?" in api_models_source
     assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidates(" in controls_source
     assert "providerID: acquisitionDiscoveryProvider" in controls_source
     assert "providers: acquisitionProviders" in controls_source
     assert "AppleBookCreatePresentation.discoveryPolicyNotes(from: acquisitionDiscovery)" in controls_source
+    assert "ForEach(acquisitionDiscoveryPolicyNotes, id: \\.self)" in controls_source
+    assert "policyNotes.first" not in controls_source
     assert 'accessibilityIdentifier("createNarrateDiscoveryPolicyNote")' in controls_source
     assert "providerID: String" in discovery_source
     assert "let queriedProviders = Set(discovery?.providersQueried ?? [])" in discovery_source
@@ -4010,6 +4020,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "AppleBookCreatePresentation.videoDiscoveryCandidates(" in youtube_source
     assert "providers: acquisitionProviders" in youtube_source
     assert "AppleBookCreatePresentation.discoveryPolicyNotes(from: acquisitionDiscovery)" in youtube_source
+    assert "ForEach(videoDiscoveryPolicyNotes, id: \\.self)" in youtube_discovery_source
+    assert "policyNotes.first" not in youtube_discovery_source
     assert 'accessibilityIdentifier("createYoutubeDiscoveryPolicyNote")' in youtube_discovery_source
     assert "AppleBookCreatePresentation.videoDiscoveryQueryPlaceholder(providerID: videoDiscoveryProvider)" in youtube_source
     assert "AppleBookCreatePresentation.noVideoDiscoveryCandidatesMessage(providerID: videoDiscoveryProvider)" in youtube_source
