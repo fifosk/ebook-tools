@@ -124,6 +124,28 @@ def test_walk_visible_source_files_accepts_bare_suffix_filters(tmp_path: Path) -
     assert [entry.path for entry in results] == [subtitle, ebook]
 
 
+def test_walk_visible_source_files_applies_suffix_before_symlink_target_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ebook = tmp_path / "latest.epub"
+    ignored = tmp_path / "ignored.txt"
+    ebook.write_bytes(b"ebook")
+    ignored.write_text("notes", encoding="utf-8")
+    original_is_symlink = Path.is_symlink
+
+    def fake_is_symlink(path: Path) -> bool:
+        if path == ignored:
+            raise AssertionError("ignored suffixes should not inspect symlink targets")
+        return original_is_symlink(path)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+
+    results = walk_visible_source_files(tmp_path, suffixes={".epub"})
+
+    assert [entry.path for entry in results] == [ebook]
+
+
 def test_append_bounded_newest_source_file_reuses_cached_stat_and_secondary_order(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

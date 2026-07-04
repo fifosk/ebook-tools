@@ -229,9 +229,9 @@ def iter_visible_source_files(
             candidate = current_path / filename
             if _has_hidden_relative_part(candidate, root):
                 continue
-            if _has_hidden_symlink_target_part(candidate, root_resolved):
-                continue
             if suffix_filter is not None and candidate.suffix.lower() not in suffix_filter:
+                continue
+            if _has_hidden_symlink_target_part(candidate, root_resolved):
                 continue
             candidate_stat = safe_stat(candidate)
             if candidate_stat is None or not stat_module.S_ISREG(candidate_stat.st_mode):
