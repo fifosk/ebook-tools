@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "tvos-music-bed-observed-nonplaying-guard",
+            title: "TV playback keeps reading through Music dips",
+            detail: "Apple TV Music-bed playback now ignores passive observed-non-playing adoption while the reader is actively narrating, keeping book playback alive and recovering the bed instead of letting a MusicKit status dip stop the sentence track."
+        ),
+        AppChangelogEntry(
             id: "tvos-sequence-stop-hardening",
             title: "TV playback stop recovery is stronger",
             detail: "Apple TV sequence playback now force-finishes a stuck reader-owned track handoff if tvOS never reports ready or seek completion, and keeps short sentence segments from being over-trimmed during same-track guards."

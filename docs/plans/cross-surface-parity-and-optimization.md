@@ -2702,12 +2702,11 @@ Every cross-surface change should pass the relevant subset:
   dip before the manual-pause and previous-pause guards, and the tvOS
   Music-bed journey again passed 1/1 with 0 failures and 0 skipped before any
   physical redeploy. The next TV playback-stop report pointed at the lower
-  MusicKit layer: passive `observedNonPlaying` status drops could still fall
-  through to reader-pause adoption if the active-reader flag flickered during a
-  bed interruption. The coordinator now treats non-manual tvOS Apple Music bed
-  drops with active narration, observed bed playback, or auto-resume intent as
-  recoverable bed state before any adoption fallback, so passive MusicKit
-  interruptions should not stop book playback.
+  MusicKit layer: passive `observedNonPlaying` status drops could still reach
+  reader-pause adoption when MusicKit reported a bed interruption during active
+  narration. The coordinator now blocks that mutating adoption path while tvOS
+  Apple Music is the bed and the reader is active, records token-safe kept-reader
+  evidence, and recovers the bed instead of clearing sentence playback.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

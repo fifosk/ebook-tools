@@ -1194,6 +1194,21 @@ final class MusicKitCoordinator: ObservableObject {
         #endif
     }
 
+    private func shouldKeepActiveReaderDuringObservedNonPlayingAdoption(reason: String, source: String) -> Bool {
+        #if os(tvOS)
+        let isObservedNonPlayingPause =
+            reason == "observedNonPlaying" ||
+            source.localizedCaseInsensitiveContains("observed non-playing")
+        return isObservedNonPlayingPause &&
+            ownershipState == .appleMusicBed &&
+            isReaderNarrationActiveForMusicBed &&
+            !isManuallyPaused &&
+            !isPausedByReaderTransport
+        #else
+        return false
+        #endif
+    }
+
     private func suppressObservedPlaybackDuringReaderPause(reason: String) {
         logger.info("Apple Music observed play suppressed during reader transport pause")
         isPlaying = false
@@ -1208,6 +1223,22 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     private func adoptPauseAsReaderTransport(reason: String, source: String) {
+        if shouldKeepActiveReaderDuringObservedNonPlayingAdoption(reason: reason, source: source) {
+            cancelObservedNonPlayingPause()
+            isPlaying = false
+            observedPlayingAsReadingBed = false
+            hasAutoResumeIntent = true
+            updateMusicPlaybackSurfaceSuppression(reason: reason)
+            logger.info(
+                "Apple Music observed non-playing adoption ignored while reader active source=\(source, privacy: .public) reason=\(reason, privacy: .public)"
+            )
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Apple Music active observed non-playing kept reader active reason=\(reason)"
+            )
+            recoverReadingBedForActiveNarration(reason: "ignoredObservedNonPlayingAdoption")
+            markPlaybackSurfaceDidChange(reason: "ignoredObservedNonPlayingAdoption")
+            return
+        }
         advanceReaderTransportResumeBarrier(reason: reason)
         cancelReaderTransportResumeTask(reason: reason)
         cancelPlaybackSurfaceReassertions()

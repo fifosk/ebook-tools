@@ -1957,6 +1957,11 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "simulateReadingBedPauseForE2E()" in reader_pause_body
     assert 'adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")' in reader_pause_body
     adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
+    assert "shouldKeepActiveReaderDuringObservedNonPlayingAdoption(reason: reason, source: source)" in adopt_pause_body
+    assert "ignoredObservedNonPlayingAdoption" in adopt_pause_body
+    assert adopt_pause_body.index("shouldKeepActiveReaderDuringObservedNonPlayingAdoption") < adopt_pause_body.index(
+        "advanceReaderTransportResumeBarrier"
+    )
     assert "cancelPlaybackSurfaceReassertions()" in adopt_pause_body
     assert "isManuallyPaused = true" in adopt_pause_body
     assert "isPausedByReaderTransport = true" in adopt_pause_body
@@ -2105,6 +2110,17 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "!isPausedByReaderTransport" in deferred_body
     assert "!isReaderTransportPauseGuardActive" not in deferred_body
     assert "handleObservedNonPlayingStatus(allowE2E: true)" in music
+    keep_reader_body = _function_body(
+        music,
+        "private func shouldKeepActiveReaderDuringObservedNonPlayingAdoption(reason: String, source: String) -> Bool",
+    )
+    assert "#if os(tvOS)" in keep_reader_body
+    assert 'reason == "observedNonPlaying"' in keep_reader_body
+    assert 'source.localizedCaseInsensitiveContains("observed non-playing")' in keep_reader_body
+    assert "ownershipState == .appleMusicBed" in keep_reader_body
+    assert "isReaderNarrationActiveForMusicBed" in keep_reader_body
+    assert "!isManuallyPaused" in keep_reader_body
+    assert "!isPausedByReaderTransport" in keep_reader_body
     assert "if statusChanged && status == .playing" in music
     observe_body = _function_body(music, "private func observePlaybackState()")
     assert "if status == .playing, self?.isBackgroundMode == true" in observe_body
