@@ -2623,7 +2623,8 @@ Every cross-surface change should pass the relevant subset:
   and Living Room TV install/launch previews,
   `make apple-device-deploy-readiness-dry-run` for host readiness plus visible
   CoreDevice listing plus the no-install default route previews, now registered
-  as a credential-free shared-pipeline app-owned journey,
+  as a credential-free shared-pipeline app-owned journey with a manifest
+  guardrail that it remains non-installing,
   `make apple-device-full-entitlement-plan`,
   `make apple-device-full-entitlement-stable-install`,
   `make apple-device-full-entitlement-fallback-install`, guarded CoreDevice

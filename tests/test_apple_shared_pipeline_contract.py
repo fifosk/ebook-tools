@@ -666,6 +666,8 @@ def test_shared_pipeline_manifest_keeps_physical_deploys_on_request() -> None:
     assert "verify the installed build with devicectl and stop the debugger" in known_gates
     assert "scripts/check_apple_build_metadata.py" in known_gates
     assert "branch.stamp and commit.stamp match the current checkout" in known_gates
+    assert "device-deploy-readiness-dry-run is credential-free and non-installing" in known_gates
+    assert "host readiness, CoreDevice listing, and dry-run route previews" in known_gates
     assert "before CoreDevice preflight or install" in known_gates
 
 

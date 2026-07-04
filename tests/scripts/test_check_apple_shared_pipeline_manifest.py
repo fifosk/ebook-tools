@@ -347,6 +347,11 @@ def _write_manifest(
                 "branch.stamp and commit.stamp match the current checkout before "
                 "CoreDevice preflight or install."
             ),
+            (
+                "device-deploy-readiness-dry-run is credential-free and non-installing; "
+                "it only runs host readiness, CoreDevice listing, and dry-run route "
+                "previews."
+            ),
         ],
     }
     path.write_text(json.dumps(payload), encoding="utf-8")

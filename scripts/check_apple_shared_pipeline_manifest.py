@@ -910,6 +910,8 @@ def _validate_known_gates(payload: dict[str, Any]) -> list[str]:
         "scripts/check_apple_build_metadata.py",
         "branch.stamp and commit.stamp match the current checkout",
         "before CoreDevice preflight or install",
+        "device-deploy-readiness-dry-run is credential-free and non-installing",
+        "host readiness, CoreDevice listing, and dry-run route previews",
     ):
         if phrase not in gates:
             errors.append(f"knownGates missing required deployment guard: {phrase}")
