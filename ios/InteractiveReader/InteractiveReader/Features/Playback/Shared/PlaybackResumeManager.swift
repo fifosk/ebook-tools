@@ -205,7 +205,7 @@ final class PlaybackResumeManager: ObservableObject {
     }
 
     private static func normalizedInteractivePlaybackTime(_ time: Double) -> Double? {
-        guard time.isFinite, time >= 0 else { return nil }
+        guard time.isFinite, time > 0.001 else { return nil }
         return time
     }
 }

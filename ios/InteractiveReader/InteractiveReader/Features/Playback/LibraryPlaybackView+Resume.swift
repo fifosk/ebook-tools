@@ -210,7 +210,7 @@ extension LibraryPlaybackView {
     ) -> (time: Double, chunk: InteractiveChunk)? {
         guard let time = playbackTime,
               time.isFinite,
-              time >= 0,
+              time > 0.001,
               let context = viewModel.jobContext,
               let chunk = viewModel.resolveChunk(containing: sentenceNumber, in: context),
               viewModel.resumePlaybackTime(time, matches: sentenceNumber, in: chunk) else {

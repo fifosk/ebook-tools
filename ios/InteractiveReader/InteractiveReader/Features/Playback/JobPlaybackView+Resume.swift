@@ -407,7 +407,7 @@ extension JobPlaybackView {
     }
 
     func normalizedInteractiveResumePlaybackTime(_ time: Double?) -> Double? {
-        guard let time, time.isFinite, time >= 0 else { return nil }
+        guard let time, time.isFinite, time > 0.001 else { return nil }
         return time
     }
 

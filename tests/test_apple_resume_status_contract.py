@@ -210,6 +210,7 @@ def test_interactive_resume_records_sentence_playback_time() -> None:
     assert "func recordInteractiveResume(\n        sentenceIndex: Int,\n        playbackTime: Double? = nil," in manager_source
     assert "playbackTime: normalizedPlaybackTime" in manager_source
     assert "playbackTrack: playbackTrack" in manager_source
+    assert "guard time.isFinite, time > 0.001 else { return nil }" in manager_source
     assert "playbackTrack: currentInteractiveResumePlaybackTrack()" in job_now_playing_source
     assert (
         "playbackTrack: currentInteractiveResumePlaybackTrack()"
@@ -238,6 +239,11 @@ def test_interactive_resume_records_sentence_playback_time() -> None:
             1,
         )[0]
         assert "viewModel.currentTrackLocalResumePlaybackTime()" in resume_time_body
+    job_normalize_body = job_resume_source.split("func normalizedInteractiveResumePlaybackTime(_ time: Double?) -> Double?", 1)[1].split(
+        "\n    func validatedInteractiveResumePlaybackTime",
+        1,
+    )[0]
+    assert "guard let time, time.isFinite, time > 0.001 else { return nil }" in job_normalize_body
     selection_source = INTERACTIVE_SELECTION.read_text(encoding="utf-8")
     resume_time_body = selection_source.split("func currentTrackLocalResumePlaybackTime() -> Double?", 1)[1].split(
         "\n    func resumeValidationTimingTracks",
@@ -297,6 +303,12 @@ def test_interactive_resume_applies_valid_saved_time_before_sentence_fallback() 
         retry_exact_seek_body = retry_body[retry_exact_seek_index:retry_sentence_seek_index]
         assert "matchingSentenceNumber: sentence" in retry_exact_seek_body
         assert "preferredTrack: preferredTrack" in retry_exact_seek_body
+
+    library_validation_body = library_resume_source.split("func validatedInteractiveResumePlaybackTime(", 1)[1].split(
+        "\n}",
+        1,
+    )[0]
+    assert "time > 0.001" in library_validation_body
 
     assert "func prepareResumeSingleTrack(_ track: SequenceTrack?)" in selection_source
     assert "pendingResumeSingleTrack = track" in selection_source
