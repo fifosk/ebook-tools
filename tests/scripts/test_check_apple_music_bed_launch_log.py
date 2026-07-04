@@ -219,6 +219,49 @@ InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface
     ]
 
 
+def test_pause_release_rejects_music_surface_pause_before_reader_audible(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        STARTUP_LOG
+        + """
+InteractiveReaderTV[101] tvOS remote playPause forwarded to player broker
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=musicSurface
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=musicSurface
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
+InteractiveReaderTV[101] Job playback accepted Apple Music pause as reader transport source=musicSurface requested=true playing=false musicPlaying=false readerPause=false
+InteractiveReaderTV[101] Job reader transport confirmed pause source=musicSurface requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=musicSurface
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert "Apple Music pause stopped requested narration before audio became audible" in missing
+
+
+def test_pause_release_rejects_music_adoption_pause_before_reader_audible(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        STARTUP_LOG
+        + """
+InteractiveReaderTV[101] tvOS remote playPause forwarded to player broker
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=observedNonPlaying
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=observedNonPlaying
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
+InteractiveReaderTV[101] Apple Music reader transport pause adopted source=observed non-playing reason=observedNonPlaying
+InteractiveReaderTV[101] Library playback accepted Apple Music pause as reader transport source=musicAdoption requested=true playing=false musicPlaying=false readerPause=true
+InteractiveReaderTV[101] Library reader transport confirmed pause source=musicAdoption requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=observedNonPlaying
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert "Apple Music pause stopped requested narration before audio became audible" in missing
+
+
 def test_pause_release_requires_settled_reader_pause(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(
