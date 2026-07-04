@@ -2651,6 +2651,10 @@ Suggested features to evaluate after parity scaffolding:
   and media route boundary behavior. Backend built-in reading-bed fetch/update/
   delete routes now reuse the same shared route-id normalizer, keeping Web and
   Apple playback background-music controls on the same boundary contract.
+  Backend configuration snapshot restore, export, and delete routes now also
+  trim snapshot identifiers through the shared route-id helper before
+  repository access, keeping Web admin controls aligned with the same route
+  boundary policy.
 
 ## Verification Contract
 

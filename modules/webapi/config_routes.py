@@ -32,6 +32,7 @@ from ..user_management import AuthService
 from ..user_management.user_store_base import UserRecord
 from .auth_utils import require_admin_user
 from .dependencies import get_auth_service, refresh_runtime_config
+from .route_ids import normalize_route_id
 from .schemas.config import (
     AuditLogEntry,
     AuditLogResponse,
@@ -483,15 +484,21 @@ def restore_snapshot(
 ) -> RestoreSnapshotResponse:
     """Restore a previous configuration snapshot."""
     _token, user = _require_admin(authorization, auth_service)
+    normalized_snapshot_id = normalize_route_id(snapshot_id)
+    if not normalized_snapshot_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Snapshot not found",
+        )
 
     repo = _get_config_repository()
 
     # Get snapshot info before restore
-    result = repo.get_snapshot(snapshot_id)
+    result = repo.get_snapshot(normalized_snapshot_id)
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Snapshot not found: {snapshot_id}"
+            detail=f"Snapshot not found: {normalized_snapshot_id}"
         )
 
     metadata, snapshot_config = result
@@ -507,7 +514,7 @@ def restore_snapshot(
                 restart_keys.append(key)
 
     try:
-        repo.restore_snapshot(snapshot_id, restored_by=user.username)
+        repo.restore_snapshot(normalized_snapshot_id, restored_by=user.username)
     except ConfigRepositoryError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -518,7 +525,7 @@ def restore_snapshot(
     refresh_runtime_config()
 
     return RestoreSnapshotResponse(
-        snapshot_id=snapshot_id,
+        snapshot_id=normalized_snapshot_id,
         label=metadata.label,
         restored_at=datetime.now(timezone.utc).isoformat(),
         requires_restart=len(restart_keys) > 0,
@@ -534,11 +541,17 @@ def delete_snapshot(
 ) -> None:
     """Delete a configuration snapshot."""
     _token, user = _require_admin(authorization, auth_service)
+    normalized_snapshot_id = normalize_route_id(snapshot_id)
+    if not normalized_snapshot_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Snapshot not found",
+        )
 
     repo = _get_config_repository()
 
     try:
-        deleted = repo.delete_snapshot(snapshot_id, deleted_by=user.username)
+        deleted = repo.delete_snapshot(normalized_snapshot_id, deleted_by=user.username)
     except ConfigRepositoryError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -548,7 +561,7 @@ def delete_snapshot(
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Snapshot not found: {snapshot_id}"
+            detail=f"Snapshot not found: {normalized_snapshot_id}"
         )
 
 
@@ -561,11 +574,17 @@ def export_snapshot(
 ) -> ExportSnapshotResponse:
     """Export snapshot as downloadable JSON."""
     _require_admin(authorization, auth_service)
+    normalized_snapshot_id = normalize_route_id(snapshot_id)
+    if not normalized_snapshot_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Snapshot not found",
+        )
 
     repo = _get_config_repository()
 
     try:
-        export_data = repo.export_snapshot(snapshot_id, mask_sensitive=mask_sensitive)
+        export_data = repo.export_snapshot(normalized_snapshot_id, mask_sensitive=mask_sensitive)
     except ConfigRepositoryError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

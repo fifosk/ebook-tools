@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "backend-config-snapshot-route-id-helper",
+            title: "Config snapshot IDs share cleanup",
+            detail: "Backend configuration snapshot restore, export, and delete routes now trim snapshot identifiers through the shared route helper before repository access, keeping Web admin controls on the same route-boundary contract."
+        ),
+        AppChangelogEntry(
             id: "backend-legacy-media-route-id-helper",
             title: "Legacy media IDs share cleanup",
             detail: "Backend legacy media streams and chunk detail reads now trim job and chunk identifiers through the shared route helper before playback lookup, keeping older Web playback URLs aligned with Apple media boundaries."
