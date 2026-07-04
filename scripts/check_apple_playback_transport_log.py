@@ -156,6 +156,12 @@ RESUME_OFFSET_REQUEST_LINE_PATTERN = re.compile(
 )
 
 
+RESUME_OFFSET_ANY_REQUEST_LINE_PATTERN = re.compile(
+    r"^\d+(?:\.\d+)? \[PlaybackTransport\] (?:Job|Library) resume offset "
+    r"(?:requested|retry) sentence=\d+ time=(?P<time>\d+(?:\.\d+)?) sequence=(?:true|false)"
+)
+
+
 SEQUENCE_TIME_SEEK_ACCEPTED_LINE_PATTERN = re.compile(
     r"^\d+(?:\.\d+)? \[PlaybackTransport\] Interactive sequence time seek accepted "
     r"sentence=(?P<sentence>\d+) time=(?P<time>\d+(?:\.\d+)?) track=(?P<track>original|translation)"
@@ -541,8 +547,24 @@ def _resume_offset_violations(text: str) -> list[str]:
         flags=re.MULTILINE,
     ):
         violations.append("sequence resume offset could not be applied")
+    if _has_zero_resume_offset_request(text):
+        violations.append("reader resume offset started at the beginning of the sentence")
     violations.extend(_resume_retry_track_flip_violations(text))
     return violations
+
+
+def _has_zero_resume_offset_request(text: str) -> bool:
+    for line in text.splitlines():
+        match = RESUME_OFFSET_ANY_REQUEST_LINE_PATTERN.match(line)
+        if not match:
+            continue
+        try:
+            resume_time = float(match.group("time"))
+        except ValueError:
+            continue
+        if resume_time <= 0.001:
+            return True
+    return False
 
 
 def _resume_retry_track_flip_violations(text: str) -> list[str]:

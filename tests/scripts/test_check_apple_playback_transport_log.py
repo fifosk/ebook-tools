@@ -176,6 +176,36 @@ def test_resume_offset_accepts_single_track_exact_seek(tmp_path: Path) -> None:
     assert module.validate_log(log, mode="resume-offset") == []
 
 
+def test_resume_offset_rejects_sequence_sentence_start_request(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        """
+1782670003.000 [PlaybackTransport] Library resume offset requested sentence=2190 time=0.000 sequence=true
+1782670003.050 [PlaybackTransport] Interactive sequence time seek accepted sentence=2190 time=0.000 track=translation
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="resume-offset")
+
+    assert missing == ["reader resume offset started at the beginning of the sentence"]
+
+
+def test_resume_offset_rejects_single_track_sentence_start_request(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        """
+1782670003.000 [PlaybackTransport] Job resume offset requested sentence=42 time=0.000 sequence=false
+1782670003.050 [PlaybackTransport] Interactive time seek accepted sequence=false sentence=42 time=0.000
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="resume-offset")
+
+    assert missing == ["reader resume offset started at the beginning of the sentence"]
+
+
 def test_resume_offset_rejects_sentence_start_fallback(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(
