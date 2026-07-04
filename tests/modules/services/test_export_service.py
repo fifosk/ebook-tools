@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 
 import pytest
 
+from modules.services import export_service
 from modules.services.export_service import (
     _build_export_media_diagnostics,
     _collect_inline_subtitles,
@@ -12,6 +14,13 @@ from modules.services.export_service import (
 )
 
 pytestmark = pytest.mark.services
+
+
+def test_offline_export_media_diagnostics_use_shared_gap_counter() -> None:
+    source = inspect.getsource(export_service._build_export_media_diagnostics)
+
+    assert "count_media_gaps(" in source
+    assert "chunks_without_files + chunks_without_metadata" not in source
 
 
 def test_offline_export_media_diagnostics_match_playback_manifest_shape() -> None:

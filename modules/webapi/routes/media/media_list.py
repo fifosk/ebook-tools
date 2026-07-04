@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from ....metadata_manager import MetadataLoader
 from ....services.file_locator import FileLocator
+from ....services.media_diagnostics import count_media_gaps
 from ....services.pipeline_service import PipelineService
 from ....services.source_discovery import safe_stat
 from ...dependencies import (
@@ -164,7 +165,12 @@ def _build_media_diagnostics(
         chunks_without_metadata=chunks_without_metadata,
         files_without_url=files_without_url,
         files_without_size=files_without_size,
-        gap_count=chunks_without_files + chunks_without_metadata + files_without_url + files_without_size,
+        gap_count=count_media_gaps(
+            chunks_without_files=chunks_without_files,
+            chunks_without_metadata=chunks_without_metadata,
+            files_without_url=files_without_url,
+            files_without_size=files_without_size,
+        ),
     )
 
 

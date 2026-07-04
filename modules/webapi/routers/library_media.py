@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 from urllib.parse import quote
 
+from ...services.media_diagnostics import count_media_gaps
 from ..schemas import (
     PipelineMediaChunk,
     PipelineMediaDiagnostics,
@@ -66,7 +67,12 @@ def build_library_media_diagnostics(
         chunks_without_metadata=chunks_without_metadata,
         files_without_url=files_without_url,
         files_without_size=files_without_size,
-        gap_count=chunks_without_files + chunks_without_metadata + files_without_url + files_without_size,
+        gap_count=count_media_gaps(
+            chunks_without_files=chunks_without_files,
+            chunks_without_metadata=chunks_without_metadata,
+            files_without_url=files_without_url,
+            files_without_size=files_without_size,
+        ),
     )
 
 

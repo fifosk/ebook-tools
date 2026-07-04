@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -151,6 +152,13 @@ def test_pipeline_media_openapi_marks_playback_manifest_fields_required() -> Non
     assert {"media", "chunks", "complete", "diagnostics"} <= response_required
     assert {"files", "sentences", "audioTracks"} <= chunk_required
     assert {"name", "source"} <= file_required
+
+
+def test_pipeline_media_diagnostics_use_shared_gap_counter() -> None:
+    source = inspect.getsource(media_list._build_media_diagnostics)
+
+    assert "count_media_gaps(" in source
+    assert "chunks_without_files + chunks_without_metadata" not in source
 
 
 def test_stream_chunk_audio_track_uses_safe_stat_for_audio_file(

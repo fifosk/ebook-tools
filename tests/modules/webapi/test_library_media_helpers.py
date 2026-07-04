@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import inspect
+
+from modules.webapi.routers import library_media
 from modules.webapi.routers.library_media import (
     build_library_media_response,
     library_media_file_url,
@@ -14,6 +17,13 @@ def test_library_media_file_url_normalizes_and_quotes_paths() -> None:
         "/api/library/media/job%2Fwith%20space/file/"
         "media/chunk%20one/translation%20track.m4a"
     )
+
+
+def test_library_media_diagnostics_use_shared_gap_counter() -> None:
+    source = inspect.getsource(library_media.build_library_media_diagnostics)
+
+    assert "count_media_gaps(" in source
+    assert "chunks_without_files + chunks_without_metadata" not in source
 
 
 def test_library_media_response_normalizes_audio_and_timing_tracks() -> None:

@@ -20,6 +20,7 @@ from modules.language_constants import LANGUAGE_CODES
 from modules.metadata_manager import MetadataLoader
 from modules.services.acquisition.url_safety import looks_sensitive_key, strip_sensitive_url_parts
 from modules.services.file_locator import FileLocator
+from modules.services.media_diagnostics import count_media_gaps
 from modules.services.pipeline_service import PipelineService
 from modules.services.source_discovery import safe_stat
 from modules.permissions import can_access, resolve_access_policy
@@ -144,7 +145,12 @@ def _build_export_media_diagnostics(
         "chunksWithoutMetadata": chunks_without_metadata,
         "filesWithoutUrl": files_without_url,
         "filesWithoutSize": files_without_size,
-        "gapCount": chunks_without_files + chunks_without_metadata + files_without_url + files_without_size,
+        "gapCount": count_media_gaps(
+            chunks_without_files=chunks_without_files,
+            chunks_without_metadata=chunks_without_metadata,
+            files_without_url=files_without_url,
+            files_without_size=files_without_size,
+        ),
     }
 
 
