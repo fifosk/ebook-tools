@@ -1817,17 +1817,17 @@ when you need a specific virtual environment or CI interpreter.
 
 `make test-changed` reads staged, unstaged, and untracked Git paths, then
 chooses the narrowest stable Make targets for the touched areas. It runs release
-version checks for release metadata; the focused
-`test-apple-playback-state-swift` lane before full Apple contracts for
-Interactive Reader playback-state changes; iPhone/iPad plus tvOS simulator
-builds for shared Apple SwiftUI reader/playback surface changes; the focused
-Create-readiness contract plus iPhone/iPad and tvOS simulator builds for native
-Apple Create surface/API-client changes; iPhone/iPad and tvOS simulator builds
-for native Apple Jobs/Library browse, settings, API-client, and shared service
-changes; iPhone/iPad and tvOS simulator builds for native Apple app-shell,
-model, utility, and shared UI helper changes; Apple contracts for other `ios/`,
-Apple contract files, playback metadata docs, and the active cross-surface
-parity plan; the non-physical
+version checks for release metadata; `verify-apple-playback-no-regression-candidate`
+for shared Apple Interactive Reader and playback transport/surface changes,
+covering the focused Swift playback lane, iPhone/iPad/tvOS simulator builds,
+the local Mac iPad-style build, and credential-free Music-bed journey dry-runs;
+the focused Create-readiness contract plus iPhone/iPad and tvOS simulator
+builds for native Apple Create surface/API-client changes; iPhone/iPad and tvOS
+simulator builds for native Apple Jobs/Library browse, settings, API-client,
+and shared service changes; iPhone/iPad and tvOS simulator builds for native
+Apple app-shell, model, utility, and shared UI helper changes; Apple contracts
+for other `ios/`, Apple contract files, playback metadata docs, and the active
+cross-surface parity plan; the non-physical
 `apple-pipeline-orchestration-dry-runs` lane for shared Apple pipeline
 helper/manifest bridge edits; the backend acquisition slice for acquisition
 provider/schema/route/plan changes; Web Vitest plus production build for `web/`;
