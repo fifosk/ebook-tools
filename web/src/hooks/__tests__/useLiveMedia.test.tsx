@@ -189,4 +189,65 @@ describe('useLiveMedia', () => {
     expect(result.current.chunks).toEqual([]);
     expect(result.current.isComplete).toBe(false);
   });
+
+  it('refetches final media when progress reaches the complete stage', async () => {
+    fetchLiveJobMediaMock.mockResolvedValue({
+      media: {},
+      chunks: [],
+      complete: false,
+      diagnostics: emptyMediaDiagnostics,
+    });
+    fetchJobMediaMock
+      .mockResolvedValueOnce({ media: {}, chunks: [], complete: false, diagnostics: emptyMediaDiagnostics })
+      .mockResolvedValueOnce({
+        media: {
+          audio: [
+            {
+              name: 'final.mp3',
+              url: 'https://storage.example/job-1/final.mp3',
+              source: 'completed',
+              type: 'audio',
+            },
+          ],
+        },
+        chunks: [],
+        complete: true,
+        diagnostics: { ...emptyMediaDiagnostics, mediaFileCount: 1, audioFileCount: 1 },
+      });
+
+    const listeners: Array<(event: ProgressEventPayload) => void> = [];
+    subscribeToJobEventsMock.mockImplementation((_jobId: string, options: { onEvent?: (event: ProgressEventPayload) => void }) => {
+      if (options?.onEvent) {
+        listeners.push(options.onEvent);
+      }
+      return () => {};
+    });
+
+    const { result } = renderHook(() => useLiveMedia('job-1'));
+
+    await waitFor(() => {
+      expect(fetchJobMediaMock).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      listeners[0]({
+        event_type: 'progress',
+        timestamp: Date.now(),
+        metadata: { stage: 'complete' },
+        snapshot: { completed: 1, total: 1, elapsed: 1, speed: 1, eta: null },
+        error: null,
+      });
+    });
+
+    await waitFor(() => {
+      expect(fetchJobMediaMock).toHaveBeenCalledTimes(2);
+      expect(result.current.media.audio).toHaveLength(1);
+    });
+    expect(result.current.media.audio[0]).toMatchObject({
+      name: 'final.mp3',
+      source: 'completed',
+      type: 'audio',
+    });
+    expect(result.current.isComplete).toBe(true);
+  });
 });

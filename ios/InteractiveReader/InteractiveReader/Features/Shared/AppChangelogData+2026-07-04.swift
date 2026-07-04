@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let july4Entries: [AppChangelogEntry] = [
         AppChangelogEntry(
+            id: "web-live-media-event-helper",
+            title: "Web playback events are focused",
+            detail: "Web live-media playback now classifies final refresh, media-reset, and generated-chunk events through a focused helper with playback coverage, keeping media completion behavior easier to compare with Apple reader diagnostics."
+        ),
+        AppChangelogEntry(
             id: "web-live-media-clock-helper",
             title: "Web playback clock is focused",
             detail: "Web playback media time, playback-rate, and timing-offset normalization now live in a focused live-media clock helper with playback pipeline coverage, making reader timing behavior easier to compare with Apple playback diagnostics."

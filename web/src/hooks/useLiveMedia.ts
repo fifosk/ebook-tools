@@ -7,7 +7,6 @@ import {
 import { subscribeToJobEvents } from '../services/api';
 import {
   createEmptyState,
-  extractGeneratedFiles,
   hasChunkSentences,
   mergeChunkCollections,
   mergeMediaBuckets,
@@ -18,6 +17,7 @@ import {
   normaliseFetchedMedia,
   normaliseGeneratedSnapshot,
 } from './liveMediaNormalise';
+import { resolveLiveMediaEventAction } from './liveMediaEvents';
 export { createEmptyState } from './liveMediaState';
 export { useMediaClock } from './liveMediaClock';
 export type { MediaClock } from './liveMediaClock';
@@ -138,72 +138,46 @@ export function useLiveMedia(
       return;
     }
 
+    const refreshCompletedMedia = () => {
+      setIsComplete(true);
+      fetchJobMedia(jobId)
+        .then((fallbackResponse: PipelineMediaResponse) => {
+          const {
+            media: nextMedia,
+            chunks: nextChunks,
+            complete,
+            diagnostics: nextDiagnostics,
+          } = normaliseFetchedMedia(fallbackResponse, jobId);
+          setMedia(nextMedia);
+          setChunks(nextChunks);
+          setDiagnostics(nextDiagnostics);
+          if (complete) {
+            setIsComplete(true);
+          }
+        })
+        .catch(() => {
+          // Ignore failures; last known snapshot will remain in place.
+        });
+    };
+
     return subscribeToJobEvents(jobId, {
       onEvent: (event) => {
-        if (event.event_type === 'complete') {
-          setIsComplete(true);
-          fetchJobMedia(jobId)
-            .then((fallbackResponse: PipelineMediaResponse) => {
-              const {
-                media: nextMedia,
-                chunks: nextChunks,
-                complete,
-                diagnostics: nextDiagnostics,
-              } = normaliseFetchedMedia(fallbackResponse, jobId);
-              setMedia(nextMedia);
-              setChunks(nextChunks);
-              setDiagnostics(nextDiagnostics);
-              if (complete) {
-                setIsComplete(true);
-              }
-            })
-            .catch(() => {
-              // Ignore failures; last known snapshot will remain in place.
-            });
+        const action = resolveLiveMediaEventAction(event);
+        if (action.kind === 'refresh') {
+          refreshCompletedMedia();
+          return;
+        }
+        if (action.kind === 'ignore') {
           return;
         }
 
-        const metadataRecord = event.metadata as Record<string, unknown>;
-        const stage = typeof metadataRecord.stage === 'string' ? metadataRecord.stage : null;
-        if (event.event_type === 'progress' && stage === 'complete') {
-          setIsComplete(true);
-          fetchJobMedia(jobId)
-            .then((fallbackResponse: PipelineMediaResponse) => {
-              const {
-                media: nextMedia,
-                chunks: nextChunks,
-                complete,
-                diagnostics: nextDiagnostics,
-              } = normaliseFetchedMedia(fallbackResponse, jobId);
-              setMedia(nextMedia);
-              setChunks(nextChunks);
-              setDiagnostics(nextDiagnostics);
-              if (complete) {
-                setIsComplete(true);
-              }
-            })
-            .catch(() => {
-              // Ignore failures; last known snapshot will remain in place.
-            });
-          return;
-        }
+        const { media: nextMedia, chunks: incomingChunks, complete } = normaliseGeneratedSnapshot(action.generatedFiles, jobId);
 
-        const snapshot = extractGeneratedFiles(event.metadata);
-        if (!snapshot) {
-          return;
-        }
-
-        const { media: nextMedia, chunks: incomingChunks, complete } = normaliseGeneratedSnapshot(snapshot, jobId);
-
-        if (event.event_type === 'progress' && metadataRecord.media_reset === true) {
+        if (action.kind === 'reset') {
           setMedia(nextMedia);
           setChunks(incomingChunks);
           setDiagnostics(null);
           setIsComplete(complete);
-          return;
-        }
-
-        if (event.event_type !== 'file_chunk_generated') {
           return;
         }
 
