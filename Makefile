@@ -31,7 +31,7 @@
        test-apple-contracts \
        build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-host-readiness apple-device-update \
-       apple-device-preflight apple-device-launch-console apple-device-pull-playback-log apple-device-pull-and-verify-playback-transport-log apple-device-pull-and-verify-current-playback-transport-log apple-device-pull-and-verify-playback-transport-pause-resume-log apple-device-pull-and-verify-current-playback-transport-pause-resume-log apple-device-pull-and-verify-playback-resume-offset-log apple-device-pull-and-verify-current-playback-resume-offset-log apple-device-pull-and-verify-playback-track-reconfigure-log apple-device-pull-and-verify-current-playback-track-reconfigure-log apple-device-pull-and-verify-reader-repro-log apple-device-pull-and-verify-current-reader-repro-log apple-device-verify-playback-transport-log apple-device-verify-playback-transport-pause-resume-log apple-device-verify-playback-resume-offset-log apple-device-verify-playback-track-reconfigure-log apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-reader-progress-log apple-device-verify-music-bed-guarded-play-log apple-device-verify-music-bed-pause-resume-log apple-device-signed-build-only apple-device-deploy-dry-run apple-device-deploy-dry-run-matrix apple-device-deploy-readiness-dry-run \
+       apple-device-preflight apple-device-launch-console apple-device-pull-playback-log apple-device-pull-and-verify-playback-transport-log apple-device-pull-and-verify-current-playback-transport-log apple-device-pull-and-verify-playback-transport-pause-resume-log apple-device-pull-and-verify-current-playback-transport-pause-resume-log apple-device-pull-and-verify-playback-resume-offset-log apple-device-pull-and-verify-current-playback-resume-offset-log apple-device-pull-and-verify-playback-track-reconfigure-log apple-device-pull-and-verify-current-playback-track-reconfigure-log apple-device-pull-and-verify-reader-repro-log apple-device-pull-and-verify-current-reader-repro-log apple-device-verify-playback-transport-log apple-device-verify-playback-transport-pause-resume-log apple-device-verify-playback-resume-offset-log apple-device-verify-playback-track-reconfigure-log apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-reader-progress-log apple-device-verify-music-bed-guarded-play-log apple-device-verify-music-bed-pause-resume-log apple-device-verify-installed apple-device-verify-installed-matrix apple-device-signed-build-only apple-device-deploy-dry-run apple-device-deploy-dry-run-matrix apple-device-deploy-readiness-dry-run \
        apple-device-full-entitlement-plan apple-device-full-entitlement-build \
        apple-device-full-entitlement-install apple-device-full-entitlement-fallback-install \
        apple-device-full-entitlement-stable-install \
@@ -758,6 +758,14 @@ apple-device-verify-music-bed-pause-resume-log:
 
 apple-device-signed-build-only:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only
+
+apple-device-verify-installed:
+	bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --verify-installed
+
+apple-device-verify-installed-matrix:
+	$(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID="$(APPLE_DEVICE_IPAD_ID)"
+	$(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE=iphone APPLE_DEVICE_ID="$(APPLE_DEVICE_IPHONE_ID)"
+	$(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE=appletv APPLE_DEVICE_ID="$(APPLE_DEVICE_TV_ID)"
 
 apple-device-deploy-dry-run:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run

@@ -269,6 +269,7 @@ make verify-apple-music-bed-candidate
 make verify-apple-living-room-candidate
 make verify-apple-dogfood-pipeline
 make verify-apple-golden-pipeline
+make apple-device-verify-installed-matrix
 make apple-device-preflight APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID=<id>
 make apple-device-signed-build-only APPLE_DEVICE_PROFILE=ipad
 make apple-device-deploy-dry-run APPLE_DEVICE_PROFILE=appletv

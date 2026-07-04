@@ -66,6 +66,10 @@ deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scr
 deploy_dry_run_matrix_ipad_line='APPLE_DEVICE_ID="$(APPLE_DEVICE_IPAD_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile ipad --install --launch --dry-run'
 deploy_dry_run_matrix_iphone_line='APPLE_DEVICE_ID="$(APPLE_DEVICE_IPHONE_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile iphone --install --launch --dry-run'
 deploy_dry_run_matrix_tv_line='APPLE_DEVICE_ID="$(APPLE_DEVICE_TV_ID)" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash scripts/apple_unattended_device_update.sh --profile appletv --install --launch --dry-run'
+verify_installed_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --verify-installed'
+verify_installed_matrix_ipad_line='$(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID="$(APPLE_DEVICE_IPAD_ID)"'
+verify_installed_matrix_iphone_line='$(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE=iphone APPLE_DEVICE_ID="$(APPLE_DEVICE_IPHONE_ID)"'
+verify_installed_matrix_tv_line='$(MAKE) apple-device-verify-installed APPLE_DEVICE_PROFILE=appletv APPLE_DEVICE_ID="$(APPLE_DEVICE_TV_ID)"'
 deploy_readiness_dry_run_host_line='$(MAKE) apple-device-host-readiness'
 deploy_readiness_dry_run_devices_line='$(MAKE) apple-devices'
 deploy_readiness_dry_run_matrix_line='$(MAKE) apple-device-deploy-dry-run-matrix'
@@ -178,6 +182,12 @@ assert_contains "${makefile}" "apple-device-deploy-dry-run-matrix:" "Makefile sh
 assert_contains "${makefile}" "${deploy_dry_run_matrix_ipad_line}" "dry-run matrix should preview the iPad Pro install and launch route"
 assert_contains "${makefile}" "${deploy_dry_run_matrix_iphone_line}" "dry-run matrix should preview the iPhone install and launch route"
 assert_contains "${makefile}" "${deploy_dry_run_matrix_tv_line}" "dry-run matrix should preview the Living Room Apple TV install and launch route"
+assert_contains "${makefile}" "apple-device-verify-installed:" "Makefile should expose a non-installing installed-app metadata verifier"
+assert_contains "${makefile}" "${verify_installed_line}" "installed-app verifier should route through the repo-owned CoreDevice helper"
+assert_contains "${makefile}" "apple-device-verify-installed-matrix:" "Makefile should expose a default-device installed-app verification matrix"
+assert_contains "${makefile}" "${verify_installed_matrix_ipad_line}" "installed-app matrix should query the default iPad Pro"
+assert_contains "${makefile}" "${verify_installed_matrix_iphone_line}" "installed-app matrix should query the default iPhone"
+assert_contains "${makefile}" "${verify_installed_matrix_tv_line}" "installed-app matrix should query the default Living Room Apple TV"
 assert_contains "${makefile}" "apple-device-deploy-readiness-dry-run:" "Makefile should expose a one-command non-installing device deploy readiness check"
 assert_contains "${makefile}" "${deploy_readiness_dry_run_host_line}" "deploy readiness dry-run should start with host readiness"
 assert_contains "${makefile}" "${deploy_readiness_dry_run_devices_line}" "deploy readiness dry-run should list visible CoreDevice targets"
@@ -219,6 +229,11 @@ assert_not_contains "${creation_discovery_no_regression_candidate_line}" "apple-
 assert_not_contains "${creation_discovery_no_regression_candidate_line}" "run_app_device_deploy.py" "creation discovery no-regression verification should not route through physical-device deployment"
 assert_not_contains "${creation_discovery_no_regression_candidate_line}" "apple-device-full-entitlement-fallback-install" "creation discovery no-regression verification should not install signed artifacts"
 assert_not_contains "${creation_discovery_no_regression_candidate_line}" "apple-device-full-entitlement-stable-install" "creation discovery no-regression verification should not install stable signed artifacts"
+assert_not_contains "${verify_installed_line}" "--install" "installed-app verifier should not install"
+assert_not_contains "${verify_installed_line}" "--launch" "installed-app verifier should not launch"
+assert_not_contains "${verify_installed_matrix_ipad_line}" "CONFIRM_PHYSICAL_DEVICE_UPDATE" "installed-app matrix should not require install confirmation"
+assert_not_contains "${verify_installed_matrix_iphone_line}" "CONFIRM_PHYSICAL_DEVICE_UPDATE" "installed-app matrix should not require install confirmation"
+assert_not_contains "${verify_installed_matrix_tv_line}" "CONFIRM_PHYSICAL_DEVICE_UPDATE" "installed-app matrix should not require install confirmation"
 assert_not_contains "${dogfood_verify_line}" "apple-device-update" "dogfood pipeline verification should not depend on physical-device update targets"
 assert_not_contains "${dogfood_verify_line}" "run_app_device_deploy.py" "dogfood pipeline verification should not route through physical-device deployment"
 assert_not_contains "${dogfood_verify_line}" "apple-device-full-entitlement-fallback-install" "dogfood pipeline verification should not install signed artifacts"

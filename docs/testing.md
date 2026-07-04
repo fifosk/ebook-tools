@@ -923,13 +923,19 @@ make apple-device-host-readiness
 make apple-devices
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --device-preflight-only
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --verify-installed
+make apple-device-verify-installed APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID="Fifo Ipad Pro"
+make apple-device-verify-installed-matrix
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --build-only --allow-provisioning-updates
 ```
 
 `--device-preflight-only` checks that CoreDevice can see and query the selected
 device without requiring the app to already be installed. `--verify-installed`
-is the separate installed-app metadata check, and confirmed installs run the
-device preflight before build/install unless `--no-preflight` is passed.
+is the separate installed-app metadata check. `make apple-device-verify-installed`
+wraps that check for one selected profile/device, while
+`make apple-device-verify-installed-matrix` checks the remembered iPad Pro,
+iPhone, and Living Room TV installed-app metadata without building, installing,
+launching, or requiring `CONFIRM_PHYSICAL_DEVICE_UPDATE`. Confirmed installs run
+the device preflight before build/install unless `--no-preflight` is passed.
 If the helper fails first with "Apple device host readiness failed" and a
 `uid ... has no passwd entry` or `DARWIN_USER_CACHE_DIR` detail, repair the Mac
 user session/Directory Services state before retrying; skipping CoreDevice
@@ -1080,6 +1086,7 @@ update:
 ```bash
 make apple-device-deploy-readiness-dry-run
 make apple-device-deploy-dry-run-matrix
+make apple-device-verify-installed-matrix
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --install --dry-run
 APPLE_DEVICE_ID="Fifo Ipad Pro" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   bash scripts/apple_unattended_device_update.sh --install --launch --dry-run
