@@ -1627,6 +1627,12 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "guard let resumeTrack = viewModel.pendingResumeSingleTrack else { return false }" in resume_track_body
     assert "viewModel.pendingResumeSingleTrack = nil" in resume_track_body
     assert "available.contains(desiredTextTrack) || chunkSupportsAudioTrack(resumeTrack, in: chunk)" in resume_track_body
+    assert resume_track_body.index(
+        "available.contains(desiredTextTrack) || chunkSupportsAudioTrack(resumeTrack, in: chunk)"
+    ) < resume_track_body.index("viewModel.pendingResumeSingleTrack = nil")
+    assert resume_track_body.index("viewModel.pendingResumeSingleTrack = nil") < resume_track_body.index(
+        "viewModel.applySingleTrackSelection(resumeTrack, for: chunk)"
+    )
     assert "keepAllRenderableTextTracksVisible(for: chunk)" in resume_track_body
     assert "viewModel.applySingleTrackSelection(resumeTrack, for: chunk)" in resume_track_body
     assert "viewModel.selectedAudioTrackID = targetID" not in resume_track_body

@@ -430,12 +430,12 @@ extension InteractivePlayerView {
     @discardableResult
     func applyPendingResumeSingleTrackIfNeeded(for chunk: InteractiveChunk) -> Bool {
         guard let resumeTrack = viewModel.pendingResumeSingleTrack else { return false }
-        viewModel.pendingResumeSingleTrack = nil
 
         let desiredTextTrack: TextPlayerVariantKind = resumeTrack == .original ? .original : .translation
         let available = Set(availableTracks(for: chunk))
         guard available.contains(desiredTextTrack) || chunkSupportsAudioTrack(resumeTrack, in: chunk) else { return false }
 
+        viewModel.pendingResumeSingleTrack = nil
         keepAllRenderableTextTracksVisible(for: chunk)
         viewModel.applySingleTrackSelection(resumeTrack, for: chunk)
         return true
