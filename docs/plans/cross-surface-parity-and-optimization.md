@@ -1075,7 +1075,10 @@ Current Apple UI partially exposes:
   for iPad. Interactive Reader keeps title, author, and category/type on one
   compact baseline where possible. Sentence scrubbing lives in a thin
   Interactive Reader footer, while video playback keeps the native player
-  scrubber instead of adding a duplicate footer timeline.
+  scrubber instead of adding a duplicate footer timeline. Shared playback
+  header glass now owns an explicit near-black contrast palette with reduced
+  material wash, so iPad light mode cannot turn dark reader chrome pale over
+  the playback background.
 - Playback helper state coverage. Status: Apple playback now has repo-owned
   contract coverage for `AudioModeManager` track/mode transitions, timing-track
   routing, and `SentencePositionProvider` strategy priority so iPhone, iPad,

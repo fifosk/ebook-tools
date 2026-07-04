@@ -71,12 +71,12 @@ struct PlayerHeaderGlassPanelBackground: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color(red: 0.012, green: 0.018, blue: 0.028).opacity(0.96))
+            .fill(PlayerHeaderContrastColors.panelBase)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(0.12)
+                    .opacity(0.07)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -105,12 +105,12 @@ struct PlayerHeaderIdentityBannerBackground: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color(red: 0.012, green: 0.018, blue: 0.028).opacity(0.98))
+            .fill(PlayerHeaderContrastColors.identityBase)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.thinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(0.10)
+                    .opacity(0.06)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -140,12 +140,12 @@ struct PlayerHeaderPillBackground: View {
 
     var body: some View {
         Capsule(style: .continuous)
-            .fill(Color(red: 0.012, green: 0.018, blue: 0.028).opacity(isProminent ? 0.94 : 0.88))
+            .fill(isProminent ? PlayerHeaderContrastColors.prominentPillBase : PlayerHeaderContrastColors.pillBase)
             .overlay(
                 Capsule(style: .continuous)
                     .fill(.ultraThinMaterial)
                     .environment(\.colorScheme, .dark)
-                    .opacity(isProminent ? 0.08 : 0.07)
+                    .opacity(isProminent ? 0.05 : 0.04)
             )
             .overlay(
                 Capsule(style: .continuous)
@@ -166,4 +166,11 @@ struct PlayerHeaderPillBackground: View {
         if isProminent { return isActive ? 0.36 : 0.24 }
         return isActive ? 0.32 : 0.18
     }
+}
+
+enum PlayerHeaderContrastColors {
+    static let panelBase = Color(red: 0.008, green: 0.012, blue: 0.020).opacity(0.99)
+    static let identityBase = Color(red: 0.008, green: 0.012, blue: 0.020).opacity(1.0)
+    static let pillBase = Color(red: 0.008, green: 0.012, blue: 0.020).opacity(0.94)
+    static let prominentPillBase = Color(red: 0.008, green: 0.012, blue: 0.020).opacity(0.97)
 }
