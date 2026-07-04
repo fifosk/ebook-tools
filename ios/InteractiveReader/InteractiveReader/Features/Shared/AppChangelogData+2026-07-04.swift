@@ -21,6 +21,11 @@ extension AppChangelogData {
             detail: "Backend media search now trims its job identifier through the shared route helper before pipeline or Library lookup, keeping Apple and Web playback search boundary behavior aligned."
         ),
         AppChangelogEntry(
+            id: "backend-jobs-action-route-id-helper",
+            title: "Job action IDs share cleanup",
+            detail: "Backend pause, resume, cancel, delete, and restart job actions now trim padded job identifiers through the shared route helper before service calls, keeping Apple Jobs and Web action behavior aligned."
+        ),
+        AppChangelogEntry(
             id: "backend-notification-route-id-helper",
             title: "Notification IDs share cleanup",
             detail: "Backend notification device removal now trims padded device identifiers through the shared route helper before service lookup, keeping Apple Settings notification controls aligned with the playback boundary rules."

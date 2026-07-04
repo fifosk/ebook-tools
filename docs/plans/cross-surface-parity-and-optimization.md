@@ -2195,10 +2195,12 @@ After Narrate Ebook:
   context-menu action for failed/cancelled pipeline and book jobs, posting to
   the existing `/api/pipelines/jobs/{job_id}/restart` backend action and
   replacing the visible row with the restarted pending job after confirmation.
-  The backend job-action route helper now returns a clean 400 for unsupported
-  restart requests, such as non-restartable job types or missing request
-  payloads, so Web and Apple callers see an actionable client error rather
-  than an internal server failure.
+  The backend job-action route helper now trims action route IDs through the
+  shared route normalizer, rejects blank normalized IDs before service lookup,
+  and returns a clean 400 for unsupported restart requests, such as
+  non-restartable job types or missing request payloads, so Web and Apple
+  callers see an actionable client error rather than an internal server
+  failure.
   Apple Narrate EPUB source controls now distinguish an empty backend EPUB
   inventory from a hidden picker, and the shared content-index route returns a
   stable 422 when an EPUB cannot be read instead of allowing parser failures to
@@ -2592,7 +2594,10 @@ Suggested features to evaluate after parity scaffolding:
   SSE event stream, delete/restart, and Library move/remove endpoints now use
   shared client runtime helpers. The public runtime descriptor advertises both
   Jobs action routes and Library action routes, and Apple Settings/readiness
-  checks compare them before simulator or device deployment.
+  checks compare them before simulator or device deployment. Backend Jobs
+  action routes now share the same route-id cleanup helper used by playback
+  state/media/search routes before pause, resume, cancel, delete, or restart
+  service calls.
 - Apple playback media/linguist route contract. Status: Apple media,
   live-media, chunk, library media, timing, subtitle metadata, lookup-cache,
   assistant lookup, and audio synthesis paths now use route helpers. The public

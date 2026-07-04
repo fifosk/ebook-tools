@@ -21,6 +21,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
+from ..route_ids import normalize_route_id
 from ..route_telemetry import log_started_route_result
 from modules.services.job_manager import PipelineJob, PipelineJobTransitionError
 from ..schemas import (
@@ -88,17 +89,13 @@ def _build_action_response(
     )
 
 
-def _normalize_route_id(value: str) -> str:
-    return value.strip()
-
-
 def _handle_job_action(
     job_id: str,
     action: Callable[..., PipelineJob],
     *,
     request_user: RequestUserContext,
 ) -> PipelineJobActionResponse:
-    normalized_job_id = _normalize_route_id(job_id)
+    normalized_job_id = normalize_route_id(job_id)
     if not normalized_job_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
     try:

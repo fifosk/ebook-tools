@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from modules.webapi.dependencies import (
     get_pipeline_service,
     get_request_user,
 )
+from modules.webapi.routes import jobs_routes
 
 
 pytestmark = pytest.mark.webapi
@@ -91,6 +93,14 @@ def test_job_action_routes_normalize_route_job_id() -> None:
         ("delete", "job-1", "alice", "editor"),
         ("restart", "job-1", "alice", "editor"),
     ]
+
+
+def test_job_action_routes_use_shared_route_id_normalizer() -> None:
+    source = inspect.getsource(jobs_routes)
+
+    assert "from ..route_ids import normalize_route_id" in source
+    assert "def _normalize_route_id" not in source
+    assert "normalized_job_id = normalize_route_id(job_id)" in source
 
 
 def test_job_action_routes_reject_blank_job_id_without_service_lookup() -> None:
