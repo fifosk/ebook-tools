@@ -179,6 +179,7 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
 
 def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_players() -> None:
     shortcuts = _source(APP / "App" / "GlobalKeyboardShortcuts.swift")
+    app_entry = _source(APP / "App" / "InteractiveReaderApp.swift")
     job = _source(APP / "Features" / "Playback" / "JobPlaybackView.swift")
     job_resume = _source(APP / "Features" / "Playback" / "JobPlaybackView+Resume.swift")
     job_now_playing = _source(APP / "Features" / "Playback" / "JobPlaybackView+NowPlaying.swift")
@@ -191,12 +192,8 @@ def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_player
     assert "func playbackTransportDebugLog" in shortcuts
     assert "PlaybackTransportDebugLogger" in shortcuts
     assert 'appendingPathComponent("interactive-reader-playback-transport.log")' in shortcuts
-    assert "[PlaybackTransportBuild] \\(metadata)" in shortcuts
-    assert "release=\\(AppVersion.release)" in shortcuts
-    assert "marketing=\\(AppVersion.marketingVersion)" in shortcuts
-    assert "bundle=\\(AppVersion.bundleVersion)" in shortcuts
-    assert "branch=\\(AppVersion.branch)" in shortcuts
-    assert "commit=\\(AppVersion.commit)" in shortcuts
+    assert "[PlaybackTransportBuild] \\(AppVersion.diagnosticMetadata)" in shortcuts
+    assert "Apple app build \\(AppVersion.diagnosticMetadata" in app_entry
     assert "writeSessionHeaderIfNeeded(fileURL)" in shortcuts
     assert "size.intValue > 512_000" in shortcuts
     assert "Apple Music reader transport pause adopted source=" in music
@@ -207,6 +204,12 @@ def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_player
     assert 'readBundleTextResource("commit", fileExtension: "stamp")' in app_version
     assert 'readBundleTextResource("branch", fileExtension: "stamp")' in app_version
     assert 'ProcessInfo.processInfo.environment["EBOOK_TOOLS_COMMIT"]' in app_version
+    assert "static var diagnosticMetadata: String" in app_version
+    assert '"release=\\(release)"' in app_version
+    assert '"marketing=\\(marketingVersion)"' in app_version
+    assert '"bundle=\\(bundleVersion)"' in app_version
+    assert '"branch=\\(branch)"' in app_version
+    assert '"commit=\\(commit)"' in app_version
 
     ios_plist = _source(APP / "Supporting" / "Info.plist")
     tvos_plist = _source(APP / "Supporting" / "Info-tvOS.plist")

@@ -93,6 +93,7 @@ APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE ?=
 APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
 APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE ?= $(shell /usr/libexec/PlistBuddy -c 'Print :EBOOK_TOOLS_RELEASE_VERSION' ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist 2>/dev/null || echo unknown)
 APPLE_MUSIC_BED_LAUNCH_LOG_MODE ?= startup
+APPLE_MUSIC_BED_LAUNCH_REQUIRED_RELEASE ?= $(APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE)
 CHECKPOINT_BASE ?= origin/$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
 CHECKPOINT_OUTPUT_DIR ?= test-results/git-checkpoints
 
@@ -708,6 +709,7 @@ apple-device-verify-music-bed-launch-log:
 	$(PYTHON) scripts/check_apple_music_bed_launch_log.py \
 		--device "$(APPLE_DEVICE_ID)" \
 		--mode "$(APPLE_MUSIC_BED_LAUNCH_LOG_MODE)" \
+		$(if $(strip $(APPLE_MUSIC_BED_LAUNCH_REQUIRED_RELEASE)),--require-release "$(APPLE_MUSIC_BED_LAUNCH_REQUIRED_RELEASE)") \
 		$(if $(strip $(APPLE_DEVICE_LAUNCH_LOG)),"$(APPLE_DEVICE_LAUNCH_LOG)")
 
 apple-device-verify-music-bed-guarded-play-log:

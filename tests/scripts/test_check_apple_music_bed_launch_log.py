@@ -22,6 +22,11 @@ InteractiveReaderTV[101] Reader NowPlaying session reassert requested metadata=t
 """
 
 
+BUILD_HEADER_LOG = """
+InteractiveReaderTV[101] Apple app build release=2026.07.04.008 marketing=2026.7.4 bundle=20260704008 branch=main commit=unknown
+"""
+
+
 PAUSE_RELEASE_LOG = (
     STARTUP_LOG
     + """
@@ -95,6 +100,51 @@ def test_startup_log_validation_passes(tmp_path: Path) -> None:
     log.write_text(STARTUP_LOG, encoding="utf-8")
 
     assert module.validate_log(log, mode="startup") == []
+
+
+def test_required_release_accepts_matching_launch_build_header(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(BUILD_HEADER_LOG + STARTUP_LOG, encoding="utf-8")
+
+    assert module.validate_log(
+        log,
+        mode="startup",
+        required_release="2026.07.04.008",
+    ) == []
+
+
+def test_required_release_rejects_stale_launch_build_header(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        """
+InteractiveReaderTV[101] Apple app build release=2026.07.03.001 marketing=2026.7.3 bundle=20260703001 branch=unknown commit=unknown
+"""
+        + STARTUP_LOG,
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(
+        log,
+        mode="startup",
+        required_release="2026.07.04.008",
+    )
+
+    assert missing == [
+        "Apple app build release 2026.07.03.001 does not match required 2026.07.04.008"
+    ]
+
+
+def test_required_release_reports_missing_launch_build_header(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(STARTUP_LOG, encoding="utf-8")
+
+    missing = module.validate_log(
+        log,
+        mode="startup",
+        required_release="2026.07.04.008",
+    )
+
+    assert missing == ["Apple app build release missing"]
 
 
 def test_pause_release_log_validation_passes(tmp_path: Path) -> None:
@@ -517,6 +567,23 @@ def test_diagnostic_hint_stays_quiet_for_playback_logs_with_specific_gaps() -> N
     )
 
     assert hints == []
+
+
+def test_diagnostic_hint_explains_stale_launch_release() -> None:
+    missing = [
+        "Apple app build release 2026.07.03.001 does not match required 2026.07.04.008"
+    ]
+
+    hints = module.diagnostic_hints(
+        STARTUP_LOG,
+        mode="startup",
+        missing=missing,
+    )
+
+    assert hints == [
+        "launch log came from an older Apple app release; deploy the current build "
+        "before treating Music-bed breadcrumbs as evidence for the latest source"
+    ]
 
 
 def test_default_log_path_matches_unattended_device_helper() -> None:

@@ -1,7 +1,10 @@
 import SwiftUI
+import OSLog
 #if os(iOS) || os(tvOS)
 import UIKit
 #endif
+
+private let appLifecycleLogger = Logger(subsystem: "InteractiveReader", category: "AppLifecycle")
 
 @main
 struct InteractiveReaderApp: App {
@@ -77,6 +80,7 @@ private extension View {
 
 private struct InteractiveReaderLifecycleModifier: ViewModifier {
     @ObservedObject var appState: AppState
+    @State private var didLogAppBuild = false
 
     func body(content: Content) -> some View {
         content
@@ -91,6 +95,7 @@ private struct InteractiveReaderLifecycleModifier: ViewModifier {
             }
             #if os(iOS) || os(tvOS)
             .onAppear {
+                logAppBuildIfNeeded()
                 UIApplication.installInteractiveReaderKeyboardEventInterceptor()
                 PlayerKeyboardShortcutBroker.shared.setActive(appState.playerKeyboardShortcutsActive)
             }
@@ -98,5 +103,11 @@ private struct InteractiveReaderLifecycleModifier: ViewModifier {
                 PlayerKeyboardShortcutBroker.shared.setActive(active)
             }
             #endif
+    }
+
+    private func logAppBuildIfNeeded() {
+        guard !didLogAppBuild else { return }
+        didLogAppBuild = true
+        appLifecycleLogger.info("Apple app build \(AppVersion.diagnosticMetadata, privacy: .public)")
     }
 }

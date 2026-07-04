@@ -162,14 +162,7 @@ private final class PlaybackTransportDebugLogger {
         guard !didWriteSessionHeader else { return }
         didWriteSessionHeader = true
         let timestamp = String(format: "%.3f", Date().timeIntervalSince1970)
-        let metadata = [
-            "release=\(AppVersion.release)",
-            "marketing=\(AppVersion.marketingVersion)",
-            "bundle=\(AppVersion.bundleVersion)",
-            "branch=\(AppVersion.branch)",
-            "commit=\(AppVersion.commit)",
-        ].joined(separator: " ")
-        let line = "\(timestamp) [PlaybackTransportBuild] \(metadata)\n"
+        let line = "\(timestamp) [PlaybackTransportBuild] \(AppVersion.diagnosticMetadata)\n"
         guard let data = line.data(using: .utf8) else { return }
         guard let handle = try? FileHandle(forWritingTo: fileURL) else { return }
         handle.seekToEndOfFile()

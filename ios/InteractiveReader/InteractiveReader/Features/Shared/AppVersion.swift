@@ -63,6 +63,16 @@ enum AppVersion {
         return "bundle \(marketingVersion) (\(bundleVersion)) · \(branchLabel) · \(commitLabel)"
     }
 
+    static var diagnosticMetadata: String {
+        [
+            "release=\(release)",
+            "marketing=\(marketingVersion)",
+            "bundle=\(bundleVersion)",
+            "branch=\(branch)",
+            "commit=\(commit)",
+        ].joined(separator: " ")
+    }
+
     private static func readInfoValue(_ key: String) -> String? {
         Bundle.main.object(forInfoDictionaryKey: key) as? String
             ?? Bundle.main.infoDictionary?[key] as? String

@@ -10,6 +10,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Acquisition job payloads now recursively sanitize nested completed-file metadata before Web or Apple Create reconnects to downloader handoffs, keeping outside-root paths and URL secrets out of reviewed source metadata.
 - Apple Create readiness now rejects unsafe nested downloader completed-file metadata, including token fields and URL-shaped path hints, before simulator or device journeys reuse those handoffs.
 - Apple playback transport log verification now rejects stale physical-device app releases in the current-build targets, so Living Room/Cinema/iPad logs from older installs cannot be mistaken for current-source regressions.
+- Apple Music-bed launch-console verification now requires a token-safe app build release breadcrumb, preventing stale launch captures from being used as proof for the latest Apple playback fixes.
 - Advanced visible Apple app versioning to `v2026.07.04.008`.
 
 ### 2026.07.04.007

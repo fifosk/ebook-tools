@@ -203,6 +203,17 @@ REQUESTED_ONLY_MUSIC_PAUSE_RE = re.compile(
 )
 
 
+APP_BUILD_HEADER_RE = re.compile(
+    r"Apple app build (?P<metadata>.+)$",
+    flags=re.MULTILINE,
+)
+
+
+APP_BUILD_RELEASE_RE = re.compile(
+    r"(?:^|\s)release=(?P<release>[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{3})(?:\s|$)"
+)
+
+
 TRANSPORT_EVENT_LINE_RE = re.compile(
     r"^(?:.*?\s)?(?P<surface>Job|Library) (?P<event>.+)$"
 )
@@ -357,8 +368,32 @@ def _reader_progress_violations(text: str) -> list[str]:
     return []
 
 
+def _build_release_violations(text: str, required_release: str | None) -> list[str]:
+    required = (required_release or "").strip()
+    if not required:
+        return []
+    releases: list[str] = []
+    for match in APP_BUILD_HEADER_RE.finditer(text):
+        release_match = APP_BUILD_RELEASE_RE.search(match.group("metadata"))
+        if release_match:
+            releases.append(release_match.group("release"))
+    if not releases:
+        return ["Apple app build release missing"]
+    latest = releases[-1]
+    if latest == required:
+        return []
+    return [f"Apple app build release {latest} does not match required {required}"]
+
+
 def diagnostic_hints(text: str, *, mode: str, missing: list[str]) -> list[str]:
-    if not missing or mode == "startup":
+    if not missing:
+        return []
+    if any(item.startswith("Apple app build release ") for item in missing):
+        return [
+            "launch log came from an older Apple app release; deploy the current build "
+            "before treating Music-bed breadcrumbs as evidence for the latest source"
+        ]
+    if mode == "startup":
         return []
     if any(re.search(pattern, text, flags=re.MULTILINE) for pattern in PLAYBACK_BREADCRUMB_PATTERNS):
         return []
@@ -369,7 +404,7 @@ def diagnostic_hints(text: str, *, mode: str, missing: list[str]) -> list[str]:
     ]
 
 
-def validate_log(path: Path, *, mode: str) -> list[str]:
+def validate_log(path: Path, *, mode: str, required_release: str | None = None) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except FileNotFoundError:
@@ -392,6 +427,7 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
         missing.extend(_pause_episode_violations(text))
         missing.extend(_consecutive_broker_pause_violations(text))
         missing.extend(_requested_only_music_pause_violations(text))
+    missing.extend(_build_release_violations(text, required_release))
     return missing
 
 
@@ -415,13 +451,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
             "pause-resume requires an accepted reader-owned resume after pause-release evidence."
         ),
     )
+    parser.add_argument(
+        "--require-release",
+        default=os.environ.get("APPLE_MUSIC_BED_LAUNCH_REQUIRED_RELEASE", ""),
+        help="Require the latest Apple app build launch breadcrumb to match this app release.",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(list(argv or sys.argv[1:]))
     path = Path(args.log) if args.log else default_log_path(args.device.strip() or None)
-    missing = validate_log(path, mode=args.mode)
+    missing = validate_log(path, mode=args.mode, required_release=args.require_release)
     if missing:
         print(f"Apple Music bed launch log validation failed for {path}", file=sys.stderr)
         for label in missing:
