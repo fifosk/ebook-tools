@@ -89,7 +89,9 @@ APPLE_DEVICE_PLAYBACK_BASELINE_LOG ?=
 APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY ?= 0
 APPLE_PLAYBACK_TRANSPORT_LOG_MODE ?= pause-release
 APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT ?=
+APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE ?=
 APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
+APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE ?= $(shell /usr/libexec/PlistBuddy -c 'Print :EBOOK_TOOLS_RELEASE_VERSION' ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist 2>/dev/null || echo unknown)
 APPLE_MUSIC_BED_LAUNCH_LOG_MODE ?= startup
 CHECKPOINT_BASE ?= origin/$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
 CHECKPOINT_OUTPUT_DIR ?= test-results/git-checkpoints
@@ -662,7 +664,7 @@ apple-device-pull-and-verify-playback-transport-log:
 	$(MAKE) apple-device-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1
 
 apple-device-pull-and-verify-current-playback-transport-log:
-	$(MAKE) apple-device-pull-and-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"
+	$(MAKE) apple-device-pull-and-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)" APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE)"
 
 apple-device-pull-and-verify-playback-transport-pause-resume-log:
 	$(MAKE) apple-device-pull-and-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_LOG_MODE=pause-resume
@@ -683,8 +685,8 @@ apple-device-pull-and-verify-reader-repro-log:
 
 apple-device-pull-and-verify-current-reader-repro-log:
 	$(MAKE) apple-device-pull-playback-log
-	$(MAKE) apple-device-verify-playback-transport-pause-resume-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1 APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"
-	$(MAKE) apple-device-verify-playback-resume-offset-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1 APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"
+	$(MAKE) apple-device-verify-playback-transport-pause-resume-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1 APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)" APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE)"
+	$(MAKE) apple-device-verify-playback-resume-offset-log APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY=1 APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)" APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE)"
 
 apple-device-verify-playback-transport-log:
 	$(PYTHON) scripts/check_apple_playback_transport_log.py \
@@ -692,6 +694,7 @@ apple-device-verify-playback-transport-log:
 		--mode "$(APPLE_PLAYBACK_TRANSPORT_LOG_MODE)" \
 		$(if $(filter 1 YES yes true TRUE,$(APPLE_PLAYBACK_TRANSPORT_FRESH_ONLY)),--fresh-only) \
 		$(if $(strip $(APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT)),--require-commit "$(APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT)") \
+		$(if $(strip $(APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE)),--require-release "$(APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE)") \
 		$(if $(strip $(APPLE_DEVICE_PLAYBACK_BASELINE_LOG)),--baseline-log "$(APPLE_DEVICE_PLAYBACK_BASELINE_LOG)") \
 		$(if $(strip $(APPLE_DEVICE_PLAYBACK_LOG)),"$(APPLE_DEVICE_PLAYBACK_LOG)")
 

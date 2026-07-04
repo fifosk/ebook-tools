@@ -426,6 +426,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     )[1].split("\n\n", 1)[0]
     assert "$(MAKE) apple-device-pull-and-verify-playback-transport-log" in pull_verify_current_playback_target
     assert 'APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"' in pull_verify_current_playback_target
+    assert 'APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE)"' in pull_verify_current_playback_target
     pull_playback_script = (ROOT / "scripts" / "apple_pull_device_playback_log.sh").read_text(encoding="utf-8")
     assert "Playback transport log archive:" in pull_playback_script
     assert "Playback transport CoreDevice archive:" in pull_playback_script
@@ -465,6 +466,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     )[1].split("\n\n", 1)[0]
     assert "$(MAKE) apple-device-pull-playback-log" in pull_verify_current_reader_repro_target
     assert 'APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_COMMIT)"' in pull_verify_current_reader_repro_target
+    assert 'APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE="$(APPLE_PLAYBACK_TRANSPORT_CURRENT_RELEASE)"' in pull_verify_current_reader_repro_target
     assert "apple-device-verify-playback-transport-log:" in makefile
     playback_transport_log_target = makefile.split(
         "apple-device-verify-playback-transport-log:", 1
@@ -473,6 +475,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--device "$(APPLE_DEVICE_ID)"' in playback_transport_log_target
     assert '--mode "$(APPLE_PLAYBACK_TRANSPORT_LOG_MODE)"' in playback_transport_log_target
     assert '--require-commit "$(APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT)"' in playback_transport_log_target
+    assert '--require-release "$(APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE)"' in playback_transport_log_target
     assert "apple-device-verify-playback-resume-offset-log:" in makefile
     testing_doc = TESTING_DOC.read_text(encoding="utf-8")
     deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")

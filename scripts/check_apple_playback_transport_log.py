@@ -173,6 +173,7 @@ PLAYBACK_BUILD_HEADER_PATTERN = re.compile(
 )
 
 PLAYBACK_BUILD_COMMIT_PATTERN = re.compile(r"(?:^|\s)commit=(?P<commit>[A-Za-z0-9._-]+)(?:\s|$)")
+PLAYBACK_BUILD_RELEASE_PATTERN = re.compile(r"(?:^|\s)release=(?P<release>[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{3})(?:\s|$)")
 
 
 MUSIC_SURFACE_PAUSE_LINE_PATTERN = re.compile(
@@ -501,6 +502,25 @@ def _build_commit_violations(text: str, required_commit: str | None) -> list[str
     ]
 
 
+def _build_release_violations(text: str, required_release: str | None) -> list[str]:
+    required = (required_release or "").strip()
+    if not required:
+        return []
+    releases: list[str] = []
+    for match in PLAYBACK_BUILD_HEADER_PATTERN.finditer(text):
+        release_match = PLAYBACK_BUILD_RELEASE_PATTERN.search(match.group("metadata"))
+        if release_match:
+            releases.append(release_match.group("release"))
+    if not releases:
+        return ["playback build header release missing"]
+    latest = releases[-1]
+    if latest == required:
+        return []
+    return [
+        f"playback build header release {latest} does not match required {required}"
+    ]
+
+
 def _resume_offset_violations(text: str) -> list[str]:
     violations: list[str] = []
     if re.search(
@@ -568,6 +588,7 @@ def validate_log(
     fresh_only: bool = False,
     baseline_path: Path | None = None,
     required_commit: str | None = None,
+    required_release: str | None = None,
 ) -> list[str]:
     try:
         text = _read_fresh_text(path, fresh_only=fresh_only, baseline_path=baseline_path)
@@ -597,6 +618,7 @@ def validate_log(
     elif mode == "resume-offset":
         missing.extend(_resume_offset_violations(text))
     missing.extend(_build_commit_violations(text, required_commit))
+    missing.extend(_build_release_violations(text, required_release))
     return missing
 
 
@@ -609,6 +631,11 @@ def diagnostic_hints(text: str, *, mode: str, missing: list[str]) -> list[str]:
             "autoplay recovery loop detected; confirm the device is running a build where "
             "Job/Library audio-state callbacks do not call pending-autoplay recovery, then "
             "pull a fresh-only log after reproducing once"
+        )
+    if any(item.startswith("playback build header release ") for item in missing):
+        hints.append(
+            "device playback log came from an older app release; deploy the current Apple build "
+            "before treating playback breadcrumbs as evidence for the latest source"
         )
     if "reader received consecutive broker pauses without an intervening reader play" in missing:
         hints.append(
@@ -661,6 +688,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=os.environ.get("APPLE_PLAYBACK_TRANSPORT_REQUIRED_COMMIT", ""),
         help="Require the latest [PlaybackTransportBuild] header to match this git commit prefix.",
     )
+    parser.add_argument(
+        "--require-release",
+        default=os.environ.get("APPLE_PLAYBACK_TRANSPORT_REQUIRED_RELEASE", ""),
+        help="Require the latest [PlaybackTransportBuild] header to match this app release.",
+    )
     return parser.parse_args(argv)
 
 
@@ -674,6 +706,7 @@ def main(argv: list[str] | None = None) -> int:
         fresh_only=args.fresh_only,
         baseline_path=baseline_path,
         required_commit=args.require_commit,
+        required_release=args.require_release,
     )
     if missing:
         try:

@@ -638,6 +638,41 @@ def test_required_build_commit_reports_missing_header_commit(tmp_path: Path) -> 
     assert missing == ["playback build header commit missing"]
 
 
+def test_required_build_release_accepts_matching_header(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        "1782670000.000 [PlaybackTransportBuild] release=2026.07.04.008 marketing=2026.7.4 bundle=20260704008 branch=main commit=unknown\n"
+        + PAUSE_LOG,
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="pause-release", required_release="2026.07.04.008") == []
+
+
+def test_required_build_release_rejects_stale_header(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        "1782670000.000 [PlaybackTransportBuild] release=2026.07.03.001 marketing=2026.7.3 bundle=20260703001 branch=unknown commit=unknown\n"
+        + PAUSE_LOG,
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release", required_release="2026.07.04.008")
+
+    assert missing == [
+        "playback build header release 2026.07.03.001 does not match required 2026.07.04.008"
+    ]
+
+
+def test_required_build_release_reports_missing_header_release(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(PAUSE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-release", required_release="2026.07.04.008")
+
+    assert missing == ["playback build header release missing"]
+
+
 def test_diagnostic_hint_stays_quiet_for_specific_playback_transport_gaps() -> None:
     missing = ["reader transport accepted explicit play"]
 
@@ -663,6 +698,24 @@ def test_diagnostic_hint_explains_autoplay_recovery_loop() -> None:
         "autoplay recovery loop detected; confirm the device is running a build where "
         "Job/Library audio-state callbacks do not call pending-autoplay recovery, then "
         "pull a fresh-only log after reproducing once"
+    ]
+
+
+def test_diagnostic_hint_explains_stale_device_release() -> None:
+    missing = [
+        "playback build header release 2026.07.03.001 does not match required 2026.07.04.008"
+    ]
+
+    hints = module.diagnostic_hints(
+        "1782670000.000 [PlaybackTransportBuild] release=2026.07.03.001 marketing=2026.7.3 bundle=20260703001 branch=unknown commit=unknown\n"
+        + PAUSE_LOG,
+        mode="pause-release",
+        missing=missing,
+    )
+
+    assert hints == [
+        "device playback log came from an older app release; deploy the current Apple build "
+        "before treating playback breadcrumbs as evidence for the latest source"
     ]
 
 
