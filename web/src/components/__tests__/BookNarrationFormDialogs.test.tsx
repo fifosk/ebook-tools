@@ -48,7 +48,12 @@ const fileOptions: PipelineFileBrowserResponse = {
 const discoveryResponse: AcquisitionDiscoveryResponse = {
   candidates: [candidate()],
   providers_queried: ['local_epub'],
-  policy_notes: ['Review source rights before narrating.'],
+  policy_notes: [
+    'Discovery results are candidates only.',
+    'Review source rights before narrating.',
+    '  Review source rights before narrating.  ',
+    '',
+  ],
 };
 
 function renderDialogs(overrides: Partial<Parameters<typeof BookNarrationFormDialogs>[0]> = {}) {
@@ -103,7 +108,9 @@ describe('BookNarrationFormDialogs', () => {
   it('routes discovery search and candidate selection through the discovery dialog', () => {
     const props = renderDialogs({ activeDiscoveryDialog: true });
 
+    expect(screen.getByText('Discovery results are candidates only.')).toBeInTheDocument();
     expect(screen.getByText('Review source rights before narrating.')).toBeInTheDocument();
+    expect(screen.getAllByText('Review source rights before narrating.')).toHaveLength(1);
     expect(screen.getByText('Checked Local EPUBs.')).toBeInTheDocument();
     expect(screen.getByText(/Local EPUBs · user provided/)).toBeInTheDocument();
 

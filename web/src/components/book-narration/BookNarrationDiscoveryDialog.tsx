@@ -90,6 +90,16 @@ function candidateActionLabel(candidate: AcquisitionCandidate, acquiringCandidat
   return candidate.capabilities.includes('metadata') ? 'Apply metadata' : 'Review';
 }
 
+function distinctPolicyNotes(policyNotes: string[]): string[] {
+  return policyNotes.reduce<string[]>((notes, rawNote) => {
+    const note = rawNote.trim();
+    if (note && !notes.includes(note)) {
+      notes.push(note);
+    }
+    return notes;
+  }, []);
+}
+
 export function BookNarrationDiscoveryDialog({
   active,
   provider,
@@ -118,6 +128,7 @@ export function BookNarrationDiscoveryDialog({
     event.preventDefault();
     onSearch(query);
   };
+  const visiblePolicyNotes = distinctPolicyNotes(policyNotes);
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -181,9 +192,9 @@ export function BookNarrationDiscoveryDialog({
               {providerError}
             </p>
           ) : null}
-          {policyNotes.length > 0 ? (
-            <p className="form-help-text">{policyNotes[0]}</p>
-          ) : null}
+          {visiblePolicyNotes.map((note) => (
+            <p className="form-help-text" key={note}>{note}</p>
+          ))}
           {isLoading && candidates.length === 0 ? <p role="status">Searching sources…</p> : null}
           {!isLoading
             && !selectedProviderUnavailableMessage
