@@ -342,6 +342,19 @@ class LLMClient:
             if stream_requested and not attempt_stream:
                 attempt_payload["stream"] = False
 
+            # Flash translation is faster without its default reasoning pass.
+            # Apply per endpoint so a local fallback keeps its native payload,
+            # and preserve any reasoning mode the caller explicitly requested.
+            _, request_model = split_llm_model_identifier(attempt_payload.get("model"))
+            if (
+                request_mode == "chat"
+                and endpoint.source == LLMSource.CLOUD
+                and (request_model or "").removesuffix("-cloud") == "deepseek-v4-flash:0731"
+                and "reasoning_effort" not in attempt_payload
+                and "reasoning" not in attempt_payload
+            ):
+                attempt_payload["reasoning_effort"] = "none"
+
             headers = dict(endpoint.headers)
             endpoint_url = self._resolve_request_url(endpoint, request_mode)
 

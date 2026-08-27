@@ -16,7 +16,7 @@ export const DEFAULT_FORM_STATE: FormState = {
   input_language: 'English',
   target_languages: ['Arabic'],
   custom_target_languages: '',
-  ollama_model: 'ollama_cloud:mistral-large-3:675b-cloud',
+  ollama_model: 'ollama_cloud:deepseek-v4-flash:0731',
   sentences_per_output_file: 10,
   sentence_splitter_mode: 'regex',
   start_sentence: 1,

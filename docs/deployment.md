@@ -37,6 +37,17 @@ into the container filesystem.
 
 ## Docker Compose (Production)
 
+### Default translation model
+
+New subtitle, book narration, and video dubbing requests default to
+`ollama_cloud:deepseek-v4-flash:0731`. Cloud chat requests for this pinned
+DeepSeek Flash model automatically use `reasoning_effort: "none"`, matching the
+fast translation mode measured in the subtitle benchmark. Explicit caller
+reasoning settings are preserved; other models, local endpoints, and completion
+requests are unchanged. Existing jobs and templates retain explicit model choices.
+Backend model configuration (`ollama_model` / `EBOOK_OLLAMA_MODEL`) still overrides
+the bundled default. Rebuild both backend and frontend to update new-form defaults.
+
 ### Starting Services
 
 ```bash

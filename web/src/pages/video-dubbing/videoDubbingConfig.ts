@@ -1,5 +1,5 @@
 export const DEFAULT_VIDEO_DIR = '';
-export const DEFAULT_LLM_MODEL = 'ollama_cloud:mistral-large-3:675b-cloud';
+export const DEFAULT_LLM_MODEL = 'ollama_cloud:deepseek-v4-flash:0731';
 export const DEFAULT_ORIGINAL_MIX_PERCENT = 5;
 export const DEFAULT_FLUSH_SENTENCES = 10;
 export const DEFAULT_TRANSLATION_BATCH_SIZE = 10;
