@@ -46,7 +46,10 @@ fast translation mode measured in the subtitle benchmark. Explicit caller
 reasoning settings are preserved; other models, local endpoints, and completion
 requests are unchanged. Existing jobs and templates retain explicit model choices.
 Backend model configuration (`ollama_model` / `EBOOK_OLLAMA_MODEL`) still overrides
-the bundled default. Rebuild both backend and frontend to update new-form defaults.
+the bundled default, including an active saved configuration snapshot. When
+changing an installation's default, update that snapshot's `ollama_model` too and
+retain the previous snapshot for rollback. Rebuild both backend and frontend to
+update new-form defaults.
 
 ### Starting Services
 

@@ -108,7 +108,7 @@
     "ollama_cloud_url": "https://api.ollama.com/v1/chat/completions",
     "lmstudio_macstudio_url": "http://192.168.1.9:1234/v1/chat/completions",
     "lmstudio_macbook_url": "http://192.168.1.191:1234/v1/chat/completions",
-    "ollama_model": "kimi-k2:1t-cloud",
+    "ollama_model": "ollama_cloud:deepseek-v4-flash:0731",
     "ffmpeg_path": "ffmpeg",
     "api_keys": {
         "ollama": "",

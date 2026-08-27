@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 import requests
 
+from modules.config_manager import loader as cfg_loader
 from modules.llm_client import ClientSettings, LLMClient, create_client
 from modules.llm_endpoints import LLMSource, _iter_sources, resolve_endpoints
 
@@ -103,6 +104,24 @@ def test_default_translation_client_uses_fast_deepseek(recording_session):
     assert calls[0][1]['model'] == 'deepseek-v4-flash:0731'
     assert calls[0][1]['reasoning_effort'] == 'none'
     assert 'reasoning_effort' not in payload
+
+
+@pytest.mark.parametrize('saved_model', [None, 'ollama_cloud:gemma4:31b'])
+def test_loaded_translation_settings_keep_saved_model_override(
+    monkeypatch, tmp_path, recording_session, saved_model,
+):
+    monkeypatch.setattr(cfg_loader, '_ACTIVE_SETTINGS', None)
+    monkeypatch.setattr(cfg_loader, 'DEFAULT_LOCAL_CONFIG_PATH', tmp_path / 'absent.json')
+    monkeypatch.setattr(cfg_loader, 'load_environment_overrides', lambda: {})
+    monkeypatch.setattr(cfg_loader, '_load_active_db_snapshot',
+                        lambda **kwargs: {'ollama_model': saved_model} if saved_model else {})
+    settings = cfg_loader.get_settings()
+    session, calls = recording_session
+    with create_client(model=settings.ollama_model, api_key='test-key',
+                       cloud_api_key='test-key', session=session) as client:
+        client.send_chat_request({'model': client.model, 'messages': []}, max_attempts=1)
+    assert calls[0][1]['model'] == ('gemma4:31b' if saved_model else 'deepseek-v4-flash:0731')
+    assert calls[0][1].get('reasoning_effort') == (None if saved_model else 'none')
 
 
 @pytest.mark.parametrize('model,source,expected', [
