@@ -8,6 +8,28 @@ from modules.progress_tracker import ProgressTracker
 pytestmark = pytest.mark.translation
 
 
+def test_sentence_retry_budget_counts_actual_requests(monkeypatch):
+    from modules.llm_client import ClientSettings, LLMClient
+
+    client = LLMClient(ClientSettings(model="test-model"))
+    calls = []
+    sleeps = []
+
+    def execute(payload, **kwargs):
+        calls.append(kwargs)
+        return LLMResponse(text="", status_code=0, token_usage={}, error="Read timed out")
+
+    monkeypatch.setattr(client, "_execute_request", execute)
+    monkeypatch.setattr(translation_engine.time, "sleep", sleeps.append)
+    _, error, _ = translation_engine._translate_with_llm(
+        "Hello", "English", "Arabic", include_transliteration=True,
+        resolved_client=client, progress_tracker=None, timeout_seconds=60,
+    )
+    assert error == "Read timed out"
+    assert len(calls) == translation_engine._TRANSLATION_RESPONSE_ATTEMPTS
+    assert len(sleeps) == translation_engine._TRANSLATION_RESPONSE_ATTEMPTS - 1
+
+
 class StubLLMClient:
     def __init__(self, responses):
         self.responses = list(responses)

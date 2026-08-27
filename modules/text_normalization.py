@@ -110,7 +110,11 @@ def split_translation_and_transliteration(text: str) -> Tuple[str, str]:
         if idx == 0:
             translation_parts.append(cleaned_line)
             continue
-        if is_latin_heavy(cleaned_line):
+        explicit_transliteration = raw_line.lower().startswith(_TRANSLITERATION_PREFIXES)
+        non_latin_translation = not is_latin_heavy(" ".join(translation_parts))
+        # A second English/Latin-script sentence is still translation content.
+        # Infer an unlabeled romanization only after a non-Latin translation.
+        if is_latin_heavy(cleaned_line) and (explicit_transliteration or non_latin_translation):
             transliteration_parts.append(_strip_known_prefix(cleaned_line, _TRANSLITERATION_PREFIXES))
         else:
             translation_parts.append(cleaned_line)

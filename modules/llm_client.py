@@ -446,7 +446,8 @@ class LLMClient:
             except requests.exceptions.RequestException as exc:
                 last_error = str(exc)
                 self._log_debug("Request error on attempt %s/%s: %s", attempt, max_attempts, exc)
-                time.sleep(backoff_seconds * attempt)
+                if attempt < max_attempts:
+                    time.sleep(backoff_seconds * attempt)
                 continue
 
             if result.error:
@@ -476,7 +477,8 @@ class LLMClient:
                 else:
                     return result
 
-            time.sleep(backoff_seconds * attempt)
+            if attempt < max_attempts:
+                time.sleep(backoff_seconds * attempt)
 
         return LLMResponse(
             text="",

@@ -156,6 +156,25 @@ def test_process_subtitle_file_emits_colourised_srt(tmp_path: Path, srt_source: 
     assert '<font color="#21C55D" size="5">mundo</font>' in payload
 
 
+def test_multiline_translation_keeps_trailing_sentence_in_export(
+    tmp_path: Path, srt_source: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_translation(monkeypatch, "Wait here.\nWhere are you going?")
+    monkeypatch.setattr(
+        subtitle_processing, "translate_batch",
+        lambda sentences, *args, **kwargs: ["Wait here.\nWhere are you going?"] * len(sentences),
+    )
+    output_path = tmp_path / "source.en.srt"
+    options = SubtitleJobOptions(
+        input_language="Turkish", target_language="English",
+        enable_transliteration=False, highlight=False, show_original=False,
+        output_format="srt",
+    )
+    result = process_subtitle_file(srt_source, output_path, options, mirror_output_path=None)
+    assert result.cue_count == 1
+    assert "Where are you going?" in output_path.read_text(encoding="utf-8")
+
+
 def test_transliteration_skips_latin_targets(
     tmp_path: Path,
     srt_source: Path,

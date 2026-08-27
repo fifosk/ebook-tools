@@ -11,6 +11,43 @@ from modules import translation_batch as tb
 pytestmark = pytest.mark.translation
 
 
+@pytest.mark.parametrize("operation", ["translation", "transliteration"])
+@pytest.mark.parametrize("failure", ["timeout", "invalid_json", "exception"])
+def test_batch_retry_budget_counts_actual_requests(monkeypatch, operation, failure):
+    from modules.llm_client import ClientSettings, LLMClient, LLMResponse
+
+    client = LLMClient(ClientSettings(model="test-model"))
+    calls = []
+    sleeps = []
+
+    def execute(payload, **kwargs):
+        calls.append(kwargs)
+        if failure == "exception":
+            import requests
+            raise requests.exceptions.ReadTimeout("Read timed out")
+        return LLMResponse(
+            text="not JSON" if failure == "invalid_json" else "",
+            status_code=200 if failure == "invalid_json" else 0,
+            token_usage={},
+            error="Read timed out" if failure == "timeout" else None,
+        )
+
+    monkeypatch.setattr(client, "_execute_request", execute)
+    monkeypatch.setattr(tb.time, "sleep", sleeps.append)
+    common = dict(resolved_client=client, progress_tracker=None, timeout_seconds=60)
+    if operation == "translation":
+        result, error, _ = tb.translate_llm_batch_items(
+            [(0, "Hello")], "English", "Arabic", include_transliteration=True, **common
+        )
+    else:
+        result, error, _ = tb.transliterate_llm_batch_items(
+            [(0, "مرحبا")], "Arabic", **common
+        )
+    assert result == {} and error
+    assert len(calls) == tb._TRANSLATION_RESPONSE_ATTEMPTS
+    assert len(sleeps) == tb._TRANSLATION_RESPONSE_ATTEMPTS - 1
+
+
 class TestNormalizeLLMBatchSize:
     """Tests for normalize_llm_batch_size."""
 

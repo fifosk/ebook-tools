@@ -1218,5 +1218,21 @@ streaming callers receive the completed content as SSE. This adapter exposes
 only chat completions and model inventory, not arbitrary upstream URLs.
 
 Regression gate: `python -m pytest tests/scripts/test_ollama_pool_proxy.py`.
+
+### Subtitle translation retries
+
+Translation and transliteration response loops own the retry budget: up to five
+attempts, with one client request per attempt. Transport/JSON failures count
+against that same budget; the client does not multiply it by its own retries or
+sleep after the final attempt. Quality checks (length, script, diacritics and
+placeholders) remain enabled. This bounds a repeatedly failing operation to five
+client requests instead of twenty; it is not a guarantee of provider latency.
+
+The main subtitle progress counter advances after an output batch finishes, so
+inspect `translation_batch_stats`, `transliteration_batch_stats` and
+`retry_summary` when it stays at zero. Pool adapter timeouts and abandoned
+upstream requests still need separate diagnosis; do not restart the backend or
+adapter while jobs or leases are active. Retry changes affect newly started
+processes, not a job already running in the old worker.
 Rollback: restore the backend's saved cloud URL/key settings, recreate only the
 backend, and stop the adapter once all its requests/leases have completed.

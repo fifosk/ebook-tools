@@ -71,7 +71,8 @@ logger = log_mgr.logger
 
 _TRANSLATION_RESPONSE_ATTEMPTS = 5
 _TRANSLATION_RETRY_DELAY_SECONDS = 1.0
-_LLM_REQUEST_ATTEMPTS = 4
+# Keep transport failures inside the same budget as quality retries.
+_LLM_REQUEST_ATTEMPTS = 1
 
 def _should_include_transliteration(
     include_transliteration: bool,

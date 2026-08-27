@@ -32,7 +32,9 @@ from modules.transliteration import is_python_transliteration_mode
 logger = log_mgr.logger
 
 # Constants
-_LLM_REQUEST_ATTEMPTS = 4
+# The response loop owns the retry budget, including transport/JSON failures.
+# Nested client retries previously multiplied five attempts into twenty calls.
+_LLM_REQUEST_ATTEMPTS = 1
 _TRANSLATION_RESPONSE_ATTEMPTS = 5
 _TRANSLATION_RETRY_DELAY_SECONDS = 1.0
 

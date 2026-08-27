@@ -18,3 +18,12 @@ def test_collapse_whitespace_removes_newlines():
     text = "Bonjour\nle\tmonde  !"
 
     assert text_norm.collapse_whitespace(text) == "Bonjour le monde !"
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("Wait here.\nWhere are you going?", ("Wait here. Where are you going?", "")),
+    ("مَرْحَبًا بِكَ\nmarhaban bika", ("مَرْحَبًا بِكَ", "marhaban bika")),
+    ("مرحبا\nTransliteration: marhaba", ("مرحبا", "marhaba")),
+])
+def test_split_preserves_multiline_latin_translation(text, expected):
+    assert text_norm.split_translation_and_transliteration(text) == expected
