@@ -143,6 +143,26 @@ describe('useSubtitleSubmit', () => {
     expect(options.finishSubmit).toHaveBeenCalled();
   });
 
+  it.each<[string, string, string | null]>([
+    ['01:00', '', null],
+    ['01:00', '+05:00', '+05:00'],
+    ['01:00:00', '', null]
+  ])('accepts start time %s and end time %s', async (startTime, endTime, expectedEndTime) => {
+    const options = { ...baseOptions(), startTime, endTime };
+    const { result } = renderHook(() => useSubtitleSubmit(options));
+
+    await act(async () => {
+      await result.current.handleSubmit(submitEvent());
+    });
+
+    expect(mockSubmitSubtitleJob).toHaveBeenCalledTimes(1);
+    const formData = mockSubmitSubtitleJob.mock.calls[0][0];
+    expect(formData.get('start_time')).toBe(startTime);
+    expect(formData.get('end_time')).toBe(expectedEndTime);
+    expect(options.setSubmitError).toHaveBeenCalledWith(null);
+    expect(options.setSubmitError).not.toHaveBeenCalledWith(expect.any(String));
+  });
+
   it('routes backend failures through submit status cleanup', async () => {
     const failure = new Error('backend unavailable');
     mockSubmitSubtitleJob.mockRejectedValue(failure);

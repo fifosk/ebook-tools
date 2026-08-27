@@ -1187,3 +1187,36 @@ The updated hash will work in both local development and Docker.
 - Use `http://host.docker.internal:7860` as the image API URL in Docker.
 - Increase `image_api_timeout_seconds` in `conf/config.local.json` for slow
   models.
+
+## Optional Ollama seat pool adapter
+
+For a home deployment with explicitly approved cloud use, run
+`scripts/ollama_pool_proxy.py` on the Docker host. It uses the existing fleet
+pool and central-store clients in a configured projects-inventory checkout.
+It verifies the configured app principal with `queue_whoami`; it does not mint
+credentials or change upstream grants. Pass `--fleet-repo`,
+`--expected-identity`, and a private `--token-file` containing a separate random
+adapter token (at least 32 characters). The listener is loopback only, port
+11436 by default. Manage it with the host's service manager.
+
+Set the backend's `OLLAMA_CLOUD_URL` to
+`http://host.docker.internal:11436/v1/chat/completions` and `OLLAMA_API_KEY` to
+the adapter token, then recreate only the backend. Verify Docker can reach
+the authenticated `/health` endpoint before switching. Never put the token
+in Git or command arguments. Keep a private backup of the previous deployment
+configuration for rollback.
+
+Each inference or model inventory request leases a seat before resolving its
+matching credential from the store, and releases it afterward. The pool chooses
+the initial cloud seat. On 401/403, the adapter tries the other leased seat and
+cools down the failing seat for five minutes; 429 and transient failures use a
+30-second cooldown, with 429 also reported to the pool. A full or unavailable
+pool fails closed. Vendor keys remain on the host, are fetched per call, and
+never reach the browser or backend container. Token-safe logs identify only the
+served account and HTTP status. Responses are buffered while the lease is held;
+streaming callers receive the completed content as SSE. This adapter exposes
+only chat completions and model inventory, not arbitrary upstream URLs.
+
+Regression gate: `python -m pytest tests/scripts/test_ollama_pool_proxy.py`.
+Rollback: restore the backend's saved cloud URL/key settings, recreate only the
+backend, and stop the adapter once all its requests/leases have completed.

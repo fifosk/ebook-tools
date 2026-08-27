@@ -228,6 +228,8 @@ describe('resolveSubtitleLanguageDefaults', () => {
 
 describe('normalizeSubtitleTimecodeInput', () => {
   it('normalizes MM:SS and HH:MM:SS absolute timecodes', () => {
+    expect(normalizeSubtitleTimecodeInput('00:00')).toBe('00:00');
+    expect(normalizeSubtitleTimecodeInput('01:00')).toBe('01:00');
     expect(normalizeSubtitleTimecodeInput('1:02')).toBe('01:02');
     expect(normalizeSubtitleTimecodeInput('1:02:03')).toBe('01:02:03');
   });

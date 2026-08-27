@@ -518,6 +518,47 @@ def test_llm_model_openapi_marks_models_required() -> None:
     assert {"models"} <= set(schema["LLMModelListResponse"]["required"])
 
 
+def test_slow_model_inventory_does_not_block_other_requests(monkeypatch) -> None:
+    import asyncio
+    import threading
+
+    import httpx
+    from fastapi import FastAPI
+    from modules.webapi.dependencies import RequestUserContext, get_request_user
+
+    started = threading.Event()
+    released = threading.Event()
+
+    def slow_inventory() -> list[str]:
+        started.set()
+        assert released.wait(2), "Model discovery blocked the API event loop"
+        return ["ollama_cloud:test"]
+
+    monkeypatch.setattr(pipeline_system_routes, "list_available_llm_models", slow_inventory)
+    app = FastAPI()
+    app.include_router(pipeline_system_routes.router, prefix="/api/pipelines")
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext("test", "admin")
+
+    @app.get("/probe")
+    async def probe():
+        return {"responsive": True}
+
+    async def exercise():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            inventory = asyncio.create_task(client.get("/api/pipelines/llm-models"))
+            try:
+                assert await asyncio.to_thread(started.wait, 1)
+                response = await client.get("/probe")
+                assert response.json() == {"responsive": True}
+                assert not inventory.done()
+            finally:
+                released.set()
+                response = await inventory
+            assert response.status_code == 200
+
+    asyncio.run(exercise())
+
+
 def test_llm_models_endpoint_rejects_guest_with_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
