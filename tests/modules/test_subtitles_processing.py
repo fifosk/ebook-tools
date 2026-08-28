@@ -762,3 +762,94 @@ def test_subtitle_job_options_require_end_after_start() -> None:
             start_time_offset=10.0,
             end_time_offset=5.0,
         )
+
+
+@pytest.mark.parametrize("output_format", ["srt", "ass"])
+@pytest.mark.parametrize("elapsed_per_batch,expected_flushes", [(0.0, 2), (0.5, 3), (1.1, 4)])
+def test_plain_subtitle_previews_coalesce_but_preserve_final_output(
+    tmp_path, monkeypatch, output_format, elapsed_per_batch, expected_flushes,
+):
+    """Fast batches share a preview; slow batches and the final batch always publish."""
+    from modules.subtitles.io import write_srt
+
+    _stub_translation(monkeypatch, "Wait here. Where are you going?")
+    cues = [
+        SubtitleCue(1, 0.0, 3.0, ["Wait here."]),
+        SubtitleCue(2, 1.0, 4.0, ["Wait here. Where are you going?"]),
+        SubtitleCue(3, 2.0, 5.0, ["Another speaker replies."]),
+        # Out-of-order starts must still be merged using the whole timeline.
+        SubtitleCue(4, 0.5, 2.5, ["An earlier overlapping cue."]),
+    ]
+    source = tmp_path / "source.srt"
+    write_srt(source, cues)
+    clock = [0.0]
+    monkeypatch.setattr(subtitle_processing, "monotonic", lambda: clock[0], raising=False)
+    options = SubtitleJobOptions(
+        input_language="English", target_language="English", output_format=output_format,
+        translation_provider="googletrans", translation_batch_size=1, batch_size=1,
+        generate_audio_book=False, highlight=False, worker_count=1,
+    )
+    output = tmp_path / f"output.{output_format}"
+    mirror = tmp_path / f"mirror.{output_format}"
+    real_write = subtitle_processing._SubtitleFileWriter.write
+    writes = []
+    batches = []
+
+    def write(writer, rendered):
+        writes.append(Path(writer.handle.name))
+        return real_write(writer, rendered)
+
+    def batch(entries):
+        batches.extend(index for index, _ in entries)
+        clock[0] += elapsed_per_batch
+        if len(batches) == 2:
+            assert mirror.exists()  # first preview is available before job completion
+
+    with monkeypatch.context() as spy:
+        spy.setattr(subtitle_processing._SubtitleFileWriter, "write", write)
+        result = process_subtitle_file(source, output, options, mirror_output_path=mirror,
+                                      on_transcript_batch=batch, collect_transcript_entries=True)
+    assert writes.count(mirror) == expected_flushes
+    assert len(writes) == 2 * expected_flushes
+    assert batches == [1, 2, 3, 4]
+    assert len(result.transcript_entries) == 4
+    assert output.read_bytes() == mirror.read_bytes()
+    # A single final merge is the reference for overlap handling and output numbering/header.
+    from dataclasses import replace
+    reference = tmp_path / f"reference.{output_format}"
+    process_subtitle_file(source, reference, replace(options, batch_size=4))
+    assert output.read_bytes() == reference.read_bytes()
+
+
+@pytest.mark.parametrize("failure", ["cancel", "error"])
+def test_plain_subtitle_coalesced_preview_discards_unfinished_files(tmp_path, monkeypatch, failure):
+    from threading import Event
+    from modules.subtitles.errors import SubtitleJobCancelled
+    from modules.subtitles.io import write_srt
+
+    _stub_translation(monkeypatch, "Test translation")
+    source = tmp_path / "source.srt"
+    write_srt(source, [SubtitleCue(i, float(i), float(i + 1), [f"Cue {i}"]) for i in range(1, 5)])
+    monkeypatch.setattr(subtitle_processing, "monotonic", lambda: 0.0, raising=False)
+    stop = Event()
+    output = tmp_path / "output.srt"
+    mirror = tmp_path / "mirror.srt"
+    options = SubtitleJobOptions(input_language="English", target_language="English",
+        translation_provider="googletrans", translation_batch_size=1, batch_size=1,
+        generate_audio_book=False, highlight=False, worker_count=1)
+
+    def batch(entries):
+        if entries[0][0] == 3:
+            if failure == "cancel":
+                stop.set()
+            else:
+                raise RuntimeError("producer failed")
+
+    expected = SubtitleJobCancelled if failure == "cancel" else RuntimeError
+    with pytest.raises(expected):
+        process_subtitle_file(source, output, options, mirror_output_path=mirror,
+                              stop_event=stop, on_transcript_batch=batch)
+    assert not output.exists()
+    assert not output.with_suffix(".srt.tmp").exists()
+    assert not (output.parent / "html" / "output.html").exists()
+    assert not (mirror.parent / "html" / "mirror.html").exists()

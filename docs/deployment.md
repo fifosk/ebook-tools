@@ -54,6 +54,25 @@ changing an installation's default, update that snapshot's `ollama_model` too an
 retain the previous snapshot for rollback. Rebuild both backend and frontend to
 update new-form defaults.
 
+### Plain subtitle preview writes
+
+With word highlighting disabled, the renderer must merge the accumulated timeline
+because later overlapping or similar cues can change earlier output. Fast batches
+now coalesce those full subtitle-file rewrites to at most one preview per second
+at batch boundaries, measured after the previous flush completes. The first and
+final batches always flush; a long translation call can still delay the next
+preview. Highlighted output continues to append every batch. HTML transcript and
+audio handoffs remain per batch, and final SRT/ASS output retains the same full
+merge, numbering and headers. No job format or worker concurrency changes.
+
+Controlled fixture measurements (300/1,000/3,000 cues, batches of 30, three runs,
+deterministic translation, local files) reduced plain-output merge calls from
+10/34/100 to 2. With a second local output acting as the mirror, median processing
+time was 0.36/3.79/32.76 seconds before and 0.08/0.26/0.78 seconds after; cumulative
+subtitle bytes at 3,000 cues fell from 59.50 MB to 1.19 MB. All final output hashes
+matched. These measure processing overhead, not real-provider job throughput or
+NAS network latency. Slow model-bound jobs may see little total-time change.
+
 ### Starting Services
 
 Translation completeness checks are shared by book, subtitle, and video-dubbing
