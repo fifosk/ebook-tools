@@ -70,6 +70,23 @@ call to successful batches, but suspect batches incur individual retries. It is
 a structural heuristic, not a guarantee of semantic accuracy. Completed jobs and
 previously translated media require explicit reprocessing to replace old output.
 
+The 2026-08-28 completeness audit rechecked completed Finnish job
+`83277992-5bf6-4a91-b0d7-703826346589`: its 405 persisted translations contain no
+blank/failure placeholders, but the same eight previously confirmed omissions
+remain at entries 31, 32, 33, 34, 37, 38, 39 and 40. A fresh ten-item cloud replay
+with the deployed DeepSeek default restored those sentences/replies in one
+request, with no retries, and a Turkish-to-English two-sentence probe retained the
+trailing question. The regression suite explicitly covers that Turkish shape as
+well as Finnish dialogue. This is targeted structural/semantic inspection, not a
+native-speaker audit of every line. Reprocessing is needed to replace old output
+and its audio; deployment intentionally preserves existing jobs.
+
+The older replacement job `ad3f6106-f36d-4bc2-8fda-001a6380b848` is no longer present
+in active job storage or the library catalog on this runtime. Its final manifest
+cannot be certified retrospectively. The newer persisted Finnish example and
+reproducible two-sentence repair test supply the regression evidence; do not claim
+the missing historical job was repaired or verified.
+
 Video dubbing stops with a cue-numbered error if per-cue translation/repair
 exhausts retries or returns an empty, failure-marked, or corrupt response. It
 does not substitute original-language text as a successful target translation.
