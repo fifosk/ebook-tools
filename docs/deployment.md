@@ -67,6 +67,13 @@ call to successful batches, but suspect batches incur individual retries. It is
 a structural heuristic, not a guarantee of semantic accuracy. Completed jobs and
 previously translated media require explicit reprocessing to replace old output.
 
+Video dubbing stops with a cue-numbered error if per-cue translation/repair
+exhausts retries or returns an empty, failure-marked, or corrupt response. It
+does not substitute original-language text as a successful target translation.
+The failed block is not sent to synthesis; earlier completed blocks may remain
+as partial artifacts on the failed job. Explicit same-language/original tracks
+and successful configured provider fallback remain unchanged.
+
 ```bash
 docker compose up -d              # start backend + frontend (detached)
 docker compose logs -f            # follow logs from both containers
