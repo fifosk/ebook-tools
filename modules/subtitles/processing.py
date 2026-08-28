@@ -19,6 +19,7 @@ from modules.transliteration import (
 )
 from modules.translation_engine import _unexpected_script_used, translate_batch
 from modules.translation_preflight import TranslationPreflightError, preflight_translation
+from modules.llm_client_manager import client_scope
 
 from .common import ASS_EXTENSION, SRT_EXTENSION, logger
 from .errors import SubtitleJobCancelled, SubtitleProcessingError
@@ -121,7 +122,7 @@ def process_subtitle_file(
         raise SubtitleProcessingError("No cues processed from source subtitle")
 
     if options.translation_provider == "llm":
-        with create_client(model=options.llm_model) as client:
+        with (create_client(model=options.llm_model) if options.llm_model else client_scope(None)) as client:
             preflight_translation(client, options.translation_provider, tracker)
 
     language_context = _resolve_language_context(cues, options)

@@ -45,6 +45,9 @@ DeepSeek Flash model automatically use `reasoning_effort: "none"`, matching the
 fast translation mode measured in the subtitle benchmark. Explicit caller
 reasoning settings are preserved; other models, local endpoints, and completion
 requests are unchanged. Existing jobs and templates retain explicit model choices.
+Subtitle and video model preflight use the same configured implicit client as
+translation when no explicit model is selected, including its endpoint settings.
+Explicit model choices retain their existing routing.
 Backend model configuration (`ollama_model` / `EBOOK_OLLAMA_MODEL`) still overrides
 the bundled default, including an active saved configuration snapshot. When
 changing an installation's default, update that snapshot's `ollama_model` too and
