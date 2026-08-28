@@ -175,6 +175,29 @@ def test_multiline_translation_keeps_trailing_sentence_in_export(
     assert "Where are you going?" in output_path.read_text(encoding="utf-8")
 
 
+@pytest.mark.parametrize("translation_batch_size", [1, 2])
+def test_unavailable_model_stops_subtitles_before_any_inference(
+    tmp_path, srt_source, monkeypatch, translation_batch_size,
+):
+    from types import SimpleNamespace
+    from modules import translation_engine as te, translation_preflight as pf
+    from modules.llm_client import ClientSettings, LLMClient
+
+    _stub_translation(monkeypatch, "unused")
+    (tmp_path / "data").mkdir()
+    monkeypatch.setattr(pf.cfg, "get_runtime_context", lambda *args: SimpleNamespace(output_dir=tmp_path / "media"))
+    monkeypatch.setattr(pf, "check_model", lambda client: ("unavailable", "Selected model unavailable"))
+    monkeypatch.setattr(subtitle_processing, "create_client", lambda **kwargs: LLMClient(
+        ClientSettings(model="test-model", llm_source="cloud", api_url="https://example.invalid/v1/chat/completions")))
+    monkeypatch.setattr(subtitle_processing, "translate_batch", te.translate_batch)
+    monkeypatch.setattr(LLMClient, "send_chat_request", lambda *args, **kwargs: pytest.fail("inference was scheduled"))
+    monkeypatch.setattr(subtitle_processing, "_translate_text", lambda *args, **kwargs: pytest.fail("per-cue fallback ran"))
+    options = SubtitleJobOptions(input_language="English", target_language="Finnish",
+        llm_model="test-model", enable_transliteration=False, translation_batch_size=translation_batch_size)
+    with pytest.raises(pf.TranslationPreflightError, match="Selected model unavailable"):
+        process_subtitle_file(srt_source, tmp_path / "unavailable.srt", options)
+
+
 def test_subtitle_cancellation_reaches_batch_scheduler(tmp_path, srt_source, monkeypatch):
     from threading import Event
     from modules.subtitles.errors import SubtitleJobCancelled

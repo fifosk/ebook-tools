@@ -18,6 +18,7 @@ from modules.transliteration import (
     resolve_local_transliteration_module,
 )
 from modules.translation_engine import _unexpected_script_used, translate_batch
+from modules.translation_preflight import TranslationPreflightError, preflight_translation
 
 from .common import ASS_EXTENSION, SRT_EXTENSION, logger
 from .errors import SubtitleJobCancelled, SubtitleProcessingError
@@ -157,6 +158,9 @@ def process_subtitle_file(
         and translation_batch_size is not None
         and translation_batch_size > 1
     )
+    if options.translation_provider == "llm" and not use_llm_batching:
+        with create_client(model=options.llm_model) as client:
+            preflight_translation(client, options.translation_provider, tracker)
     allow_llm_transliteration = (
         transliteration_enabled
         and options.transliteration_mode != "python"
@@ -260,6 +264,8 @@ def process_subtitle_file(
                                 sentence_numbers=batch_sentence_numbers,
                                 stop_event=stop_event,
                             )
+                    except TranslationPreflightError:
+                        raise
                     except Exception:  # pragma: no cover - fallback to per-cue translation
                         logger.warning(
                             "Unable to batch translate subtitle cues; falling back to per-cue translation",

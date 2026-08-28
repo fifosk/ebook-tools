@@ -18,6 +18,10 @@ _lock = threading.Lock()
 _cache: dict[str, tuple[float, str, str]] = {}
 
 
+class TranslationPreflightError(RuntimeError):
+    """A confirmed unavailable model must not fall back to per-item calls."""
+
+
 def check_model(client: LLMClient) -> tuple[str, str]:
     """Return available/unavailable/unknown. Discovery failure is not absence.
 
@@ -85,4 +89,4 @@ def preflight_translation(client, provider, tracker=None) -> None:
             "status": status, "message": message, "model": client.model,
         }})
     if status == "unavailable":
-        raise RuntimeError(message)
+        raise TranslationPreflightError(message)
