@@ -53,6 +53,72 @@ class StubLLMClient:
         return LLMResponse(text=text, status_code=200, token_usage={})
 
 
+def test_single_translation_retries_missing_dialogue(monkeypatch):
+    monkeypatch.setattr(translation_engine, "_TRANSLATION_RESPONSE_ATTEMPTS", 2)
+    monkeypatch.setattr(translation_engine, "_TRANSLATION_RETRY_DELAY_SECONDS", 0)
+    client = StubLLMClient(["Miten menee?", "Miten menee? Hyvin. Oli hyvä viikko."])
+    result, error, _ = translation_engine._translate_with_llm(
+        "How are things? Good. Had a good week.", "English", "Finnish",
+        include_transliteration=False, resolved_client=client,
+        progress_tracker=None, timeout_seconds=60,
+    )
+    assert result == "Miten menee? Hyvin. Oli hyvä viikko."
+    assert error is None
+
+
+@pytest.mark.parametrize("last_response", ["Miten menee?", ""])
+def test_exhausted_completeness_retries_never_return_rejected_text(monkeypatch, last_response):
+    from modules.retry_annotations import is_failure_annotation
+
+    monkeypatch.setattr(translation_engine, "_TRANSLATION_RESPONSE_ATTEMPTS", 2)
+    monkeypatch.setattr(translation_engine, "_TRANSLATION_RETRY_DELAY_SECONDS", 0)
+    result, error, _ = translation_engine._translate_with_llm(
+        "How are things? Good. Had a good week.", "English", "Finnish",
+        include_transliteration=False,
+        resolved_client=StubLLMClient(["Miten menee?", last_response]),
+        progress_tracker=None, timeout_seconds=60,
+    )
+    assert is_failure_annotation(result)
+    assert error
+
+
+@pytest.mark.parametrize("streaming", [False, True], ids=["subtitles-and-video", "book-pipeline"])
+def test_incomplete_batch_retries_neighbors_in_both_translation_flows(monkeypatch, streaming):
+    from queue import Queue
+    from modules import llm_batch, translation_batch
+
+    bad_payload = {"items": [
+        {"id": 0, "translation": "Miten menee?"},
+        {"id": 1, "translation": "Hyvin. Oli hyvä viikko. Odota tässä."},
+    ]}
+    monkeypatch.setattr(llm_batch, "request_json_batch", lambda **kwargs:
+                        llm_batch.JsonBatchResponse(bad_payload, "", None, 0.1))
+    monkeypatch.setattr(translation_batch, "write_llm_batch_artifact", lambda **kwargs: None)
+    monkeypatch.setattr(translation_engine, "resolve_llm_batch_log_dir", lambda *args: None)
+    client = StubLLMClient(["Miten menee? Hyvin. Oli hyvä viikko.", "Odota tässä."])
+    source = ["How are things? Good. Had a good week.", "Wait here."]
+    tracker = ProgressTracker()
+    kwargs = dict(client=client, llm_batch_size=2, max_workers=1, progress_tracker=tracker)
+    if streaming:
+        queue = Queue()
+        thread = translation_engine.start_translation_pipeline(
+            source, "English", ["Finnish", "Finnish"], start_sentence=1,
+            output_queue=queue, consumer_count=1, **kwargs,
+        )
+        thread.join(timeout=5)
+        assert not thread.is_alive()
+        tasks = [queue.get_nowait(), queue.get_nowait()]
+        result = [task.translation for task in sorted(tasks, key=lambda task: task.index)]
+        assert queue.get_nowait() is None
+    else:
+        result = translation_engine.translate_batch(source, "English", "Finnish", **kwargs)
+    assert result == ["Miten menee? Hyvin. Oli hyvä viikko.", "Odota tässä."]
+    assert not client.responses  # The neighboring item's borrowed content was retried too.
+    assert tracker.get_retry_counts()['translation'][
+        'Incomplete translation batch; retrying items independently'
+    ] == 2
+
+
 @pytest.mark.parametrize("attempts", [2])
 def test_retry_when_transliteration_returned(monkeypatch, attempts):
     monkeypatch.setattr(translation_engine, "_TRANSLATION_RESPONSE_ATTEMPTS", attempts)

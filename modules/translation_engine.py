@@ -151,12 +151,18 @@ def _translate_with_llm(
                         )
                 elif _is_translation_too_short(sentence, translation_text, target_language):
                     attempt_error = "Translation shorter than expected"
+                    fatal_violation = True
                     if resolved_client.debug_enabled:
                         logger.debug(
                             "Retrying translation due to short response (%s/%s)",
                             attempt,
                             _TRANSLATION_RESPONSE_ATTEMPTS,
                         )
+                elif completeness_error := tv.translation_completeness_error(
+                    sentence, translation_text, target_language,
+                ):
+                    attempt_error = completeness_error
+                    fatal_violation = True
                 else:
                     missing_diacritics, label = _missing_required_diacritics(
                         translation_text, target_language
@@ -593,7 +599,7 @@ def translate_batch(
                 pending_transliteration: List[Tuple[int, str]] = []
                 for idx, sentence in items:
                     translation, transliteration = translation_map.get(idx, ("", ""))
-                    translation_error = validate_batch_translation(
+                    translation_error = _error or validate_batch_translation(
                         sentence, translation, target
                     )
                     if translation_error:
@@ -933,7 +939,7 @@ def start_translation_pipeline(
                         start_sentence + idx, per_item_elapsed, mode_label
                     )
                     translation, transliteration = translation_map.get(idx, ("", ""))
-                    translation_error = validate_batch_translation(
+                    translation_error = _error or validate_batch_translation(
                         sentence, translation, target
                     )
                     if translation_error:

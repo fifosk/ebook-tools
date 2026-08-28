@@ -158,6 +158,22 @@ class TestGetGoogletransTranslator:
 
 
 class TestTranslateWithGoogletrans:
+    def test_missing_reply_is_retried(self, monkeypatch):
+        monkeypatch.setattr(gtp, 'check_googletrans_health', lambda: (True, None))
+        monkeypatch.setattr(gtp, '_TRANSLATION_RETRY_DELAY_SECONDS', 0)
+        translator = Mock()
+        translator.translate.side_effect = [
+            types.SimpleNamespace(text='Miten menee?'),
+            types.SimpleNamespace(text='Miten menee? Hyvin. Oli hyvä viikko.'),
+        ]
+        monkeypatch.setattr(gtp, '_get_googletrans_translator', lambda: translator)
+        result, error = gtp.translate_with_googletrans(
+            'How are things? Good. Had a good week.', 'English', 'Finnish',
+        )
+        assert result == 'Miten menee? Hyvin. Oli hyvä viikko.'
+        assert error is None
+        assert translator.translate.call_count == 2
+
     def test_health_check_failure(self):
         with patch.object(gtp, 'check_googletrans_health', return_value=(False, "test failure")):
             result, error = gtp.translate_with_googletrans("hello", "en", "es")

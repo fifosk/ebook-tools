@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 from modules import logging_manager as log_mgr, text_normalization as text_norm
 from modules.language_constants import LANGUAGE_CODES
 from modules.retry_annotations import format_retry_failure
+from modules.translation_validation import translation_completeness_error
 import regex
 
 logger = log_mgr.logger
@@ -254,8 +255,11 @@ def translate_with_googletrans(
             result = translator.translate(sentence, src=src_code, dest=dest_code)
             candidate = text_norm.collapse_whitespace((result.text or "").strip())
             if candidate and not text_norm.is_placeholder_translation(candidate):
-                return candidate, None
-            last_error = "Empty translation response"
+                last_error = translation_completeness_error(sentence, candidate, target_language)
+                if not last_error:
+                    return candidate, None
+            else:
+                last_error = "Empty translation response"
         except Exception as exc:  # pragma: no cover - network/remote errors
             last_error = str(exc) or "Google Translate request failed"
         if progress_tracker is not None and last_error:

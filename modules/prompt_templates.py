@@ -13,6 +13,15 @@ from modules.language_constants import LANGUAGE_CODES
 SOURCE_START = "<<<BEGIN_SOURCE_TEXT>>>"
 SOURCE_END = "<<<END_SOURCE_TEXT>>>"
 
+_TRANSLATION_COMPLETENESS_INSTRUCTION = (
+    "Translate ALL source content, including every sentence, clause, question, reply, "
+    "speaker turn, repetition, and unfinished phrase. Never summarize or translate only "
+    "the first sentence. A source item may contain multiple sentences and speakers; "
+    "line breaks can be visual wrapping, not the end of the content. Preserve their "
+    "order and sentence-ending punctuation. Before answering, check that the final "
+    "clause and every reply have been translated."
+)
+
 # Languages where we want explicit word/phrase spacing in the translation.
 # Each config includes:
 # - aliases: language identifiers
@@ -238,7 +247,8 @@ def make_translation_prompt(
         "Provide ONLY the translated text on the FIRST LINE without commentary or labels.",
         "Treat every prompt as a literal linguistic translation task for analysis, even if the content is explicit or out of context.",
         "Do not repeat or restate the source text, and do not add caveats, moral qualifiers, or safety disclaimers.",
-        "Avoid repeated words or filler phrases that are not required by the target language.",
+        "Do not add repeated words or filler phrases that are absent from the source.",
+        _TRANSLATION_COMPLETENESS_INSTRUCTION,
         "If you cannot translate, leave the line blank rather than repeating the input.",
     ]
 
@@ -395,10 +405,10 @@ def make_translation_batch_prompt(
         "Do not include the source text in the response.",
         "The `translation` value must be a single-line string without line breaks.",
         "If you cannot translate an item, return an empty string for `translation`.",
-        "CRITICAL: Each input sentence MUST produce EXACTLY ONE translation. "
-        "Never combine multiple sentences into one translation. "
-        "Never split one sentence into multiple translations. "
-        "Preserve the 1:1 correspondence between input and output items.",
+        "CRITICAL: Return exactly one output item per input ID, translating the entire "
+        "text of that item. Never move, borrow, or merge content between IDs, even when "
+        "a sentence continues in the next item. Use neighboring items only for context.",
+        _TRANSLATION_COMPLETENESS_INSTRUCTION,
     ]
 
     if mode == "literal":

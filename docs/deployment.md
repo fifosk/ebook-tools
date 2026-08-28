@@ -53,6 +53,20 @@ update new-form defaults.
 
 ### Starting Services
 
+Translation completeness checks are shared by book, subtitle, and video-dubbing
+generation. Prompts require every clause and speaker reply under its original
+item ID. The validator flags reduced sentence/reply structure combined with
+substantial compression; it does not require matching word counts or treat
+subtitle line wrapping as sentence boundaries. Dense scripts use their sentence
+punctuation rather than Latin letter ratios. Suspect batches are retried as
+independent items, including neighboring items that may contain shifted content.
+After exhausted single-item retries, known incomplete/too-short responses become
+visible failures instead of being accepted as the "best" available translation.
+Google Translate responses use the same completeness check. This adds no model
+call to successful batches, but suspect batches incur individual retries. It is
+a structural heuristic, not a guarantee of semantic accuracy. Completed jobs and
+previously translated media require explicit reprocessing to replace old output.
+
 ```bash
 docker compose up -d              # start backend + frontend (detached)
 docker compose logs -f            # follow logs from both containers

@@ -7,6 +7,35 @@ from modules import translation_validation as tv
 pytestmark = pytest.mark.translation
 
 
+@pytest.mark.parametrize("source,partial", [
+    ("Mr. Miller? How are you?", "Herra Miller?"),
+    ("Is that a photograph?\n- Which?\n- The house.", "Onko tuo valokuva?"),
+    ("The tree is old. I bought that picture yesterday.", "Puu on vanha."),
+    ("in a small gallery. That is a psychological picture,", "Pienessä galleriassa."),
+    ('It says, "Hello, we are visitors", "and what do you think of this dark house and old tree?"',
+     'Se sanoo: "Hei, olemme vierailijoita".'),
+    ("Is it scary to you? Not to me. But it looks that way.", "Onko se sinusta pelottava?"),
+    ("How are things? Good. Had a good week.", "Miten menee?"),
+    ("My friend is in hospital. That is never pleasant,", "Ystäväni on sairaalassa."),
+])
+def test_completeness_rejects_lost_sentences_and_replies(source, partial):
+    assert tv.translation_completeness_error(source, partial, "Finnish")
+
+
+@pytest.mark.parametrize("source,target,language", [
+    ("I don't know.", "En tiedä.", "Finnish"),
+    ("Thank you. Thank you. Have a nice night.", "Kiitos. Kiitos. Hyvää iltaa.", "Finnish"),
+    ("Mr. Miller arrived at 10.30 a.m.", "Herra Miller saapui kello 10.30.", "Finnish"),
+    ("This is a sentence\nwrapped across\nseveral subtitle lines.", "Tämä on usealle riville jaettu lause.", "Finnish"),
+    ("Wait here. Where are you going?", "Odota tässä. Minne olet menossa?", "Finnish"),
+    ("Wait here. Where are you going?", "在这里等。你去哪里？", "Chinese"),
+    ("Hello. Thank you.", "Hei ja kiitos.", "Finnish"),
+    ("I thought... perhaps tomorrow.", "Ajattelin... ehkä huomenna.", "Finnish"),
+])
+def test_completeness_allows_concise_translations_and_line_wrapping(source, target, language):
+    assert tv.translation_completeness_error(source, target, language) is None
+
+
 class TestLetterCount:
     def test_empty_string(self):
         assert tv.letter_count("") == 0

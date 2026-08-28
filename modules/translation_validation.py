@@ -6,6 +6,7 @@ issues, and ensure translations meet expected standards.
 
 from __future__ import annotations
 
+import html
 from typing import Optional
 
 import regex
@@ -178,6 +179,48 @@ def is_translation_too_short(
         return True
     ratio = translation_letters / float(original_letters)
     return original_letters >= 30 and ratio < 0.28
+
+
+def _translation_unit_count(value: str) -> int:
+    """Count clear sentences/replies, not the visual lines of a subtitle."""
+    from modules.epub_parser import split_text_into_sentences_no_refine
+
+    value = html.unescape(regex.sub(r"</?[A-Za-z][^>]*>", "", value or ""))
+    # Quoted clauses and speaker changes can contain unfinished sentences.
+    turns = regex.split(r'(?<=["”])\s*,\s*(?=["“])|(?:^|\s)[-–—]\s+(?=\S)', value)
+    return sum(
+        any(char.isalnum() for char in part)
+        for turn in turns
+        for part in split_text_into_sentences_no_refine(
+            turn, extend_split_with_comma_semicolon=False,
+        )
+    )
+
+
+def translation_completeness_error(
+    original: str, translation: str, target_language: str | None = None,
+) -> Optional[str]:
+    """Flag lost sentence/reply coverage without requiring matching word counts.
+
+    This is a conservative structural heuristic, not a semantic equivalence
+    proof. Comparable-length rephrasing may join sentences; substantial
+    compression together with fewer units needs a retry. Dense target scripts
+    cannot use a Latin letter ratio, so rely on their sentence punctuation.
+    """
+    source_units = _translation_unit_count(original)
+    if source_units < 2:
+        return None
+    target_units = _translation_unit_count(translation)
+    if target_units >= source_units:
+        return None
+    dense_target = bool(
+        _HIGH_DENSITY_TARGET_PATTERN.search((target_language or "").lower())
+        or _HIGH_DENSITY_SCRIPT_PATTERN.search(translation or "")
+    )
+    source_text = html.unescape(regex.sub(r"</?[A-Za-z][^>]*>", "", original))
+    if not dense_target and letter_count(translation) >= 0.80 * letter_count(source_text):
+        return None
+    return f"Incomplete translation: fewer sentences or replies ({target_units}/{source_units})"
 
 
 def missing_required_diacritics(

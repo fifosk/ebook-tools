@@ -325,6 +325,11 @@ def validate_batch_translation(
         return "Transliteration returned instead of translation"
     if tv.is_translation_too_short(original_sentence, translation_text, target_language):
         return "Translation shorter than expected"
+    completeness_error = tv.translation_completeness_error(
+        original_sentence, translation_text, target_language,
+    )
+    if completeness_error:
+        return completeness_error
     missing_diacritics, label = tv.missing_required_diacritics(translation_text, target_language)
     if missing_diacritics:
         return f"Missing {label or 'required diacritics'}"
@@ -446,6 +451,17 @@ def translate_llm_batch_items(
             )
             if parsed:
                 elapsed = time.perf_counter() - start_time
+                # A missing clause can have migrated into another item's text.
+                # Retry the whole batch as independent items, including donors,
+                # instead of trusting neighbors solely because they are longer.
+                if any(
+                    tv.translation_completeness_error(
+                        sentence, parsed.get(item_id, ("", ""))[0], target_language,
+                    )
+                    for item_id, sentence in batch_items
+                ):
+                    error = "Incomplete translation batch; retrying items independently"
+                    return {}, error, elapsed
                 return parsed, None, elapsed
             last_error = "Empty translation payload"
         else:
