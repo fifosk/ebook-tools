@@ -752,6 +752,12 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
         ),
         ("test-web-app-view-deeplink-focused",),
     ),
+    (
+        (".nvmrc", "scripts/run-web-npm.sh", "web/scripts/check-node-runtime.mjs",
+         "web/package.json", "web/package-lock.json", "web/pnpm-lock.yaml",
+         "tests/scripts/test_web_node_runtime.py"),
+        ("test-makefile-contract", "test-web-full", "build-web-production"),
+    ),
     (("web/",), ("test-web-full", "build-web-production")),
     (("modules/webapi/", "tests/modules/webapi/"), ("test-webapi",)),
     (("modules/services/", "tests/modules/services/"), ("test-services",)),

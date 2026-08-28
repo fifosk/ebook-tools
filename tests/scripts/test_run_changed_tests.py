@@ -957,3 +957,12 @@ def test_select_targets_covers_makefile_contract_changes() -> None:
 def test_select_targets_defaults_to_fast_suite_for_unknown_or_no_paths() -> None:
     assert select_targets([]) == ["test-fast"]
     assert select_targets(["README.md"]) == ["test-fast"]
+
+
+def test_web_runtime_changes_run_guard_and_real_web_gates() -> None:
+    for path in [".nvmrc", "scripts/run-web-npm.sh", "web/scripts/check-node-runtime.mjs",
+                 "web/package.json", "web/package-lock.json", "web/pnpm-lock.yaml",
+                 "tests/scripts/test_web_node_runtime.py"]:
+        assert select_targets([path]) == [
+            "test-makefile-contract", "test-web-full", "build-web-production"
+        ]
