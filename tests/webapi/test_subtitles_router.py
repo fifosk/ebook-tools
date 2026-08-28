@@ -93,7 +93,7 @@ def test_subtitle_worker_reports_output_stages_without_changing_audio_request(su
     assert ("Finishing audio" in phases) == audio_enabled
 
 
-@pytest.mark.parametrize("ending", ["drain", "cancel", "worker_error", "worker_error_producer", "producer_error", "cancel_drain"])
+@pytest.mark.parametrize("ending", ["drain", "cancel", "worker_error", "worker_error_producer", "worker_error_base", "producer_error", "cancel_drain"])
 def test_subtitle_audio_backlog_is_bounded_and_shutdown_does_not_deadlock(
     monkeypatch, subtitle_worker_probe, ending,
 ):
@@ -127,6 +127,8 @@ def test_subtitle_audio_backlog_is_bounded_and_shutdown_does_not_deadlock(
             assert release_audio.wait(5), "audio fixture was not released"
         return synthesis
     def export(request):
+        if ending == "worker_error_base":
+            raise SystemExit("fixture exporter failure")
         if ending.startswith("worker_error"):
             raise RuntimeError("fixture exporter failure")
         exported.append(request.start_sentence)
@@ -156,7 +158,7 @@ def test_subtitle_audio_backlog_is_bounded_and_shutdown_does_not_deadlock(
     thread.start()
     try:
         assert first_audio.wait(5)
-        if ending in ("cancel", "drain", "worker_error_producer"):
+        if ending in ("cancel", "drain", "worker_error_producer", "worker_error_base"):
             assert producer_waiting.wait(5), "translation did not back off at queue capacity"
         elif ending in ("worker_error", "producer_error", "cancel_drain"):
             assert sentinel_waiting.wait(5), "completion did not wait for the full queue"

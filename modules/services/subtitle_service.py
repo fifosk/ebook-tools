@@ -546,7 +546,7 @@ class SubtitleService:
                     job.status = PipelineJobStatus.CANCELLED
                     job.error_message = None
                     return
-                except Exception as exc:
+                except BaseException as exc:
                     _abort_audio()
                     job.status = PipelineJobStatus.FAILED
                     job.error_message = str(exc)
