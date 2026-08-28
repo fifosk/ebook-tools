@@ -96,6 +96,21 @@ export default function SubtitleOptionsPanel({
           <p className={styles.cardHint}>Configure translation, highlighting, output format, and batching.</p>
         </div>
       </div>
+      <label>
+        Output preset
+        <select
+          value={generateAudioBook ? 'audio' : 'subtitles'}
+          onChange={(event) => onGenerateAudioBookChange(event.target.value === 'audio')}
+        >
+          <option value="subtitles">Subtitles only (no audio synthesis)</option>
+          <option value="audio">Subtitles + Interactive Player audio</option>
+        </select>
+      </label>
+      <p className={styles.cardHint}>
+        {generateAudioBook
+          ? 'This job translates subtitles and generates audio. Audio and finalization can continue after translation finishes.'
+          : 'This job translates and exports subtitles without generating audio.'}
+      </p>
       <SubtitleLanguageOptionsSection
         inputLanguage={inputLanguage}
         targetLanguage={targetLanguage}

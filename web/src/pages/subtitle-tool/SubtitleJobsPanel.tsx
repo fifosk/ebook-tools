@@ -1,6 +1,7 @@
 import type { SubtitleJobResultPayload } from '../../api/dtos';
 import type { JobState } from '../../components/JobList';
 import JobStatusBadge from '../../components/JobStatusBadge';
+import TranslationFlowStatus from '../../components/job-progress/TranslationFlowStatus';
 import { formatTimestamp } from '../../utils/mediaFormatters';
 import { buildSubtitleJobPresentation } from './subtitleJobPresentation';
 import styles from '../SubtitleToolPage.module.css';
@@ -149,6 +150,7 @@ export default function SubtitleJobsPanel({
                     </div>
                   ) : null}
                 </dl>
+                <TranslationFlowStatus generatedFiles={job.status.generated_files} />
                 {presentation.directUrl ? (
                   <p>
                     <a href={presentation.directUrl} className="link-button" target="_blank" rel="noopener noreferrer">

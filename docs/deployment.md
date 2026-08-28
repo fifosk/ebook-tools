@@ -1249,6 +1249,55 @@ Regression gate: `python -m pytest tests/scripts/test_ollama_pool_proxy.py`.
 
 ### Subtitle translation retries
 
+Batched LLM translation for subtitles, books, and video dubbing uses one bounded
+worker pool for both normal batches and individual repairs. Workers return
+rejected item IDs to a coordinator instead of retrying every item sequentially
+inside the batch worker. The coordinator interleaves new batches and repairs,
+stops admitting new batches when a repair backlog builds, and limits submitted
+futures to the configured worker count (or the supplied pool's smaller limit).
+The Ollama adapter's existing lease limits remain the capacity guard across jobs.
+Accepted items can update translation progress and enter the book pipeline
+before unrelated repairs finish; subtitle output still preserves batch order.
+Cancellation stops new batch/repair submissions and discards pending work,
+then drains running calls before their clients are released. This does not abort
+an already-running provider request or change its existing timeout/retry budget.
+
+This scheduling change preserves the completeness checks and whole-batch
+invalidation when content may have crossed item IDs. It does not rewrite
+completed jobs, change models, or disable requested audio.
+
+Batches retain the configured maximum item count and also cap source text at
+6,000 characters. A longer sentence is sent intact on its own. Provider pressure
+(429/503/timeouts) halves subsequent admission, down to one worker; successful
+requests gradually restore it, never above the configured pool ceiling. Existing
+in-flight calls drain normally and the account adapter remains the global guard.
+
+Managed LLM jobs checkpoint fully validated responses under
+`data/translation_checkpoints`. Keys include the entire request (source text,
+neighbor context, prompts/settings), model, endpoint identity, and code versions
+for validation/normalization. Every read is validated again. Corrupt/incomplete
+responses are misses; atomic writes never seed from legacy outputs. These files
+survive the existing book/pipeline resume/restart cleanup and disappear with the
+job. They do not add restart APIs for subtitle/video jobs or share translations
+between copied jobs/users. Calls with cross-provider fallback and unscoped CLI
+calls do not persist checkpoints. Set `EBOOK_TRANSLATION_CHECKPOINTS=0` to disable.
+
+Before managed translation starts, a bounded provider-specific catalog preflight
+rejects a confirmed missing model or authorization failure. Unreachable/malformed
+catalogs are reported as unknown and leave inference/failover policy unchanged.
+Results are cached for 30 seconds and never contain provider error bodies or
+credentials. Preflight runs in the job worker/caller, not the API event loop.
+It does not silently select a different model or promise available inference seats.
+Subtitle jobs preflight before language detection. Video dubbing preflights before
+dialogue translation, including when batching is disabled or the default model is
+used. Confirmed preflight failures stop these jobs instead of entering the generic
+per-cue translation fallback.
+
+The Web subtitle Output preset explicitly selects subtitles only or subtitles
+plus Interactive Player audio; saved/requested audio preferences are preserved.
+Live job metadata separates validated/reused/repaired translation counts from
+audio export and file finalization. Translation totals exclude audio steps.
+
 Translation and transliteration response loops own the retry budget: up to five
 attempts, with one client request per attempt. Transport/JSON failures count
 against that same budget; the client does not multiply it by its own retries or

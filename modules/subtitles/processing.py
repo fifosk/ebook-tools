@@ -18,6 +18,7 @@ from modules.transliteration import (
     resolve_local_transliteration_module,
 )
 from modules.translation_engine import _unexpected_script_used, translate_batch
+from modules.translation_preflight import TranslationPreflightError, preflight_translation
 
 from .common import ASS_EXTENSION, SRT_EXTENSION, logger
 from .errors import SubtitleJobCancelled, SubtitleProcessingError
@@ -119,6 +120,10 @@ def process_subtitle_file(
             raise SubtitleProcessingError(f"No cues found at or after start time {label}")
         raise SubtitleProcessingError("No cues processed from source subtitle")
 
+    if options.translation_provider == "llm":
+        with create_client(model=options.llm_model) as client:
+            preflight_translation(client, options.translation_provider, tracker)
+
     language_context = _resolve_language_context(cues, options)
 
     batch_size = _resolve_batch_size(options.batch_size, total_cues)
@@ -129,6 +134,7 @@ def process_subtitle_file(
         if options.generate_audio_book:
             total_steps *= 2
         tracker.set_total(total_steps)
+        tracker.set_translation_total(total_cues)
         tracker.publish_start(
             {
                 "stage": "subtitle",
@@ -257,7 +263,10 @@ def process_subtitle_file(
                                 max_workers=worker_count,
                                 progress_tracker=tracker,
                                 sentence_numbers=batch_sentence_numbers,
+                                stop_event=stop_event,
                             )
+                    except TranslationPreflightError:
+                        raise
                     except Exception:  # pragma: no cover - fallback to per-cue translation
                         logger.warning(
                             "Unable to batch translate subtitle cues; falling back to per-cue translation",

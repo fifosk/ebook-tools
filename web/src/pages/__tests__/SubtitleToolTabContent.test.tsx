@@ -96,10 +96,20 @@ function renderTab(activeTab: SubtitleToolTab) {
     }
   };
   const view = render(<SubtitleToolTabContent {...props} />);
-  return { ...view, handleSubmit };
+  return { ...view, handleSubmit, options: props.optionsPanelProps };
 }
 
 describe('SubtitleToolTabContent', () => {
+  it('changes audio only when the user selects an output preset', () => {
+    const { options } = renderTab('options');
+    expect(options.onGenerateAudioBookChange).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Output preset')).toHaveValue('subtitles');
+    expect(screen.getByText('This job translates and exports subtitles without generating audio.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Output preset'), { target: { value: 'audio' } });
+    expect(options.onGenerateAudioBookChange).toHaveBeenLastCalledWith(true);
+    fireEvent.change(screen.getByLabelText('Output preset'), { target: { value: 'subtitles' } });
+    expect(options.onGenerateAudioBookChange).toHaveBeenLastCalledWith(false);
+  });
   it.each([
     ['subtitles', 'Subtitle selection'],
     ['options', 'Subtitle options'],
