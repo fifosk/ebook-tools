@@ -257,6 +257,7 @@ def process_subtitle_file(
                                 max_workers=worker_count,
                                 progress_tracker=tracker,
                                 sentence_numbers=batch_sentence_numbers,
+                                stop_event=stop_event,
                             )
                     except Exception:  # pragma: no cover - fallback to per-cue translation
                         logger.warning(

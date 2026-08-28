@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+from collections import deque
 import json
 from dataclasses import dataclass
 from queue import Full, Queue
@@ -480,6 +481,205 @@ def _normalize_target_sequence(
     return list(target_language)
 
 
+@dataclass
+class _BatchTranslationResult:
+    tasks: List[TranslationTask]
+    repairs: List[Tuple[int, str]]
+
+
+def _iter_translated_batches(
+    sentences: Sequence[str],
+    targets: Sequence[str],
+    input_language: str,
+    *,
+    batch_size: int,
+    pool: ThreadWorkerPool,
+    worker_count: int,
+    client: LLMClient,
+    include_transliteration: bool,
+    translation_provider: Optional[str],
+    transliterator: TransliterationService,
+    transliteration_mode: Optional[str],
+    transliteration_client: Optional[LLMClient],
+    progress_tracker: Optional["ProgressTracker"],
+    stop_event: Optional[threading.Event],
+) -> Iterator[TranslationTask]:
+    """Schedule batches and independent repairs on one bounded worker pool.
+
+    Workers never submit to or wait on their own pool. The coordinator alternates
+    fresh batches and repairs, so neither a bad batch nor a large input can bury
+    the other behind an unbounded executor queue. Rejected text is never emitted
+    as successful output; exhausted repairs retain visible failure annotations.
+    """
+    batch_list = build_translation_batches(sentences, targets, batch_size=batch_size)
+    batches = iter(batch_list)
+    batch_log_dir = resolve_llm_batch_log_dir()
+    batch_stats = BatchStatsRecorder(
+        batch_size=batch_size, progress_tracker=progress_tracker,
+        metadata_key="translation_batch_stats", items_total=len(sentences),
+    )
+    # Preserve the existing aggregate batch-count contract.
+    batch_stats.set_total(
+        len(batch_list),
+        items_total=len(sentences),
+    )
+    transliteration_stats = (
+        BatchStatsRecorder(batch_size=batch_size, progress_tracker=progress_tracker,
+                           metadata_key="transliteration_batch_stats", items_total=len(sentences))
+        if include_transliteration else None
+    )
+    transliteration_log_dir = (
+        resolve_llm_batch_log_dir(TRANSLITERATION_SUBDIR) if include_transliteration else None
+    )
+    active_context = cfg.get_runtime_context(None)
+
+    def cancelled() -> bool:
+        return bool(stop_event is not None and stop_event.is_set())
+
+    def translate(target: str, items: Sequence[Tuple[int, str]], repair: bool) -> _BatchTranslationResult:
+        previous_context = cfg.get_runtime_context(None)
+        if active_context is not None:
+            cfg.set_runtime_context(active_context)
+        try:
+            if cancelled():
+                return _BatchTranslationResult([], [])
+            include_translit = _should_include_transliteration(include_transliteration, target)
+            if repair:
+                idx, sentence = items[0]
+                fallback = translate_sentence_simple(
+                    sentence, input_language, target,
+                    include_transliteration=include_translit,
+                    translation_provider=translation_provider, client=client,
+                    progress_tracker=progress_tracker,
+                )
+                translation, transliteration = text_norm.split_translation_and_transliteration(fallback)
+                resolved = {idx: (
+                    text_norm.collapse_whitespace((translation or fallback).strip()),
+                    text_norm.collapse_whitespace((transliteration or "").strip()),
+                )}
+                repairs = []
+            else:
+                translation_map, batch_error, elapsed = translate_llm_batch_items(
+                    items, input_language, target,
+                    include_transliteration=include_translit, resolved_client=client,
+                    progress_tracker=progress_tracker,
+                    timeout_seconds=cfg.get_translation_llm_timeout_seconds(),
+                    batch_log_dir=batch_log_dir,
+                )
+                batch_stats.record(elapsed, len(items))
+                resolved = {}
+                repairs = []
+                for idx, sentence in items:
+                    _log_translation_timing(idx, elapsed / len(items), "thread-batch")
+                    translation, transliteration = translation_map.get(idx, ("", ""))
+                    error = batch_error or validate_batch_translation(sentence, translation, target)
+                    if error:
+                        repairs.append((idx, sentence))
+                        if progress_tracker is not None:
+                            progress_tracker.record_retry("translation", error)
+                    else:
+                        resolved[idx] = (translation, transliteration)
+            if cancelled():
+                return _BatchTranslationResult([], [])
+            pending_translit = [
+                (idx, translation) for idx, (translation, transliteration) in resolved.items()
+                if include_translit and translation and not transliteration
+                and not text_norm.is_placeholder_translation(translation)
+                and not is_failure_annotation(translation)
+            ]
+            transliterations = (
+                resolve_batch_transliterations(
+                    pending_translit, target, transliterator=transliterator,
+                    transliteration_mode=transliteration_mode,
+                    transliteration_client=transliteration_client, local_client=client,
+                    progress_tracker=progress_tracker, batch_size=batch_size,
+                    batch_log_dir=transliteration_log_dir, batch_stats=transliteration_stats,
+                ) if pending_translit else {}
+            )
+            tasks = []
+            for idx, sentence in items:
+                if idx not in resolved:
+                    continue
+                translation, transliteration = resolved[idx]
+                if include_translit and not transliteration:
+                    transliteration = transliterations.get(idx, "")
+                tasks.append(TranslationTask(
+                    index=idx, sentence_number=idx + 1, sentence=sentence,
+                    target_language=target, translation=translation,
+                    transliteration=transliteration if include_translit else "",
+                ))
+            return _BatchTranslationResult(tasks, repairs)
+        finally:
+            if active_context is not None:
+                if previous_context is None:
+                    cfg.clear_runtime_context()
+                else:
+                    cfg.set_runtime_context(previous_context)
+
+    limit = max(1, min(worker_count, pool.max_workers))
+    repairs = deque()
+    pending = {}
+    batches_exhausted = False
+    prefer_repair = True
+    try:
+        while not cancelled():
+            while len(pending) < limit and not cancelled():
+                if repairs and (
+                    prefer_repair or batches_exhausted or len(repairs) >= batch_size
+                ):
+                    target, item = repairs.popleft()
+                    items, repair = [item], True
+                    prefer_repair = False
+                elif not batches_exhausted:
+                    try:
+                        target, items = next(batches)
+                    except StopIteration:
+                        batches_exhausted = True
+                        continue
+                    repair = False
+                    prefer_repair = True
+                else:
+                    break
+                pending[pool.submit(translate, target, items, repair)] = (target, items, repair)
+            if not pending:
+                break
+            done, _ = concurrent.futures.wait(
+                pending, timeout=0.1, return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+            for future in done:
+                target, items, repair = pending.pop(future)
+                if cancelled():
+                    break
+                try:
+                    result = future.result()
+                except Exception as exc:  # Keep one failed request from dropping other items.
+                    logger.error("%s translation failed: %s", "Repair" if repair else "Batch", exc)
+                    if not repair:
+                        repairs.extend((target, item) for item in items)
+                        if progress_tracker is not None:
+                            for _ in items:
+                                progress_tracker.record_retry("translation", "Batch translation exception")
+                        continue
+                    idx, sentence = items[0]
+                    result = _BatchTranslationResult([TranslationTask(
+                        index=idx, sentence_number=idx + 1, sentence=sentence,
+                        target_language=target,
+                        translation=format_retry_failure("translation", 1, reason="Translation repair failed"),
+                        transliteration="",
+                    )], [])
+                repairs.extend((target, item) for item in result.repairs)
+                for task in result.tasks:
+                    if cancelled():
+                        break
+                    yield task
+    finally:
+        # Running calls drain through their owners before clients are released.
+        # Pending work is cancelled instead of being run after cancellation.
+        for future in pending:
+            future.cancel()
+        concurrent.futures.wait(pending)
+
+
 def translate_batch(
     sentences: Sequence[str],
     input_language: str,
@@ -496,6 +696,7 @@ def translate_batch(
     worker_pool: Optional[ThreadWorkerPool] = None,
     progress_tracker: Optional["ProgressTracker"] = None,
     sentence_numbers: Optional[Sequence[int]] = None,
+    stop_event: Optional[threading.Event] = None,
 ) -> List[str]:
     """Translate ``sentences`` concurrently while preserving order."""
 
@@ -534,153 +735,30 @@ def translate_batch(
                     resolved_client.model,
                 )
             batch_size = None
-        batch_log_dir = resolve_llm_batch_log_dir() if batch_size else None
-        transliteration_batch_size = (
-            normalize_llm_batch_size(llm_batch_size) if include_transliteration_any else None
-        )
-        transliteration_batch_log_dir = (
-            resolve_llm_batch_log_dir(TRANSLITERATION_SUBDIR)
-            if transliteration_batch_size
-            else None
-        )
-        batch_stats = None
-        transliteration_stats = None
         if batch_size:
-            batches = build_translation_batches(
-                sentences, targets, batch_size=batch_size
-            )
-            batch_stats = BatchStatsRecorder(
-                batch_size=batch_size,
-                progress_tracker=progress_tracker,
-                metadata_key="translation_batch_stats",
-                total_batches=len(batches),
-                items_total=len(sentences),
-            )
-            batch_stats.set_total(len(batches), items_total=len(sentences))
-            if transliteration_batch_size:
-                transliteration_stats = BatchStatsRecorder(
-                    batch_size=transliteration_batch_size,
-                    progress_tracker=progress_tracker,
-                    metadata_key="transliteration_batch_stats",
-                    items_total=len(sentences),
-                )
             pool = worker_pool or ThreadWorkerPool(max_workers=worker_count)
             own_pool = worker_pool is None
-            pool_mode = getattr(pool, "mode", "thread")
-            if pool_mode != "thread":
+            if getattr(pool, "mode", "thread") != "thread":
                 raise RuntimeError(
                     "translate_batch does not support asynchronous worker pools in synchronous mode"
                 )
-
-            def _translate_batch(
-                target: str, items: Sequence[Tuple[int, str]]
-            ) -> List[Tuple[int, str]]:
-                include_transliteration_for_target = _should_include_transliteration(
-                    include_transliteration_any, target
-                )
-                translation_map, _error, elapsed = translate_llm_batch_items(
-                    items,
-                    input_language,
-                    target,
-                    include_transliteration=include_transliteration_for_target,
-                    resolved_client=resolved_client,
-                    progress_tracker=progress_tracker,
-                    timeout_seconds=cfg.get_translation_llm_timeout_seconds(),
-                    batch_log_dir=batch_log_dir,
-                )
-                batch_stats.record(elapsed, len(items))
-                per_item_elapsed = (
-                    elapsed / float(len(items)) if items else 0.0
-                )
-                mode_label = f"{pool_mode}-batch"
-                for idx, _sentence in items:
-                    _log_translation_timing(idx, per_item_elapsed, mode_label)
-                resolved_items: Dict[int, Tuple[str, str]] = {}
-                pending_transliteration: List[Tuple[int, str]] = []
-                for idx, sentence in items:
-                    translation, transliteration = translation_map.get(idx, ("", ""))
-                    translation_error = _error or validate_batch_translation(
-                        sentence, translation, target
-                    )
-                    if translation_error:
-                        if progress_tracker is not None:
-                            progress_tracker.record_retry(
-                                "translation", translation_error
-                            )
-                        fallback = translate_sentence_simple(
-                            sentence,
-                            input_language,
-                            target,
-                            include_transliteration=include_transliteration_for_target,
-                            translation_provider=translation_provider,
-                            client=resolved_client,
-                            progress_tracker=progress_tracker,
-                        )
-                        translation_only, inline_transliteration = text_norm.split_translation_and_transliteration(
-                            fallback
-                        )
-                        translation = text_norm.collapse_whitespace(
-                            (translation_only or fallback).strip()
-                        )
-                        transliteration = text_norm.collapse_whitespace(
-                            (inline_transliteration or "").strip()
-                        )
-                    resolved_items[idx] = (translation, transliteration)
-                    if (
-                        include_transliteration_for_target
-                        and translation
-                        and not transliteration
-                        and not text_norm.is_placeholder_translation(translation)
-                        and not is_failure_annotation(translation)
-                    ):
-                        pending_transliteration.append((idx, translation))
-
-                transliteration_map: Dict[int, str] = {}
-                if include_transliteration_for_target and pending_transliteration:
-                    transliteration_map = resolve_batch_transliterations(
-                        pending_transliteration,
-                        target,
-                        transliterator=transliterator,
-                        transliteration_mode=transliteration_mode,
-                        transliteration_client=transliteration_client,
-                        local_client=resolved_client,
-                        progress_tracker=progress_tracker,
-                        batch_size=transliteration_batch_size,
-                        batch_log_dir=transliteration_batch_log_dir,
-                        batch_stats=transliteration_stats,
-                    )
-
-                batch_results: List[Tuple[int, str]] = []
-                for idx, _sentence in items:
-                    translation, transliteration = resolved_items.get(idx, ("", ""))
-                    if include_transliteration_for_target and not transliteration:
-                        transliteration = transliteration_map.get(idx, "")
-                    if include_transliteration_for_target and transliteration:
-                        combined = f"{translation}\n{transliteration}"
-                    else:
-                        combined = translation
-                    batch_results.append((idx, combined))
-                if progress_tracker is not None:
-                    for idx, _sentence in items:
-                        sentence_number = (
-                            sentence_ids[idx] if sentence_ids is not None else idx + 1
-                        )
-                        progress_tracker.record_translation_completion(idx, sentence_number)
-                return batch_results
-
             try:
-                future_map = {
-                    pool.submit(_translate_batch, target, items): (target, items)
-                    for target, items in batches
-                }
-                for future in pool.iter_completed(future_map):
-                    try:
-                        batch_result = future.result()
-                    except Exception as exc:  # pragma: no cover - defensive logging
-                        logger.error("Batch translation failed: %s", exc)
-                        batch_result = []
-                    for idx, text in batch_result:
-                        results[idx] = text
+                for task in _iter_translated_batches(
+                    sentences, targets, input_language, batch_size=batch_size,
+                    pool=pool, worker_count=worker_count, client=resolved_client,
+                    include_transliteration=include_transliteration_any,
+                    translation_provider=translation_provider, transliterator=transliterator,
+                    transliteration_mode=transliteration_mode,
+                    transliteration_client=transliteration_client,
+                    progress_tracker=progress_tracker, stop_event=stop_event,
+                ):
+                    results[task.index] = (
+                        f"{task.translation}\n{task.transliteration}"
+                        if task.transliteration else task.translation
+                    )
+                    if progress_tracker is not None:
+                        number = sentence_ids[task.index] if sentence_ids is not None else task.index + 1
+                        progress_tracker.record_translation_completion(task.index, number)
             finally:
                 if own_pool:
                     pool.shutdown()
@@ -807,18 +885,6 @@ def start_translation_pipeline(
                     local_client.model,
                 )
             batch_size = None
-        batch_log_dir = resolve_llm_batch_log_dir() if batch_size else None
-        transliteration_batch_size = (
-            normalize_llm_batch_size(llm_batch_size) if include_transliteration_any else None
-        )
-        transliteration_batch_log_dir = (
-            resolve_llm_batch_log_dir(TRANSLITERATION_SUBDIR)
-            if transliteration_batch_size
-            else None
-        )
-        batch_stats = None
-        transliteration_stats = None
-
         try:
             if not sentences:
                 for _ in range(max(1, consumer_count)):
@@ -826,28 +892,6 @@ def start_translation_pipeline(
                         output_queue, None, stop_event=stop_event
                     )
                 return
-
-            futures_map: dict = {}
-            batches: List[Tuple[str, List[Tuple[int, str]]]] = []
-            if batch_size:
-                batches = build_translation_batches(
-                    sentences, target_language, batch_size=batch_size
-                )
-                batch_stats = BatchStatsRecorder(
-                    batch_size=batch_size,
-                    progress_tracker=progress_tracker,
-                    metadata_key="translation_batch_stats",
-                    total_batches=len(batches),
-                    items_total=len(sentences),
-                )
-                batch_stats.set_total(len(batches), items_total=len(sentences))
-                if transliteration_batch_size:
-                    transliteration_stats = BatchStatsRecorder(
-                        batch_size=transliteration_batch_size,
-                        progress_tracker=progress_tracker,
-                        metadata_key="transliteration_batch_stats",
-                        items_total=len(sentences),
-                    )
 
             def _translate(index: int, sentence: str, target: str) -> TranslationTask:
                 start_time = time.perf_counter()
@@ -910,191 +954,35 @@ def start_translation_pipeline(
                     transliteration=transliteration_text,
                 )
 
-            def _translate_batch(
-                target: str, items: Sequence[Tuple[int, str]]
-            ) -> List[TranslationTask]:
-                include_transliteration_for_target = _should_include_transliteration(
-                    include_transliteration_any, target
-                )
-                translation_map, _error, elapsed = translate_llm_batch_items(
-                    items,
-                    input_language,
-                    target,
-                    include_transliteration=include_transliteration_for_target,
-                    resolved_client=local_client,
-                    progress_tracker=progress_tracker,
-                    timeout_seconds=cfg.get_translation_llm_timeout_seconds(),
-                    batch_log_dir=batch_log_dir,
-                )
-                if batch_stats is not None:
-                    batch_stats.record(elapsed, len(items))
-                per_item_elapsed = (
-                    elapsed / float(len(items)) if items else 0.0
-                )
-                mode_label = f"{pool_mode}-batch"
-                resolved_items: Dict[int, Tuple[str, str]] = {}
-                pending_transliteration: List[Tuple[int, str]] = []
-                for idx, sentence in items:
-                    _log_translation_timing(
-                        start_sentence + idx, per_item_elapsed, mode_label
-                    )
-                    translation, transliteration = translation_map.get(idx, ("", ""))
-                    translation_error = _error or validate_batch_translation(
-                        sentence, translation, target
-                    )
-                    if translation_error:
-                        if progress_tracker is not None:
-                            progress_tracker.record_retry(
-                                "translation", translation_error
-                            )
-                        fallback = translate_sentence_simple(
-                            sentence,
-                            input_language,
-                            target,
-                            include_transliteration=include_transliteration_for_target,
-                            translation_provider=translation_provider,
-                            client=local_client,
-                            progress_tracker=progress_tracker,
-                        )
-                        translation_only, inline_transliteration = text_norm.split_translation_and_transliteration(
-                            fallback
-                        )
-                        translation = text_norm.collapse_whitespace(
-                            (translation_only or fallback).strip()
-                        )
-                        transliteration = text_norm.collapse_whitespace(
-                            (inline_transliteration or "").strip()
-                        )
-                    resolved_items[idx] = (translation, transliteration)
-                    if (
-                        include_transliteration_for_target
-                        and translation
-                        and not transliteration
-                        and not text_norm.is_placeholder_translation(translation)
-                        and not is_failure_annotation(translation)
-                    ):
-                        pending_transliteration.append((idx, translation))
-
-                transliteration_map: Dict[int, str] = {}
-                if include_transliteration_for_target and pending_transliteration:
-                    transliteration_map = resolve_batch_transliterations(
-                        pending_transliteration,
-                        target,
-                        transliterator=transliterator,
-                        transliteration_mode=transliteration_mode,
-                        transliteration_client=transliteration_client,
-                        local_client=local_client,
-                        progress_tracker=progress_tracker,
-                        batch_size=transliteration_batch_size,
-                        batch_log_dir=transliteration_batch_log_dir,
-                        batch_stats=transliteration_stats,
-                    )
-
-                tasks: List[TranslationTask] = []
-                for idx, sentence in items:
-                    translation, transliteration = resolved_items.get(idx, ("", ""))
-                    if include_transliteration_for_target and not transliteration:
-                        transliteration = transliteration_map.get(idx, "")
-                    if translation and transliteration:
-                        deterministic = generate_word_aligned_transliteration(
-                            translation, target
-                        )
-                        if deterministic:
-                            transliteration = deterministic
-                    # Apply token alignment for CJK languages (no-op if already aligned)
-                    if translation and transliteration:
-                        _, aligned_translit, _ = align_token_counts(
-                            translation, transliteration, target
-                        )
-                        transliteration = aligned_translit
-                    tasks.append(
-                        TranslationTask(
-                            index=idx,
-                            sentence_number=start_sentence + idx,
-                            sentence=sentence,
-                            target_language=target,
-                            translation=translation,
-                            transliteration=transliteration,
-                        )
-                    )
-                return tasks
-
             try:
                 if pool_mode != "thread":
                     raise RuntimeError(
                         "start_translation_pipeline requires a threaded worker pool in synchronous mode"
                     )
                 if batch_size:
-                    futures_map = {
-                        pool.submit(_translate_batch, target, items): (target, items)
-                        for target, items in batches
-                    }
-                    for future in pool.iter_completed(futures_map):
-                        if stop_event and stop_event.is_set():
-                            break
-                        target, items = futures_map[future]
-                        try:
-                            tasks = future.result()
-                        except Exception as exc:  # pragma: no cover - defensive logging
-                            logger.error(
-                                "Batch translation failed for %s: %s",
-                                target or "unknown target",
-                                exc,
+                    for task in _iter_translated_batches(
+                        sentences, target_language, input_language, batch_size=batch_size,
+                        pool=pool, worker_count=worker_count, client=local_client,
+                        include_transliteration=include_transliteration_any,
+                        translation_provider=translation_provider, transliterator=transliterator,
+                        transliteration_mode=transliteration_mode,
+                        transliteration_client=transliteration_client,
+                        progress_tracker=progress_tracker, stop_event=stop_event,
+                    ):
+                        task.sentence_number = start_sentence + task.index
+                        if task.translation and task.transliteration:
+                            deterministic = generate_word_aligned_transliteration(
+                                task.translation, task.target_language
                             )
-                            tasks = []
-                            for idx, sentence in items:
-                                fallback = translate_sentence_simple(
-                                    sentence,
-                                    input_language,
-                                    target,
-                                    include_transliteration=include_transliteration,
-                                    translation_provider=translation_provider,
-                                    client=local_client,
-                                    progress_tracker=progress_tracker,
-                                )
-                                translation_only, inline_transliteration = text_norm.split_translation_and_transliteration(
-                                    fallback
-                                )
-                                translation_text = text_norm.collapse_whitespace(
-                                    (translation_only or fallback).strip()
-                                )
-                                transliteration_text = text_norm.collapse_whitespace(
-                                    (inline_transliteration or "").strip()
-                                )
-                                if translation_text and transliteration_text:
-                                    deterministic = generate_word_aligned_transliteration(
-                                        translation_text, target
-                                    )
-                                    if deterministic:
-                                        transliteration_text = deterministic
-                                # Apply token alignment for CJK languages (no-op if already aligned)
-                                if translation_text and transliteration_text:
-                                    _, aligned_translit, _ = align_token_counts(
-                                        translation_text, transliteration_text, target
-                                    )
-                                    transliteration_text = aligned_translit
-                                tasks.append(
-                                    TranslationTask(
-                                        index=idx,
-                                        sentence_number=start_sentence + idx,
-                                        sentence=sentence,
-                                        target_language=target,
-                                        translation=translation_text,
-                                        transliteration=transliteration_text,
-                                    )
-                                )
-                        for task in tasks:
-                            if progress_tracker:
-                                progress_tracker.record_translation_completion(
-                                    task.index, task.sentence_number
-                                )
-                            if not _enqueue_with_backpressure(
-                                output_queue, task, stop_event=stop_event
-                            ):
-                                break
-                    else:
-                        # Only executed if loop did not break
-                        pass
+                            if deterministic:
+                                task.transliteration = deterministic
+                            _, task.transliteration, _ = align_token_counts(
+                                task.translation, task.transliteration, task.target_language
+                            )
+                        if progress_tracker:
+                            progress_tracker.record_translation_completion(task.index, task.sentence_number)
+                        if not _enqueue_with_backpressure(output_queue, task, stop_event=stop_event):
+                            break
                 else:
                     futures_map = {
                         pool.submit(_translate, idx, sentence, target): idx

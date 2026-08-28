@@ -175,6 +175,28 @@ def test_multiline_translation_keeps_trailing_sentence_in_export(
     assert "Where are you going?" in output_path.read_text(encoding="utf-8")
 
 
+def test_subtitle_cancellation_reaches_batch_scheduler(tmp_path, srt_source, monkeypatch):
+    from threading import Event
+    from modules.subtitles.errors import SubtitleJobCancelled
+
+    stop = Event()
+    _stub_translation(monkeypatch, "Odota tässä.")
+
+    def batch(sentences, *args, stop_event=None, **kwargs):
+        assert stop_event is stop
+        stop.set()
+        return []
+
+    monkeypatch.setattr(subtitle_processing, "translate_batch", batch)
+    options = SubtitleJobOptions(
+        input_language="English", target_language="Finnish",
+        enable_transliteration=False, translation_batch_size=2,
+    )
+    with pytest.raises(SubtitleJobCancelled):
+        process_subtitle_file(srt_source, tmp_path / "cancelled.srt", options,
+                              mirror_output_path=None, stop_event=stop)
+
+
 def test_transliteration_skips_latin_targets(
     tmp_path: Path,
     srt_source: Path,

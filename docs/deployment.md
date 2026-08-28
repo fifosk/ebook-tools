@@ -1249,6 +1249,24 @@ Regression gate: `python -m pytest tests/scripts/test_ollama_pool_proxy.py`.
 
 ### Subtitle translation retries
 
+Batched LLM translation for subtitles, books, and video dubbing uses one bounded
+worker pool for both normal batches and individual repairs. Workers return
+rejected item IDs to a coordinator instead of retrying every item sequentially
+inside the batch worker. The coordinator interleaves new batches and repairs,
+stops admitting new batches when a repair backlog builds, and limits submitted
+futures to the configured worker count (or the supplied pool's smaller limit).
+The Ollama adapter's existing lease limits remain the capacity guard across jobs.
+Accepted items can update translation progress and enter the book pipeline
+before unrelated repairs finish; subtitle output still preserves batch order.
+Cancellation stops new batch/repair submissions and discards pending work,
+then drains running calls before their clients are released. This does not abort
+an already-running provider request or change its existing timeout/retry budget.
+
+This scheduling change preserves the completeness checks and whole-batch
+invalidation when content may have crossed item IDs. It does not rewrite
+completed jobs, introduce translation checkpoints, change models, or disable
+requested audio.
+
 Translation and transliteration response loops own the retry budget: up to five
 attempts, with one client request per attempt. Transport/JSON failures count
 against that same budget; the client does not multiply it by its own retries or
