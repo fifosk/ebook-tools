@@ -1288,7 +1288,7 @@ catalogs are reported as unknown and leave inference/failover policy unchanged.
 Results are cached for 30 seconds and never contain provider error bodies or
 credentials. Preflight runs in the job worker/caller, not the API event loop.
 It does not silently select a different model or promise available inference seats.
-Subtitle jobs also preflight when batching is disabled. Confirmed preflight
+Subtitle jobs preflight before language detection, including when batching is disabled. Confirmed preflight
 failures stop the job instead of entering the generic per-cue translation fallback.
 
 The Web subtitle Output preset explicitly selects subtitles only or subtitles

@@ -120,6 +120,10 @@ def process_subtitle_file(
             raise SubtitleProcessingError(f"No cues found at or after start time {label}")
         raise SubtitleProcessingError("No cues processed from source subtitle")
 
+    if options.translation_provider == "llm":
+        with create_client(model=options.llm_model) as client:
+            preflight_translation(client, options.translation_provider, tracker)
+
     language_context = _resolve_language_context(cues, options)
 
     batch_size = _resolve_batch_size(options.batch_size, total_cues)
@@ -158,9 +162,6 @@ def process_subtitle_file(
         and translation_batch_size is not None
         and translation_batch_size > 1
     )
-    if options.translation_provider == "llm" and not use_llm_batching:
-        with create_client(model=options.llm_model) as client:
-            preflight_translation(client, options.translation_provider, tracker)
     allow_llm_transliteration = (
         transliteration_enabled
         and options.transliteration_mode != "python"

@@ -175,9 +175,9 @@ def test_multiline_translation_keeps_trailing_sentence_in_export(
     assert "Where are you going?" in output_path.read_text(encoding="utf-8")
 
 
-@pytest.mark.parametrize("translation_batch_size", [1, 2])
+@pytest.mark.parametrize("translation_batch_size,late_preflight", [(1, False), (2, False), (2, True)])
 def test_unavailable_model_stops_subtitles_before_any_inference(
-    tmp_path, srt_source, monkeypatch, translation_batch_size,
+    tmp_path, srt_source, monkeypatch, translation_batch_size, late_preflight,
 ):
     from types import SimpleNamespace
     from modules import translation_engine as te, translation_preflight as pf
@@ -186,10 +186,13 @@ def test_unavailable_model_stops_subtitles_before_any_inference(
     _stub_translation(monkeypatch, "unused")
     (tmp_path / "data").mkdir()
     monkeypatch.setattr(pf.cfg, "get_runtime_context", lambda *args: SimpleNamespace(output_dir=tmp_path / "media"))
-    monkeypatch.setattr(pf, "check_model", lambda client: ("unavailable", "Selected model unavailable"))
+    statuses = iter(["available", "unavailable"] if late_preflight else ["unavailable"])
+    monkeypatch.setattr(pf, "check_model", lambda client: (next(statuses), "Selected model unavailable"))
     monkeypatch.setattr(subtitle_processing, "create_client", lambda **kwargs: LLMClient(
         ClientSettings(model="test-model", llm_source="cloud", api_url="https://example.invalid/v1/chat/completions")))
     monkeypatch.setattr(subtitle_processing, "translate_batch", te.translate_batch)
+    if not late_preflight:
+        monkeypatch.setattr(subtitle_processing, "_resolve_language_context", lambda *args: pytest.fail("language detection ran before preflight"))
     monkeypatch.setattr(LLMClient, "send_chat_request", lambda *args, **kwargs: pytest.fail("inference was scheduled"))
     monkeypatch.setattr(subtitle_processing, "_translate_text", lambda *args, **kwargs: pytest.fail("per-cue fallback ran"))
     options = SubtitleJobOptions(input_language="English", target_language="Finnish",
