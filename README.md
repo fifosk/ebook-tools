@@ -6,7 +6,7 @@ interactive playback across Web, iOS, and Apple TV.
 
 ## Features
 
-- **Multi-language translation** — Google Translate with LLM fallback (Ollama local/cloud), batch processing, transliteration support
+- **Multi-language translation** — Google Translate with LLM fallback (Ollama local/cloud), bounded adaptive LLM batches, validated per-job translation checkpoints, transliteration support
 - **Text-to-speech narration** — macOS `say`, Google TTS, Piper (offline neural) with automatic backend selection
 - **Word-level audio sync** — Real-time word-by-word highlighting driven by backend tokens, WhisperX forced alignment, or character-weighted inference
 - **Dual-track playback** — Original and translation audio with sequence mode (alternates per sentence with dwell pauses)

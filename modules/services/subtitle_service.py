@@ -254,6 +254,17 @@ class SubtitleService:
             audio_shutdown = threading.Event()
             audio_errors: List[BaseException] = []
             audio_error_event = threading.Event()
+            audio_exported = 0
+            translation_finished = threading.Event()
+
+            def _output_progress(phase: str) -> None:
+                if tracker_local is not None:
+                    tracker_local.update_generated_files_metadata({"subtitle_output": {
+                        "audio_enabled": bool(options.generate_audio_book),
+                        "phase": phase, "audio_exported": audio_exported,
+                    }})
+
+            _output_progress("Translating")
             on_transcript_batch: Optional[
                 Callable[[Sequence[Tuple[int, SubtitleHtmlEntry]]], None]
             ] = None
@@ -338,6 +349,7 @@ class SubtitleService:
                 audio_queue = queue.Queue()
 
                 def _audio_worker() -> None:
+                    nonlocal audio_exported
                     try:
                         while True:
                             if audio_shutdown.is_set():
@@ -432,6 +444,10 @@ class SubtitleService:
                                 sentence_blocks=[block],
                             )
                             export_result = exporter.export(request)
+                            if export_result is not None:
+                                audio_exported += 1
+                                _output_progress("Finishing audio" if translation_finished.is_set()
+                                                 else "Translating / exporting audio")
                             if tracker_local is not None and export_result is not None:
                                 tracker_local.record_generated_chunk(
                                     chunk_id=export_result.chunk_id,
@@ -502,6 +518,8 @@ class SubtitleService:
                     job.error_message = str(exc)
                     raise
                 else:
+                    translation_finished.set()
+                    _output_progress("Finishing audio" if audio_queue is not None else "Finalizing subtitles")
                     if audio_queue is not None:
                         audio_queue.put(None)
                         if audio_thread is not None:
@@ -512,6 +530,7 @@ class SubtitleService:
                         job.error_message = str(exc)
                         raise exc
 
+            _output_progress("Finalizing files")
             relative_path = output_path.relative_to(self._locator.job_root(job.job_id)).as_posix()
             export_path: Optional[Path] = None
             if mirror_path is not None:
@@ -623,6 +642,7 @@ class SubtitleService:
                         },
                     )
 
+            _output_progress("Complete")
             if tracker_local is not None:
                 job.generated_files = tracker_local.get_generated_files()
 

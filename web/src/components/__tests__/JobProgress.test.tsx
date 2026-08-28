@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { JobProgress } from '../JobProgress';
+import TranslationFlowStatus from '../job-progress/TranslationFlowStatus';
 import type { PipelineStatusResponse, ProgressEventPayload } from '../../api/dtos';
 
 class MockEventSource {
@@ -29,6 +30,16 @@ beforeAll(() => {
 });
 
 describe('JobProgress', () => {
+  it('separates validated translations, queued repairs, and audio finalization', () => {
+    render(<TranslationFlowStatus generatedFiles={{
+      translation_flow: { accepted: 40, cached: 20, repaired: 3, failed: 1, in_flight: 2, repairs_waiting: 4, concurrency: 2 },
+      subtitle_output: { audio_enabled: true, phase: 'Finishing audio', audio_exported: 12 },
+      translation_preflight: { status: 'available', message: 'Selected translation model is listed by its provider.' },
+    }} />);
+    expect(screen.getByText(/Validated translations: 40/)).toHaveTextContent('Reused: 20 · Repaired: 3 · Needs attention: 1');
+    expect(screen.getByText(/Requests in flight: 2/)).toHaveTextContent('Repairs waiting: 4 · Worker limit: 2');
+    expect(screen.getByText(/Subtitles \+ audio/)).toHaveTextContent('Finishing audio · Audio chunks exported: 12');
+  });
   it('renders snapshot metrics when an event is supplied', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-1',

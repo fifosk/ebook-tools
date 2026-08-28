@@ -33,6 +33,56 @@ from modules.services.source_discovery import DiscoveredSourceFile
 pytestmark = pytest.mark.webapi
 
 
+@pytest.mark.parametrize("audio_enabled", [False, True])
+def test_subtitle_worker_reports_output_stages_without_changing_audio_request(tmp_path, monkeypatch, audio_enabled):
+    from contextlib import nullcontext
+    from unittest.mock import Mock
+    from modules.progress_tracker import ProgressTracker
+    from modules.services.file_locator import FileLocator
+    from modules.services.subtitle_service import SubtitleSubmission
+    from modules.subtitles.models import SubtitleJobOptions, SubtitleHtmlEntry
+
+    source = tmp_path / "source.srt"
+    source.write_text("1\n00:00:01,000 --> 00:00:02,000\nWait here.\n")
+    tracker = ProgressTracker(throttle_interval=0)
+    events = []
+    tracker.register_observer(events.append)
+    job = SimpleNamespace(job_id="stage-probe", tracker=tracker, stop_event=None)
+    class Manager:
+        def submit_background_job(self, *, setup, worker, **kwargs):
+            setup(job)
+            worker(job)
+            return job
+    synthesizer = Mock()
+    synthesizer.synthesize_sentence.return_value = SimpleNamespace(
+        audio=subtitle_service_module.AudioSegment.silent(duration=10), audio_tracks=None)
+    exporter = Mock()
+    exporter.export.return_value = SimpleNamespace(
+        chunk_id="1", range_fragment="1", start_sentence=1, end_sentence=1,
+        artifacts={}, sentences=[], audio_tracks={}, timing_tracks={})
+    monkeypatch.setattr(subtitle_service_module, "get_audio_synthesizer", lambda: synthesizer)
+    monkeypatch.setattr(subtitle_service_module, "build_exporter", lambda **kwargs: exporter)
+    monkeypatch.setattr(subtitle_service_module, "job_runtime_context", lambda *args: nullcontext())
+    def process(input_path, output_path, options, **kwargs):
+        output_path.write_text("translated subtitle")
+        callback = kwargs.get("on_transcript_batch")
+        if callback:
+            callback([(1, SubtitleHtmlEntry(1, 2, "Wait here.", "", "Odota tässä."))])
+        return SimpleNamespace(metadata={}, cue_count=1, translated_count=1)
+    monkeypatch.setattr(subtitle_service_module, "process_subtitle_file", process)
+    service = SubtitleService(Manager(), locator=FileLocator(storage_dir=tmp_path / "jobs"), default_source_dir=tmp_path)
+    result = service.enqueue(SubtitleSubmission(source, source.name, SubtitleJobOptions(
+        input_language="English", target_language="Finnish", generate_audio_book=audio_enabled,
+        mirror_batches_to_source_dir=False)), user_id="test-user")
+    assert result.status.value == "completed"
+    assert synthesizer.synthesize_sentence.call_count == int(audio_enabled)
+    output = result.generated_files["subtitle_output"]
+    assert output == {"audio_enabled": audio_enabled, "phase": "Complete", "audio_exported": int(audio_enabled)}
+    phases = [event.metadata.get("generated_files", {}).get("subtitle_output", {}).get("phase") for event in events]
+    assert "Finalizing files" in phases
+    assert ("Finishing audio" in phases) == audio_enabled
+
+
 class _RecordingLogger:
     def __init__(self) -> None:
         self.messages: list[str] = []

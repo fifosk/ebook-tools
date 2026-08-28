@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useJobEventsWithRetry } from '../hooks/useJobEventsWithRetry';
 import { appendAccessToken, resolveJobCoverUrl } from '../api/client';
+import TranslationFlowStatus from './job-progress/TranslationFlowStatus';
 import {
   AccessPolicyUpdatePayload,
   PipelineResponsePayload,
@@ -456,6 +457,9 @@ export function JobProgress({
           canEdit={canManage}
           onSave={onUpdateAccess}
         />
+      ) : null}
+      {showOverviewSections ? (
+        <TranslationFlowStatus generatedFiles={status?.generated_files} />
       ) : null}
       {showOverviewSections ? (
         <JobProgressStageSection

@@ -129,6 +129,7 @@ def process_subtitle_file(
         if options.generate_audio_book:
             total_steps *= 2
         tracker.set_total(total_steps)
+        tracker.set_translation_total(total_cues)
         tracker.publish_start(
             {
                 "stage": "subtitle",

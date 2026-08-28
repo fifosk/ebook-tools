@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 from modules import config_manager as cfg, logging_manager as log_mgr
 from modules import llm_batch, prompt_templates, text_normalization as text_norm
 from modules import translation_validation as tv
+from modules.translation_checkpoints import checkpoint_path, read_checkpoint, write_checkpoint
 from modules.text import align_token_counts
 from modules.transliteration_aligned import generate_word_aligned_transliteration
 from modules.llm_client import LLMClient
@@ -64,11 +65,13 @@ def build_translation_batches(
     targets: Sequence[str],
     *,
     batch_size: int,
+    max_characters: int = 6000,
 ) -> List[Tuple[str, List[Tuple[int, str]]]]:
     """Build batches of sentences grouped by target language.
 
     Groups consecutive sentences with the same target language into batches
-    of up to batch_size items.
+    of up to batch_size items and max_characters source characters. An oversized
+    sentence stays intact in its own batch; text is never truncated.
 
     Args:
         sentences: Sentences to translate
@@ -81,15 +84,19 @@ def build_translation_batches(
     batches: List[Tuple[str, List[Tuple[int, str]]]] = []
     current_target: Optional[str] = None
     current_items: List[Tuple[int, str]] = []
+    current_characters = 0
     for idx, (sentence, target) in enumerate(zip(sentences, targets)):
         if current_target is None:
             current_target = target
-        if target != current_target or len(current_items) >= batch_size:
+        if (target != current_target or len(current_items) >= batch_size
+                or (current_items and current_characters + len(sentence) > max_characters)):
             if current_items:
                 batches.append((current_target or "", list(current_items)))
             current_items = []
+            current_characters = 0
             current_target = target
         current_items.append((idx, sentence))
+        current_characters += len(sentence)
     if current_items:
         batches.append((current_target or "", list(current_items)))
     return batches
@@ -409,6 +416,21 @@ def translate_llm_batch_items(
     )
     input_ids = [item_id for item_id, _sentence in batch_items]
 
+    checkpoint = checkpoint_path(resolved_client, request_payload, kind="batch")
+    cached = read_checkpoint(checkpoint)
+    if isinstance(cached, dict):
+        restored = parse_batch_translation_payload(
+            cached, input_ids=input_ids, include_transliteration=include_transliteration,
+            target_language=target_language, align_tokens=True,
+        )
+        if set(restored) == set(input_ids) and all(
+            not validate_batch_translation(sentence, restored[item_id][0], target_language)
+            for item_id, sentence in batch_items
+        ):
+            if progress_tracker is not None:
+                progress_tracker.record_translation_flow(cached=len(batch_items))
+            return restored, None, 0.0
+
     def _payload_has_items(payload: Any) -> bool:
         items = extract_batch_items(payload)
         return bool(items)
@@ -462,6 +484,11 @@ def translate_llm_batch_items(
                 ):
                     error = "Incomplete translation batch; retrying items independently"
                     return {}, error, elapsed
+                if set(parsed) == set(input_ids) and all(
+                    not validate_batch_translation(sentence, parsed[item_id][0], target_language)
+                    for item_id, sentence in batch_items
+                ):
+                    write_checkpoint(checkpoint, response.payload)
                 return parsed, None, elapsed
             last_error = "Empty translation payload"
         else:

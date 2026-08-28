@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 from collections import deque
+from contextvars import copy_context
 import json
 from dataclasses import dataclass
 from queue import Full, Queue
@@ -28,6 +29,8 @@ from modules import llm_client_manager
 from modules import language_policies
 from modules import text_normalization as text_norm
 from modules import translation_validation as tv
+from modules.translation_checkpoints import checkpoint_path, read_checkpoint, write_checkpoint
+from modules.translation_preflight import preflight_translation
 from modules.text import split_highlight_tokens, align_token_counts
 from modules.transliteration_aligned import generate_word_aligned_transliteration
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
@@ -105,6 +108,16 @@ def _translate_with_llm(
         include_transliteration=include_transliteration,
         llm_source=resolved_client.llm_source,
     )
+
+    checkpoint = checkpoint_path(resolved_client, payload, kind="sentence")
+    cached = read_checkpoint(checkpoint)
+    if isinstance(cached, str):
+        translation_only, _ = text_norm.split_translation_and_transliteration(cached)
+        if not validate_batch_translation(sentence, translation_only or cached, target_language,
+                                          check_sentence_boundaries=False):
+            if progress_tracker is not None:
+                progress_tracker.record_translation_flow(cached=1)
+            return cached, None, 0.0
 
     start_time = time.perf_counter()
     last_error: Optional[str] = None
@@ -210,6 +223,7 @@ def _translate_with_llm(
                                 )
                     if not attempt_error:
                         elapsed = time.perf_counter() - start_time
+                        write_checkpoint(checkpoint, cleaned_text)
                         return cleaned_text, None, elapsed
                 if not attempt_error:
                     attempt_error = "Unsegmented translation received"
@@ -485,6 +499,14 @@ def _normalize_target_sequence(
 class _BatchTranslationResult:
     tasks: List[TranslationTask]
     repairs: List[Tuple[int, str]]
+    pressure: bool = False
+
+
+def _provider_under_pressure(reason: Optional[str]) -> bool:
+    value = (reason or "").lower()
+    return any(marker in value for marker in (
+        "429", "503", "rate limit", "capacity", "timed out", "timeout",
+    ))
 
 
 def _iter_translated_batches(
@@ -544,6 +566,7 @@ def _iter_translated_batches(
             if cancelled():
                 return _BatchTranslationResult([], [])
             include_translit = _should_include_transliteration(include_transliteration, target)
+            pressure = False
             if repair:
                 idx, sentence = items[0]
                 fallback = translate_sentence_simple(
@@ -558,6 +581,7 @@ def _iter_translated_batches(
                     text_norm.collapse_whitespace((transliteration or "").strip()),
                 )}
                 repairs = []
+                pressure = is_failure_annotation(fallback) and _provider_under_pressure(fallback)
             else:
                 translation_map, batch_error, elapsed = translate_llm_batch_items(
                     items, input_language, target,
@@ -567,6 +591,7 @@ def _iter_translated_batches(
                     batch_log_dir=batch_log_dir,
                 )
                 batch_stats.record(elapsed, len(items))
+                pressure = _provider_under_pressure(batch_error)
                 resolved = {}
                 repairs = []
                 for idx, sentence in items:
@@ -608,7 +633,7 @@ def _iter_translated_batches(
                     target_language=target, translation=translation,
                     transliteration=transliteration if include_translit else "",
                 ))
-            return _BatchTranslationResult(tasks, repairs)
+            return _BatchTranslationResult(tasks, repairs, pressure)
         finally:
             if active_context is not None:
                 if previous_context is None:
@@ -617,6 +642,8 @@ def _iter_translated_batches(
                     cfg.set_runtime_context(previous_context)
 
     limit = max(1, min(worker_count, pool.max_workers))
+    ceiling = limit
+    healthy = 0
     repairs = deque()
     pending = {}
     batches_exhausted = False
@@ -641,6 +668,10 @@ def _iter_translated_batches(
                 else:
                     break
                 pending[pool.submit(translate, target, items, repair)] = (target, items, repair)
+            if progress_tracker is not None:
+                progress_tracker.record_translation_flow(
+                    in_flight=len(pending), repairs_waiting=len(repairs), concurrency=limit,
+                )
             if not pending:
                 break
             done, _ = concurrent.futures.wait(
@@ -668,9 +699,25 @@ def _iter_translated_batches(
                         transliteration="",
                     )], [])
                 repairs.extend((target, item) for item in result.repairs)
+                if result.pressure:
+                    limit = max(1, limit // 2)
+                    healthy = 0
+                elif not result.repairs:
+                    healthy += 1
+                    if healthy >= max(2, limit) and limit < ceiling:
+                        limit += 1
+                        healthy = 0
                 for task in result.tasks:
                     if cancelled():
                         break
+                    if progress_tracker is not None:
+                        valid = not repair or not validate_batch_translation(
+                            task.sentence, task.translation, task.target_language,
+                            check_sentence_boundaries=False,
+                        )
+                        progress_tracker.record_translation_flow(
+                            accepted=int(valid), failed=int(not valid), repaired=int(repair and valid),
+                        )
                     yield task
     finally:
         # Running calls drain through their owners before clients are released.
@@ -678,6 +725,8 @@ def _iter_translated_batches(
         for future in pending:
             future.cancel()
         concurrent.futures.wait(pending)
+        if progress_tracker is not None:
+            progress_tracker.record_translation_flow(in_flight=0, repairs_waiting=0, concurrency=limit)
 
 
 def translate_batch(
@@ -723,6 +772,7 @@ def translate_batch(
             sentence_ids = None
 
     with llm_client_manager.client_scope(client) as resolved_client:
+        preflight_translation(resolved_client, provider, progress_tracker)
         batch_size = (
             normalize_llm_batch_size(llm_batch_size) if provider == "llm" else None
         )
@@ -784,7 +834,7 @@ def translate_batch(
         own_pool = worker_pool is None
         try:
             future_map = {
-                pool.submit(_translate, idx, sentence, target): idx
+                pool.submit(copy_context().run, _translate, idx, sentence, target): idx
                 for idx, (sentence, target) in enumerate(zip(sentences, targets))
             }
             for future in pool.iter_completed(future_map):
@@ -795,6 +845,10 @@ def translate_batch(
                     logger.error("Translation failed for sentence %s: %s", idx, exc)
                     results[idx] = "N/A"
                 if progress_tracker is not None:
+                    translation_only, _ = text_norm.split_translation_and_transliteration(results[idx])
+                    valid = not validate_batch_translation(sentences[idx], translation_only or results[idx],
+                                                           targets[idx], check_sentence_boundaries=False)
+                    progress_tracker.record_translation_flow(accepted=int(valid), failed=int(not valid))
                     sentence_number = sentence_ids[idx] if sentence_ids is not None else idx + 1
                     progress_tracker.record_translation_completion(idx, sentence_number)
         finally:
@@ -860,6 +914,11 @@ def start_translation_pipeline(
     transliterator = transliterator or get_transliterator()
 
     active_context = cfg.get_runtime_context(None)
+
+    # Fail in the calling job worker, before starting a producer whose exception
+    # could otherwise be mistaken for an empty, successfully completed stream.
+    with llm_client_manager.client_scope(client) as preflight_client:
+        preflight_translation(preflight_client, normalize_translation_provider(translation_provider), progress_tracker)
 
     def _producer() -> None:
         if active_context is not None:
@@ -985,7 +1044,7 @@ def start_translation_pipeline(
                             break
                 else:
                     futures_map = {
-                        pool.submit(_translate, idx, sentence, target): idx
+                        pool.submit(copy_context().run, _translate, idx, sentence, target): idx
                         for idx, (sentence, target) in enumerate(zip(sentences, target_language))
                     }
                     for future in pool.iter_completed(futures_map):
@@ -1007,6 +1066,10 @@ def start_translation_pipeline(
                                 translation="N/A",
                             )
                         if progress_tracker:
+                            translation_only, _ = text_norm.split_translation_and_transliteration(task.translation)
+                            valid = not validate_batch_translation(task.sentence, translation_only or task.translation,
+                                                                   task.target_language, check_sentence_boundaries=False)
+                            progress_tracker.record_translation_flow(accepted=int(valid), failed=int(not valid))
                             progress_tracker.record_translation_completion(
                                 task.index, task.sentence_number
                             )

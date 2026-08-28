@@ -82,6 +82,16 @@ class TestBuildTranslationBatches:
         result = tb.build_translation_batches([], [], batch_size=5)
         assert result == []
 
+    def test_text_budget_preserves_long_sentences_and_order(self):
+        sentences = ["a" * 3000, "b" * 3001, "c" * 7000, "tail"]
+        batches = tb.build_translation_batches(sentences, ["Finnish"] * 4, batch_size=10)
+        assert [len(items) for _, items in batches] == [1, 1, 1, 1]
+        assert [item for _, items in batches for item in items] == list(enumerate(sentences))
+
+    def test_text_budget_keeps_short_dialogue_batched(self):
+        batches = tb.build_translation_batches(["hello"] * 30, ["Finnish"] * 30, batch_size=10)
+        assert [len(items) for _, items in batches] == [10, 10, 10]
+
     def test_single_language_single_batch(self):
         sentences = ["a", "b", "c"]
         targets = ["en", "en", "en"]

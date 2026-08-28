@@ -53,6 +53,36 @@ class StubLLMClient:
         return LLMResponse(text=text, status_code=200, token_usage={})
 
 
+def test_provider_pressure_reduces_admission_without_exceeding_worker_ceiling(monkeypatch):
+    import threading
+    lock = threading.Lock()
+    attempts = 0
+    limits = []
+    tracker = ProgressTracker(throttle_interval=0)
+    tracker.register_observer(lambda event: limits.append(
+        event.metadata.get("generated_files", {}).get("translation_flow", {}).get("concurrency")))
+
+    def batch(items, *args, **kwargs):
+        nonlocal attempts
+        with lock:
+            attempts += 1
+            pressure = attempts <= 4
+        return ({idx: ("Odota tässä.", "") for idx, _ in items}, "HTTP 429" if pressure else None, .01)
+
+    monkeypatch.setattr(translation_engine, "translate_llm_batch_items", batch)
+    monkeypatch.setattr(translation_engine, "translate_sentence_simple", lambda *args, **kwargs: "Odota tässä.")
+    result = translation_engine.translate_batch(
+        ["Wait here."] * 40, "English", "Finnish", client=StubLLMClient([]),
+        max_workers=4, llm_batch_size=2, progress_tracker=tracker,
+    )
+    assert result == ["Odota tässä."] * 40
+    limits = [value for value in limits if value is not None]
+    assert min(limits) < 4 and max(limits) == 4
+    flow = tracker.get_generated_files()["translation_flow"]
+    assert flow["accepted"] == 40 and flow["repaired"] == 8
+    assert flow["in_flight"] == flow["repairs_waiting"] == 0
+
+
 @pytest.mark.parametrize("streaming", [False, True], ids=["subtitles-and-video", "book-pipeline"])
 def test_batch_repairs_use_idle_workers_without_hiding_valid_items(monkeypatch, streaming):
     from queue import Queue

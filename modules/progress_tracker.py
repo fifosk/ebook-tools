@@ -116,6 +116,7 @@ class ProgressTracker:
         self._start_time = time.perf_counter()
         self._completed = 0
         self._translation_completed = 0
+        self._translation_total: Optional[int] = None
         self._total: Optional[int] = total_blocks
         self._report_interval = max(0.1, report_interval)
         self._throttle_interval = max(0.0, throttle_interval)
@@ -172,7 +173,7 @@ class ProgressTracker:
             if not already_recorded:
                 self._translation_completed += 1
             translation_completed = self._translation_completed
-            total = self._total
+            total = self._translation_total if self._translation_total is not None else self._total
         translation_snapshot = self._build_progress_snapshot(
             completed=translation_completed,
             total=total,
@@ -191,6 +192,10 @@ class ProgressTracker:
             snapshot=translation_snapshot,
             metadata=metadata,
         )
+
+    def set_translation_total(self, total: int) -> None:
+        with self._lock:
+            self._translation_total = max(0, total)
 
     def record_retry(self, stage: str, reason: str) -> None:
         """Increment retry counters grouped by stage and reason."""
@@ -476,6 +481,27 @@ class ProgressTracker:
                 "generated_files": event_payload,
             },
         )
+
+    def record_translation_flow(
+        self, *, accepted: int = 0, cached: int = 0, repaired: int = 0, failed: int = 0,
+        in_flight: Optional[int] = None, repairs_waiting: Optional[int] = None,
+        concurrency: Optional[int] = None,
+    ) -> None:
+        """Aggregate across subtitle windows without conflating audio work totals."""
+        with self._lock:
+            flow = dict(self._generated_files_extras.get("translation_flow", {}))
+            for key, value in (("accepted", accepted), ("cached", cached),
+                               ("repaired", repaired), ("failed", failed)):
+                flow[key] = int(flow.get(key, 0)) + value
+            for key, value in (("in_flight", in_flight), ("repairs_waiting", repairs_waiting),
+                               ("concurrency", concurrency)):
+                if value is not None:
+                    flow[key] = value
+            self._generated_files_extras["translation_flow"] = flow
+            # Do not rebuild every persisted chunk for each translated item.
+            self._generated_files_snapshot = {**self._generated_files_snapshot, "translation_flow": flow}
+        self._emit_event("progress", metadata={"stage": "generated_files",
+                         "generated_files": {"translation_flow": flow}})
 
     def backfill_chunk_metadata_paths(
         self, enriched_chunks: list[Mapping[str, object]]
