@@ -5,30 +5,18 @@ import os
 import re
 import subprocess
 import tempfile
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from pydub import AudioSegment
-
-from modules.audio.tts import generate_audio
-from modules.retry_annotations import is_failure_annotation
-from modules.subtitles.translation import _translate_text as _translate_subtitle_text
-from modules.transliteration import TransliterationService
 
 from .common import (
     _DEFAULT_ORIGINAL_MIX_PERCENT,
     _GAP_MIX_MAX_PERCENT,
     _GAP_MIX_SCALAR,
     _TEMP_DIR,
-    _AssDialogue,
-    _DubJobCancelled,
     logger,
 )
-from .dialogues import _clip_dialogues_to_window, _parse_dialogues, _validate_time_window
-from .language import _find_language_token, _language_uses_non_latin
-from .workers import _resolve_worker_count
 
 _HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 
@@ -426,174 +414,6 @@ def _mix_with_original_audio(
     return base.overlay(original.apply_gain(original_gain_db))
 
 
-def _synthesise_track_from_ass(
-    subtitle_path: Path,
-    *,
-    language: str,
-    voice: str,
-    tempo: float,
-    macos_reading_speed: int,
-    llm_model: Optional[str],
-    translation_provider: Optional[str] = None,
-    tracker=None,
-    stop_event: Optional[threading.Event] = None,
-    max_workers: Optional[int] = None,
-    start_time_offset: Optional[float] = None,
-    end_time_offset: Optional[float] = None,
-    progress_milestones: Optional[Sequence[float]] = None,
-    progressive_flush: Optional[Callable[[AudioSegment, float], None]] = None,
-) -> Tuple[AudioSegment, List[_AssDialogue]]:
-    target_rate = 44100
-    target_channels = 2
-    start_offset, end_offset = _validate_time_window(start_time_offset, end_time_offset)
-    all_dialogues = _parse_dialogues(subtitle_path)
-    source_language = _find_language_token(subtitle_path) or language
-    clipped_dialogues = _clip_dialogues_to_window(
-        all_dialogues,
-        start_offset=start_offset,
-        end_offset=end_offset,
-    )
-    translated_dialogues: List[_AssDialogue] = []
-    needs_translation = source_language and language and source_language.lower() != language.lower()
-    total_dialogues = len(clipped_dialogues)
-    if tracker is not None:
-        tracker.set_total(total_dialogues)
-        tracker.publish_progress(
-            {"stage": "translation", "total": total_dialogues, "source": source_language, "target": language}
-        )
-    for idx, entry in enumerate(clipped_dialogues):
-        translated_text = entry.translation
-        if needs_translation:
-            try:
-                translated_text = _translate_subtitle_text(
-                    entry.translation,
-                    source_language=source_language or language,
-                    target_language=language,
-                    llm_model=llm_model,
-                    translation_provider=translation_provider,
-                    progress_tracker=tracker,
-                )
-                if is_failure_annotation(translated_text):
-                    translated_text = entry.translation
-            except Exception:
-                translated_text = entry.translation
-        if tracker is not None and needs_translation:
-            tracker.record_step_completion(
-                stage="translation",
-                index=idx + 1,
-                total=total_dialogues,
-                metadata={"start": entry.start, "end": entry.end},
-            )
-        translated_dialogues.append(
-            _AssDialogue(
-                start=entry.start,
-                end=entry.end,
-                translation=translated_text,
-                original=entry.original,
-            )
-        )
-    translated_dialogues = [entry for entry in translated_dialogues if entry.translation]
-    if not translated_dialogues:
-        raise ValueError("No dialogue entries found in ASS subtitle.")
-
-    total_segments = len(translated_dialogues)
-    workers = _resolve_worker_count(total_segments, requested=max_workers)
-    if progressive_flush is not None:
-        # Keep ordering predictable for progressive flushes.
-        workers = 1
-    segments: List[Optional[Tuple[_AssDialogue, AudioSegment]]] = [None] * total_segments
-
-    def _guard() -> None:
-        if stop_event is not None and stop_event.is_set():
-            raise _DubJobCancelled()
-
-    def _synthesise(index: int, entry: _AssDialogue) -> Tuple[int, _AssDialogue, AudioSegment]:
-        _guard()
-        sanitized = _sanitize_for_tts(entry.translation)
-        segment = generate_audio(
-            sanitized,
-            language,
-            voice,
-            macos_reading_speed,
-            progress_tracker=tracker,
-        )
-        fitted = _fit_segment_to_window(segment, entry.duration)
-        normalized = _coerce_channels(fitted.set_frame_rate(target_rate), target_channels)
-        return index, entry, normalized
-
-    if tracker is not None:
-        tracker.publish_progress(
-            {
-                "stage": "synthesis",
-                "segments": total_segments,
-                "workers": workers,
-            }
-        )
-
-    try:
-        if workers <= 1:
-            for idx, dialogue in enumerate(translated_dialogues):
-                _guard()
-                _, entry, fitted = _synthesise(idx, dialogue)
-                segments[idx] = (entry, fitted)
-                if tracker is not None:
-                    tracker.record_step_completion(
-                        stage="synthesis",
-                        index=idx + 1,
-                        total=total_segments,
-                        metadata={"start": entry.start, "end": entry.end},
-                    )
-        else:
-            futures = []
-            with ThreadPoolExecutor(max_workers=workers) as executor:
-                for idx, dialogue in enumerate(translated_dialogues):
-                    futures.append(executor.submit(_synthesise, idx, dialogue))
-                completed = 0
-                for future in as_completed(futures):
-                    _guard()
-                    idx, entry, fitted = future.result()
-                    segments[idx] = (entry, fitted)
-                    completed += 1
-                    if tracker is not None:
-                        tracker.record_step_completion(
-                            stage="synthesis",
-                            index=completed,
-                            total=total_segments,
-                            metadata={"start": entry.start, "end": entry.end},
-                        )
-    except _DubJobCancelled:
-        for future in locals().get("futures", []):
-            future.cancel()
-        raise
-
-    resolved_segments: List[Tuple[_AssDialogue, AudioSegment]] = [
-        segment for segment in segments if segment is not None
-    ]
-    if not resolved_segments:
-        raise ValueError("No translatable dialogue lines were found in the subtitle.")
-
-    clip_end = end_offset - start_offset if end_offset is not None else None
-    max_end = clip_end if clip_end is not None else max(entry.end for entry, _ in resolved_segments)
-    base_rate = resolved_segments[0][1].frame_rate
-    # Keep a tiny buffer to avoid truncating the last syllable, but stay close to the subtitle window.
-    track = AudioSegment.silent(duration=int(max_end * 1000) + 100, frame_rate=base_rate)
-    if tracker is not None:
-        tracker.publish_progress({"stage": "mixdown", "duration_seconds": max_end})
-    milestone_index = 0
-    milestones = list(progress_milestones or [])
-    for entry, audio in resolved_segments:
-        _guard()
-        start_ms = int(entry.start * 1000)
-        track = track.overlay(audio, position=start_ms)
-        while milestone_index < len(milestones) and entry.end >= milestones[milestone_index]:
-            if progressive_flush is not None:
-                try:
-                    progressive_flush(track, milestones[milestone_index])
-                except Exception:
-                    logger.warning("Progressive mux failed for milestone %.2f", milestones[milestone_index], exc_info=True)
-            milestone_index += 1
-    return track, [entry for entry, _ in resolved_segments]
-
 
 __all__ = [
     "_apply_audio_gain_to_clip",
@@ -609,7 +429,6 @@ __all__ = [
     "_mix_with_original_audio",
     "_resolve_gap_mix_percent",
     "_sanitize_for_tts",
-    "_synthesise_track_from_ass",
     "_time_stretch_to_duration",
     "logger",
 ]
