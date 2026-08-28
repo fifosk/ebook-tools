@@ -6,6 +6,7 @@ import contextlib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic
 from typing import Callable, List, Optional, Sequence, Tuple
 
 from modules import text_normalization as text_norm
@@ -59,6 +60,7 @@ from .utils import _is_cancelled, _resolve_batch_size, _resolve_worker_count
 
 
 _LATIN_ASS_EMPHASIS_CAP = 1.1
+_SUBTITLE_PREVIEW_INTERVAL_SECONDS = 1.0
 
 
 def process_subtitle_file(
@@ -213,6 +215,7 @@ def process_subtitle_file(
     try:
         temp_output.unlink(missing_ok=True)
         all_rendered_cues: List[SubtitleCue] = []
+        last_preview_at: Optional[float] = None
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
             for batch_number, batch_start in enumerate(range(0, total_cues, batch_size), start=1):
                 if _is_cancelled(stop_event):
@@ -381,6 +384,18 @@ def process_subtitle_file(
                             mirror_html_writer = None
                     continue
 
+                # Plain subtitles need a whole-timeline merge (later overlaps can
+                # change earlier cues). Coalesce fast batches instead of repeatedly
+                # merging and rewriting the growing prefix, including the NAS mirror.
+                # The first and final previews are unconditional; HTML/audio callbacks
+                # above still run for every batch. Slow batches retain live previews.
+                final_batch = batch_start + len(batch) >= total_cues
+                if (
+                    last_preview_at is not None
+                    and not final_batch
+                    and monotonic() - last_preview_at < _SUBTITLE_PREVIEW_INTERVAL_SECONDS
+                ):
+                    continue
                 merged_timeline = _merge_rendered_timeline(
                     all_rendered_cues,
                     preserve_states=False,
@@ -417,6 +432,7 @@ def process_subtitle_file(
                         )
                         mirror_target = None
                         mirror_html_writer = None
+                last_preview_at = monotonic()
     except SubtitleJobCancelled:
         temp_output.unlink(missing_ok=True)
         html_writer.discard()
