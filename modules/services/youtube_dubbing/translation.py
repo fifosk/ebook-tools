@@ -21,6 +21,10 @@ from .language import _transliterate_text
 from .workers import _resolve_llm_worker_count
 
 
+class VideoTranslationError(RuntimeError):
+    """A cue exhausted translation/repair; it must not be dubbed as success."""
+
+
 def translate_dialogues(
     dialogues: List[_AssDialogue],
     *,
@@ -72,6 +76,32 @@ def translate_dialogues(
         and translation_batch_size is not None
         and translation_batch_size > 1
     )
+
+    def _translate_entry(idx: int, entry: _AssDialogue) -> str:
+        # The shared translator owns provider failover and validation retries.
+        # Exhaustion here aborts the block before generation can synthesize it.
+        message = (
+            f"Translation failed for video cue {offset + idx + 1}. "
+            "No valid translation was returned after retries; dubbing stopped."
+        )
+        try:
+            candidate = _translate_subtitle_text(
+                entry.translation,
+                source_language=source_language or target_language,
+                target_language=target_language,
+                llm_model=llm_model,
+                translation_provider=translation_provider,
+                progress_tracker=tracker,
+            )
+        except TranslationPreflightError:
+            raise
+        except Exception:
+            # Provider exceptions can contain credentials or private payloads.
+            raise VideoTranslationError(message) from None
+        if (not isinstance(candidate, str) or is_failure_annotation(candidate)
+                or _looks_like_gibberish_translation(source=entry.translation, candidate=candidate)):
+            raise VideoTranslationError(message)
+        return candidate.strip()
 
     if use_llm_batching:
         sentences = [entry.translation for entry in dialogues]
@@ -139,20 +169,7 @@ def translate_dialogues(
                         source=entry.translation,
                         candidate=translation_line,
                     ):
-                        try:
-                            translated_text = _translate_subtitle_text(
-                                entry.translation,
-                                source_language=source_language or target_language,
-                                target_language=target_language,
-                                llm_model=llm_model,
-                                translation_provider=translation_provider,
-                                progress_tracker=tracker,
-                            )
-                        except Exception:
-                            translated_text = entry.translation
-                        else:
-                            if is_failure_annotation(translated_text):
-                                translated_text = entry.translation
+                        translated_text = _translate_entry(idx, entry)
                         inline_translit = ""
                     else:
                         translated_text = translation_line
@@ -199,20 +216,8 @@ def translate_dialogues(
         rtl_normalized = entry.rtl_normalized
         translated_flag = False
         if needs_translation:
-            try:
-                translated_text = _translate_subtitle_text(
-                    entry.translation,
-                    source_language=source_language or target_language,
-                    target_language=target_language,
-                    llm_model=llm_model,
-                    translation_provider=translation_provider,
-                    progress_tracker=tracker,
-                )
-                translated_flag = True
-                if is_failure_annotation(translated_text):
-                    translated_text = entry.translation
-            except Exception:
-                translated_text = entry.translation
+            translated_text = _translate_entry(idx, entry)
+            translated_flag = True
         if include_transliteration and transliterator is not None and not transliteration_text:
             try:
                 transliteration_text = _transliterate_text(

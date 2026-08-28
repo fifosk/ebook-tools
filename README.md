@@ -13,7 +13,7 @@ interactive playback across Web, iOS, and Apple TV.
 - **AI sentence illustrations** — Draw Things / Stable Diffusion image generation with LLM-powered prompt plans and style templates
 - **MyLinguist dictionary** — Tap any word for LLM-powered lookups with definitions, etymology, pronunciation, and related languages
 - **Interactive reader** — Chunk-based navigation, bookmarks, resume position, keyboard shortcuts, theme customisation
-- **YouTube dubbing** — Subtitle extraction, translation, and dubbed audio rendering for video files
+- **YouTube dubbing** — Subtitle extraction, translation, and dubbed audio rendering for video files; exhausted translation repairs stop the job instead of dubbing original text as a successful translation
 - **Multi-platform** — Web (React SPA), iOS (iPhone/iPad), tvOS (Apple TV)
 - **Role-based access** — JWT authentication with admin, editor, and media_producer roles
 - **Observability** — Prometheus metrics, Grafana dashboards (overview, backend, database, QA), PostgreSQL exporter
