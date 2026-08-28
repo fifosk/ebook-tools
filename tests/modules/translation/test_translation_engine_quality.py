@@ -306,16 +306,24 @@ def test_scheduled_repairs_preserve_transliteration_and_target_language(monkeypa
     assert result == ["こんにちは。\nkonnichiwa", "ありがとう。\narigatou", *translations[2:]]
 
 
-def test_single_translation_retries_missing_dialogue(monkeypatch):
+@pytest.mark.parametrize("source,language,partial,complete", [
+    ("How are things? Good. Had a good week.", "Finnish", "Miten menee?",
+     "Miten menee? Hyvin. Oli hyvä viikko."),
+    ("Şimdi burada sessizce oturup beni bekle. Bu gece nereye gidiyorsun?", "English",
+     "Sit here quietly and wait for me.",
+     "Sit here quietly and wait for me. Where are you going tonight?"),
+])
+def test_single_translation_retries_missing_dialogue(monkeypatch, source, language, partial, complete):
     monkeypatch.setattr(translation_engine, "_TRANSLATION_RESPONSE_ATTEMPTS", 2)
     monkeypatch.setattr(translation_engine, "_TRANSLATION_RETRY_DELAY_SECONDS", 0)
-    client = StubLLMClient(["Miten menee?", "Miten menee? Hyvin. Oli hyvä viikko."])
+    client = StubLLMClient([partial, complete])
     result, error, _ = translation_engine._translate_with_llm(
-        "How are things? Good. Had a good week.", "English", "Finnish",
+        source, "Turkish" if language == "English" else "English", language,
         include_transliteration=False, resolved_client=client,
         progress_tracker=None, timeout_seconds=60,
     )
-    assert result == "Miten menee? Hyvin. Oli hyvä viikko."
+    assert result == complete
+    assert not client.responses  # A plausible first sentence must not bypass repair.
     assert error is None
 
 
