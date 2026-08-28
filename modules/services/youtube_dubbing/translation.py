@@ -13,6 +13,7 @@ from modules.subtitles.translation import (
     _translate_text as _translate_subtitle_text,
 )
 from modules.translation_engine import translate_batch
+from modules.translation_preflight import TranslationPreflightError, preflight_translation
 from modules.transliteration import TransliterationService
 
 from .common import _AssDialogue, logger
@@ -62,6 +63,9 @@ def translate_dialogues(
         and resolved_transliteration_mode != "python"
     )
     resolved_transliteration_model = transliteration_model or llm_model
+    if dialogues and needs_translation and (translation_provider or "llm") == "llm":
+        with create_client(model=llm_model) as client:
+            preflight_translation(client, "llm", tracker)
     use_llm_batching = (
         needs_translation
         and (translation_provider or "llm") == "llm"
@@ -106,6 +110,8 @@ def translate_dialogues(
                     progress_tracker=tracker,
                     sentence_numbers=sentence_numbers,
                 )
+        except TranslationPreflightError:
+            raise
         except Exception:  # pragma: no cover - fall back to per-entry processing
             translations = []
         if len(translations) == len(dialogues):

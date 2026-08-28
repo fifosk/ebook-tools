@@ -112,9 +112,15 @@ def _translate_with_llm(
     checkpoint = checkpoint_path(resolved_client, payload, kind="sentence")
     cached = read_checkpoint(checkpoint)
     if isinstance(cached, str):
-        translation_only, _ = text_norm.split_translation_and_transliteration(cached)
-        if not validate_batch_translation(sentence, translation_only or cached, target_language,
-                                          check_sentence_boundaries=False):
+        translation_only, transliteration = text_norm.split_translation_and_transliteration(cached)
+        if (
+            not validate_batch_translation(sentence, translation_only or cached, target_language,
+                                           check_sentence_boundaries=False)
+            and _is_segmentation_ok(sentence, cached, target_language, translation_text=translation_only)
+            and not (include_transliteration and transliteration and tv.get_token_alignment_error(
+                translation_only, transliteration, target_language
+            ))
+        ):
             if progress_tracker is not None:
                 progress_tracker.record_translation_flow(cached=1)
             return cached, None, 0.0

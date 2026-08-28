@@ -10,6 +10,36 @@ from modules.services.youtube_dubbing import service as service_module
 pytestmark = pytest.mark.services
 
 
+@pytest.mark.parametrize("batch_size,late_preflight", [(1, False), (2, False), (2, True)])
+@pytest.mark.parametrize("model", [None, "test-model"])
+def test_unavailable_model_stops_video_before_per_cue_fallback(
+    tmp_path, monkeypatch, batch_size, late_preflight, model,
+):
+    from types import SimpleNamespace
+    from modules import translation_preflight as pf
+    from modules.llm_client import ClientSettings, LLMClient
+    from modules.services.youtube_dubbing import translation as video_translation
+    from modules.services.youtube_dubbing.common import _AssDialogue
+
+    (tmp_path / "data").mkdir()
+    monkeypatch.setattr(pf.cfg, "get_runtime_context", lambda *args: SimpleNamespace(output_dir=tmp_path / "media"))
+    statuses = iter(["available", "unavailable"] if late_preflight else ["unavailable"])
+    monkeypatch.setattr(pf, "check_model", lambda client: (next(statuses), "Selected model unavailable"))
+    client = LLMClient(ClientSettings(
+        model="test-model", llm_source="cloud", api_url="https://example.invalid/v1/chat/completions"))
+    monkeypatch.setattr(video_translation, "create_client", lambda **kwargs: client)
+    monkeypatch.setattr("modules.llm_client_manager.create_client", lambda **kwargs: client)
+    monkeypatch.setattr(LLMClient, "send_chat_request", lambda *args, **kwargs: pytest.fail("inference was scheduled"))
+    monkeypatch.setattr(video_translation, "_translate_subtitle_text", lambda *args, **kwargs: pytest.fail("per-cue fallback ran"))
+    with pytest.raises(pf.TranslationPreflightError, match="Selected model unavailable"):
+        video_translation.translate_dialogues(
+            [_AssDialogue(start=0, end=2, translation="Wait here.", original="Wait here.")],
+            source_language="English", target_language="Finnish",
+            translation_batch_size=batch_size, include_transliteration=False,
+            transliterator=None, llm_model=model, tracker=None, offset=0, total_dialogues=1,
+        )
+
+
 def test_youtube_dubbing_service_uses_safe_stat_for_file_probes() -> None:
     source = Path(service_module.__file__).read_text(encoding="utf-8")
 

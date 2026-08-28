@@ -87,6 +87,31 @@ def test_batch_revalidates_all_items_and_never_checkpoints_incomplete_batch(job_
     assert len(calls) == 3  # rejected output was not saved
 
 
+@pytest.mark.parametrize("invalid_check", ["segmentation", "token_alignment"])
+def test_sentence_checkpoint_rechecks_segmentation_and_alignment(job_context, monkeypatch, invalid_check):
+    calls = []
+    cached = "Odota tässä."
+    if invalid_check == "token_alignment":
+        cached += "\nTransliteration: odota"
+    monkeypatch.setattr(te, "read_checkpoint", lambda path: cached)
+    monkeypatch.setattr(te, "_is_segmentation_ok", lambda source, result, target, **kwargs:
+                        invalid_check != "segmentation" or result != cached)
+    monkeypatch.setattr(te.tv, "get_token_alignment_error", lambda *args:
+                        "Token count mismatch" if invalid_check == "token_alignment" else None)
+
+    def send(self, payload, **kwargs):
+        calls.append(payload)
+        return LLMResponse(text="Pysy tässä.", status_code=200, token_usage={})
+
+    monkeypatch.setattr(LLMClient, "send_chat_request", send)
+    result, error, _ = te._translate_with_llm(
+        "Wait here.", "English", "Finnish", include_transliteration=True,
+        resolved_client=client(), progress_tracker=None, timeout_seconds=1)
+    assert result == "Pysy tässä."
+    assert error is None
+    assert len(calls) == 1
+
+
 def test_write_failure_is_a_miss_and_different_jobs_do_not_share(job_context, monkeypatch, tmp_path):
     path = cp.checkpoint_path(client(), {}, kind="sentence")
     monkeypatch.setattr(cp.os, "replace", lambda *args: (_ for _ in ()).throw(OSError("full")))
