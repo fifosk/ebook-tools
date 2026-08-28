@@ -1323,3 +1323,19 @@ adapter while jobs or leases are active. Retry changes affect newly started
 processes, not a job already running in the old worker.
 Rollback: restore the backend's saved cloud URL/key settings, recreate only the
 backend, and stop the adapter once all its requests/leases have completed.
+
+
+### Subtitle audio backlog
+
+Audio-enabled subtitle jobs hold at most 32 pending transcript entries behind
+one active synthesis/export. Producers wait when this queue is full; they check
+cancellation and worker failures every 100 ms. Normal completion drains in order.
+Abort paths wake the consumer through timed reads instead of pushing a sentinel
+into a full queue. Cancellation still waits for an already-running TTS/export
+call to return; this does not add a backend-call timeout or parallelize the
+exporter. Subtitle-only jobs never create this audio queue or synthesize audio.
+
+The bound limits pending transcript memory and work ahead of audio, not all job
+memory or total TTS time. Benchmark fresh translation, synthesis, export and
+queue wait separately before increasing concurrency. A smaller final audio tail
+can simply mean time moved to producer waiting, rather than a faster whole job.
