@@ -18,7 +18,6 @@ from .audio_utils import (
     _mix_with_original_audio,
     _resolve_gap_mix_percent,
     _sanitize_for_tts,
-    _synthesise_track_from_ass,
     _time_stretch_to_duration,
     logger as _audio_logger,
 )
@@ -207,7 +206,6 @@ __all__ = [
     "_summarize_ffmpeg_error",
     "_SubtitleFileWriter",
     "_subtitle_matches_video",
-    "_synthesise_track_from_ass",
     "_TARGET_DUB_HEIGHT",
     "_TEMP_DIR",
     "_time_stretch_to_duration",

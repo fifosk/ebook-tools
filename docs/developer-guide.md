@@ -1371,3 +1371,12 @@ window.__HL_DEBUG__ = { enabled: true };
 - [Frontend sync checklist](frontend-sync.md)
 - [Sentence highlighting](sentence_highlighting.md)
 - [User management](user-management.md)
+
+### Dubbing translation entry point
+
+Use `modules.services.youtube_dubbing.generate_dubbed_video` (or the managed
+`YoutubeDubbingService`) for dubbing. The unused private
+`_synthesise_track_from_ass` helper and its re-exports were removed: its legacy
+translation fallback could silently synthesize the source text as target speech.
+No repository callers, tests, CLI entry points or documented external import
+contract used it. The active validated translation and synthesis paths are unchanged.
