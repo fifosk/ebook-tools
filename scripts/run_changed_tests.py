@@ -804,7 +804,7 @@ def _is_release_metadata_only(path: str) -> bool:
 
 
 def select_targets(paths: Iterable[str]) -> list[str]:
-    normalized = sorted({path.strip().lstrip("./") for path in paths if path.strip()})
+    normalized = sorted({path.strip().removeprefix("./") for path in paths if path.strip()})
     if not normalized:
         return ["test-fast"]
 

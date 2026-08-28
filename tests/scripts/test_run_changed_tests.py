@@ -960,7 +960,7 @@ def test_select_targets_defaults_to_fast_suite_for_unknown_or_no_paths() -> None
 
 
 def test_web_runtime_changes_run_guard_and_real_web_gates() -> None:
-    for path in [".nvmrc", "scripts/run-web-npm.sh", "web/scripts/check-node-runtime.mjs",
+    for path in [".nvmrc", "./.nvmrc", "scripts/run-web-npm.sh", "web/scripts/check-node-runtime.mjs",
                  "web/package.json", "web/package-lock.json", "web/pnpm-lock.yaml",
                  "tests/scripts/test_web_node_runtime.py"]:
         assert select_targets([path]) == [
