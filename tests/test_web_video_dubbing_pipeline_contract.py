@@ -50,7 +50,7 @@ def test_auth_focused_web_target_covers_session_flows() -> None:
 
     assert "test-web-auth-focused" in makefile
     block = _target_block(makefile, "test-web-auth-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     assert "src/components/__tests__/AuthFlows.test.tsx" in block
 
 
@@ -67,7 +67,7 @@ def test_admin_focused_web_target_covers_admin_shell_surfaces() -> None:
 
     assert "test-web-admin-focused" in makefile
     block = _target_block(makefile, "test-web-admin-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     assert "src/components/__tests__/UserManagementPanel.test.tsx" in block
     assert "src/components/__tests__/SystemPanel.test.tsx" in block
     assert "src/components/__tests__/SidebarAdminLinks.test.tsx" in block
@@ -86,7 +86,7 @@ def test_sidebar_focused_web_target_covers_split_navigation_shell() -> None:
 
     assert "test-web-sidebar-focused" in makefile
     block = _target_block(makefile, "test-web-sidebar-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     for path in [
         "src/components/__tests__/Sidebar.test.tsx",
         "src/components/__tests__/SidebarPlayerButton.test.tsx",
@@ -111,7 +111,7 @@ def test_create_book_focused_web_target_covers_create_page_tests() -> None:
 
     assert "test-web-create-book-focused" in makefile
     block = _target_block(makefile, "test-web-create-book-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     assert "src/pages/__tests__/CreateBookPage.test.tsx" in block
     assert "src/pages/__tests__/createBookPageUtils.test.ts" in block
 
@@ -129,7 +129,7 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
 
     assert "test-web-create-intake-focused" in makefile
     block = _target_block(makefile, "test-web-create-intake-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     assert "src/components/__tests__/createIntakeStatusUtils.test.ts" in block
     assert "src/components/__tests__/useCreateIntakeStatus.test.tsx" in block
     assert "src/components/__tests__/bookNarrationDiscoveryProviders.test.ts" in block
@@ -243,7 +243,7 @@ def test_creation_templates_focused_web_target_covers_shared_payload_builders() 
 
     assert "test-web-creation-templates-focused" in makefile
     block = _target_block(makefile, "test-web-creation-templates-focused")
-    assert "npm --prefix web test -- --run --threads=false" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run --threads=false" in block
     assert "src/api/client/__tests__/creationTemplates.test.ts" in block
     assert "src/utils/__tests__/creationTemplateSanitizer.test.ts" in block
     assert "src/components/__tests__/bookNarrationTemplates.test.ts" in block
@@ -264,7 +264,7 @@ def test_library_focused_web_target_covers_library_metadata() -> None:
 
     assert "test-web-library-focused" in makefile
     block = _target_block(makefile, "test-web-library-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     assert "src/api/client/__tests__/resume.test.ts" in block
     assert "src/pages/__tests__/libraryPageMetadata.test.ts" in block
     assert "src/components/__tests__/libraryListUtils.test.ts" in block
@@ -283,7 +283,7 @@ def test_job_progress_focused_web_target_covers_health_timeline() -> None:
 
     assert "test-web-job-progress-focused" in makefile
     block = _target_block(makefile, "test-web-job-progress-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     assert "src/api/client/__tests__/jobs.test.ts" in block
     assert "src/components/__tests__/JobStatusBadge.test.tsx" in block
     assert "src/components/__tests__/JobProgress.test.tsx" in block
@@ -299,7 +299,7 @@ def test_playback_focused_web_target_covers_player_and_media_state() -> None:
 
     assert "test-web-playback-focused" in makefile
     block = _target_block(makefile, "test-web-playback-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     for path in [
         "src/api/client/__tests__/media.test.ts",
         "src/hooks/__tests__/liveMediaEvents.test.ts",
@@ -416,7 +416,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
 
     assert "test-web-video-dubbing-focused" in makefile
     block = _target_block(makefile, "test-web-video-dubbing-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     assert "src/pages/__tests__/videoDubbingDiscovery.test.ts" in block
     assert "src/pages/__tests__/useVideoDubbingAcquisitionProviders.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingCreationTemplate.test.tsx" in block
@@ -716,7 +716,7 @@ def test_subtitle_tool_focused_web_target_covers_split_hooks() -> None:
 
     assert "test-web-subtitle-tool-focused" in makefile
     block = _target_block(makefile, "test-web-subtitle-tool-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     assert "src/pages/__tests__/subtitleToolUtils.test.ts" in block
     assert "src/pages/__tests__/subtitleJobPresentation.test.ts" in block
     assert "src/pages/__tests__/subtitleJobUtils.test.ts" in block
@@ -762,7 +762,7 @@ def test_app_view_deeplink_focused_web_target_covers_deeplink_utils() -> None:
 
     assert "test-web-app-view-deeplink-focused" in makefile
     block = _target_block(makefile, "test-web-app-view-deeplink-focused")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
     assert "src/utils/__tests__/appViewDeepLink.test.ts" in block
     assert "src/utils/__tests__/creationTemplatePayloadExtras.test.ts" in block
 
@@ -795,7 +795,7 @@ def test_full_web_target_runs_complete_vitest_suite() -> None:
 
     assert "test-web-full" in makefile
     block = _target_block(makefile, "test-web-full")
-    assert "npm --prefix web test -- --run" in block
+    assert "./scripts/run-web-npm.sh --prefix web test -- --run" in block
 
 
 def test_web_production_build_target_runs_export_build() -> None:
@@ -804,7 +804,7 @@ def test_web_production_build_target_runs_export_build() -> None:
     assert "build-web-production" in makefile
     assert "check-web-export-player-bundle:" in makefile
     block = _target_block(makefile, "build-web-production")
-    assert "npm --prefix web run build" in block
+    assert "./scripts/run-web-npm.sh --prefix web run build" in block
     assert "$(PYTHON) -m pytest -q tests/test_web_video_dubbing_pipeline_contract.py::test_export_player_html_references_trackable_bundle" in block
 
 

@@ -113,7 +113,8 @@ test-changed:
 	$(PYTHON) scripts/run_changed_tests.py
 
 test-makefile-contract:
-	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py tests/scripts/test_check_web_e2e_journeys.py tests/scripts/test_run_xcodebuild_e2e.py tests/scripts/test_write_git_checkpoint_bundle.py
+	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py tests/scripts/test_check_web_e2e_journeys.py tests/scripts/test_run_xcodebuild_e2e.py tests/scripts/test_write_git_checkpoint_bundle.py \
+		tests/scripts/test_web_node_runtime.py
 
 # ── Domain markers ───────────────────────────────────────────────────────
 test-audio:
@@ -238,17 +239,17 @@ test-backend-youtube-dubbing-service:
 		tests/modules/services/test_youtube_subtitles.py
 
 test-web-auth-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/components/__tests__/AuthFlows.test.tsx
 
 test-web-admin-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/components/__tests__/UserManagementPanel.test.tsx \
 		src/components/__tests__/SystemPanel.test.tsx \
 		src/components/__tests__/SidebarAdminLinks.test.tsx
 
 test-web-sidebar-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/components/__tests__/Sidebar.test.tsx \
 		src/components/__tests__/SidebarPlayerButton.test.tsx \
 		src/components/__tests__/SidebarCreationLinks.test.tsx \
@@ -257,12 +258,12 @@ test-web-sidebar-focused:
 		src/components/__tests__/sidebarUtils.test.ts
 
 test-web-create-book-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/pages/__tests__/CreateBookPage.test.tsx \
 		src/pages/__tests__/createBookPageUtils.test.ts
 
 test-web-create-intake-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/components/__tests__/createIntakeStatusUtils.test.ts \
 		src/components/__tests__/useCreateIntakeStatus.test.tsx \
 		src/components/__tests__/bookNarrationDiscoveryProviders.test.ts \
@@ -297,7 +298,7 @@ test-web-create-intake-focused:
 		src/pages/__tests__/VideoDubbingPage.test.tsx
 
 test-web-creation-templates-focused:
-	npm --prefix web test -- --run --threads=false \
+	./scripts/run-web-npm.sh --prefix web test -- --run --threads=false \
 		src/api/client/__tests__/creationTemplates.test.ts \
 		src/utils/__tests__/creationTemplateSanitizer.test.ts \
 		src/components/__tests__/bookNarrationTemplates.test.ts \
@@ -305,7 +306,7 @@ test-web-creation-templates-focused:
 		src/pages/__tests__/videoDubbingUtils.test.ts
 
 test-web-library-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/api/client/__tests__/resume.test.ts \
 		src/pages/__tests__/libraryPageMetadata.test.ts \
 		src/pages/__tests__/useLibraryFocusQuery.test.tsx \
@@ -326,7 +327,7 @@ test-web-library-focused:
 		src/components/__tests__/libraryListResume.test.ts
 
 test-web-job-progress-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/api/client/__tests__/jobs.test.ts \
 		src/components/__tests__/JobStatusBadge.test.tsx \
 		src/components/__tests__/JobProgress.test.tsx \
@@ -338,7 +339,7 @@ test-web-job-progress-focused:
 		src/utils/__tests__/progressEvents.test.ts
 
 test-web-playback-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/api/client/__tests__/media.test.ts \
 		src/hooks/__tests__/liveMediaEvents.test.ts \
 		src/hooks/__tests__/liveMediaLoad.test.ts \
@@ -393,7 +394,7 @@ test-web-playback-focused:
 		src/utils/__tests__/browserStorage.test.ts
 
 test-web-video-dubbing-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/pages/__tests__/videoDubbingDiscovery.test.ts \
 		src/pages/__tests__/videoDubbingDownloadStationUtils.test.ts \
 		src/pages/__tests__/youtubeVideoPageUtils.test.ts \
@@ -429,7 +430,7 @@ test-web-video-dubbing-focused:
 		src/pages/__tests__/YoutubeVideoPage.test.tsx
 
 test-web-subtitle-tool-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/api/client/__tests__/subtitles.test.ts \
 		src/pages/__tests__/subtitleToolUtils.test.ts \
 		src/pages/__tests__/subtitleJobPresentation.test.ts \
@@ -457,15 +458,15 @@ test-web-subtitle-tool-focused:
 		src/pages/__tests__/useSubtitleSubmit.test.tsx
 
 test-web-app-view-deeplink-focused:
-	npm --prefix web test -- --run \
+	./scripts/run-web-npm.sh --prefix web test -- --run \
 		src/utils/__tests__/appViewDeepLink.test.ts \
 		src/utils/__tests__/creationTemplatePayloadExtras.test.ts
 
 test-web-full:
-	npm --prefix web test -- --run
+	./scripts/run-web-npm.sh --prefix web test -- --run
 
 build-web-production:
-	npm --prefix web run build
+	./scripts/run-web-npm.sh --prefix web run build
 	$(PYTHON) -m pytest -q tests/test_web_video_dubbing_pipeline_contract.py::test_export_player_html_references_trackable_bundle
 
 check-web-export-player-bundle:

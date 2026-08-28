@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "clean:artifacts": "node ./scripts/clean-stale-artifacts.mjs",
-    "prebuild": "node ./scripts/clean-stale-artifacts.mjs",
+    "prebuild": "node ./scripts/check-node-runtime.mjs && node ./scripts/clean-stale-artifacts.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build && vite build --mode export",
     "build:export": "vite build --mode export",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "pretest": "node ./scripts/check-node-runtime.mjs",
+    "prebuild:export": "node ./scripts/check-node-runtime.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -29,5 +31,8 @@
     "typescript": "^5.3.3",
     "vite": "^5.0.0",
     "vitest": "^0.34.6"
+  },
+  "engines": {
+    "node": "20.x || 22.x || 24.x"
   }
 }

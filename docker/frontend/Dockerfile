@@ -35,7 +35,7 @@ ARG VITE_APPLE_REDIRECT_URI=""
 ARG VITE_APP_BRANCH="docker"
 
 # Type-check and build (skip export-dist — only dist/ is needed for web)
-RUN cd web && pnpm exec tsc -b && pnpm exec vite build
+RUN cd web && node scripts/check-node-runtime.mjs && pnpm exec tsc -b && pnpm exec vite build
 
 # ── Stage 2: Serve with Nginx ───────────────────────────────────────
 FROM nginx:1.27-alpine

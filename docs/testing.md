@@ -1814,20 +1814,20 @@ when you need a specific virtual environment or CI interpreter.
 | `make test-backend-playback-media` | `$(PYTHON) -m pytest ...` | Shared-pipeline job/Library media manifest, Library serializer chunk ordering, diagnostics, timing metrics, and ranged stream backend slice |
 | `make test-backend-offline-export` | `$(PYTHON) -m pytest ...` | Shared-pipeline offline export route, metrics, and token-safe logging slice |
 | `make test-backend-youtube-dubbing-service` | `$(PYTHON) -m pytest ...` | Shared-pipeline YouTube dubbing/download route and service slice, plus token-safe YouTube NAS library and Dub submission telemetry |
-| `make test-web-auth-focused` | `npm --prefix web test -- --run ...` | Focused Web authentication, token persistence, logout, and password-change Vitest slice |
-| `make test-web-admin-focused` | `npm --prefix web test -- --run ...` | Focused Web user-management, system panel, and admin navigation Vitest slice |
-| `make test-web-sidebar-focused` | `npm --prefix web test -- --run ...` | Focused Web sidebar shell, creation links, player entry, job overview, and sidebar utility Vitest slice |
-| `make test-web-create-book-focused` | `npm --prefix web test -- --run ...` | Focused generated-book Create page Vitest slice |
-| `make test-web-create-intake-focused` | `npm --prefix web test -- --run ...` | Focused Create intake, narration chapter loading, file discovery, acquisition discovery filtering/selection, voice inventory, narration form, step bar, submit status, and file/dialog Vitest slice |
-| `make test-web-creation-templates-focused` | `npm --prefix web test -- --run ...` | Focused saved creation-template API client, sanitizer, and payload Vitest slice |
-| `make test-web-library-focused` | `npm --prefix web test -- --run ...` | Focused Library page metadata, LibraryList helpers, row media/actions/status, and resume badge Vitest slice |
-| `make test-web-job-progress-focused` | `npm --prefix web test -- --run ...` | Focused Web job-progress, job settings summary, stage-health, and generated-file utility Vitest slice |
-| `make test-web-playback-focused` | `npm --prefix web test -- --run ...` | Focused live-media, PlayerPanel, subtitle overlay, sleep timer, and mixed sequence/gate fallback Vitest slice |
-| `make test-web-video-dubbing-focused` | `npm --prefix web test -- --run ...` | Focused Video Dubbing and YouTube download utility, hook, and page Vitest slice |
-| `make test-web-subtitle-tool-focused` | `npm --prefix web test -- --run ...` | Focused Subtitle Tool defaults, tab rendering, template handoff/save, and hook Vitest slice |
-| `make test-web-app-view-deeplink-focused` | `npm --prefix web test -- --run ...` | Focused app-view deeplink utility Vitest slice |
-| `make test-web-full` | `npm --prefix web test -- --run` | Full Web Vitest suite |
-| `make build-web-production` | `npm --prefix web run build` | Production app and export-player build; the tracked export HTML must reference a present, trackable `web/export-dist/assets/export-*.js` bundle |
+| `make test-web-auth-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused Web authentication, token persistence, logout, and password-change Vitest slice |
+| `make test-web-admin-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused Web user-management, system panel, and admin navigation Vitest slice |
+| `make test-web-sidebar-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused Web sidebar shell, creation links, player entry, job overview, and sidebar utility Vitest slice |
+| `make test-web-create-book-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused generated-book Create page Vitest slice |
+| `make test-web-create-intake-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused Create intake, narration chapter loading, file discovery, acquisition discovery filtering/selection, voice inventory, narration form, step bar, submit status, and file/dialog Vitest slice |
+| `make test-web-creation-templates-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused saved creation-template API client, sanitizer, and payload Vitest slice |
+| `make test-web-library-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused Library page metadata, LibraryList helpers, row media/actions/status, and resume badge Vitest slice |
+| `make test-web-job-progress-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused Web job-progress, job settings summary, stage-health, and generated-file utility Vitest slice |
+| `make test-web-playback-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused live-media, PlayerPanel, subtitle overlay, sleep timer, and mixed sequence/gate fallback Vitest slice |
+| `make test-web-video-dubbing-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused Video Dubbing and YouTube download utility, hook, and page Vitest slice |
+| `make test-web-subtitle-tool-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused Subtitle Tool defaults, tab rendering, template handoff/save, and hook Vitest slice |
+| `make test-web-app-view-deeplink-focused` | `./scripts/run-web-npm.sh --prefix web test -- --run ...` | Focused app-view deeplink utility Vitest slice |
+| `make test-web-full` | `./scripts/run-web-npm.sh --prefix web test -- --run` | Full Web Vitest suite |
+| `make build-web-production` | `./scripts/run-web-npm.sh --prefix web run build` | Production app and export-player build; the tracked export HTML must reference a present, trackable `web/export-dist/assets/export-*.js` bundle |
 | `make test-services` | `$(PYTHON) -m pytest -m services` | Job manager and service tests |
 | `make test-pipeline` | `$(PYTHON) -m pytest -m pipeline` | Core pipeline tests |
 | `make test-cli` | `$(PYTHON) -m pytest -m cli` | CLI argument and command tests |
@@ -2460,3 +2460,27 @@ If tests fail with config errors, verify `.env` contains valid credentials or pa
 environment. Simulator runs may pass `E2E_AUTH_TOKEN` or
 `EBOOKTOOLS_SESSION_TOKEN` instead of username/password, then try running the
 make target again.
+
+### Web Node runtime
+
+Use Node 24 for local Web tests/builds (`.nvmrc`: `nvm install && nvm use`).
+The Web package also accepts Node 20 and 22 for existing builders; the frontend
+Dockerfile remains on `node:20-alpine` with pnpm 9.12.3. The current GitHub Actions
+workflow is Python-only and does not choose a Web runtime.
+
+All Make Web gates use `scripts/run-web-npm.sh`, which checks the runtime before
+starting npm. To use an isolated installation without changing global Node:
+
+```bash
+WEB_NODE_BIN=/absolute/path/to/node24/bin make test-web-full
+WEB_NODE_BIN=/absolute/path/to/node24/bin make build-web-production
+```
+
+`WEB_NODE_BIN` must contain `node`; npm must also be on PATH. The directory is
+prepended only for that command and its children, so npm uses the chosen Node. With no override, the gate checks the current PATH.
+Missing or unsupported Node fails with setup instructions. Direct `npm test`,
+`npm run build`, and `npm run build:export` run the same version guard via lifecycle
+hooks. Do not bypass it with direct Vitest invocations or `--ignore-scripts`.
+Node 25 is deliberately excluded: the repository's Vitest 0.34/CommonJS teardown
+aborted under v25.9.0 after its assertions passed. No test or dependency upgrade
+is used to hide that failure.

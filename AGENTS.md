@@ -45,6 +45,7 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
   When sentence-image generation or playback UX changes, update `docs/sentence_images.md` and `docs/frontend-sync.md` as well.
 
 ## Common Workflows
+- Web gates use `scripts/run-web-npm.sh`; prefer Node 24 (`.nvmrc`), or set `WEB_NODE_BIN=/path/to/node24/bin` for an isolated installation. Node 20/22 remain supported for existing builders; unsupported Node fails before Vitest starts.
 - Create a virtual environment and install dependencies with `pip install -e .[dev]`.
 - Makefile pytest targets resolve `PYTHON` to `.venv/bin/python` first, then the first available Python 3.10+ runtime (`python3.13`, `python3.12`, `python3.11`, `python3.10`, `python3`); set `PYTHON=/path/to/python` when a specific virtual environment should drive Apple/backend gates.
 - Use `make test-changed` for a quick local gate; it maps staged, unstaged, and untracked paths to the narrowest stable Make targets and falls back to `test-fast` for broad or unknown changes.
