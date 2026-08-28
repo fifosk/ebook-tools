@@ -33,8 +33,8 @@ from modules.services.source_discovery import DiscoveredSourceFile
 pytestmark = pytest.mark.webapi
 
 
-@pytest.mark.parametrize("audio_enabled", [False, True])
-def test_subtitle_worker_reports_output_stages_without_changing_audio_request(tmp_path, monkeypatch, audio_enabled):
+@pytest.fixture
+def subtitle_worker_probe(tmp_path, monkeypatch):
     from contextlib import nullcontext
     from unittest.mock import Mock
     from modules.progress_tracker import ProgressTracker
@@ -71,16 +71,136 @@ def test_subtitle_worker_reports_output_stages_without_changing_audio_request(tm
         return SimpleNamespace(metadata={}, cue_count=1, translated_count=1)
     monkeypatch.setattr(subtitle_service_module, "process_subtitle_file", process)
     service = SubtitleService(Manager(), locator=FileLocator(storage_dir=tmp_path / "jobs"), default_source_dir=tmp_path)
-    result = service.enqueue(SubtitleSubmission(source, source.name, SubtitleJobOptions(
-        input_language="English", target_language="Finnish", generate_audio_book=audio_enabled,
-        mirror_batches_to_source_dir=False)), user_id="test-user")
+    def run(*, audio_enabled=True, stop_event=None):
+        job.stop_event = stop_event
+        return service.enqueue(SubtitleSubmission(source, source.name, SubtitleJobOptions(
+            input_language="English", target_language="Finnish", generate_audio_book=audio_enabled,
+            mirror_batches_to_source_dir=False)), user_id="test-user")
+    return SimpleNamespace(run=run, tracker=tracker, events=events, synthesizer=synthesizer,
+                           exporter=exporter, job=job)
+
+
+@pytest.mark.parametrize("audio_enabled", [False, True])
+def test_subtitle_worker_reports_output_stages_without_changing_audio_request(subtitle_worker_probe, audio_enabled):
+    probe = subtitle_worker_probe
+    result = probe.run(audio_enabled=audio_enabled)
     assert result.status.value == "completed"
-    assert synthesizer.synthesize_sentence.call_count == int(audio_enabled)
+    assert probe.synthesizer.synthesize_sentence.call_count == int(audio_enabled)
     output = result.generated_files["subtitle_output"]
     assert output == {"audio_enabled": audio_enabled, "phase": "Complete", "audio_exported": int(audio_enabled)}
-    phases = [event.metadata.get("generated_files", {}).get("subtitle_output", {}).get("phase") for event in events]
+    phases = [event.metadata.get("generated_files", {}).get("subtitle_output", {}).get("phase") for event in probe.events]
     assert "Finalizing files" in phases
     assert ("Finishing audio" in phases) == audio_enabled
+
+
+@pytest.mark.parametrize("ending", ["drain", "cancel", "worker_error", "worker_error_producer", "worker_error_base", "producer_error", "cancel_drain"])
+def test_subtitle_audio_backlog_is_bounded_and_shutdown_does_not_deadlock(
+    monkeypatch, subtitle_worker_probe, ending,
+):
+    from threading import Event, Thread
+    from modules.subtitles.models import SubtitleHtmlEntry
+
+    probe = subtitle_worker_probe
+    capacity = 2
+    monkeypatch.setattr(subtitle_service_module, "_SUBTITLE_AUDIO_QUEUE_CAPACITY", capacity, raising=False)
+    first_audio, release_audio, producer_waiting, sentinel_waiting = (Event() for _ in range(4))
+    stop = Event()
+    queues, exported, failures = [], [], []
+    real_queue = subtitle_service_module.queue.Queue
+    class ObservedQueue(real_queue):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.peak = 0
+            queues.append(self)
+        def _put(self, item):
+            super()._put(item)
+            self.peak = max(self.peak, self._qsize())
+        def put(self, item, *args, **kwargs):
+            if self.full():
+                (sentinel_waiting if item is None else producer_waiting).set()
+            return super().put(item, *args, **kwargs)
+    monkeypatch.setattr(subtitle_service_module.queue, "Queue", ObservedQueue)
+    synthesis = probe.synthesizer.synthesize_sentence.return_value
+    def synthesize(**kwargs):
+        if kwargs["sentence_number"] == 1:
+            first_audio.set()
+            assert release_audio.wait(5), "audio fixture was not released"
+        return synthesis
+    def export(request):
+        if ending == "worker_error_base":
+            raise SystemExit("fixture exporter failure")
+        if ending.startswith("worker_error"):
+            raise RuntimeError("fixture exporter failure")
+        exported.append(request.start_sentence)
+        return probe.exporter.export.return_value
+    probe.synthesizer.synthesize_sentence.side_effect = synthesize
+    probe.exporter.export.side_effect = export
+    def process(input_path, output_path, options, **kwargs):
+        output_path.write_text("translated subtitle")
+        callback = kwargs["on_transcript_batch"]
+        callback([(1, SubtitleHtmlEntry(1, 2, "Wait here.", "", "Odota täällä."))])
+        assert first_audio.wait(5)
+        # Fill the queue behind the blocked first synthesis. Producer-error tests
+        # cleanup with a full queue; worker-error tests blocked sentinel delivery.
+        count = capacity if ending in ("worker_error", "producer_error", "cancel_drain") else capacity + 4
+        callback([(i, SubtitleHtmlEntry(i, i + 1, "Wait here.", "", "Odota täällä.")) for i in range(2, count + 2)])
+        if ending == "producer_error":
+            sentinel_waiting.set()
+            raise RuntimeError("fixture translation failure")
+        return SimpleNamespace(metadata={}, cue_count=count + 1, translated_count=count + 1)
+    monkeypatch.setattr(subtitle_service_module, "process_subtitle_file", process)
+    def run():
+        try:
+            probe.run(stop_event=stop)
+        except BaseException as exc:
+            failures.append(exc)
+    thread = Thread(target=run, daemon=True)
+    thread.start()
+    try:
+        assert first_audio.wait(5)
+        if ending in ("cancel", "drain", "worker_error_producer", "worker_error_base"):
+            assert producer_waiting.wait(5), "translation did not back off at queue capacity"
+        elif ending in ("worker_error", "producer_error", "cancel_drain"):
+            assert sentinel_waiting.wait(5), "completion did not wait for the full queue"
+        assert queues[0].maxsize == capacity
+        assert queues[0].peak <= capacity
+        if ending.startswith("cancel"):
+            stop.set()
+    finally:
+        release_audio.set()
+        thread.join(5)
+    assert not thread.is_alive(), "audio queue shutdown deadlocked"
+    if ending == "drain":
+        assert not failures
+        assert exported == list(range(1, capacity + 6))
+        assert probe.job.status.value == "completed"
+    elif ending.startswith("cancel"):
+        assert not failures
+        assert probe.job.status.value == "cancelled"
+    else:
+        assert len(failures) == 1
+        assert str(failures[0]) == ("fixture exporter failure" if ending.startswith("worker_error") else "fixture translation failure")
+        assert probe.job.status.value == "failed"
+
+
+def test_subtitle_failure_wakes_audio_worker_waiting_on_empty_queue(monkeypatch, subtitle_worker_probe):
+    from threading import Thread
+    probe = subtitle_worker_probe
+    errors = []
+    def process(*args, **kwargs):
+        raise RuntimeError("fixture early failure")
+    monkeypatch.setattr(subtitle_service_module, "process_subtitle_file", process)
+    def run():
+        try:
+            probe.run()
+        except RuntimeError as exc:
+            errors.append(str(exc))
+    thread = Thread(target=run, daemon=True)
+    thread.start()
+    thread.join(5)
+    assert not thread.is_alive()
+    assert errors == ["fixture early failure"]
+    probe.synthesizer.synthesize_sentence.assert_not_called()
 
 
 class _RecordingLogger:

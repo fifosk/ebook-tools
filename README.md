@@ -158,3 +158,5 @@ physical iPhone, iPad, or Apple TV.
 1. Read the [Developer Guide](docs/developer-guide.md) for setup
 2. Run targeted tests for the domain you changed (`pytest -m <marker>`)
 3. Only run the full suite for wide-ranging changes
+
+Audio-enabled subtitle jobs bound pending TTS work to 32 entries and preserve output order; subtitle-only mode skips synthesis entirely. See [deployment notes](docs/deployment.md#subtitle-audio-backlog).

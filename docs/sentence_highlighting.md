@@ -154,3 +154,5 @@ Keeping the above flow documented should make it easier to reason about highligh
 
 Revisit this table any time audio generation, metadata layouts, or highlighting
 logic change so regression triage has a single authoritative reference.
+
+Subtitle audio queue backpressure preserves sentence order and existing timing/highlight generation. Only pending work is bounded (32 entries); it does not alter original/translation tracks or infer new timings.

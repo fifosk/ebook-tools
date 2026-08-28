@@ -45,6 +45,11 @@ logger = log_mgr.get_logger().getChild("services.subtitles")
 SUPPORTED_EXTENSIONS = {".srt", ".vtt"}
 DISCOVERABLE_EXTENSIONS = SUPPORTED_EXTENSIONS | {".ass"}
 
+# Bound translated text waiting for the serial synthesizer/exporter. In-flight
+# synthesis is additional; increasing this does not increase TTS throughput.
+_SUBTITLE_AUDIO_QUEUE_CAPACITY = 32
+_AUDIO_QUEUE_POLL_SECONDS = 0.1
+
 _FILENAME_SAFE_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 
 
@@ -257,6 +262,29 @@ class SubtitleService:
             audio_exported = 0
             translation_finished = threading.Event()
 
+            def _put_audio(item: Optional[Tuple[int, SubtitleHtmlEntry]]) -> None:
+                if audio_queue is None:
+                    return
+                while True:
+                    if audio_error_event.is_set() and audio_errors:
+                        raise audio_errors[0]
+                    if stop_event is not None and stop_event.is_set():
+                        raise SubtitleJobCancelled(
+                            "Subtitle job interrupted by cancellation request"
+                        )
+                    try:
+                        audio_queue.put(item, timeout=_AUDIO_QUEUE_POLL_SECONDS)
+                        return
+                    except queue.Full:
+                        continue
+
+            def _abort_audio() -> None:
+                # No sentinel put on abort: a full queue and a stopped/failed
+                # consumer must not block cancellation or mask the first error.
+                audio_shutdown.set()
+                if audio_thread is not None:
+                    audio_thread.join()
+
             def _output_progress(phase: str) -> None:
                 if tracker_local is not None:
                     tracker_local.update_generated_files_metadata({"subtitle_output": {
@@ -346,7 +374,7 @@ class SubtitleService:
                     audio_bitrate_kbps=getattr(settings, "audio_bitrate_kbps", None),
                 )
 
-                audio_queue = queue.Queue()
+                audio_queue = queue.Queue(maxsize=_SUBTITLE_AUDIO_QUEUE_CAPACITY)
 
                 def _audio_worker() -> None:
                     nonlocal audio_exported
@@ -354,7 +382,10 @@ class SubtitleService:
                         while True:
                             if audio_shutdown.is_set():
                                 break
-                            item = audio_queue.get()
+                            try:
+                                item = audio_queue.get(timeout=_AUDIO_QUEUE_POLL_SECONDS)
+                            except queue.Empty:
+                                continue
                             if item is None:
                                 break
                             sentence_number, entry = item
@@ -483,7 +514,7 @@ class SubtitleService:
                             )
                         if audio_error_event.is_set() and audio_errors:
                             raise audio_errors[0]
-                        audio_queue.put((sentence_number, entry))
+                        _put_audio((sentence_number, entry))
 
                 on_transcript_batch = _enqueue_transcript_batch
 
@@ -499,36 +530,27 @@ class SubtitleService:
                         collect_transcript_entries=False,
                         on_transcript_batch=on_transcript_batch,
                     )
+                    translation_finished.set()
+                    _output_progress("Finishing audio" if audio_queue is not None else "Finalizing subtitles")
+                    _put_audio(None)
+                    if audio_thread is not None:
+                        audio_thread.join()
+                    if audio_errors:
+                        raise audio_errors[0]
+                    if stop_event is not None and stop_event.is_set():
+                        raise SubtitleJobCancelled(
+                            "Subtitle job interrupted by cancellation request"
+                        )
                 except SubtitleJobCancelled:
-                    if audio_queue is not None:
-                        audio_shutdown.set()
-                        audio_queue.put(None)
-                        if audio_thread is not None:
-                            audio_thread.join()
+                    _abort_audio()
                     job.status = PipelineJobStatus.CANCELLED
                     job.error_message = None
                     return
-                except Exception as exc:
-                    if audio_queue is not None:
-                        audio_shutdown.set()
-                        audio_queue.put(None)
-                        if audio_thread is not None:
-                            audio_thread.join()
+                except BaseException as exc:
+                    _abort_audio()
                     job.status = PipelineJobStatus.FAILED
                     job.error_message = str(exc)
                     raise
-                else:
-                    translation_finished.set()
-                    _output_progress("Finishing audio" if audio_queue is not None else "Finalizing subtitles")
-                    if audio_queue is not None:
-                        audio_queue.put(None)
-                        if audio_thread is not None:
-                            audio_thread.join()
-                    if audio_errors:
-                        exc = audio_errors[0]
-                        job.status = PipelineJobStatus.FAILED
-                        job.error_message = str(exc)
-                        raise exc
 
             _output_progress("Finalizing files")
             relative_path = output_path.relative_to(self._locator.job_root(job.job_id)).as_posix()
