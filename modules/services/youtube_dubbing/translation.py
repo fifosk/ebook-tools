@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional, Tuple
 
 from modules.llm_client import create_client
+from modules.llm_client_manager import client_scope
 from modules import text_normalization as text_norm
 from modules.progress_tracker import ProgressTracker
 from modules.retry_annotations import is_failure_annotation
@@ -68,7 +69,7 @@ def translate_dialogues(
     )
     resolved_transliteration_model = transliteration_model or llm_model
     if dialogues and needs_translation and (translation_provider or "llm") == "llm":
-        with create_client(model=llm_model) as client:
+        with (create_client(model=llm_model) if llm_model else client_scope(None)) as client:
             preflight_translation(client, "llm", tracker)
     use_llm_batching = (
         needs_translation
