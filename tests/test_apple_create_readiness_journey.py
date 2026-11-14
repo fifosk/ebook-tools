@@ -797,19 +797,13 @@ def test_basic_playback_journey_smoke_checks_tvos_create_reachability() -> None:
 
     assert journey["platforms"] == ["iPhone", "iPad", "tvOS"]
 
-    version_index = next(
-        index
-        for index, step in enumerate(steps)
-        if step.get("selector") == "appVersionBadge"
-        and step.get("action") == "assert_frame"
-    )
     search_index = next(
         index
         for index, step in enumerate(steps)
         if step.get("selector") == "browseSectionSearchButton"
         and step.get("action") == "navigate_tab"
     )
-    create_steps = steps[version_index:search_index]
+    create_steps = steps[:search_index]
 
     assert {
         "action": "assert_visible",
