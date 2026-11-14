@@ -159,6 +159,7 @@ struct LibraryShellView: View {
         .onPlayPauseCommand {
             handleTVShellPlayPauseCommand()
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("libraryShellView")
         #else
         ZStack {
@@ -289,6 +290,10 @@ struct LibraryShellView: View {
     @ViewBuilder
     private func browseList() -> some View {
         VStack(spacing: 10) {
+            #if os(tvOS)
+            sectionPickerForHeader
+            #endif
+
             if let nowPlayingTarget, shouldShowNowPlayingReturnButton {
                 nowPlayingReturnButton(for: nowPlayingTarget)
                     .focused($isNowPlayingReturnFocused)
@@ -302,7 +307,7 @@ struct LibraryShellView: View {
                     onSelect: selectLibraryItem,
                     coverResolver: coverURL(for:),
                     resumeUserId: resumeUserId,
-                    sectionPicker: sectionPickerForHeader,
+                    sectionPicker: browseContentSectionPicker,
                     onCollapseSidebar: isSplitLayout ? { collapseSidebar() } : nil,
                     onSearchRequested: showSearch,
                     usesDarkBackground: usesDarkBackground
@@ -312,7 +317,7 @@ struct LibraryShellView: View {
                     viewModel: jobsViewModel,
                     onRefresh: refreshJobs,
                     onSelect: selectJob,
-                    sectionPicker: sectionPickerForHeader,
+                    sectionPicker: browseContentSectionPicker,
                     resumeUserId: resumeUserId,
                     onCollapseSidebar: isSplitLayout ? { collapseSidebar() } : nil,
                     onSearchRequested: showSearch,
@@ -323,7 +328,7 @@ struct LibraryShellView: View {
                     createSidebarPlaceholder
                 } else {
                     AppleBookCreateView(
-                        sectionPicker: sectionPickerForHeader,
+                        sectionPicker: browseContentSectionPicker,
                         creationMode: $createMode,
                         showsInlineJobTypePicker: true,
                         onJobSubmitted: handleCreatedJob,
@@ -340,7 +345,7 @@ struct LibraryShellView: View {
                     onSelectJob: selectJob,
                     coverResolver: coverURL(for:),
                     resumeUserId: resumeUserId,
-                    sectionPicker: sectionPickerForHeader,
+                    sectionPicker: browseContentSectionPicker,
                     usesDarkBackground: usesDarkBackground
                 )
             case .settings:
@@ -352,7 +357,7 @@ struct LibraryShellView: View {
                     )
                 } else {
                     PlaybackSettingsView(
-                        sectionPicker: sectionPickerForHeader,
+                        sectionPicker: browseContentSectionPicker,
                         backTitle: isCompactLayout ? lastBrowseSection.rawValue : nil,
                         onBack: isCompactLayout ? returnToLastBrowseSection : nil,
                         usesDarkBackground: usesDarkBackground
@@ -434,6 +439,14 @@ struct LibraryShellView: View {
         .toolbarBackground(usesDarkBackground ? AppTheme.lightBackground : Color.clear, for: .navigationBar)
         .toolbarBackground(usesDarkBackground ? .visible : .automatic, for: .navigationBar)
         .toolbarColorScheme(usesDarkBackground ? .dark : nil, for: .navigationBar)
+        #endif
+    }
+
+    private var browseContentSectionPicker: BrowseSectionPicker? {
+        #if os(tvOS)
+        nil
+        #else
+        sectionPickerForHeader
         #endif
     }
 

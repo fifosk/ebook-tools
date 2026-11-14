@@ -63,37 +63,6 @@
     },
     {
       "action": "navigate_tab",
-      "tab": "Settings",
-      "selector": "browseSectionSettingsButton",
-      "screenshot": "settings_tab"
-    },
-    {
-      "action": "assert_visible",
-      "selector": "settingsAPIHostRow",
-      "timeout": 10
-    },
-    {
-      "action": "assert_visible",
-      "selector": "settingsBackendRuntimeRow",
-      "timeout": 10
-    },
-    {
-      "action": "assert_visible",
-      "selector": "settingsTokenStorageRow",
-      "timeout": 10
-    },
-    {
-      "action": "assert_visible",
-      "selector": "appChangelogSummaryView",
-      "timeout": 10
-    },
-    {
-      "action": "assert_visible",
-      "selector": "appBuildMetadataText",
-      "timeout": 10
-    },
-    {
-      "action": "navigate_tab",
       "tab": "Jobs",
       "selector": "browseSectionJobsButton",
       "screenshot": "jobs_tab"
@@ -139,6 +108,37 @@
       "platforms": ["tvOS"],
       "timeout": 10,
       "screenshot": "tvos_now_playing_return"
+    },
+    {
+      "action": "navigate_tab",
+      "tab": "Settings",
+      "selector": "browseSectionSettingsButton",
+      "screenshot": "settings_tab"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "settingsAPIHostRow",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "settingsBackendRuntimeRow",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "settingsTokenStorageRow",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "appChangelogSummaryView",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "appBuildMetadataText",
+      "timeout": 10
     }
   ]
 }

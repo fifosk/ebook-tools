@@ -36,6 +36,28 @@ struct BrowseSectionPicker: View {
     let onRefresh: () -> Void
 
     var body: some View {
+        #if os(tvOS)
+        HStack(spacing: 16) {
+            ForEach(orderedSections) { section in
+                Button {
+                    activeSection = section
+                } label: {
+                    Label(section.rawValue, systemImage: section.systemImage)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityAddTraits(activeSection == section ? .isSelected : [])
+                .accessibilityIdentifier(section.accessibilityIdentifier)
+            }
+        }
+        .focusSection()
+        .onLongPressGesture(minimumDuration: 0.6) {
+            onRefresh()
+        }
+        .padding(.horizontal)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("browseSectionPicker")
+        #else
         Picker("Browse", selection: $activeSection) {
             ForEach(orderedSections) { section in
                 Label(section.rawValue, systemImage: section.systemImage)
@@ -45,18 +67,14 @@ struct BrowseSectionPicker: View {
         }
         .browseSectionPickerStyle(
             usesDarkBackground: usesDarkBackground,
-            colorScheme: colorScheme,
-            onRefresh: onRefresh
+            colorScheme: colorScheme
         )
         .accessibilityIdentifier("browseSectionPicker")
+        #endif
     }
 
     private var orderedSections: [BrowseSection] {
-        #if os(tvOS)
         [.jobs, .create, .library, .settings, .search]
-        #else
-        [.jobs, .create, .library, .settings, .search]
-        #endif
     }
 }
 
@@ -64,17 +82,9 @@ private extension View {
     @ViewBuilder
     func browseSectionPickerStyle(
         usesDarkBackground: Bool,
-        colorScheme: ColorScheme,
-        onRefresh: @escaping () -> Void
+        colorScheme: ColorScheme
     ) -> some View {
-        #if os(tvOS)
-        self
-            .pickerStyle(.automatic)
-            .onLongPressGesture(minimumDuration: 0.6) {
-                onRefresh()
-            }
-            .padding(.horizontal)
-        #elseif os(iOS)
+        #if os(iOS)
         self
             .pickerStyle(.segmented)
             .colorScheme(usesDarkBackground ? .dark : colorScheme)
