@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlsplit
@@ -2536,7 +2537,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
 
 
 def test_runtime_create_contract_validation() -> None:
-    assert module.validate_runtime_create_contract(build_runtime_payload()) == []
+    payload = json.loads(json.dumps(build_runtime_payload()))
+    assert module.validate_runtime_create_contract(payload) == []
 
     assert module.validate_runtime_create_contract({}) == [
         "runtime descriptor is missing auth metadata",
