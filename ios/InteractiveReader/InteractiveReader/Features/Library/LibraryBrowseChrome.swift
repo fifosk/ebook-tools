@@ -46,6 +46,7 @@ struct BrowseSectionPicker: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .tint(activeSection == section ? .accentColor : .primary)
                 .accessibilityAddTraits(activeSection == section ? .isSelected : [])
                 .accessibilityIdentifier(section.accessibilityIdentifier)
             }
