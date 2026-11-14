@@ -952,6 +952,10 @@ build-apple-iphone-simulator:
 test-e2e-iphone: E2E_PROFILE = iphone
 test-e2e-iphone: E2E_PLATFORM_PROFILE = iphone
 test-e2e-iphone:
+	+@$(PYTHON) scripts/with_simulator_lock.py --lock-path "$(E2E_SIMCTL_LOCK)" -- $(MAKE) test-e2e-iphone-locked E2E_PROFILE="$(E2E_PROFILE)" E2E_PLATFORM_PROFILE="$(E2E_PLATFORM_PROFILE)"
+
+.PHONY: test-e2e-iphone-locked
+test-e2e-iphone-locked:
 	@rm -rf $(IPHONE_E2E_RESULT) $(IPHONE_DERIVED_DATA) test-results/iphone-e2e-attachments
 	@$(CHECK_E2E_CONFIG)
 	@$(CHECK_XCODE_READINESS)
@@ -961,12 +965,12 @@ test-e2e-iphone:
 		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
 		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
 		E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)" \
-		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/run_xcodebuild_e2e.py \
+		$(PYTHON) scripts/run_xcodebuild_e2e.py \
 		--attempts "$(E2E_XCODEBUILD_ATTEMPTS)" \
 		--cleanup-path "$(IPHONE_E2E_RESULT)" \
 		--cleanup-path "$(IPHONE_DERIVED_DATA)" \
 		--label "iPhone E2E xcodebuild" -- \
-		$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
+		$(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
 		-destination $(IPHONE_DESTINATION) \
@@ -1025,6 +1029,10 @@ build-apple-ipad-simulator:
 test-e2e-ipad: E2E_PROFILE = ipados
 test-e2e-ipad: E2E_PLATFORM_PROFILE = ipados
 test-e2e-ipad:
+	+@$(PYTHON) scripts/with_simulator_lock.py --lock-path "$(E2E_SIMCTL_LOCK)" -- $(MAKE) test-e2e-ipad-locked E2E_PROFILE="$(E2E_PROFILE)" E2E_PLATFORM_PROFILE="$(E2E_PLATFORM_PROFILE)"
+
+.PHONY: test-e2e-ipad-locked
+test-e2e-ipad-locked:
 	@rm -rf $(IPAD_E2E_RESULT) $(IPAD_DERIVED_DATA) test-results/ipad-e2e-attachments
 	@$(CHECK_E2E_CONFIG)
 	@$(CHECK_XCODE_READINESS)
@@ -1034,12 +1042,12 @@ test-e2e-ipad:
 		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
 		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
 		E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)" \
-		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/run_xcodebuild_e2e.py \
+		$(PYTHON) scripts/run_xcodebuild_e2e.py \
 		--attempts "$(E2E_XCODEBUILD_ATTEMPTS)" \
 		--cleanup-path "$(IPAD_E2E_RESULT)" \
 		--cleanup-path "$(IPAD_DERIVED_DATA)" \
 		--label "iPad E2E xcodebuild" -- \
-		$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
+		$(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
 		-destination $(IPAD_DESTINATION) \
@@ -1105,6 +1113,10 @@ build-apple-tvos-uitests:
 test-e2e-tvos: E2E_PROFILE = tvos
 test-e2e-tvos: E2E_PLATFORM_PROFILE = tvos
 test-e2e-tvos:
+	+@$(PYTHON) scripts/with_simulator_lock.py --lock-path "$(E2E_SIMCTL_LOCK)" -- $(MAKE) test-e2e-tvos-locked E2E_PROFILE="$(E2E_PROFILE)" E2E_PLATFORM_PROFILE="$(E2E_PLATFORM_PROFILE)"
+
+.PHONY: test-e2e-tvos-locked
+test-e2e-tvos-locked:
 	@rm -rf $(TVOS_E2E_RESULT) $(TVOS_DERIVED_DATA) test-results/tvos-e2e-attachments
 	@$(CHECK_E2E_CONFIG)
 	@$(CHECK_XCODE_READINESS)
@@ -1114,12 +1126,12 @@ test-e2e-tvos:
 		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
 		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
 		E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)" \
-		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/run_xcodebuild_e2e.py \
+		$(PYTHON) scripts/run_xcodebuild_e2e.py \
 		--attempts "$(E2E_XCODEBUILD_ATTEMPTS)" \
 		--cleanup-path "$(TVOS_E2E_RESULT)" \
 		--cleanup-path "$(TVOS_DERIVED_DATA)" \
 		--label "tvOS E2E xcodebuild" -- \
-		$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
+		$(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderTVUITests \
 		-destination $(TVOS_DESTINATION) \

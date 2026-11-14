@@ -44,7 +44,7 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert makefile.count("@$(CHECK_E2E_CONFIG)") == 3
     assert makefile.count("@$(CHECK_XCODE_READINESS)") >= 3
     for target in ("test-e2e-iphone", "test-e2e-ipad", "test-e2e-tvos"):
-        target_body = makefile.split(f"{target}:", 1)[1].split("\n\n", 1)[0]
+        target_body = makefile.split(f"{target}-locked:", 1)[1].split("\n\n", 1)[0]
         assert "@$(CHECK_XCODE_READINESS)" in target_body
     assert "test-e2e-ipad: E2E_PLATFORM_PROFILE = ipados" in makefile
     assert "test-e2e-tvos: E2E_PLATFORM_PROFILE = tvos" in makefile
@@ -81,7 +81,11 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert '--attempts "$(E2E_XCODEBUILD_ATTEMPTS)"' in makefile
     assert '--cleanup-path "$(TVOS_E2E_RESULT)"' in makefile
     assert '--label "tvOS E2E xcodebuild" -- \\' in makefile
-    assert '$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \\' in makefile
+    for platform in ("iphone", "ipad", "tvos"):
+        assert (
+            'scripts/with_simulator_lock.py --lock-path "$(E2E_SIMCTL_LOCK)" -- '
+            f'$(MAKE) test-e2e-{platform}-locked'
+        ) in makefile
     assert "2>&1 | tail -30" not in makefile
     assert "$(if $(strip $(E2E_FAIL_ON_SKIPPED)),--fail-on-skipped)" in makefile
     assert "report_status=0" in makefile
