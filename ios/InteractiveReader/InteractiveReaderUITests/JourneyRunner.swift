@@ -399,7 +399,7 @@ final class JourneyRunner {
         guard let identifier = step.selector else { return }
         let timeout = TimeInterval(step.timeout ?? 10)
         let element = element(withIdentifier: identifier)
-        scrollElementIntoView(element, timeout: min(timeout, 4))
+        scrollElementIntoView(element, timeout: timeout)
         XCTAssertTrue(
             element.waitForExistence(timeout: timeout),
             "\(identifier) should be visible"
@@ -695,7 +695,9 @@ final class JourneyRunner {
                 return element
             }
         }
-        return app.descendants(matching: .any).matching(labelPredicate).firstMatch
+        return app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@ OR label == %@", identifier, identifier))
+            .firstMatch
     }
 
     private func normalizedValue(for element: XCUIElement) -> String {
