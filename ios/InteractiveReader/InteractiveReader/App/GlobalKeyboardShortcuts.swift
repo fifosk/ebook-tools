@@ -136,7 +136,10 @@ private final class PlaybackTransportDebugLogger {
                 self.didWriteSessionHeader = false
             }
             self.writeSessionHeaderIfNeeded(fileURL)
-            guard let handle = try? FileHandle(forWritingTo: fileURL) else { return }
+            guard let handle = try? FileHandle(forWritingTo: fileURL) else {
+                self.logger.error("Unable to open the playback transport log")
+                return
+            }
             handle.seekToEndOfFile()
             handle.write(data)
             try? handle.close()
@@ -160,13 +163,13 @@ private final class PlaybackTransportDebugLogger {
 
     private func writeSessionHeaderIfNeeded(_ fileURL: URL) {
         guard !didWriteSessionHeader else { return }
-        didWriteSessionHeader = true
         let timestamp = String(format: "%.3f", Date().timeIntervalSince1970)
         let line = "\(timestamp) [PlaybackTransportBuild] \(AppVersion.diagnosticMetadata)\n"
         guard let data = line.data(using: .utf8) else { return }
         guard let handle = try? FileHandle(forWritingTo: fileURL) else { return }
         handle.seekToEndOfFile()
         handle.write(data)
+        didWriteSessionHeader = true
         try? handle.close()
     }
 }

@@ -663,6 +663,25 @@ def validate_log(
     except OSError as exc:
         return [f"playback transport log could not be read: {exc}"]
 
+    if mode == "device-playback":
+        # Keep the three events within the latest launch of the requested build.
+        session = text.rsplit("[PlaybackTransportBuild]", 1)[-1]
+        advanced: set[str] = set()
+        paused: set[str] = set()
+        verified = False
+        for kind, event in re.findall(r"\[DevicePlayback\] (audio|video) (advancing|pause) time=", session):
+            if event == "pause" and kind in advanced:
+                paused.add(kind)
+            elif event == "advancing":
+                if kind in paused:
+                    verified = True
+                    break
+                advanced.add(kind)
+        missing = [] if verified else ["player did not record advancement, pause, and renewed advancement"]
+        missing.extend(_build_commit_violations(text, required_commit))
+        missing.extend(_build_release_violations(text, required_release))
+        return missing
+
     requirements = PAUSE_REQUIREMENTS
     if mode == "pause-resume":
         requirements = PAUSE_REQUIREMENTS + RESUME_REQUIREMENTS
@@ -735,7 +754,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=("pause-release", "pause-resume", "resume-offset", "track-reconfigure"),
+        choices=("pause-release", "pause-resume", "resume-offset", "track-reconfigure", "device-playback"),
         default=os.environ.get("APPLE_PLAYBACK_TRANSPORT_LOG_MODE", "pause-release"),
         help=(
             "pause-release checks the reader-owned pause route; pause-resume also checks explicit resume; "

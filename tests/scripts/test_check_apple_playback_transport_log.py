@@ -860,3 +860,18 @@ def test_default_baseline_log_path_matches_pull_helper() -> None:
     assert module.default_baseline_log_path(log) == (
         module.REPO_ROOT / "test-results" / "apple-device-playback-transport-Living-Room.previous.log"
     )
+
+
+def test_device_playback_requires_advancement_after_pause_in_same_launch(tmp_path: Path) -> None:
+    log = tmp_path / "device.log"
+    header = "1.0 [PlaybackTransportBuild] release=2026.07.04.009 commit=abc123\n"
+    start = "2.0 [DevicePlayback] audio advancing time=1.0\n"
+    pause = "3.0 [DevicePlayback] audio pause time=2.0\n"
+    resume = "4.0 [DevicePlayback] audio advancing time=3.0\n"
+
+    log.write_text(header + start + pause + resume)
+    assert module.validate_log(log, mode="device-playback", required_commit="abc123") == []
+
+    for incomplete in (start + pause, start + pause + resume.replace("audio", "video"), start + pause + header + resume):
+        log.write_text(header + incomplete)
+        assert module.validate_log(log, mode="device-playback")

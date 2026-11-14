@@ -12,6 +12,9 @@ final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
     var onPlaybackEnded: (() -> Void)?
 
     private var player: AVPlayer?
+    #if DEBUG
+    private var didLogPlaybackProgress = false
+    #endif
     private var timeObserverToken: Any?
     private var statusObservation: NSKeyValueObservation?
     private var timeControlObservation: NSKeyValueObservation?
@@ -62,6 +65,12 @@ final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
     }
 
     func pause() {
+        #if DEBUG
+        if let player, player.timeControlStatus == .playing || player.rate > 0 {
+            playbackTransportDebugLog("[DevicePlayback] video pause time=\(currentTime)")
+        }
+        didLogPlaybackProgress = false
+        #endif
         player?.pause()
     }
 
@@ -166,12 +175,23 @@ final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
     }
 
     private func installTimeObserver(on player: AVPlayer) {
+        #if DEBUG
+        didLogPlaybackProgress = false
+        #endif
         let token = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.1, preferredTimescale: 600),
             queue: .main
         ) { [weak self] time in
             guard let self else { return }
             Task { @MainActor in
+                #if DEBUG
+                if !self.didLogPlaybackProgress,
+                   player.timeControlStatus == .playing, !player.isMuted, player.volume > 0,
+                   time.seconds.isFinite, time.seconds > self.currentTime + 0.01 {
+                    self.didLogPlaybackProgress = true
+                    playbackTransportDebugLog("[DevicePlayback] video advancing time=\(time.seconds)")
+                }
+                #endif
                 self.currentTime = time.seconds
                 if let duration = player.currentItem?.duration, duration.isNumeric {
                     self.duration = duration.seconds

@@ -115,6 +115,9 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     let role: AudioPlaybackRole
     private var shouldLoop = false
     private var player: AVPlayer?
+    #if DEBUG
+    private var didLogPlaybackProgress = false
+    #endif
     private var timeObserverToken: Any?
     private var boundaryObserverToken: Any?
     private var endObserver: NSObjectProtocol?
@@ -235,6 +238,12 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     }
 
     func pause() {
+        #if DEBUG
+        if role == .primary, isPlaybackRequested || isPlaying {
+            playbackTransportDebugLog("[DevicePlayback] audio pause time=\(currentTime)")
+        }
+        didLogPlaybackProgress = false
+        #endif
         // Log call stack to identify unexpected pause sources. Filter out our own
         // frame and show the first ~4 app frames after it.
         let frames = Thread.callStackSymbols
@@ -883,6 +892,9 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     }
 
     private func installTimeObserver(on player: AVPlayer) {
+        #if DEBUG
+        didLogPlaybackProgress = false
+        #endif
         let token = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.1, preferredTimescale: 600), queue: .main) {
             [weak self] time in
             Task { @MainActor [weak self] in
@@ -897,6 +909,15 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                     self.stallRecoveryTask?.cancel()
                     self.stallRecoveryTask = nil
                 }
+                #if DEBUG
+                if self.role == .primary, !self.didLogPlaybackProgress,
+                   let player = self.player,
+                   player.timeControlStatus == .playing, !player.isMuted, player.volume > 0,
+                   newTime.isFinite, newTime > self.currentTime + 0.01 {
+                    self.didLogPlaybackProgress = true
+                    playbackTransportDebugLog("[DevicePlayback] audio advancing time=\(newTime)")
+                }
+                #endif
                 self.currentTime = newTime
                 if let duration = self.player?.currentItem?.duration, duration.isNumeric {
                     self.duration = duration.seconds

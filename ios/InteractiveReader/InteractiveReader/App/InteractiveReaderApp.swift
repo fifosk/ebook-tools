@@ -109,5 +109,6 @@ private struct InteractiveReaderLifecycleModifier: ViewModifier {
         guard !didLogAppBuild else { return }
         didLogAppBuild = true
         appLifecycleLogger.info("Apple app build \(AppVersion.diagnosticMetadata, privacy: .public)")
+        playbackTransportDebugLog("[PlaybackTransport] app launched")
     }
 }
