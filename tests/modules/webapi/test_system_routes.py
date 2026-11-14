@@ -782,6 +782,18 @@ def test_pipeline_intake_status_failure_is_token_safe(
     )
 
 
+def test_image_node_availability_accepts_empty_input() -> None:
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/api/pipelines/image-nodes/availability",
+            json={"base_urls": []},
+            headers={"X-User-Id": "image-editor", "X-User-Role": "editor"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"nodes": [], "available": [], "unavailable": []}
+
+
 def test_image_node_availability_records_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

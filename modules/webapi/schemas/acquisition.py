@@ -15,10 +15,10 @@ from modules.services.acquisition.discovery_values import (
 )
 
 
-AcquisitionCapability = Literal[*ACQUISITION_CAPABILITIES]
-AcquisitionMediaKind = Literal[*ACQUISITION_MEDIA_KINDS]
-AcquisitionProviderStatus = Literal[*ACQUISITION_PROVIDER_STATUSES]
-AcquisitionRights = Literal[*ACQUISITION_RIGHTS]
+AcquisitionCapability = Literal[ACQUISITION_CAPABILITIES]
+AcquisitionMediaKind = Literal[ACQUISITION_MEDIA_KINDS]
+AcquisitionProviderStatus = Literal[ACQUISITION_PROVIDER_STATUSES]
+AcquisitionRights = Literal[ACQUISITION_RIGHTS]
 
 
 class AcquisitionProviderPayload(BaseModel):

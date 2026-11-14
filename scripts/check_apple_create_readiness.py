@@ -1984,8 +1984,10 @@ def _runtime_section_errors(
 
 
 def _normalized_runtime_contract_value(value: Any) -> Any:
-    if isinstance(value, tuple):
-        return list(value)
+    if isinstance(value, Mapping):
+        return {key: _normalized_runtime_contract_value(child) for key, child in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_normalized_runtime_contract_value(child) for child in value]
     if isinstance(value, str):
         return value.strip()
     return value

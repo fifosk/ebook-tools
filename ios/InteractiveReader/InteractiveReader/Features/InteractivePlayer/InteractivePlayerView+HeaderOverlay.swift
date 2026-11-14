@@ -851,6 +851,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .environment(\.colorScheme, .dark)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("interactiveReaderHeaderIdentityBanner")
     }
 

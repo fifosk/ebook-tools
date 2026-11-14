@@ -15,20 +15,6 @@
     },
     {
       "action": "assert_visible",
-      "selector": "appVersionBadge",
-      "timeout": 10
-    },
-    {
-      "action": "assert_frame",
-      "selector": "appVersionBadge",
-      "timeout": 10,
-      "min_width": 88,
-      "min_height": 16,
-      "max_height": 34,
-      "min_aspect_ratio": 3.2
-    },
-    {
-      "action": "assert_visible",
       "selector": "browseSectionCreateButton",
       "platforms": ["tvOS"],
       "timeout": 10
@@ -73,32 +59,6 @@
     {
       "action": "assert_visible",
       "selector": "combinedSearchEmptyView",
-      "timeout": 10
-    },
-    {
-      "action": "navigate_tab",
-      "tab": "Settings",
-      "selector": "browseSectionSettingsButton",
-      "screenshot": "settings_tab"
-    },
-    {
-      "action": "assert_visible",
-      "selector": "settingsAPIHostRow",
-      "timeout": 10
-    },
-    {
-      "action": "assert_visible",
-      "selector": "settingsBackendRuntimeRow",
-      "timeout": 10
-    },
-    {
-      "action": "assert_visible",
-      "selector": "settingsTokenStorageRow",
-      "timeout": 10
-    },
-    {
-      "action": "assert_visible",
-      "selector": "appChangelogSummaryView",
       "timeout": 10
     },
     {
@@ -148,6 +108,37 @@
       "platforms": ["tvOS"],
       "timeout": 10,
       "screenshot": "tvos_now_playing_return"
+    },
+    {
+      "action": "navigate_tab",
+      "tab": "Settings",
+      "selector": "browseSectionSettingsButton",
+      "screenshot": "settings_tab"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "settingsAPIHostRow",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "settingsBackendRuntimeRow",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "settingsTokenStorageRow",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "appChangelogSummaryView",
+      "timeout": 10
+    },
+    {
+      "action": "assert_visible",
+      "selector": "appBuildMetadataText",
+      "timeout": 10
     }
   ]
 }

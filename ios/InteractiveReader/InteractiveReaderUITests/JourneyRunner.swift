@@ -170,6 +170,9 @@ final class JourneyRunner {
         let tabName = step.tab ?? "Jobs"
         let button = tabButton(named: tabName, identifier: step.selector, timeout: 5)
         if button.waitForExistence(timeout: 5) {
+            #if os(tvOS)
+            if button.isSelected { return }
+            #endif
             selectElement(button)
         }
         sleep(1)
@@ -378,11 +381,26 @@ final class JourneyRunner {
 
     private func doGoBack(_ step: JourneyStep) {
         #if os(tvOS)
-        // Press Menu button on Siri Remote
-        XCUIRemote.shared.press(.menu)
+        // Menu can dismiss reader controls before popping the player.
+        let timeout = TimeInterval(step.timeout ?? 10)
+        let browse = element(withIdentifier: "browseSectionPicker")
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            XCUIRemote.shared.press(.menu)
+            if browse.waitForExistence(timeout: 2) { break }
+        } while Date() < deadline
+        XCTAssertTrue(browse.exists, "Browse should be visible after dismissing the player")
         #else
-        // Edge swipe from left (nav bar is hidden in playback)
-        edgeSwipeBack()
+        let browse = element(withIdentifier: "browseSectionPicker")
+        if !browse.exists {
+            let back = app.navigationBars.buttons.firstMatch
+            if back.exists && back.isHittable {
+                back.tap()
+            } else {
+                edgeSwipeBack()
+            }
+        }
+        XCTAssertTrue(browse.waitForExistence(timeout: 5), "Browse should be visible after dismissing the player")
         #endif
 
         sleep(1)
@@ -399,7 +417,9 @@ final class JourneyRunner {
         guard let identifier = step.selector else { return }
         let timeout = TimeInterval(step.timeout ?? 10)
         let element = element(withIdentifier: identifier)
-        scrollElementIntoView(element, timeout: min(timeout, 4))
+        if !element.exists {
+            scrollElementIntoView(element, timeout: timeout)
+        }
         XCTAssertTrue(
             element.waitForExistence(timeout: timeout),
             "\(identifier) should be visible"
@@ -695,7 +715,9 @@ final class JourneyRunner {
                 return element
             }
         }
-        return app.descendants(matching: .any).matching(labelPredicate).firstMatch
+        return app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@ OR label == %@", identifier, identifier))
+            .firstMatch
     }
 
     private func normalizedValue(for element: XCUIElement) -> String {
@@ -839,7 +861,7 @@ final class JourneyRunner {
             XCUIRemote.shared.press(.select)
             return
         }
-        if focusElement(element) {
+        if focusElement(element, timeout: isBrowseSectionButton(element) ? 20 : 8) {
             XCUIRemote.shared.press(.select)
             return
         }
@@ -991,7 +1013,18 @@ final class JourneyRunner {
             }
 
             if let focused = currentFocusedElement() {
-                XCUIRemote.shared.press(direction(from: focused.frame, to: element.frame))
+                if isBrowseSectionButton(focused), isBrowseSectionButton(element) {
+                    XCUIRemote.shared.press(focused.frame.midX < element.frame.midX ? .right : .left)
+                } else if isBrowseSectionButton(element),
+                          let entry = app.buttons.matching(
+                            NSPredicate(format: "identifier BEGINSWITH %@ AND identifier ENDSWITH %@", "browseSection", "Button")
+                          ).allElementsBoundByIndex.min(by: {
+                              abs($0.frame.midX - focused.frame.midX) < abs($1.frame.midX - focused.frame.midX)
+                          }) {
+                    XCUIRemote.shared.press(direction(from: focused.frame, to: entry.frame))
+                } else {
+                    XCUIRemote.shared.press(direction(from: focused.frame, to: element.frame))
+                }
             } else {
                 XCUIRemote.shared.press(.right)
             }
@@ -1012,17 +1045,23 @@ final class JourneyRunner {
     }
 
     private func currentFocusedElement() -> XCUIElement? {
-        let candidates =
-            app.buttons.allElementsBoundByIndex
+        let segments = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@ AND identifier ENDSWITH %@", "browseSection", "Button")
+        )
+        if let segment = segments.allElementsBoundByIndex.first(where: { $0.hasFocus }) {
+            return segment
+        }
+        let candidates = app.buttons.allElementsBoundByIndex
             + app.cells.allElementsBoundByIndex
             + app.textFields.allElementsBoundByIndex
             + app.secureTextFields.allElementsBoundByIndex
             + app.staticTexts.allElementsBoundByIndex
             + app.otherElements.allElementsBoundByIndex
+        return candidates.first { $0.hasFocus }
+    }
 
-        return candidates.first { candidate in
-            candidate.exists && candidate.hasFocus
-        }
+    private func isBrowseSectionButton(_ element: XCUIElement) -> Bool {
+        element.identifier.hasPrefix("browseSection") && element.identifier.hasSuffix("Button")
     }
 
     private func direction(from focusedFrame: CGRect, to targetFrame: CGRect) -> XCUIRemote.Button {

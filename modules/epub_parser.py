@@ -98,8 +98,9 @@ def _preserve_non_latin_sentence_boundaries(text: str) -> str:
 def _preserve_time_abbreviation_sentence_boundaries(text: str) -> str:
     """Mark a.m./p.m. as a sentence boundary only before a clear new sentence."""
 
+    opening_chars = re.escape('"“‘¿¡-')
     return re.sub(
-        rf"(\b[aApP]\.m\.)\s+(?=[A-ZÀ-ÖØ-Þ{re.escape('\"“‘¿¡-')}])",
+        rf"(\b[aApP]\.m\.)\s+(?=[A-ZÀ-ÖØ-Þ{opening_chars}])",
         rf"\1{_SENTENCE_BOUNDARY_MARKER}",
         text,
     )

@@ -270,7 +270,7 @@ async def check_image_node_availability(
             available=0,
             unavailable=0,
         )
-        return ImageNodeAvailabilityResponse()
+        return ImageNodeAvailabilityResponse(nodes=[], available=[], unavailable=[])
 
     try:
         available, unavailable = await run_in_threadpool(
