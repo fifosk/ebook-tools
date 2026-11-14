@@ -199,12 +199,13 @@ struct LoginPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        let gradientOpacity = isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.42
+        return configuration.label
             .font(.headline)
             .foregroundStyle(Color.white.opacity(isEnabled ? 1 : 0.72))
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
-            .background(
+            .background {
                 LinearGradient(
                     colors: [
                         Color(red: 0.22, green: 0.74, blue: 0.97),
@@ -213,8 +214,8 @@ struct LoginPrimaryButtonStyle: ButtonStyle {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.42)
-            )
+                .opacity(gradientOpacity)
+            }
             .clipShape(Capsule())
             .overlay(
                 Capsule()
