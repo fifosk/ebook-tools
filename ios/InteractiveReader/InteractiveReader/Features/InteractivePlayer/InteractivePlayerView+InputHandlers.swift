@@ -220,6 +220,9 @@ extension InteractivePlayerView {
     func handlePlaybackToggleCommand() {
         let now = ProcessInfo.processInfo.systemUptime
         let shouldPauseActiveReader = audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested
+        playbackTransportDebugLog(
+            "[DevicePlayback] reader toggle requestedPause=\(shouldPauseActiveReader)"
+        )
         if shouldSuppressReaderTransportPauseEcho(at: now, shouldPauseActiveReader: shouldPauseActiveReader) {
             keyboardShortcutDebugLog("[KeyboardShortcut] Interactive ignored duplicate reader transport pause echo")
             return

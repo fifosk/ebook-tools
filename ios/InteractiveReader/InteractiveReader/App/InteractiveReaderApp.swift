@@ -80,6 +80,7 @@ private extension View {
 
 private struct InteractiveReaderLifecycleModifier: ViewModifier {
     @ObservedObject var appState: AppState
+    @Environment(\.scenePhase) private var scenePhase
     @State private var didLogAppBuild = false
 
     func body(content: Content) -> some View {
@@ -98,6 +99,11 @@ private struct InteractiveReaderLifecycleModifier: ViewModifier {
                 logAppBuildIfNeeded()
                 UIApplication.installInteractiveReaderKeyboardEventInterceptor()
                 PlayerKeyboardShortcutBroker.shared.setActive(appState.playerKeyboardShortcutsActive)
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    playbackTransportDebugLog("[DevicePlayback] app foreground")
+                }
             }
             .onChange(of: appState.playerKeyboardShortcutsActive) { _, active in
                 PlayerKeyboardShortcutBroker.shared.setActive(active)

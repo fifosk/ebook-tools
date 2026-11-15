@@ -65,12 +65,6 @@ final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
     }
 
     func pause() {
-        #if DEBUG
-        if let player, player.timeControlStatus == .playing || player.rate > 0 {
-            playbackTransportDebugLog("[DevicePlayback] video pause time=\(currentTime)")
-        }
-        didLogPlaybackProgress = false
-        #endif
         player?.pause()
     }
 
@@ -169,6 +163,14 @@ final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
         timeControlObservation = player.observe(\.timeControlStatus, options: [.new, .initial]) { [weak self] player, _ in
             guard let self else { return }
             Task { @MainActor in
+                guard self.player === player else { return }
+                #if DEBUG
+                // AVKit's native controls act on the AVPlayer directly.
+                if player.timeControlStatus == .paused, self.didLogPlaybackProgress {
+                    self.didLogPlaybackProgress = false
+                    playbackTransportDebugLog("[DevicePlayback] video pause time=\(self.currentTime)")
+                }
+                #endif
                 self.isPlaying = player.timeControlStatus == .playing
             }
         }
@@ -184,6 +186,7 @@ final class VideoPlayerCoordinator: ObservableObject, PlayerCoordinating {
         ) { [weak self] time in
             guard let self else { return }
             Task { @MainActor in
+                guard self.player === player else { return }
                 #if DEBUG
                 if !self.didLogPlaybackProgress,
                    player.timeControlStatus == .playing, !player.isMuted, player.volume > 0,

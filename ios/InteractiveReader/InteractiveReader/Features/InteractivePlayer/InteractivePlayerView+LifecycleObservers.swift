@@ -104,6 +104,7 @@ extension InteractivePlayerView {
     }
 
     private func handlePlayerAppear() {
+        playbackTransportDebugLog("[DevicePlayback] interactive reader opened")
         appState.playerKeyboardShortcutsActive = true
         #if os(iOS)
         if isPad {
